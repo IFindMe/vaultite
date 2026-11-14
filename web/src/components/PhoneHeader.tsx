@@ -30,7 +30,7 @@ export function PhoneHeader({ title, tab }: { title: string; tab: Tab }) {
   const row = useSides()
   return (
     <header data-phone-header className="sight-top glass-strong fixed inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)] md:hidden">
-      <div ref={row} className="relative grid h-11 grid-cols-[1fr_minmax(0,auto)_1fr] items-center px-1">
+      <div ref={row} className="relative grid h-11 grid-cols-[1fr_minmax(0,auto)_1fr] items-center px-1 transition-opacity duration-200">
         {ps.length > 1 && <PaneDots ids={ps.map((p) => p.id)} at={at} tabs={swipe === "tabs"} alone={inSight} />}
         <div className="flex min-w-(--side) items-center">
           <div data-side className="flex w-max items-center">
