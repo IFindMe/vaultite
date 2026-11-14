@@ -7,6 +7,7 @@ import { AUTO_RULES, NEVER_READ, NEVER_RUN, readableDirs } from "./reach.ts"
 import { anchorsOf, inPicture, inSummoned, type Lane, screenNear, SUMMONED_PROMPT, summonedLane } from "./summoned.ts"
 import { exchanges, talkSoFar } from "./conversation.ts"
 import { sitesOf } from "./guides.ts"
+import { loginsText, SignedIn } from "./logins.ts"
 import { type ChatTool, chat, onChat, ALLOWED, apiCtx, toolsFor } from "./chat.ts"
 import { plugin } from "./self.ts"
 import type { Moment } from "./types.ts"
@@ -87,6 +88,7 @@ export const lane = (): Lane => {
       keepSaid(putNote({ kind: "say", agent: name, text, ...(a?.path ? { path: a.path, line: a.line } : {}), ...(answers ? { answers } : {}) }, sayMs(text))) },
   })
   laneOf = { vault: plugin.vault, lane: l }
+  setTimeout(browserLogins, 20_000).unref?.()
   return l
 }
 
@@ -106,12 +108,21 @@ export function nowNote() {
   const now = at ? plugin.vault.entries.get(at)?.item : null
   return at && now ? { path: at, body: String(now.body ?? "").trim() } : null
 }
+const LOGINS_KEPT_MS = 10 * 60_000
+let logins = { text: "", at: 0 }
+export function browserLogins() {
+  if (Date.now() - logins.at > LOGINS_KEPT_MS) {
+    logins = { ...logins, at: Date.now() }
+    void plugin.runOp("web-viewer.sites", {}).then((r) => { const cs = SignedIn.safeParse(r.result).data; if (cs) logins = { text: loginsText(cs), at: Date.now() } }, () => { logins = { ...logins, at: 0 } })
+  }
+  return logins.text
+}
 function talkBefore(t: number) {
   const days = [...new Set([localDate(t - 86_400_000), localDate(t)])]
   const xs = days.flatMap((d) => exchanges(log.read(d), acts.read(d), [], ownName())).filter((e) => e.t < t && t - e.t < 86_400_000)
   const body = String((plugin.vault.has("me") ? plugin.vault.get("me", "me") : null)?.body ?? "").trim()
   const now = nowNote()
   return { me: body.length > ME_CHARS ? `${body.slice(0, ME_CHARS)}…` : body,
-    now: now?.body ? { path: now.path, body: now.body.length > NOW_CHARS ? `${now.body.slice(0, NOW_CHARS)}…` : now.body } : null, said: talkSoFar(xs, t) }
+    now: now?.body ? { path: now.path, body: now.body.length > NOW_CHARS ? `${now.body.slice(0, NOW_CHARS)}…` : now.body } : null, said: talkSoFar(xs, t), logins: browserLogins() }
 }
 const ME_CHARS = 5000, NOW_CHARS = 3000

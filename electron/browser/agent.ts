@@ -665,6 +665,8 @@ handle("agents:access", (_win, map, where) => {
   access = next
   home = typeof where === "string" && next.get(where) === "act" ? where : [...next].find(([, v]) => v === "act")?.[0] ?? ""
 })
+export const agentContainers = () => [...access].flatMap(([profile, a]) => (mayOpen(profile) ? [{ profile, access: a, home: profile === home }] : []))
+  .sort((x, y) => Number(y.home) - Number(x.home))
 export function helped(id: number) {
   if (!asks.delete(id)) return
   holdId(id)

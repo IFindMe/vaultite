@@ -1,3 +1,4 @@
+import { z } from "zod"
 import type { Any, VaultTest } from "./harness.ts"
 
 export default async ($: VaultTest) => {
@@ -48,6 +49,24 @@ export default async ($: VaultTest) => {
   check("the blocked elements note moves into the Browser's list, as it was, the note to the trash",
     !exists("Blocked elements.md") && read(LIST) === "## youtube.com\n\n- `youtube.com##ytd-reel-shelf-renderer` Shorts\n", exists(LIST) ? read(LIST) : null)
   await vault.sync()
+
+  {
+    const wv = (await import("../../../plugins/core/web-viewer/plugin.ts")).plugin, was = wv.desktopWaiting
+    wv.desktopWaiting = async (_ms: number, name: string) => {
+      if (name !== "agent:sites") throw new Error("no such call")
+      return [{ container: "agents", access: "act", home: true, sites: [{ site: "cloudflare.com", account: "alice@example.com" }, { site: "google.com", with: ["youtube.com"] }] },
+        { container: "work", access: "read", home: false, sites: [{ site: "github.com", account: "alicepark" }] }]
+    }
+    try {
+      const sites = async (params: { site?: string }) => { const r = await app.runOp("web-viewer.sites", params); return { text: String(r.op.text?.(r.result, r.params)), result: z.array(z.object({ container: z.string() })).parse(r.result) } }
+      const all = await sites({}), one = await sites({ site: "https://www.youtube.com/feed" }), none = await sites({ site: "example.org" })
+      check("browser sites: each container agents may use, its signed-in sites and accounts, the one open uses first",
+        all.text.includes("--container agents") && all.text.includes("cloudflare.com  as alice@example.com") && all.text.includes("google.com (with youtube.com)") &&
+        all.text.includes("read only") && all.text.indexOf("cloudflare.com") < all.text.indexOf("github.com"), all.text)
+      check("browser sites: a site asked for by any address finds the login that covers it, else says none",
+        JSON.stringify(one.result.map((c) => c.container)) === '["agents"]' && /no site that matches/.test(none.text), [one, none])
+    } finally { wv.desktopWaiting = was }
+  }
 
   let [, r] = await api("POST", "ops/web-viewer.block", { rule: "#related", site: "www.youtube.com" })
   check("browser block adds to the list, under its site", r.added && r.path === LIST && read(LIST).includes("- `youtube.com##ytd-reel-shelf-renderer` Shorts\n- `youtube.com###related`\n"), [r, read(LIST)])

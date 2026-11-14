@@ -1,5 +1,6 @@
 import { app, safeStorage, type Session } from "electron"
 import { handle, mayOpen } from "./browser/engine.ts"
+import { agentContainers, serve } from "./browser/agent.ts"
 import { newKeys, open as openSealed, seal } from "./browser/sealed.ts"
 import { ACCOUNTS, type Who } from "./siteaccounts.ts"
 import fs from "node:fs"
@@ -107,6 +108,10 @@ handle("remote:sites", async (_win, profiles) => {
   }
   return out
 })
+serve("agent:sites", async () => Promise.all(agentContainers().map(async (c) => ({
+  container: c.profile.startsWith("c-") ? c.profile.slice(2) : null, access: c.access, home: c.home,
+  sites: (await sitesOf(c.profile)).filter((s) => s.signed).map((s) => ({ site: s.site, account: s.account, with: s.with })),
+}))))
 handle("remote:take", async (_win, to, sealed) => {
   const prof = profileOf(to)
   const { data, from } = openSealed(keysForSealing(), str(sealed).slice(0, 4 << 20), sealedFor(prof))

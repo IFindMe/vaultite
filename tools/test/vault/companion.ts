@@ -31,6 +31,15 @@ export default async ($: VaultTest) => {
   // (its rounds only when a check runs one: the minute's would end the made-up sessions, whose terminals never run, as a
   // slower machine's test reaches them)
   clearInterval(cChatturns.watchdog)
+  {
+    const { loginsText } = await import("../../../plugins/core/companion/logins.ts")
+    const { SUMMONED_PROMPT } = await import("../../../plugins/core/companion/summoned.ts")
+    check("companion: a fresh session is told where the agents' browser is signed in, and to read a dashboard there when a CLI has no login",
+      loginsText([{ name: "Agents", container: "agents", home: true, sites: [{ site: "cloudflare.com", account: "alice@example.com" }] },
+        { name: "Work", container: "work", home: false, sites: [{ site: "github.com" }] }, { name: "Empty", container: "e", home: false, sites: [] }])
+        === "Agents: cloudflare.com as alice@example.com; Work (--container work): github.com" &&
+      /no login here[^.]*is no dead end/.test(SUMMONED_PROMPT) && SUMMONED_PROMPT.includes("vau browser sites"))
+  }
   check("companion: text found nearest the line it was said to be on", cText.nearest("a\nx\nb\nx\n", "x", 4) === 6 && cText.nearest("a\nx\nb\nx\n", "x") === 2 && cText.nearest("abc", "z") === -1)
   check("companion: an edit replaces found text, or adds lines after a line, at the top or at the end",
     cEdits.editText("a\nb\n", { find: "b", text: "B" }) === "a\nB\n" && cEdits.editText("a\nb\n", { line: 1, text: "x" }) === "a\nx\nb\n" &&

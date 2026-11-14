@@ -68,6 +68,34 @@ The browser is the desktop app's attached to this server; a server without one a
     : "No web pages open.",
 })
 
+type Sites = { container: string | null; access: "read" | "act"; home: boolean; sites: { site: string; account?: string; with?: string[] }[] }[]
+const NAMED = z.array(z.object({ id: z.string(), name: z.string().catch("") }).catch({ id: "", name: "" })).catch([])
+const containerName = (id: string | null) => (id === null ? "Default" : NAMED.parse(plugin.settings().containers).find((c) => c.id === id)?.name || id)
+plugin.op({
+  id: "web-viewer.sites",
+  cli: "browser sites",
+  mcp: "browser_sites",
+  summary: "The sites the agents' browser is signed in to, as whom, in each container agents may use: a dashboard to read when a CLI has no login.",
+  help: `Read from the browser's own logins (its cookies and each site's account), never a list kept by hand. The first
+container is the one browser open uses; open a site signed in elsewhere with --container <id>. A CLI with no login
+here (wrangler, gh, gcloud...) is no dead end: open the site's dashboard (dash.cloudflare.com, github.com/<owner>/<repo>/actions)
+and read it, changing nothing there unless the user asked for that change.
+
+  vau browser sites
+  vau browser sites --site cloudflare.com`,
+  kind: "read",
+  params: { site: { type: "string", description: "only this site (cloudflare.com): which containers are signed in to it" } },
+  run: async (p) => {
+    const all = await ask<Sites>("agent:sites"), want = p.site?.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
+    const has = (s: Sites[number]["sites"][number]) => !want || [s.site, ...(s.with ?? [])].some((n) => want === n || want.endsWith(`.${n}`))
+    return all.map((c) => ({ ...c, name: containerName(c.container), sites: c.sites.filter(has) })).filter((c) => !want || c.sites.length)
+  },
+  text: (cs: (Sites[number] & { name: string })[]) => cs.length
+    ? cs.map((c) => `${c.name}${c.container ? ` (--container ${c.container})` : ""}, agents ${c.access === "act" ? "read and act" : "read only"}${c.home ? ", where browser open goes" : ""}:\n`
+      + (c.sites.length ? c.sites.map((s) => `  ${s.site}${s.with?.length ? ` (with ${s.with.join(", ")})` : ""}${s.account ? `  as ${s.account}` : ""}`).join("\n") : "  signed in nowhere")).join("\n")
+    : "The agents' browser is signed in to no site that matches.",
+})
+
 plugin.op({
   id: "web-viewer.open",
   cli: "browser open",

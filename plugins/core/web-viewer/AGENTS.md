@@ -15,10 +15,13 @@ the vault. On the web and phones a web tab links out instead.
   opens stays in its container.
 - Agents: `vau browser ...` and the MCP tools `browser_open`, `browser_tabs`, `browser_snapshot`, `browser_act`,
   `browser_run`, `browser_navigate`, `browser_read`, `browser_wait`, `browser_screenshot`, `browser_pdf`,
-  `browser_evaluate`, `browser_download`, `browser_ask_user`, `browser_login`, `browser_close`. Read
+  `browser_evaluate`, `browser_download`, `browser_ask_user`, `browser_login`, `browser_close`, `browser_sites`. Read
   `vau docs browsing` first.
   - The browser is the desktop app attached to this server. A server without one passes each call to an always-on
     machine in Machines that has one (its tab numbers, its Downloads), never to a laptop's app, and says when none has.
+  - `vau browser sites`: the sites it's signed in to, as whom, per container agents may use (from its own cookies and
+    accounts). A CLI with no login (wrangler, gh) is no dead end there: read that site's dashboard instead, read-only
+    unless the user asked for a change.
   - `vau browser open <url> --task "<task>"` (`--summary`) opens your own page in the background, in the Agents
     container, never a tab of the user's, answering its number, content and refs once it has drawn. It's laid out at
     1280x800 and 100% zoom wherever it's shown. What it opens is yours too. `close` closes only agents' pages.
