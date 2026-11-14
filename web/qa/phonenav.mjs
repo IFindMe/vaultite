@@ -1,7 +1,7 @@
 // Phone navigation at iPhone size (real touches through CDP): the drawer by its button and the edge swipe, a note from
 // its file tree, the bar's Back and Forward (core/motion.ts), a link in a note and Back to where it was scrolled, the
 // bar's Search to a result, Settings and back, the tab list; on every screen nothing is wider than the phone and every
-// target is 44px. WRITES Qa nav/ (two notes): throwaway server only.
+// target is 44px; the bars hide on scrolling down (core/barhide.ts). WRITES Qa nav/ (two notes): throwaway server only.
 //   node web/qa/phonenav.mjs <base url> <vault path> [out dir]
 import { mkdirSync } from "node:fs"
 import { apiAt, fingers, qa, until } from "./lib/qa.mjs"
@@ -217,6 +217,27 @@ try {
   await screen("a new tab", [BAR, HEAD])
   await page.locator("[data-bar=back]").tap()
   check("Back from a blank tab: the note it came from", !!(await until(() => shown(LONG), 3000)), await hash())
+
+  await idle()
+  const away = (want) => until(() => page.evaluate((w) => document.documentElement.hasAttribute("data-bars-away") === w, want), 2000).then(Boolean)
+  const wheel = async (dy) => { await page.mouse.move(200, 420); for (let i = 0; i < 4; i++) await page.mouse.wheel(0, dy / 4) }
+  const pill = await page.locator("[data-phone-bar]").boundingBox()
+  check("Back's tap and the place it restores leave the bars shown", await away(false))
+  check("the bar floats clear of the screen's sides and bottom", pill.x >= 8 && pill.x + pill.width <= 382 && pill.y + pill.height < 844, pill)
+  await page.evaluate(() => scrollTo(0, 0))
+  check("at the top the header and bar show", await away(false))
+  await wheel(400)
+  check("scrolling down puts the header and bar away", await away(true))
+  check("...the bar off the screen, the header's row gone", !!(await until(() => page.evaluate(() =>
+    document.querySelector("[data-phone-bar]").getBoundingClientRect().top >= innerHeight && document.querySelector("[data-phone-header]").getBoundingClientRect().bottom <= 1), 2000)))
+  await shot("7-bars-away")
+  await wheel(-60)
+  check("scrolling back up a little brings them back", await away(false))
+  await wheel(400); await away(true)
+  await page.touchscreen.tap(380, 420)
+  check("a tap brings them back", await away(false))
+  await page.evaluate(() => scrollTo(0, 900))
+  check("a jump the app makes leaves them shown", !(await away(true)))
 } catch (e) { check("ran to the end", false, String(e).slice(0, 400)) } finally {
   await ctx.close()
   await done()

@@ -88,7 +88,7 @@ export const LIFT_RADIUS = 28
 export function pageRect() {
   const top = document.querySelector<HTMLElement>("[data-phone-header]")?.offsetHeight ?? 0
   const bar = document.querySelector<HTMLElement>("[data-phone-bar]")
-  const bottom = bar ? innerHeight - bar.offsetHeight : innerHeight
+  const bottom = bar ? bar.offsetTop : innerHeight
   return new DOMRect(0, top, innerWidth, Math.max(1, bottom - top))
 }
 function pageShape() {

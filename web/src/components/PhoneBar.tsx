@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 
 type Item = "back" | "forward" | "new" | "tabs" | "menu"
 const BAR: Item[] = ["back", "forward", "new", "tabs", "menu"]
-const slot = "flex h-11 min-w-0 flex-1 items-center justify-center rounded-[12px] transition-colors"
+const slot = "flex h-11 min-w-0 flex-1 items-center justify-center rounded-full transition-colors"
 const idle = "text-muted-foreground active:bg-foreground/[0.06]"
 const lit = "bg-foreground/[0.08] text-primary"
 
@@ -114,8 +114,8 @@ export function PhoneBar({ system, active, listOpen, onSearch, onCommands, onNew
         </>
       )}
       <nav ref={nav} data-phone-bar aria-label="Navigation" style={{ viewTransitionName: listOpen ? undefined : "phone-bar", touchAction: "none" }}
-        className="sight-foot glass-strong fixed inset-x-0 bottom-0 z-30 px-2 pt-1 pb-[max(env(safe-area-inset-bottom),0.25rem)] md:hidden">
-        <div className="mx-auto flex max-w-md items-stretch gap-0.5">{BAR.map(button)}</div>
+        className="sight-foot glass-strong fixed inset-x-3 bottom-[max(calc(env(safe-area-inset-bottom)-0.75rem),0.5rem)] z-30 mx-auto max-w-md rounded-full p-0.5 md:hidden">
+        <div className="flex items-stretch gap-0.5">{BAR.map(button)}</div>
       </nav>
     </>
   )

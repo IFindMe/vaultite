@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- iPhone: the header and the bottom bar step out of the way while you scroll down a page and come back when you scroll
+  up or tap; the bottom bar floats as a rounded bar, and the header stays in place while the keyboard is up.
+
 ## 0.14.0 (2026-11-14)
 
 Research arrives: a layout for academics with References, Zotero and citations, and a web demo of its own. Settings are

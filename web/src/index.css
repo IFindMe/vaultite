@@ -317,6 +317,16 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 :root[data-keyboard] { --toast-floor: calc(var(--keyboard-cover) + 0.5rem); }
 :root[data-keyboard] [data-phone-bar] { transform: translateY(100%); opacity: 0; pointer-events: none; }
 [data-phone-bar] { transition: transform 160ms ease, opacity 160ms ease; }
+/* Scrolling down a page puts the header and the bar away (core/barhide.ts), as iOS apps do: the header keeps the status
+   bar's strip, the bar drops below the screen. A scroll up, a tap, the page's top or end, or another place brings them
+   back; only the user's own scrolling counts, never a place restored. With the keyboard up iOS pans the screen to the
+   caret, taking fixed things with it: the header follows what's seen (core/sight.ts: markKeyboard). */
+[data-phone-header] { transition: transform 280ms cubic-bezier(.32, .72, 0, 1); }
+[data-phone-header] > div { transition: opacity 200ms ease; }
+:root[data-bars-away]:not([data-keyboard]) [data-phone-header] { transform: translateY(-2.75rem); }
+:root[data-bars-away]:not([data-keyboard]) [data-phone-header] > div { opacity: 0; pointer-events: none; }
+:root[data-bars-away] [data-phone-bar] { transform: translateY(calc(100% + 2.5rem)); opacity: 0; pointer-events: none; transition-duration: 280ms; }
+@media (prefers-reduced-motion: reduce) { [data-phone-header], [data-phone-bar] { transition-property: opacity; } }
 .pb-safe { padding-bottom: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar) + 1.5rem); }
 @media (min-width: 768px) { .pb-safe { padding-bottom: calc(3rem + var(--mini-player) + var(--trial-bar)); } }
 /* Phones: the screen between the header (3.5rem) and the bar, for what fills it (a canvas, a terminal). */

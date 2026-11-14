@@ -134,6 +134,8 @@ export function markKeyboard() {
     root.toggleAttribute("data-keyboard", up)
     const bar = document.querySelector("[data-key-bar]")?.getBoundingClientRect().height ?? 0
     root.style.setProperty("--keyboard-cover", up ? `${Math.max(0, innerHeight - vv.offsetTop - vv.height) + bar}px` : "0px")
+    const header = document.querySelector<HTMLElement>("[data-phone-header]")
+    if (header) header.style.translate = up && vv.offsetTop > 0 ? `0 ${vv.offsetTop}px` : ""
   }
   const soon = () => { cancelAnimationFrame(frame); clearTimeout(later); frame = requestAnimationFrame(read); later = window.setTimeout(read, 300) }
   vv.addEventListener("resize", soon); vv.addEventListener("scroll", soon)
@@ -144,5 +146,6 @@ export function markKeyboard() {
     vv.removeEventListener("resize", soon); vv.removeEventListener("scroll", soon)
     document.removeEventListener("focusin", soon); document.removeEventListener("focusout", soon)
     root.removeAttribute("data-keyboard"); root.style.removeProperty("--keyboard-cover")
+    document.querySelector<HTMLElement>("[data-phone-header]")?.style.removeProperty("translate")
   }
 }

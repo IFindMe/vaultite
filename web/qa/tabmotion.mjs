@@ -79,7 +79,7 @@ const stem = (p) => p.split("/").pop().replace(/\.md$/, "")
 const stepped = (dir) => P.evaluate(async (dir) => {
   const out = []
   const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height } }
-  const page = (() => { const t = document.querySelector("[data-phone-header]").offsetHeight; return { l: 0, t, w: innerWidth, h: innerHeight - document.querySelector("[data-phone-bar]").offsetHeight - t } })()
+  const page = (() => { const t = document.querySelector("[data-phone-header]").offsetHeight; return { l: 0, t, w: innerWidth, h: document.querySelector("[data-phone-bar]").offsetTop - t } })()
   for (const f of [0, 0.1, 0.25, 0.5, 0.75, 1]) {
     for (const a of window.__held) { const t = a.effect.getComputedTiming(); a.currentTime = f * (t.delay + t.duration) }
     const win = document.querySelector("[data-tab-hero] [data-hero-window]"), pic = win?.querySelector("img, span")

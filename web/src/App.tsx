@@ -14,6 +14,7 @@ import { canKeepOnTop, keepOnTop, onTop } from "@/core/ontop"
 import { otherVaults } from "@/core/desktopapp"
 import { peekPanel, peekRider, usePeek, usePeekLights, useSideMotion } from "@/core/peek"
 import { useBarFade } from "@/core/barfade"
+import { hideBarsOnUserScroll } from "@/core/barhide"
 import { keepTypingInSight, markKeyboard } from "@/core/sight"
 import { phoneApp, takeLinks } from "@/core/phoneapp"
 import { GrantAsker } from "@/components/GrantAsker"
@@ -499,7 +500,7 @@ export default function App() {
   const leftIn = usePeekLights(hideLeft, peek)
   const leftMotion = useSideMotion(hideLeft, leftIn), rightMotion = useSideMotion(hideRight, peek === "right")
   useBarFade(desktop && fileBarFade)
-  useEffect(() => { const a = keepTypingInSight(), b = markKeyboard(); return () => { a(); b() } }, [])
+  useEffect(() => { const a = keepTypingInSight(), b = markKeyboard(), c = desktop ? null : hideBarsOnUserScroll(); return () => { a(); b(); c?.() } }, [desktop])
   useLayoutEffect(() => setRoom(desktop ? side : "0px", desktop ? rside : "0px"), [side, rside, desktop])
   useLayoutEffect(() => { setOpenWidth("left", sidebarPx(sidebarWidth)); setOpenWidth("right", sidebarPx(rightSidebarWidth)) }, [sidebarWidth, rightSidebarWidth])
   // Data attributes, not body:has(aside...) in CSS: :has made every DOM change recalc styles 4x.
