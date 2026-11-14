@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react"
 import type { LucideIcon } from "lucide-react"
 import { onAway } from "@/core/away"
+import { getDrag } from "@/core/drag"
 import { haptic } from "@/core/haptics"
 import { selecting } from "@/core/select"
 import { cn } from "@/lib/utils"
@@ -90,6 +91,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
     const mx = e.clientX - s.x, my = e.clientY - s.y
     if (!s.axis) {
       if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) {
+        if (getDrag() || document.querySelector("[role=menu]")) { s.axis = "pass"; return }
         if (!s.from && Math.sign(mx) !== way.current) { s.axis = "pass"; return }
         if (!s.from && behind) {
           s.room = own.current?.scrollWidth ?? 0
@@ -130,7 +132,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
   }
 
   return (
-    <div {...rest} ref={box} className={cn("relative overflow-hidden", className)} style={{ touchAction: "pan-y" }}
+    <div {...rest} ref={box} data-swipe-row={actions || behind ? "" : undefined} className={cn("relative overflow-hidden", className)} style={{ touchAction: "pan-y" }}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       onClickCapture={(e) => {
         if (under.current?.contains(nodeOf(e.target))) return

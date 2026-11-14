@@ -339,7 +339,12 @@ function pickUp(e: React.PointerEvent<HTMLElement> | PointerEvent, item: DragIte
     if (!t) return
     const far = Math.hypot(t.clientX - from.x, t.clientY - from.y) > 10
     if (!picked) { if (far) stop(false); return }
-    if (!end) { if (!far) return; end = lift(item, true) }
+    if (!end) {
+      if (!far) return
+      const sidewaysOffSwipeRow = Math.abs(t.clientX - from.x) > Math.abs(t.clientY - from.y) && !!elementOf(ev.target)?.closest("[data-swipe-row]")
+      if (sidewaysOffSwipeRow) { stop(false); return }
+      end = lift(item, true)
+    }
     setDrag({ item, x: t.clientX, y: t.clientY, hit: hitAt(item, t.clientX, t.clientY), finger: true })
   }
   const stop = (drop: boolean) => {

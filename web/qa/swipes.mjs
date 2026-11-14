@@ -1,4 +1,4 @@
-// A phone's swipes (components/SwipeRow.tsx) with real touches at 390px: the drawer's headings and pins, Inbox rows,
+// A phone's swipes (components/SwipeRow.tsx, core/drag.ts) with real touches at 390px: the drawer's headings and pins, Inbox rows,
 // the new tab; a computer keeps its buttons. WRITES sidebars, newtab, pages.json (put back), the Inbox: throwaway.
 //   node web/qa/swipes.mjs <base url> [shots dir]
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -56,6 +56,25 @@ const status = async (title) => (await api("GET", "inbox")).find((r) => r.title 
   await swipe(page.locator(`${D} [data-panel-handle][data-heading=Buttons]`), 200)
   check("Buttons' heading swiped: Add a button", await page.locator(`${D} [data-swipe-under] button[aria-label='Add a button']`).isVisible().catch(() => false))
   await page.locator(`${D} [data-panel-handle][data-heading=Buttons]`).tap(); await ui.idle()
+
+  const heldSwipe = async (loc, name) => {
+    if (!(await page.locator(D).isVisible().catch(() => false))) await drawer()
+    await loc.scrollIntoViewIfNeeded(); await ui.idle()
+    const b = await loc.boundingBox(), y = b.y + b.height / 2
+    await touch("touchStart", b.x + 30, y); await page.waitForSelector("[role=menu]")
+    for (let i = 1; i <= 12; i++) { await touch("touchMove", b.x + 30 + i * 12, y + 1); await page.evaluate(() => new Promise(requestAnimationFrame)) }
+    const seen = await page.evaluate(() => ({ menu: !!document.querySelector("[role=menu]"), ghost: !!document.querySelector("[data-drag-ghost]"),
+      buttons: [...document.querySelectorAll("[data-phone-drawer] [data-swipe-under]")].some((u) => u.getBoundingClientRect().width > 20 && u.querySelector("button")) }))
+    await page.screenshot({ path: `${OUT}held-${name}.png` })
+    await touch("touchEnd"); await ui.idle()
+    await page.mouse.click(380, 10); await ui.idle()
+    if (!(await page.locator(D).isVisible().catch(() => false))) await drawer()
+    return seen
+  }
+  if (pinned.length) {
+    const pin = await heldSwipe(page.locator(`${D} [data-pin='${pinned[0]}']`), "pin")
+    check("a pin held, then moved sideways: its menu stays, nothing lifted or swiped", pin.menu && !pin.ghost && !pin.buttons, pin)
+  }
 
   // A pinned page: Unpin.
   if (pinned.length) {

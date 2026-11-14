@@ -8,6 +8,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 - iPhone: the header and the bottom bar step out of the way while you scroll down a page and come back when you scroll
   up or tap; the bottom bar floats as a rounded bar, and the header stays in place while the keyboard is up.
+- Phone: a scroll up that carries on past the top brings the pull-down actions, and a finger resting on a sidebar row
+  before swiping no longer lifts a copy of it sliding with nothing behind it.
 
 ## 0.14.0 (2026-11-14)
 

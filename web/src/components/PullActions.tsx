@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import { Command as CommandIcon } from "lucide-react"
 import { available, runCommandById, useCommandList, type Command } from "@/core/commands"
 import { fingerHolding } from "@/core/drag"
@@ -32,64 +33,89 @@ function moveTo(dy: number, ms = 0) {
 const busy = (t: EventTarget | null) =>
   !!closestOf(t, "dialog, [data-phone-drawer], [data-phone-bar], .phone-fill, [data-keeps-touch], input, textarea")
 
+function scrollerUnder(t: EventTarget | null) {
+  for (let el = t instanceof HTMLElement ? t : null; el && el !== document.body; el = el.parentElement) {
+    if (el.scrollHeight <= el.clientHeight + 1) continue
+    const o = getComputedStyle(el).overflowY
+    if (o === "auto" || o === "scroll") return el
+  }
+  return null
+}
+const scrolledBy = (sc: HTMLElement | null) => (sc ? sc.scrollTop : scrollY)
+
 type Pull = { dy: number; pick: Slot; ready: boolean; gone?: "ran" | "let" }
+
+type Finger = { x: number; y: number; last: number; dy: number; pick: Slot; on: boolean; ready: number; armed: boolean; sc: HTMLElement | null }
+
+function pulling(p: Finger, t: Touch): boolean | "no" {
+  const down = t.clientY >= p.last
+  p.last = t.clientY
+  if (!p.armed) {
+    if (scrolledBy(p.sc) <= 0 && down) { p.armed = true; p.x = t.clientX; p.y = t.clientY }
+    return false
+  }
+  if (p.on) return true
+  const dy = t.clientY - p.y
+  if (scrolledBy(p.sc) > 0 || Math.abs(t.clientX - p.x) > Math.abs(dy) + 4 || dy < -4) return "no"
+  return (p.on = dy >= 12)
+}
+
+function watchPulls(show: (p: Pull) => void, slots: () => (Command | null)[]) {
+  let g: Finger | null = null, scrolled = -Infinity, was = scrollY
+  const scroll = (e: Event) => { if (was > 0 || scrollY > 0) scrolled = e.timeStamp; was = scrollY }
+  const start = (e: TouchEvent) => {
+    g = null
+    if (e.touches.length !== 1 || busy(e.target) || document.querySelector("dialog[open]")) return
+    const t = e.touches[0], sc = scrollerUnder(e.target)
+    g = { x: t.clientX, y: t.clientY, last: t.clientY, dy: 0, pick: 1, on: false, ready: 0, armed: scrolledBy(sc) <= 0 && e.timeStamp - scrolled >= SETTLE, sc }
+  }
+  const move = (e: TouchEvent) => {
+    const p = g
+    if (!p) return
+    if (fingerHolding()) { g = null; return }
+    const t = e.touches[0], on = pulling(p, t)
+    if (on === "no") { g = null; return }
+    if (!on) return
+    const dy = Math.max(0, t.clientY - p.y), dx = t.clientX - p.x
+    const pick: Slot = dx < -SIDE ? 0 : dx > SIDE ? 2 : 1
+    const ready = dy >= FAR, wasReady = p.dy >= FAR
+    if (ready !== wasReady || (ready && pick !== p.pick)) haptic("selection")
+    if (ready && (!wasReady || pick !== p.pick)) p.ready = e.timeStamp
+    p.dy = dy
+    p.pick = pick
+    show({ dy, pick, ready })
+    moveTo(dy)
+  }
+  const end = (e: TouchEvent) => {
+    const p = g
+    g = null
+    if (!p?.on) return
+    moveTo(0, 280)
+    const c = slots()[p.pick], ran = p.dy >= FAR && !!c && e.timeStamp - p.ready >= HELD
+    show({ dy: p.dy, pick: p.pick, ready: p.dy >= FAR, gone: ran ? "ran" : "let" })
+    if (ran) { haptic(); runCommandById(c.id) }
+  }
+  addEventListener("scroll", scroll, { passive: true })
+  addEventListener("touchstart", start, { passive: true })
+  addEventListener("touchmove", move, { passive: true })
+  addEventListener("touchend", end)
+  addEventListener("touchcancel", end)
+  return () => {
+    removeEventListener("scroll", scroll)
+    removeEventListener("touchstart", start); removeEventListener("touchmove", move)
+    removeEventListener("touchend", end); removeEventListener("touchcancel", end)
+  }
+}
 
 export function PullActions() {
   const prefs = usePrefs()
   const byId = new Map(useCommandList().map((c) => [c.id, c]))
   const slots = pullActions(prefs).map((id) => { const c = byId.get(id); return c && available([c]).length ? c : null })
   const [pull, setPull] = useState<Pull | null>(null)
-  const g = useRef<{ x: number; y: number; dy: number; pick: Slot; on: boolean; ready: number } | null>(null)
   const slotsRef = useRef(slots)
   slotsRef.current = slots
   const box = useRef<HTMLDivElement>(null), disc = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    let scrolled = -Infinity, was = scrollY
-    const scroll = (e: Event) => { if (was > 0 || scrollY > 0) scrolled = e.timeStamp; was = scrollY }
-    const start = (e: TouchEvent) => {
-      g.current = null
-      if (e.touches.length !== 1 || scrollY > 0 || e.timeStamp - scrolled < SETTLE || busy(e.target) || document.querySelector("dialog[open]")) return
-      g.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dy: 0, pick: 1, on: false, ready: 0 }
-    }
-    const move = (e: TouchEvent) => {
-      const p = g.current
-      if (!p) return
-      if (fingerHolding()) { g.current = null; return }
-      const t = e.touches[0], dy = Math.max(0, t.clientY - p.y), dx = t.clientX - p.x
-      if (!p.on) {
-        if (scrollY > 0 || Math.abs(dx) > Math.abs(t.clientY - p.y) + 4 || t.clientY - p.y < -4) { g.current = null; return }
-        if (dy < 12) return
-        p.on = true
-      }
-      const pick: Slot = dx < -SIDE ? 0 : dx > SIDE ? 2 : 1
-      const ready = dy >= FAR, was = p.dy >= FAR
-      if (ready !== was || (ready && pick !== p.pick)) haptic("selection")
-      if (ready && (!was || pick !== p.pick)) p.ready = e.timeStamp
-      p.dy = dy
-      p.pick = pick
-      moveTo(dy)
-      setPull({ dy, pick, ready })
-    }
-    const end = (e: TouchEvent) => {
-      const p = g.current
-      g.current = null
-      if (!p?.on) return
-      moveTo(0, 280)
-      const c = slotsRef.current[p.pick], ran = p.dy >= FAR && !!c && e.timeStamp - p.ready >= HELD
-      setPull({ dy: p.dy, pick: p.pick, ready: p.dy >= FAR, gone: ran ? "ran" : "let" })
-      if (ran) { haptic(); runCommandById(c.id) }
-    }
-    addEventListener("scroll", scroll, { passive: true })
-    addEventListener("touchstart", start, { passive: true })
-    addEventListener("touchmove", move, { passive: true })
-    addEventListener("touchend", end)
-    addEventListener("touchcancel", end)
-    return () => {
-      removeEventListener("scroll", scroll)
-      removeEventListener("touchstart", start); removeEventListener("touchmove", move)
-      removeEventListener("touchend", end); removeEventListener("touchcancel", end)
-    }
-  }, [])
+  useEffect(() => watchPulls((p) => flushSync(() => setPull(p)), () => slotsRef.current), [])
   const gone = pull?.gone
   useLayoutEffect(() => {
     const el = box.current
