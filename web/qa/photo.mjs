@@ -1,4 +1,4 @@
-// Add photo (the editing plugin): from the palette, Insert ▸ Photo and /photo, saved in Attachments/ and embedded at
+// Add photo or video (the editing plugin): from the palette, Insert ▸ Photo and /photo, saved in Attachments/ and embedded at
 // the cursor; a phone's … menu. Writes Qa photo/ and images in Attachments/: throwaway only.
 //   node web/qa/photo.mjs <base url> [out dir]
 import { mkdirSync } from "node:fs"
@@ -18,7 +18,7 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 const img = (name, mimeType = "image/png") => ({ name, mimeType, buffer: PNG })
 
 for (const p of [DESK, PHONE]) await del(p)
-for (const p of await others()) if (/^Attachments\/(qa-photo|Pasted image \d)/.test(p)) await del(p)
+for (const p of await others()) if (/^Attachments\/(qa-photo|qa-clip|Pasted image \d)/.test(p)) await del(p)
 await put(DESK, "Before.\n\nAfter.\n")
 await put(PHONE, "A note read on a phone.\n")
 
@@ -48,7 +48,7 @@ await command(page, "Switch to live preview", 400) // (already in it: the view s
 
 await editLine(page, "Before.").click(); await page.keyboard.press("End"); await wait(150)
 const asked = await choose(page, () => addPhoto(page), [img("qa-photo-one.png")])
-check("Add photo (palette): an image picker, several at once", asked.accept === "image/*" && asked.multiple, asked)
+check("Add photo or video (palette): a picker for both, several at once", asked.accept === "image/*,video/*" && asked.multiple, asked)
 check("embedded at the cursor, on a line of its own", await until(async () => (await body(DESK)).startsWith("Before.\n![[qa-photo-one.png]]\n\nAfter."), 6000), await read(DESK))
 check("saved in Attachments/", (await others()).includes("Attachments/qa-photo-one.png"))
 check("the picker's input is gone once used", await until(async () => (await inputsLeft(page)) === 0, 6000))
@@ -83,11 +83,13 @@ page = await open({ viewport: { width: 390, height: 844 }, isMobile: true, hasTo
 await page.goto(`${B}#file/${enc(PHONE)}`); await wait(1800)
 await page.locator("header").getByRole("button", { name: "More" }).first().click(); await wait(400)
 const top = await page.locator("[role=menu]").first().locator(":scope > [role=menuitem]").allTextContents()
-check("phone: Add photo at the top of the note's … menu", top.some((t) => t.trim() === "Add photo"), top)
+check("phone: Add photo or video at the top of the note's … menu", top.some((t) => t.trim() === "Add photo or video"), top)
 await page.screenshot({ path: `${OUT}photo-phone-menu.png` })
-await choose(page, () => page.getByRole("menuitem", { name: "Add photo" }).click(), [img("image.jpg", "image/jpeg")])
+await choose(page, () => page.getByRole("menuitem", { name: "Add photo or video" }).click(), [img("image.jpg", "image/jpeg")])
 check("  reading: the photo goes at the note's end", await until(async () => /^A note read on a phone\.\n!\[\[Pasted image \d{14}[^\]]*\.jpg\]\]\n$/.test(await body(PHONE)), 6000), await read(PHONE))
-await wait(800)
+await page.locator("header").getByRole("button", { name: "More" }).first().click(); await page.locator("[role=menu]").first().waitFor()
+await choose(page, () => page.getByRole("menuitem", { name: "Add photo or video" }).click(), [{ name: "qa-clip.mov", mimeType: "video/quicktime", buffer: PNG }])
+check("  a video from the library: embedded too", await until(async () => (await body(PHONE)).endsWith("![[qa-clip.mov]]\n"), 6000), await read(PHONE))
 await page.screenshot({ path: `${OUT}photo-phone-note.png` })
 await page.context().close()
 await done()

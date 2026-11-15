@@ -40,11 +40,11 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Vaultite takes the photos you add to your notes.</string>
+	<string>Vaultite takes the photos and videos you add to your notes.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Vaultite keeps your sleep, workouts and daily activity from Apple Health as logs in your vault.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Vaultite records your voice notes for your inbox.</string>
+	<string>Vaultite records your voice notes for your inbox and the sound of videos you add to your notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Vaultite turns your voice notes into text, on this iPhone.</string>
 	<key>UIApplicationSceneManifest</key>

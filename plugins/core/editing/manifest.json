@@ -50,7 +50,7 @@
         "editor:set-heading-2": "Heading 2",
         "editor:set-heading-3": "Heading 3",
         "editor:toggle-blockquote": "Quote",
-        "editor:add-photo": "Photo"
+        "editor:add-photo": "Photo or video"
       },
       "default": [
         "editor:undo",

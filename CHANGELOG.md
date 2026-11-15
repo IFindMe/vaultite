@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Notes: Add photo is Add photo or video, so the iPhone's library offers videos too.
+
 - iPhone: the header and the bottom bar step out of the way while you scroll down a page and come back when you scroll
   up or tap; the bottom bar floats as a rounded bar, and the header stays in place while the keyboard is up.
 - Phone: a scroll up that carries on past the top brings the pull-down actions, and a finger resting on a sidebar row

@@ -26,7 +26,7 @@ const PARAGRAPH: (Entry | null)[] = [
 const INSERT: (Entry | null)[] = [
   ["editor:insert-footnote", "Footnote", Footprints], ["editor:insert-table", "Table", Table], ["editor:insert-callout", "Callout", MessageSquareQuote],
   ["editor:insert-horizontal-rule", "Horizontal rule", Minus], ["editor:insert-codeblock", "Code block", SquareCode],
-  ["editor:insert-mathblock", "Math block", SquareSigma], null, ["editor:add-photo", "Photo", ImagePlus],
+  ["editor:insert-mathblock", "Math block", SquareSigma], null, ["editor:add-photo", "Photo or video", ImagePlus],
 ]
 
 function command(view: EditorView, e: Entry | null, sep = false): MenuItem[] {

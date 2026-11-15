@@ -58,17 +58,17 @@ export default definePlugin({
     ...blocks.map(([id, name, text]) => ({ id: `editor:${id}`, name, when, run: run((e) => e.insertBlock(text)) })),
     { id: "editor:insert-footnote", name: "Insert footnote", when, run: run((e) => e.insertFootnote), icon: Superscript },
     // (not through `run`: the picker opens only while the tap or key is being handled)
-    { id: "editor:add-photo", name: "Add photo", when: () => !!activeFile(), run: () => { const f = activeFile(); if (f) void addPhotos(f.path) }, icon: ImagePlus },
+    { id: "editor:add-photo", name: "Add photo or video", when: () => !!activeFile(), run: () => { const f = activeFile(); if (f) void addPhotos(f.path) }, icon: ImagePlus },
     { id: "editor:paste-plain-text", name: "Paste as plain text", keys: ["Mod+Shift+V"], when, run: () => { const v = note(); if (v) void load().then((m) => m.pastePlain(v)).catch((e) => notifyError(e, "Couldn't read the clipboard")) }, icon: ClipboardPaste },
   ] satisfies PluginCommand[]).map((c) => ({ ...c, keysWhen: () => keysInEditor() })),
   slash: () => (!activeFile() ? [] : [{
-    id: "editor:add-photo", title: "Photo", section: "Media", keywords: "photo image picture camera library attachment upload",
-    detail: coarse() ? "Library or camera" : "Image file", line: true, icon: ImagePlus,
-    description: coarse() ? "A photo from your library or camera, kept with the note." : "An image file, kept with the note.",
+    id: "editor:add-photo", title: "Photo or video", section: "Media", keywords: "photo image picture video movie clip camera library attachment upload",
+    detail: coarse() ? "Library or camera" : "Image or video file", line: true, icon: ImagePlus,
+    description: coarse() ? "A photo or video from your library or camera, kept with the note." : "An image or video file, kept with the note.",
     run: (put) => { const f = activeFile(); if (f) return addPhotos(f.path, put) },
   }]),
   fileMenu: (path) => (/\.md$/i.test(path) && !path.startsWith(".")
-    ? [{ label: "Add photo", icon: ImagePlus, section: coarse() ? "actions" : "more", run: () => void addPhotos(path) }] : []),
+    ? [{ label: "Add photo or video", icon: ImagePlus, section: coarse() ? "actions" : "more", run: () => void addPhotos(path) }] : []),
   editor: () => { void load(); return import("./menu").then((m) => m.editorMenu) },
   background: () => <NoteKeys />,
 })

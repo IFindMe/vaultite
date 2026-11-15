@@ -1,9 +1,9 @@
 import { activeFile, dismissNotice, getStore, insertOnOwnLine, notify, notifyError, pasteAttachments, put, readFile, reload } from "@vaultite"
 
 /** Call it while the tap or key that asked is being handled: WebKit opens a picker for nothing else. */
-export function pickImages(): Promise<File[]> {
+export function pickMedia(): Promise<File[]> {
   const el = document.createElement("input")
-  Object.assign(el, { type: "file", accept: "image/*", multiple: true, hidden: true })
+  Object.assign(el, { type: "file", accept: "image/*,video/*", multiple: true, hidden: true })
   // (inside an open sheet when there is one: outside it the page is inert)
   ;(document.querySelector("dialog[open]") ?? document.body).appendChild(el)
   return new Promise((done) => {
@@ -15,11 +15,12 @@ export function pickImages(): Promise<File[]> {
 }
 
 export async function addPhotos(path: string, insert?: (text: string) => void) {
-  const files = await pickImages()
+  const files = await pickMedia()
   const s = getStore()
   if (!files.length || !s) return
   const id = "add-photo"
-  notify(files.length > 1 ? "Adding the photos…" : "Adding the photo…", { id, duration: Infinity })
+  const what = mediaNoun(files)
+  notify(`Adding the ${what}…`, { id, duration: Infinity })
   try {
     // (an iPhone camera names every shot "image.jpg")
     const embed = await pasteAttachments(s, path, files)
@@ -33,6 +34,13 @@ export async function addPhotos(path: string, insert?: (text: string) => void) {
     dismissNotice(id)
   } catch (e) {
     dismissNotice(id)
-    notifyError(e, files.length > 1 ? "Couldn't add the photos" : "Couldn't add the photo")
+    notifyError(e, `Couldn't add the ${what}`)
   }
+}
+
+function mediaNoun(files: File[]) {
+  const videos = files.filter((f) => f.type.startsWith("video/")).length, many = files.length > 1
+  if (!videos) return many ? "photos" : "photo"
+  if (videos === files.length) return many ? "videos" : "video"
+  return "photos and videos"
 }
