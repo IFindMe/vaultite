@@ -308,13 +308,13 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 /* Phones: the bar floats above the screen's foot (components/PhoneBar.tsx); --phone-bar is how high its top is. What sits
    above it (the page's end, a toast, the bar's menu) keeps clear of it with this. */
 :root { --phone-bar-gap: max(calc(env(safe-area-inset-bottom) - 0.75rem), 0.5rem); --phone-bar: calc(var(--phone-bar-gap) + 3rem);
-  --mini-player: 0px; --corner-cards: 0px; --trial-bar: 0px; --page-end: 1.5rem; }
+  --mini-player: 0px; --corner-cards: 0px; --trial-bar: 0px; --page-foot: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar)); }
 /* A bundle being tried (components/BundleTrial.tsx): its bar's height and a gap, which toasts sit above. */
 :root[data-trying] { --trial-bar: 44px; }
 @media (max-width: 767px) { :root[data-trying] { --trial-bar: 62px; } }
 /* The on-screen keyboard up (core/sight.ts: markKeyboard): the bar steps down out of the way, and toasts sit above the keys over
    the keyboard instead of over the bar. */
-:root { --toast-floor: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar) + 0.75rem); --keyboard-cover: 0px; }
+:root { --toast-floor: calc(var(--page-foot) + 0.75rem); --keyboard-cover: 0px; }
 :root[data-keyboard] { --toast-floor: calc(var(--keyboard-cover) + 0.5rem); }
 :root[data-keyboard] [data-phone-bar] { transform: translateY(100%); opacity: 0; visibility: hidden; pointer-events: none; }
 [data-phone-bar] { transition: transform 160ms ease, opacity 160ms ease; }
@@ -327,12 +327,11 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 [data-bars-away]:not([data-keyboard]) [data-phone-header] > div { opacity: 0; pointer-events: none; }
 [data-bars-away] [data-phone-bar] { transform: translateY(calc(100% + 2.5rem)); opacity: 0; pointer-events: none; transition-duration: 280ms; }
 @media (prefers-reduced-motion: reduce) { [data-phone-header], [data-phone-bar] { transition-property: opacity; } }
-.pb-safe { padding-bottom: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar) + var(--page-end)); }
+.pb-safe { padding-bottom: calc(var(--page-foot) + 1.5rem); }
 @media (min-width: 768px) { .pb-safe { padding-bottom: calc(3rem + var(--mini-player) + var(--trial-bar)); } }
 /* Phones: the screen between the header (3.5rem) and the bar and what sits on it, for what fills it (a canvas, a terminal);
-   it takes back the page's end room, so the page never scrolls under it. */
-.phone-fill { height: calc(100dvh - env(safe-area-inset-top) - 3.5rem - var(--phone-bar) - var(--mini-player) - var(--trial-bar));
-  margin-bottom: calc(-1 * var(--page-end)); }
+   it takes back .pb-safe's end room, so the page never scrolls under it. */
+.phone-fill { height: calc(100dvh - env(safe-area-inset-top) - 3.5rem - var(--page-foot)); margin-bottom: -1.5rem; }
 
 /* Metrics use SF Pro Rounded, like Health and Fitness. */
 .num { font-family: var(--font-rounded); font-variant-numeric: tabular-nums; }
