@@ -29,7 +29,7 @@ export function HeadingButton({ icon: Icon, label, tip = label, strokeWidth = 2.
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & Record<`data-${string}`, unknown>) {
   return (
     <button type="button" aria-label={label} data-tip={tip} {...rest}
-      className={cn("relative grid size-5 cursor-pointer place-items-center rounded-[4px] text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground max-md:before:absolute max-md:before:-inset-2 max-md:before:content-['']", className)}>
+      className={cn("relative grid size-5 cursor-pointer place-items-center rounded-[4px] text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground before:absolute max-md:before:-inset-2.5", className)}>
       <Icon className="size-3.5" strokeWidth={strokeWidth} />
     </button>
   )

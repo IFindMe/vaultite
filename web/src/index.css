@@ -1264,9 +1264,6 @@ html[data-electron][data-platform=win32] [data-right-corner] > [data-title-row] 
    the nearest scroller, so every element in it says so, or the panels' scroller would hand a sideways swipe to the
    browser (pointercancel) before the drawer sees it. */
 [data-phone-drawer] * { touch-action: pan-y; }
-/* Phones: the page's edges open the drawers (PhoneDrawer.tsx) with nothing laid over them, so the page itself keeps a
-   sideways drag from the browser; a scroller in it still pans its own way (touch-action stops at it). */
-@media (max-width: 767.98px) { #main-scroll { touch-action: pan-y pinch-zoom; } }
 /* Phones: the window scrolls under the fixed header (PhoneHeader), so a heading scrolled to ([[Note#Heading]]) stops
    below it rather than under it. */
 @media (max-width: 767.98px) { html { scroll-padding-top: calc(env(safe-area-inset-top) + 3.5rem); } }
