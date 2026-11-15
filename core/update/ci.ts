@@ -8,7 +8,7 @@ const exec = promisify(execFile)
 import type { CiState } from "../contracts/version.ts"
 export type CiResult = { ok: boolean | null; why: string; state?: CiState; elsewhere?: string[] }
 export type Ci = (repo: string, sha: string, o?: { superseded?: boolean }) => Promise<CiResult>
-export type CiRun = { id?: number; path?: string; event?: string; status?: string; conclusion?: string | null; head_sha?: string; head_branch?: string | null }
+export type CiRun = { id?: number; path?: string; event?: string; status?: string; conclusion?: string | null; head_sha?: string; head_branch?: string | null; run_attempt?: number }
 
 export const CI_WORKFLOW = ".github/workflows/ci.yml"
 export type CiJob = { name: string; status?: string; conclusion?: string | null }
@@ -105,12 +105,12 @@ export function callBudget(limit: number | (() => number) = CI_CALLS_PER_HOUR, n
 export type CallBudget = ReturnType<typeof callBudget>
 const hourly = callBudget(() => ciCallsPerHour())
 
-const RED_RECHECK = 10 * 60_000
 const LIST_FOR = 15_000
+export const redRecheck = (budget: CallBudget) => Math.max(LIST_FOR, (2 * HOUR) / budget.max())
+const sameRuns = (a: CiRun[], b: CiRun[]) => a.length === b.length && a.every((r, i) => r.id === b[i].id && r.run_attempt === b[i].run_attempt && r.status === b[i].status && r.conclusion === b[i].conclusion)
 
 export function githubCi(branch: string, get: (api: string) => Promise<unknown> = githubApi, o: { budget?: CallBudget; now?: () => number; gate?: Gate | null; login?: () => Promise<unknown> } = {}): Ci {
-  const budget = o.budget ?? hourly, now = o.now ?? Date.now, gate = o.gate === undefined ? osGate() : o.gate
-  const login = o.login ?? (get === githubApi ? github.login : null)
+  const budget = o.budget ?? hourly, now = o.now ?? Date.now, gate = o.gate === undefined ? osGate() : o.gate, login = o.login ?? (get === githubApi ? github.login : null)
   const ask = async <T>(api: string) => {
     await login?.()
     return (budget.take() ? get(api) : `GitHub's API was asked ${budget.max()} times this hour, the most the updates ask: CI is asked again later`) as T | string
@@ -120,8 +120,9 @@ export function githubCi(branch: string, get: (api: string) => Promise<unknown> 
   let list: { at: number; runs: Promise<CiRun[] | string> } | null = null
   return async (repo, sha, { superseded = false } = {}) => {
     const k = known.get(sha)
-    if (k && (k.r.ok === true || (k.r.ok === false && now() - k.at < RED_RECHECK))) return k.r
-    if (k?.r.ok === false) { for (const r of seen.get(sha) ?? []) if (r.id) ended.delete(r.id); seen.delete(sha) }
+    if (k && (k.r.ok === true || (k.r.ok === false && now() - k.at < redRecheck(budget)))) return k.r
+    const was = k ? seen.get(sha) : undefined
+    if (was) seen.delete(sha)
     let runs = gate && !seen.get(sha)?.some(waiting) ? seen.get(sha) : undefined
     if (!runs?.length) {
       if (!list || now() - list.at >= LIST_FOR) list = { at: now(), runs: ask<{ workflow_runs?: CiRun[] }>(`repos/${repo}/actions/workflows/${path.basename(CI_WORKFLOW)}/runs?branch=${branch}&per_page=100`).then(runsOf) }
@@ -135,6 +136,8 @@ export function githubCi(branch: string, get: (api: string) => Promise<unknown> 
       }
       seen.set(sha, runs = ours(runs))
     }
+    if (k && was && sameRuns(runs, was)) return (k.at = now(), k.r)
+    if (k) { known.delete(sha); for (const r of was ?? []) if (r.id) ended.delete(r.id) }
     const jobs = new Map<number, CiJob[] | string>()
     for (const run of runs) {
       if (!run.id || !needsJobs(run, gate)) continue

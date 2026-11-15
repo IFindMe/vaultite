@@ -17,8 +17,9 @@ export function cloudVoice(c: CloudConfig): CloudVoice {
 }
 
 const KEEP_MS = 20_000, IDLE_MS = 90_000
-/** ElevenLabs: a piece whose audio went this quiet (ms) has all of it; after its final word, this long for audio still coming. */
+/** ElevenLabs: a piece whose audio went this quiet (ms) has all of it; after its final word, untimed, this long. */
 const QUIET_MS = 1000, FINAL_MS = 300
+const quietFor = (x: { closed?: boolean; timed: Timed }) => (x.closed && !x.timed.chars.length ? FINAL_MS : QUIET_MS)
 
 /** Soniox's TTS (docs.soniox.com/tts): one socket, a stream per piece (5 at most), its config then its text whole; its
  *  audio comes as base64 PCM with each character's timing. A keepalive between streams, closed a while after the last. */
@@ -166,10 +167,10 @@ function elevenlabs(c: CloudConfig): CloudVoice {
       x.bytes += pcm.length
       x.to.audio(pcm, x.timed)
       if (x.timed.chars.join("").replace(/\s/g, "").length >= x.letters) return finish(id, x)
-      if (!m.isFinal) hush(id, x, x.closed ? FINAL_MS : QUIET_MS)
+      if (!m.isFinal) hush(id, x, quietFor(x))
     }
-    // (its final word can come before its last audio: what still comes a moment after it is said too)
-    if (m.isFinal) { x.closed = true; hush(id, x, FINAL_MS) }
+    // (its final word can come before its last audio, read late on a stalled machine: what still comes is said too)
+    if (m.isFinal) { x.closed = true; hush(id, x, quietFor(x)) }
   }
   function close() {
     if (idle) { clearTimeout(idle); idle = null }

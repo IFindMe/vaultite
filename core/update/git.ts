@@ -69,7 +69,7 @@ export async function pickTarget(o: { tip: string; since: () => Promise<string[]
 }
 
 /** CI failed on every commit that could bring `commit`: the branch's tip (`judged[0]`) failed, and none from `commit` up
- *  to it passed or still runs (a red is final as the updates take it: asked again only after 10 minutes). The tip, or null. */
+ *  to it passed or still runs (a red is final as the updates take it until a re-run changes it: see redRecheck). The tip, or null. */
 export function redRoute(judged: Judged[], commit: string): string | null {
   const i = judged.findIndex((j) => j.commit === commit)
   if (i < 0 || judged[0].state !== "failed") return null

@@ -7,6 +7,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 ## Unreleased
 
 - Notes: Add photo is Add photo or video, so the iPhone's library offers videos too.
+- Updates: a CI run that passes when it is re-run is taken within a few minutes, and shows as running while it re-runs.
+- Voice: on a busy Mac, the end of an ElevenLabs answer is no longer cut off.
 
 - iPhone: the header and the bottom bar step out of the way while you scroll down a page and come back when you scroll
   up or tap; the bottom bar floats as a rounded bar, and the header stays in place while the keyboard is up.

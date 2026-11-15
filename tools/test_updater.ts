@@ -2,7 +2,7 @@
 // network: the host's path end to end is test_selfupdate. In npm test.
 import { check, exit, section, summary } from "./test/lib.ts"
 import type { CiJob, CiResult, CiRun } from "../core/update/ci.ts"
-import { CI_CALLS_PER_HOUR, CI_CALLS_SIGNED_IN, CI_WORKFLOW, LOGIN_RECHECK, callBudget, ciCallsPerHour, ciOf, githubCi, githubClient, githubRepo, osGate, type RunGh } from "../core/update/ci.ts"
+import { CI_CALLS_PER_HOUR, CI_CALLS_SIGNED_IN, CI_WORKFLOW, LOGIN_RECHECK, callBudget, redRecheck, ciCallsPerHour, ciOf, githubCi, githubClient, githubRepo, osGate, type RunGh } from "../core/update/ci.ts"
 import { capped, pickTarget, redRoute } from "../core/update/git.ts"
 import { LOOK_EVERY, placed } from "../core/update/updater.ts"
 const t0 = Date.now()
@@ -87,20 +87,23 @@ await section("githubCi: a queued run's jobs aren't asked (none can have ended)"
   check("once it starts (the list says), its jobs are asked", s.ok === true && asked.length === 3 && asked[2].endsWith("/runs/4/jobs?per_page=50"), { s, asked })
 })
 
-await section("githubCi: a red verdict asked again after 10 minutes, a failing list asks no more", async () => {
+await section("githubCi: a red verdict checked again on the branch's runs, a failing list asks no more", async () => {
   let clock = 0, list: CiRun[] | string = [run("push", "completed", "failure", CI_WORKFLOW, "red")]
-  const asked: string[] = []
-  const ci = githubCi("main", async (api) => (asked.push(api), typeof list === "string" ? list : body(list)), { budget: callBudget(100, () => clock), now: () => clock, gate: null })
+  const asked: string[] = [], budget = callBudget(20, () => clock)
+  const ci = githubCi("main", async (api) => (asked.push(api), typeof list === "string" ? list : body(list)), { budget, now: () => clock, gate: null })
+  check("anonymous (20 calls an hour): a red checked again every 6 minutes, half the budget", redRecheck(budget) === 6 * 60_000 && redRecheck(callBudget(CI_CALLS_SIGNED_IN)) <= LOOK_EVERY)
   check("red", (await ci("Alice/lighthouse", "red")).ok === false && asked.length === 1)
-  clock += 9 * 60_000
-  check("still red, not asked within 10 minutes", (await ci("Alice/lighthouse", "red")).ok === false && asked.length === 1, asked)
+  clock += 5 * 60_000
+  check("still red, not asked within 6 minutes", (await ci("Alice/lighthouse", "red")).ok === false && asked.length === 1, asked)
   clock += 60_000
+  check("asked again, the run unchanged: still red, one call", (await ci("Alice/lighthouse", "red")).ok === false && asked.length === 2, asked)
+  clock += 6 * 60_000
   list = [run("push", "completed", "failure", CI_WORKFLOW, "red"), run("schedule", "completed", "success", CI_WORKFLOW, "red")]
-  check("asked again: the nightly passed it", (await ci("Alice/lighthouse", "red")).ok === true && asked.length === 2, asked)
+  check("asked again: the nightly passed it", (await ci("Alice/lighthouse", "red")).ok === true && asked.length === 3, asked)
   clock += 60_000
   list = "GitHub answered 502 about CI"
   const down = await ci("Alice/lighthouse", "new")
-  check("the branch's runs not answering: not yet, and no commit asked of on its own", down.ok === null && /502/.test(down.why) && asked.length === 3, { down, asked })
+  check("the branch's runs not answering: not yet, and no commit asked of on its own", down.ok === null && /502/.test(down.why) && asked.length === 4, { down, asked })
 })
 
 await section("githubCi with a gate: a run's jobs while they may change, once when they've ended", async () => {
@@ -119,10 +122,19 @@ await section("githubCi with a gate: a run's jobs while they may change, once wh
   jobs = [job(MAC, "completed", "failure"), job(LINUX, "completed", "success")]
   clock += LIST_GONE
   check("red: its job failed", (await ci("Alice/lighthouse", "r")).ok === false && asked.length === 2, asked)
-  clock += 10 * 60_000
+  clock += redRecheck(callBudget(100))
+  asked.length = 0
+  check("checked again, the run as it was: still red, its jobs not asked", (await ci("Alice/lighthouse", "r")).ok === false && asked.length === 1, asked)
+  clock += redRecheck(callBudget(100))
+  asked.length = 0
+  runs = [{ ...run("push", "in_progress", null, CI_WORKFLOW, "r"), id: 8, run_attempt: 2 }]
+  jobs = [job(MAC, "in_progress"), job(LINUX, "completed", "success")]
+  const rerun = await ci("Alice/lighthouse", "r")
+  check("re-run (the same run, its next attempt): running, not red, as soon as the list shows it", rerun.ok === null && rerun.state === "running" && asked.length === 2, { rerun, asked })
+  clock += 1000
   asked.length = 0
   jobs = [job(MAC, "completed", "success"), job(LINUX, "completed", "success")]
-  check("asked again after 10 minutes (a re-run): the list and the jobs again", (await ci("Alice/lighthouse", "r")).ok === true && asked.length === 2, asked)
+  check("the re-run passed: green on the next look, its jobs asked like any running commit's", (await ci("Alice/lighthouse", "r")).ok === true && asked.length === 1 && asked[0].endsWith("/runs/8/jobs?per_page=50"), asked)
   asked.length = 0
   runs = [{ ...run("push", "completed", "success", CI_WORKFLOW, "g"), id: 9 }]
   clock += LIST_GONE

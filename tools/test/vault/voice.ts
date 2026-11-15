@@ -8,6 +8,7 @@ import { portOf } from "../../../core/listening.ts"
 
 export default async ($: VaultTest) => {
   const { check, tmp, sleep } = $
+  const until = async (done: () => boolean, ms = 30_000) => { for (const end = Date.now() + ms; !done() && Date.now() < end;) await sleep(20) }
   // The companion's voice (electron/voice.ts): words made plain and cut as they stream, made ahead, played in order, this
   // Mac's from where the cloud stopped. Nothing plays a sound: the player writes a file, the cloud is a stand-in.
   const { chunker, languageIn, languageOf, sayable, speakable } = await import("../../../core/desktop/spoken.ts")
@@ -234,21 +235,21 @@ export default async ($: VaultTest) => {
     const heard: Any[] = []
     const to = (n: number) => ({ audio: (b: Buffer, t?: Any) => heard.push(["audio", n, b.length, t?.chars.length]), end: () => heard.push(["end", n]), fail: (w: string) => heard.push(["fail", n, w]) })
     c.make({ n: 1, text: "Hello there.", language: "en" }, to(1))
-    for (let i = 0; i < 100 && !heard.some((h) => h[0] === "end"); i++) await sleep(20)
+    await until(() => heard.some((h) => h[0] === "end"))
     const config = got.find((m) => m.model)
     check("tts: Soniox's socket with the key as a header, a stream's config (its voice, PCM at 24 kHz, timings) then its text, whole", auths[0] === "Bearer test-key-1" && !config?.api_key &&
       config?.voice === "Hazel" && config.audio_format === "pcm_s16le" && config.sample_rate === 24000 && config.return_timestamps === true && config.language === "en" && config.speed === 1.1 &&
       got.some((m) => m.stream_id === config.stream_id && m.text === "Hello there." && m.text_end === true), got)
     check("tts: its audio comes, with its characters' timings, then its end", JSON.stringify(heard) === '[["audio",1,4800,3],["audio",1,4800,3],["end",1]]', heard)
     const cancel = c.make({ n: 2, text: "Please hold.", language: "en" }, to(2))
-    for (let i = 0; i < 100 && !heard.some((h) => h[1] === 2); i++) await sleep(20)
+    await until(() => heard.some((h) => h[1] === 2))
     cancel()
-    for (let i = 0; i < 50 && !got.some((m) => m.cancel); i++) await sleep(20)
+    await until(() => got.some((m) => m.cancel))
     check("tts: a piece let go is cancelled on the socket", got.some((m) => m.cancel === true && !("text" in m)), got)
     c.make({ n: 3, text: "Please hold on.", language: "en" }, to(3))
-    for (let i = 0; i < 100 && !heard.some((h) => h[1] === 3); i++) await sleep(20)
+    await until(() => heard.some((h) => h[1] === 3))
     sock!.terminate()
-    for (let i = 0; i < 100 && !heard.some((h) => h[0] === "fail"); i++) await sleep(20)
+    await until(() => heard.some((h) => h[0] === "fail"))
     check("tts: its socket dropped mid-piece, the piece fails (and this Mac's voice takes over)", heard.some((h) => h[0] === "fail" && h[1] === 3), heard)
     c.close()
     wss.close(); server.close()
@@ -279,11 +280,11 @@ export default async ($: VaultTest) => {
     const heard: Any[] = []
     let timed: Any = null
     c.make({ n: 1, text: "Hi there.", language: "en" }, { audio: (b: Buffer, t?: Any) => { heard.push(["audio", b.length]); timed = t }, end: () => heard.push(["end"]), fail: (w: string) => heard.push(["fail", w]) })
-    for (let i = 0; i < 100 && !heard.some((h) => h[0] === "end"); i++) await sleep(20)
+    await until(() => heard.some((h) => h[0] === "end"))
     const piece = async (text: string) => {
       const h: string[] = [], t0 = Date.now()
       c.make({ n: 2, text, language: "en" }, { audio: () => h.push("audio"), end: () => h.push("end"), fail: (w: string) => h.push(`fail ${w}`) })
-      for (let i = 0; i < 150 && !h.includes("end"); i++) await sleep(20)
+      await until(() => h.includes("end"))
       return { h: h.join(), ms: Date.now() - t0 }
     }
     const early = await piece("Its final word comes early."), bare = await piece("No timings, bare.")
@@ -355,7 +356,7 @@ export default async ($: VaultTest) => {
     send({ cmd: "say", n: 2, text: "And then this Mac's own voice.", language: "en" })
     for (let i = 0; i < tone.length; i += 9600) send({ cmd: "pcm", n: 1, data: tone.subarray(i, i + 9600).toString("base64") })
     send({ cmd: "end", n: 1 }); send({ cmd: "end", n: 2 })
-    for (let i = 0; i < 300 && !lines.some((l) => l.type === "done" && l.n === 2); i++) await sleep(20)
+    await until(() => lines.some((l) => l.type === "done" && l.n === 2))
     const order = lines.filter((l) => l.type === "start" || l.type === "done").map((l) => `${l.type}${l.n}`).join()
     check("voice player: each piece says when it's heard (the drawing's pen keeps to it)", lines.filter((l) => l.type === "start").every((l) => typeof l.at === "number" && Math.abs(l.at - Date.now()) < 60_000), lines.filter((l) => l.type === "start"))
     check("voice player: pieces play in order, a cloud's PCM and then this Mac's voice made for the next, each told done", order === "start1,done1,start2,done2", lines.filter((l) => l.type !== "level"))
@@ -366,9 +367,9 @@ export default async ($: VaultTest) => {
     gapped.fill(0, 24_000, 28_800)
     send({ cmd: "pcm", n: 3, data: gapped.toString("base64") })
     send({ cmd: "reroute" })
-    for (let i = 0; i < 100 && !lines.some((l) => l.type === "rerouted"); i++) await sleep(20)
+    await until(() => lines.some((l) => l.type === "rerouted"))
     send({ cmd: "end", n: 3 })
-    for (let i = 0; i < 100 && !lines.some((l) => l.type === "done" && l.n === 3); i++) await sleep(20)
+    await until(() => lines.some((l) => l.type === "done" && l.n === 3))
     const again = lines.find((l) => l.type === "rerouted")?.again
     check("voice player: its output changing mid-piece, it plays on from the pause before where it went, to the piece's end", Math.abs(again - 0.41) < 0.02 &&
       lines.some((l) => l.type === "done" && l.n === 3), lines.filter((l) => l.type === "rerouted" || (l.type === "done" && l.n === 3)))
@@ -378,12 +379,12 @@ export default async ($: VaultTest) => {
     send({ cmd: "pcm", n: 5, data: tone.toString("base64") })
     send({ cmd: "pcm", n: 4, data: tone.toString("base64") })
     send({ cmd: "end", n: 4 }); send({ cmd: "end", n: 5 })
-    for (let i = 0; i < 100 && !lines.some((l) => l.type === "done" && l.n === 5); i++) await sleep(20)
+    await until(() => lines.some((l) => l.type === "done" && l.n === 5))
     const gave = lines.filter((l) => (l.type === "start" || l.type === "done") && l.n >= 4).map((l) => `${l.type}${l.n}`).join()
     check("voice player: a piece giving way ends once the next has audio (what more comes of it dropped), the next played after it", gave === "start4,start5,done4,done5", gave)
     send({ cmd: "pcm", n: 6, data: tone.toString("base64") })
     send({ cmd: "stop" })
-    for (let i = 0; i < 100 && !lines.some((l) => l.type === "stopped"); i++) await sleep(20)
+    await until(() => lines.some((l) => l.type === "stopped"))
     child.stdin.end()
     await new Promise((done) => child.once("exit", done))
     const info = execFileSync("/usr/bin/afinfo", [wav], { encoding: "utf8" })
