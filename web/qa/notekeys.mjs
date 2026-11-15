@@ -48,6 +48,9 @@ const box = await bar.boundingBox()
 check("over the keyboard, at the visible part's foot", !!box && Math.abs(box.y + box.height - (844 - KB)) <= 2, box)
 const names = await bar.locator("button").evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-label")))
 check("the default keys, then Hide keyboard", names.join() === "Undo,Redo,Link,Task,Unindent,Indent,Bold,Italic,Highlight,Bullet list,Photo or video,Hide keyboard", names)
+const barHidden = () => page.evaluate(() => getComputedStyle(document.querySelector("[data-phone-bar]")).visibility === "hidden")
+check("the bottom bar is out of sight while typing, and Hide keyboard reads Done", await until(barHidden, 2000)
+  && (await bar.locator("button[aria-label='Hide keyboard']").innerText()).trim() === "Done")
 await page.screenshot({ path: path.join(OUT, "keys.png") })
 
 await tap(key("Bold"))
@@ -66,7 +69,7 @@ check("Task: a checkbox", (await text()).includes(`\n- [ ] **${W}**`), (await te
 
 await tap(bar.locator("button[aria-label='Hide keyboard']"))
 await page.evaluate(() => window.__keyboard(false))
-check("Hide keyboard: the editor lets go, the keys go", !!await until(async () => !(await bar.count()), 2000)
+check("Hide keyboard: the editor lets go, the keys go, the bottom bar comes back", !!await until(async () => !(await bar.count()) && !(await barHidden()), 2000)
   && !(await page.evaluate(() => document.activeElement?.classList.contains("cm-content"))))
 
 const title = page.locator(".file-view textarea[aria-label='File name']").first()

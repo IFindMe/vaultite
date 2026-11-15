@@ -1,21 +1,25 @@
 import { useLayoutEffect, useState, type MouseEvent as ReactMouseEvent, type PointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from "react"
-import { KeyboardOff } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /** The on-screen keyboard is up: the visible part of the page is well short of the window. */
 export const keyboardUp = () => !!visualViewport && innerHeight - visualViewport.height > 80
 
+const SETTLE_MS = 160
+
 /** The part of the window the user sees (above the on-screen keyboard), followed while `on`. */
 export function useVisibleArea(on: boolean) {
-  const [area, setArea] = useState<{ top: number; height: number; keyboard: boolean } | null>(null)
+  const [area, setArea] = useState<{ top: number; height: number; keyboard: boolean; moving: boolean } | null>(null)
   useLayoutEffect(() => {
     const vv = visualViewport
     if (!on || !vv) return
-    const read = () => setArea({ top: vv.offsetTop, height: vv.height, keyboard: keyboardUp() })
-    read()
+    let still = 0
+    const at = (moving: boolean) => setArea({ top: vv.offsetTop, height: vv.height, keyboard: keyboardUp(), moving })
+    const read = () => { at(true); clearTimeout(still); still = window.setTimeout(() => at(false), SETTLE_MS) }
+    at(false)
     vv.addEventListener("resize", read)
     vv.addEventListener("scroll", read)
-    return () => { vv.removeEventListener("resize", read); vv.removeEventListener("scroll", read) }
+    return () => { clearTimeout(still); vv.removeEventListener("resize", read); vv.removeEventListener("scroll", read) }
   }, [on])
   return on ? area : null
 }
@@ -42,8 +46,8 @@ export function KeyBar({ label, keys, hide, scroll, className }: { label: string
         ))}
       </div>
       <button type="button" tabIndex={-1} aria-label="Hide keyboard" {...tap(hide)}
-        className="relative grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-[8px] text-muted-foreground after:absolute after:-inset-x-1 after:-inset-y-1.5 active:bg-foreground/[0.12]">
-        <KeyboardOff className="size-[19px]" strokeWidth={1.9} />
+        className="relative flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-[8px] px-2.5 text-[16px] font-semibold text-primary after:absolute after:-inset-x-1 after:-inset-y-1.5 active:bg-foreground/[0.12]">
+        <ChevronDown className="size-[18px]" strokeWidth={2.4} />Done
       </button>
     </div>
   )

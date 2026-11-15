@@ -315,7 +315,7 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
    the keyboard instead of over the bar. */
 :root { --toast-floor: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar) + 0.75rem); --keyboard-cover: 0px; }
 :root[data-keyboard] { --toast-floor: calc(var(--keyboard-cover) + 0.5rem); }
-:root[data-keyboard] [data-phone-bar] { transform: translateY(100%); opacity: 0; pointer-events: none; }
+:root[data-keyboard] [data-phone-bar] { transform: translateY(100%); opacity: 0; visibility: hidden; pointer-events: none; }
 [data-phone-bar] { transition: transform 160ms ease, opacity 160ms ease; }
 /* Scrolling down a page puts the header and the bar away (core/barhide.ts), as iOS apps do: the header keeps the status
    bar's strip, the bar drops below the screen. A scroll up, a tap, the page's top or end, or another place brings them

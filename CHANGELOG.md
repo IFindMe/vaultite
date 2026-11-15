@@ -6,8 +6,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Phone: the keys over the keyboard end with Done to hide it, and fade in once the keyboard settles instead of jumping
+  with it.
 - Phone: while you type a note's name, keys over the keyboard put the name back, go to the text, or hide the keyboard.
-- Phone: the bottom bar steps away as soon as the keyboard starts to rise and comes back only once it is down.
+- Phone: the bottom bar steps out of sight as soon as the keyboard starts to rise and comes back only once it is down.
 - Phone: a swiped sidebar row shows its buttons at once, even while a slow connection is still loading.
 - Jobs: one that says it's working but has shown nothing for 20 minutes needs you, saying it seems stuck, with Restart it
   (its conversation kept) and Keep waiting; a follow-up it can't take says so; stop always works on a job at work, and a

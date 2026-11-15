@@ -43,7 +43,7 @@ export function NoteKeys() {
     return Icon && c ? [{ name: LABELS[id] ?? c.name, label: <Icon className="size-[18px]" strokeWidth={2} />, run: () => void c.run() }] : []
   })
   return createPortal(
-    <div className="fixed inset-x-0 z-[45] -translate-y-full" style={{ top: area.top + area.height }}>
+    <div className={cn("fixed inset-x-0 z-[45] -translate-y-full transition-opacity duration-150", area.moving && "opacity-0")} style={{ top: area.top + area.height }}>
       <KeyBar label="Editing keys" scroll keys={keys} hide={() => view.contentDOM.blur()} />
     </div>,
     // (in a sheet: a modal <dialog> is above everything outside it)
