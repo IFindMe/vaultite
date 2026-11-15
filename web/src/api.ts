@@ -226,12 +226,12 @@ export { useNoPhoneTitle } from "@/components/FileTitle"
 export { switchPreview, type Preview, type PreviewOption } from "@/components/SettingPreview"
 export { Frame } from "@/components/ChoicePictures"
 /** Hover cards, one at a time app-wide (a setting's preview, a tab's): `useHoverCard(anchor)` gives the props to spread on
- *  what's hovered and, while `shown`, its card is drawn, placed by `placeBesideSidebar` (a sidebar's rows), `placeBesideColumn` or `placeBelow`. */
-export { closeHoverCard, placeBelow, placeBesideColumn, placeBesideSidebar, useHoverCard, type CardPlace, type HoverShown, type PlaceCard } from "@/core/hovercard"
+ *  what's hovered and, while `shown`, its card is drawn, placed by `placeBesideColumn` (a sidebar's rows) or `placeBelow`. */
+export { closeHoverCard, placeBelow, placeBesideColumn, useHoverCard, type CardPlace, type HoverShown, type PlaceCard } from "@/core/hovercard"
 /** The card `useHoverCard` shows, and its usual face: a picture above its title and a line saying more. */
 export { Captioned, HoverCard } from "@/components/HoverCard"
 /** A tab's card as the tab bar shows it (a picture of what it shows, its title, where it is), and the same on hovering
- *  what isn't a tab (`HoverPreview`: a pinned page, given the label and icon its row draws). */
+ *  what isn't a tab (`HoverPreview`: a pinned page beside its sidebar, given the label and icon its row draws). */
 export { HoverPreview, TabCard } from "@/components/TabCard"
 /** A picture in a hover card: its size, rounded, a hairline round it. */
 export { Picture } from "@/components/PreviewCard"

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react"
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronRight, Folder, Hash, Heading, LayoutGrid, List, PinOff, Plus, Search } from "lucide-react"
 import {
-  coarse, edgeScroller, checklist, HoverPreview, placeBesideSidebar, cn, currentWorkspace, fileMenu, FileTree, folderMenu, folderTarget, getStore, HeadingButton, iconAt, isFolder, isListedPage, menuFor, notifyError, offPlugin, openAt, openFile, openFolder,
+  coarse, edgeScroller, checklist, HoverPreview, cn, currentWorkspace, fileMenu, FileTree, folderMenu, folderTarget, getStore, HeadingButton, iconAt, isFolder, isListedPage, menuFor, notifyError, offPlugin, openAt, openFile, openFolder,
   openingSoon, openInSplit, pinnedFoldersOpen, pluginSettings,
   INCOMING, openItem, openView, pastEnd, PIN_SEARCH, reorder, resolveView, rowMenu, selectClick, selectedAttr, selectionFor, SidebarRow, SidebarTile, slotAt, startDrag, stem, useDrag,
   useDropHit, useDropTarget, useEnabled, useRewrap, useSelectable, useSelectedKeys, useSlide, useViewsVersion, useWorkspaceVersion, viewInfo, viewSurfaces, type CheckItem, type DragItem, type MenuItem,
@@ -171,7 +171,7 @@ export function PinnedPages({ store, open, file, tab, panel, pane, flyout, tiles
     return (
       <div key={id} data-slide={id} className={cn(unfold && "flex flex-col gap-px")}>
       <HoverPreview to={folder ? null : to} info={{ label: entry.label, icon, tint: view?.tint ?? shown?.tint, iconClassName: view?.iconClassName, badge: view?.badge }}
-        off={active || !!item} place={placeBesideSidebar}>
+        off={active || !!item}>
       <div onPointerDown={(e) => {
         if (file) openingSoon(file, true)
         const keys = selectionFor(SELECT, id, false)

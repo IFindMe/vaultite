@@ -318,7 +318,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `HostedPlugin`: A plugin another runs (one written for another app): listed by category with its host as byline, drawn like any, while its host answers its switch, approval and removal (PluginHost).
 - `hostPlugins(host, info, list?)`: A host's plugins now (null: none, the host gone or off): they replace its ones before, and whatever they draw (commands, panels, fences, editor extensions) follows.
 - `HoverCard(p)`
-- `HoverPreview({ to, info, off, place, children })`
+- `HoverPreview({ to, info, off, children })`
 - `HoverShown`
 - `hydrateMarkdown(root)`: Draw what core/markdown.ts left for later inside `root`: math, code's colours and mermaid diagrams.
 - `IconAction({ action, className, children })`: An icon in a row that does something of its own when clicked (a tab's mark: mute it), without the row's click, drag or menu.
@@ -537,7 +537,6 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `Place`: A place to open a terminal or an agent: which machine ("": this one) and, for an agent with accounts, which one.
 - `placeBelow(anchor, w)`
 - `placeBesideColumn(columnOf)`
-- `placeBesideSidebar`
 - `PlaceCard`
 - `placeMenuOf(id)`: Right-click on one of a split's pane's own tabs (the Tabs panel's list under the split, a pane's strip): closing it or the pane's others, taking it out of the pane (a tab of its own, or a pane…
 - `placePin(list, path, on, before?)`: `list` with `path` pinned (at the end, or before `before`: moved there when it's pinned already and `before` is given; null or a page not in the list: the end; itself: where it is) or unpinned…
@@ -721,7 +720,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `Tab`: A tab: its panes in a tree of splits (one pane, mostly), the one `focus`ed, and the one filling it for now (`zoom`, tmux's).
 - `TabButton`: A button on a tab while the pointer is over it (the tab bar's and the Tabs panel's), before its Close: what's done with what it shows (an inbox item's Settle).
 - `tabButtons(to, disabled?)`: The buttons a tab showing `to` has on hover (`tabButtons`), from the plugins that are on, in their order.
-- `TabCard({ shown, chip, tab, info, place })`
+- `TabCard({ shown, chip, tab, info, inSidebar })`
 - `TabDrop`: Where something dragged would land: a place in the list of tabs (`group` it joins, null none; `home`: where it is already), a pane's edge or middle, or before the `index`th of a split pane's own…
 - `TabGroup`: A tab group, as browsers have them: a named, coloured run of tabs side by side (those whose `group` is its id), folded to its name while `collapsed`.
 - `TabInfo`: `iconClassName`: a status on the icon (a view's `iconClass`: a Claude Code session working or waiting).

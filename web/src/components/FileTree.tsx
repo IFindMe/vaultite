@@ -5,7 +5,6 @@ import {
 } from "lucide-react"
 import { getStore, reload, type Store } from "@/core/data"
 import { HoverPreview } from "@/components/TabCard"
-import { placeBesideSidebar } from "@/core/hovercard"
 import { edgeScroller, getDrag, startDrag, useDragItem, useDropHit, useDropTarget, type DragItem } from "@/core/drag"
 import { desktop, hasFiles } from "@/core/desktop"
 import { dropInto } from "@/core/desktopapp"
@@ -800,7 +799,7 @@ const TreeRow = memo(function TreeRow({ n, depth, pos, size, index, rows, isOpen
             className="h-6 min-w-0 flex-1 rounded-[4px] bg-card px-1 outline-none ring-1 ring-primary/60" />
         </div>
       ) : (
-        <HoverPreview to={n.folder ? null : `file:${n.path}`} info={{ label: stem(n.path), icon: Icon, tint }} off={selected || !!dragging} place={placeBesideSidebar}>
+        <HoverPreview to={n.folder ? null : `file:${n.path}`} info={{ label: stem(n.path), icon: Icon, tint }} off={selected || !!dragging}>
         <SwipeRow actions={() => on.current.swipe(n)}>
         <div onPointerDown={(e) => { if (!n.folder) openingSoon(n.path, true); on.current.press(e, n) }} onContextMenu={(e) => on.current.menu(e, n)}
           onPointerEnter={n.folder ? undefined : () => openingSoon(n.path)} onPointerLeave={n.folder ? undefined : () => openingSoon(null)}

@@ -29,7 +29,6 @@ import { openFromApp } from "./linklogins"
 import { fillLoginIn, hasLoginForm, watchLogins } from "./LoginFill"
 import { useSecretKeeper } from "./secretkeeper"
 import { engine } from "./engine"
-import { WebPicture } from "./WebPicture"
 
 const WebPage = lazy(() => import("./WebPage"))
 // oxlint-disable-next-line react/only-export-components -- a lazy view's loader, like the ones below; fast refresh is dev-only
@@ -38,6 +37,8 @@ const ReplaysView = lazy(() => import("./Replays").then((m) => ({ default: m.Rep
 const AgentPasskeys = lazy(() => import("./AgentPasskeys").then((m) => ({ default: m.AgentPasskeys })))
 const PasswordsView = lazy(() => import("./Passwords").then((m) => ({ default: m.PasswordsView })))
 const EntrySheet = lazy(() => import("./PasswordSheets").then((m) => ({ default: m.EntrySheet })))
+// oxlint-disable-next-line react/only-export-components -- a lazy view's loader, as WebPage's; fast refresh is dev-only
+const WebPicture = lazy(() => import("./WebPage").then((m) => ({ default: m.WebPicture })))
 const EditSheet = lazy(() => import("./PasswordSheets").then((m) => ({ default: m.EditSheet })))
 const LiveView = lazy(() => import("./LiveView").then((m) => ({ default: m.LiveView })))
 const ExtensionsView = lazy(() => import("./Extensions").then((m) => ({ default: m.ExtensionsView })))
@@ -223,7 +224,7 @@ export default definePlugin({
         return tab && loadingIn(tab) ? spinnerIcon(color) : url.startsWith("view-source:") ? FileCode2 : siteIcon(url, color)
       },
       tabColor: (arg) => { const c = containerById(splitArg(arg).container); return c ? colorOf(c) : undefined },
-      tabPicture: (arg, tab) => <WebPicture arg={arg} tab={tab} />,
+      tabPicture: (arg, tab) => <Suspense fallback={null}><WebPicture arg={arg} tab={tab} /></Suspense>,
       groupName: (arg) => siteName(splitArg(arg).url),
       full: true,
       history: (_arg, tab, dir) => {

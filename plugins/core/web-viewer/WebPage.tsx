@@ -35,6 +35,7 @@ import { AgentWatch } from "./AgentWatch"
 import { framing } from "./framed"
 import FramedPage from "./FramedPage"
 import { useThumbs } from "./thumbs"
+export { WebPicture } from "./WebPicture"
 
 type Props = { arg: string; focused: boolean; setArg: (arg: string) => void }
 

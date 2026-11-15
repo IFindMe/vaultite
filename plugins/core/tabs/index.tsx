@@ -5,7 +5,7 @@ import {
   groupsAsDrawn, HeadingButton, IconAction, isPopout, menuFor, openNewTab, isViewOpen, notifyError, openView, paneById, paneMenuOf, panesOf, placeMenuOf, placesIn, placesOf, reorder, rightClickBelow, useArchivedTabs, useMenuShowing, pastEnd, put, rowMenu, RowKeys, selectClick,
   selectedAttr, selectPane, selectTab, SidebarHeading, SidebarRow, springing, springTabAt, startDrag, tabButtons, tabListDrop, tabMenuOf, tabPreview, tabPreviewOrder, TABS, tabSlot, tabSlotBeside, tabsMenu, useDrag, useDropHit,
   useDropTarget, useGroupIn, useGroupLines, useGrowIn, useListsIn, useReflow, useShrinkOut, useSelectable, useSelected, useSlide, useTabLabels, useTabList, useUiMarks,
-  INCOMING, laidOut, placeBesideSidebar, TabCard, useHoverCard,
+  INCOMING, laidOut, TabCard, useHoverCard,
   type DragItem, type Pane, type SidebarCtx, type Store, type Tab, type TabDrop, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
 import type { Device, DeviceTab } from "./types"
@@ -155,7 +155,7 @@ function Row({ t, l, info, only, line, hit }: { t: Tab; l: TabList; info: (x: Ta
         {split && <SplitMore label={ps.map((p) => info(p).label).join(" | ")} held={!!dragging} />}
       </SidebarRow>
       {lists && <PaneLists t={t} active={active} line={!!line} info={info} hit={hit} />}
-      {hover.shown && <TabCard shown={hover.shown} chip={box} tab={t} info={info} place={placeBesideSidebar} />}
+      {hover.shown && <TabCard shown={hover.shown} chip={box} tab={t} info={info} inSidebar />}
     </div>
   )
 }
