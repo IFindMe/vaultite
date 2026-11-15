@@ -16,6 +16,7 @@ import { peekPanel, peekRider, usePeek, usePeekLights, useSideMotion } from "@/c
 import { useBarFade } from "@/core/barfade"
 import { hideBarsOnUserScroll } from "@/core/barhide"
 import { keepTypingInSight, markKeyboard } from "@/core/sight"
+import { useTypedYet } from "@/core/keyboard"
 import { phoneApp, takeLinks } from "@/core/phoneapp"
 import { GrantAsker } from "@/components/GrantAsker"
 import { isProtected, inVault, isReadOnly, openFile, stem } from "@/core/files"
@@ -503,6 +504,7 @@ export default function App() {
   const leftIn = usePeekLights(hideLeft, peek)
   const leftMotion = useSideMotion(hideLeft, leftIn), rightMotion = useSideMotion(hideRight, peek === "right")
   useBarFade(desktop && fileBarFade)
+  const typedYet = useTypedYet(coarse)
   useEffect(() => { const a = keepTypingInSight(), b = markKeyboard(), c = desktop ? null : hideBarsOnUserScroll(); return () => { a(); b(); c?.() } }, [desktop])
   useLayoutEffect(() => setRoom(desktop ? side : "0px", desktop ? rside : "0px"), [side, rside, desktop])
   useLayoutEffect(() => { setOpenWidth("left", sidebarPx(sidebarWidth)); setOpenWidth("right", sidebarPx(rightSidebarWidth)) }, [sidebarWidth, rightSidebarWidth])
@@ -647,7 +649,7 @@ export default function App() {
       <ConfirmDialogs />
       <BundleTrial store={store} />
       <Toaster desktop={desktop} />
-      {coarse && <Suspense><KeyboardKeys /></Suspense>}
+      {typedYet && <Suspense><KeyboardKeys /></Suspense>}
 
       {running}
       {store && <GrantAsker store={store} />}

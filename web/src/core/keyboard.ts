@@ -1,13 +1,24 @@
-import { useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 
 /** The on-screen keyboard is up: the visible part of the page is well short of the window. */
 export const keyboardUp = () => !!visualViewport && innerHeight - visualViewport.height > 80
 
-const TYPES = ":not([type]), [type=text], [type=search], [type=url], [type=email], [type=tel], [type=password], [type=number]"
-const TYPING = `textarea, [contenteditable=true], input:is(${TYPES})`
+const TYPING = "textarea,[contenteditable=true],input:is(:not([type]),[type=text],[type=search],[type=url],[type=email],[type=tel],[type=password],[type=number])"
 
 export const typesText = (el: Element | null): el is HTMLElement =>
-  el instanceof HTMLElement && el.matches(TYPING) && !el.matches("[readonly], [disabled], [inputmode=none]")
+  el instanceof HTMLElement && el.matches(TYPING) && !el.matches("[readonly],[disabled],[inputmode=none]")
+
+export function useTypedYet(on: boolean) {
+  const [yet, setYet] = useState(false)
+  useEffect(() => {
+    if (!on || yet) return
+    const typed = () => { if (typesText(document.activeElement)) setYet(true) }
+    typed()
+    addEventListener("focusin", typed)
+    return () => removeEventListener("focusin", typed)
+  }, [on, yet])
+  return yet
+}
 
 const SETTLE_MS = 160
 

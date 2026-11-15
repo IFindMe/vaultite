@@ -14,7 +14,7 @@ const typing = () => {
 const remeasureKeyboardForToasts = () => visualViewport?.dispatchEvent(new Event("resize"))
 
 function useTypingField() {
-  const [field, setField] = useState<HTMLElement | null>(null)
+  const [field, setField] = useState(typing)
   useEffect(() => {
     // (on focusout the focus hasn't landed yet)
     const check = () => setTimeout(() => setField(typing()))
