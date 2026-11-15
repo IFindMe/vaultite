@@ -1,7 +1,6 @@
-import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react"
+import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type MouseEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { BookOpen, CornerDownLeft, Folder, FolderInput, Smile, Trash2, Undo2, type LucideIcon } from "lucide-react"
-import { KeyBar, useVisibleArea } from "@/components/KeyBar"
+import { BookOpen, Folder, FolderInput, Smile, Trash2, type LucideIcon } from "lucide-react"
 import { coarse } from "@/core/haptics"
 import { Banner } from "@/components/Banner"
 import { menuFor, menuOnCard } from "@/components/ContextMenu"
@@ -84,6 +83,8 @@ const remember = (path: string, f: FileText) => {
 let renamed: { path: string; mode: Mode; write: boolean } | null = null
 const takeRenamed = (path: string) => { const r = renamed?.path === path ? renamed : null; if (r) renamed = null; return r }
 
+const TitleKeys = lazy(() => import("@/components/TitleKeys"))
+
 const Title = memo(function Title({ path, editable, sheet, focus, settle, mode, onEnter }: { path: string; editable: boolean; sheet: boolean; focus: boolean
   settle: () => Promise<void>
   mode?: Mode
@@ -121,25 +122,10 @@ const Title = memo(function Title({ path, editable, sheet, focus, settle, mode, 
         if (e.key === "Escape") { setV(name); e.currentTarget.blur() }
       }}
       className="block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-muted-foreground" />
-      {typing && <TitleKeys field={ref} back={v !== name ? () => setV(name) : undefined} next={toText} />}</h1>
+      {typing && <Suspense><TitleKeys field={ref} back={v !== name ? () => setV(name) : undefined} next={toText} /></Suspense>}</h1>
   )
 })
 
-function TitleKeys({ field, back, next }: { field: RefObject<HTMLTextAreaElement | null>; back?: () => void; next: (t: HTMLTextAreaElement) => void }) {
-  const area = useVisibleArea(true)
-  const t = field.current
-  if (!t || !area?.keyboard) return null
-  const key = (Icon: LucideIcon, text: string) => <span className="flex items-center gap-1.5 font-sans text-[14px]"><Icon className="size-[17px]" strokeWidth={2} />{text}</span>
-  return createPortal(
-    <div className="fixed inset-x-0 z-[45] -translate-y-full" style={{ top: area.top + area.height }} data-title-keys>
-      <KeyBar label="Name keys" hide={() => t.blur()} keys={[
-        ...(back ? [{ name: "Put the name back", label: key(Undo2, "Put back"), run: back }] : []),
-        { name: "Go to the text", label: key(CornerDownLeft, "Go to the text"), run: () => next(t) },
-      ]} />
-    </div>,
-    t.closest<HTMLElement>("dialog[open]") ?? document.body,
-  )
-}
 
 function renaming(path: string, typed: string) {
   const ext = path.split("/").pop()!.slice(stem(path).length)

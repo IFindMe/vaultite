@@ -119,41 +119,36 @@ export function keepTypingInSight() {
   }
 }
 
-const TYPED = "textarea:not([readonly]), [contenteditable=true], input:not([readonly], [type=checkbox], [type=radio], [type=button], [type=submit], [type=reset], [type=range], [type=color], [type=file], [type=image])"
 const typingNow = () => {
   const at = document.activeElement
-  return at instanceof HTMLElement && at.matches(TYPED) && at.inputMode !== "none" && !at.closest("[data-term]")
+  return at instanceof HTMLElement && at.matches("textarea, [contenteditable=true], input:not([type=checkbox], [type=radio], [type=range])") && !at.closest("[data-term]")
 }
 
 // iOS resizes the viewport only once the keyboard's slide ends: marked from the focus until the keys are down.
-const RISE_MS = 700, FALL_MS = 1000
 export function markKeyboard() {
   const vv = visualViewport
   if (!vv || !matchMedia("(pointer: coarse)").matches) return () => {}
   const root = document.documentElement
-  let frame = 0, timers: number[] = [], rising = 0, falling = 0
+  let timers: number[] = [], until = 0
   const read = () => {
-    const now = performance.now(), keys = keyboardUp()
-    const up = typingNow() ? keys || now < rising : keys && now < falling
+    const keys = keyboardUp(), live = performance.now() < until, up = typingNow() ? keys || live : keys && live
     root.toggleAttribute("data-keyboard", up)
     const bar = document.querySelector("[data-key-bar]")?.getBoundingClientRect().height ?? 0
-    root.style.setProperty("--keyboard-cover", up && keys ? `${Math.max(0, innerHeight - vv.offsetTop - vv.height) + bar}px` : "0px")
+    root.style.setProperty("--keyboard-cover", keys ? `${Math.max(0, innerHeight - vv.offsetTop - vv.height) + bar}px` : "0px")
   }
-  const soon = (more = 300) => {
-    cancelAnimationFrame(frame); for (const t of timers) clearTimeout(t)
-    frame = requestAnimationFrame(read)
-    timers = [window.setTimeout(read, 300), window.setTimeout(read, more + 50)]
+  const soon = (e?: Event) => {
+    if (e?.type.startsWith("focus")) until = performance.now() + 900
+    for (const t of timers) clearTimeout(t)
+    timers = [300, 950].map((ms) => window.setTimeout(read, ms))
+    read(); requestAnimationFrame(read)
   }
-  const viewport = () => soon()
-  const focused = () => { if (typingNow() && !root.hasAttribute("data-keyboard")) { rising = performance.now() + RISE_MS; read() } soon(RISE_MS) }
-  const left = () => { if (root.hasAttribute("data-keyboard")) falling = performance.now() + FALL_MS; soon(FALL_MS) }
-  vv.addEventListener("resize", viewport); vv.addEventListener("scroll", viewport)
-  document.addEventListener("focusin", focused); document.addEventListener("focusout", left)
+  vv.addEventListener("resize", soon); vv.addEventListener("scroll", soon)
+  document.addEventListener("focusin", soon); document.addEventListener("focusout", soon)
   read()
   return () => {
-    cancelAnimationFrame(frame); for (const t of timers) clearTimeout(t)
-    vv.removeEventListener("resize", viewport); vv.removeEventListener("scroll", viewport)
-    document.removeEventListener("focusin", focused); document.removeEventListener("focusout", left)
+    for (const t of timers) clearTimeout(t)
+    vv.removeEventListener("resize", soon); vv.removeEventListener("scroll", soon)
+    document.removeEventListener("focusin", soon); document.removeEventListener("focusout", soon)
     root.removeAttribute("data-keyboard"); root.style.removeProperty("--keyboard-cover")
   }
 }
