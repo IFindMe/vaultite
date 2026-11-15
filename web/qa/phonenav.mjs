@@ -1,10 +1,10 @@
-// Phone navigation at iPhone size (real touches through CDP): the drawer by its button and the edge swipe, a note from
-// its file tree, the bar's Back and Forward (core/motion.ts), a link in a note and Back to where it was scrolled, the
-// bar's Search to a result, Settings and back, the tab list; on every screen nothing is wider than the phone and every
-// target is 44px; the bars hide on scrolling down (core/barhide.ts). WRITES Qa nav/ (two notes): throwaway server only.
+// Phone navigation at iPhone size (real touches through CDP): the drawer by button and edge swipe, a note from its file
+// tree, the bar's Back and Forward (core/motion.ts), a link and Back to where it was scrolled, Search to a result, Settings
+// and back, the tab list; nothing wider than the phone, every target 44px; the bars hide on scrolling down (core/barhide.ts);
+// a terminal, the graph and a canvas fill the screen to the bar (index.css: .phone-fill). WRITES Qa nav/: throwaway only.
 //   node web/qa/phonenav.mjs <base url> <vault path> [out dir]
 import { mkdirSync } from "node:fs"
-import { apiAt, fingers, qa, until } from "./lib/qa.mjs"
+import { PROMPT, apiAt, fingers, qa, terminalText, until } from "./lib/qa.mjs"
 const { args: [B, , OUT = "/tmp/phonenav-shots/"], browser, check, watch, done } = await qa(import.meta.url)
 mkdirSync(OUT, { recursive: true })
 const api = apiAt(B)
@@ -12,6 +12,7 @@ const LONG = "Qa nav/Long walk.md", TARGET = "Qa nav/Harbour notes.md"
 const paras = Array.from({ length: 40 }, (_, i) => `Paragraph ${i + 1} about the Lighthouse path, long enough to wrap across the phone's width twice over.`)
 await api("POST", "file", { path: LONG, text: `# Long walk\n\n${paras.slice(0, 30).join("\n\n")}\n\nSee [[Harbour notes]] for the harbour.\n\n${paras.slice(30).join("\n\n")}\n` })
 await api("POST", "file", { path: TARGET, text: "# Harbour notes\n\nAlice Park keeps the harbour's tide table.\n" })
+await api("POST", "file", { path: "Qa nav/Map.canvas", text: JSON.stringify({ nodes: [{ id: "a", type: "text", text: "Lighthouse", x: 0, y: 0, width: 200, height: 80 }], edges: [] }) })
 
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 const page = watch(await ctx.newPage(), { console: true, ignore: /favicon|Failed to load resource|WebSocket/ })
@@ -238,6 +239,20 @@ try {
   check("a tap brings them back", await away(false))
   await page.evaluate(() => scrollTo(0, 900))
   check("a jump the app makes leaves them shown", !(await away(true)))
+
+  const fills = [["a terminal", `#view/terminal%2Fqa${Date.now().toString(36)}n`], ["the graph", "#view/graph"], ["a canvas", `#file/${encodeURIComponent("Qa nav/Map.canvas")}`]]
+  for (const [name, to] of fills) {
+    await page.goto(`${B}${to}`)
+    await page.locator(".phone-fill:visible").first().waitFor({ timeout: 15000 })
+    if (name === "a terminal") await until(async () => PROMPT.test(await terminalText(page)), 15000)
+    await idle()
+    const fit = await page.evaluate(() => {
+      const fill = [...document.querySelectorAll(".phone-fill")].find((e) => e.offsetParent).getBoundingClientRect()
+      return { over: document.scrollingElement.scrollHeight - innerHeight, end: Math.round(fill.bottom), bar: Math.round(document.querySelector("[data-phone-bar]").getBoundingClientRect().top) }
+    })
+    if (name === "a terminal") await shot("8-terminal")
+    check(`${name} fills the screen to the bar, the page never scrolling under it`, fit.over <= 0 && fit.end === fit.bar, fit)
+  }
 } catch (e) { check("ran to the end", false, String(e).slice(0, 400)) } finally {
   await ctx.close()
   await done()

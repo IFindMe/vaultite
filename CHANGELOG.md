@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Phone: a terminal, the graph, a canvas and other views that fill the screen fit it exactly, ending at the bottom bar,
+  so the page no longer scrolls a little under them.
 - Phone: the keys over the keyboard end with Done to hide it, and fade in once the keyboard settles instead of jumping
   with it.
 - Phone: while you type a note's name, keys over the keyboard put the name back, go to the text, or hide the keyboard.

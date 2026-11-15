@@ -305,9 +305,10 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 @media (max-width: 767px) {
   .sheet-h { height: 100vh; height: 100dvh; max-height: none; }
 }
-/* Phones: the bar docked at the bottom (components/PhoneBar.tsx): a 3rem row over the home indicator's safe area. What
-   sits above it (the page's end, a toast, the bar's menu) keeps clear of it with this. */
-:root { --phone-bar: calc(max(env(safe-area-inset-bottom), 0.25rem) + 3rem); --mini-player: 0px; --corner-cards: 0px; --trial-bar: 0px; }
+/* Phones: the bar floats above the screen's foot (components/PhoneBar.tsx); --phone-bar is how high its top is. What sits
+   above it (the page's end, a toast, the bar's menu) keeps clear of it with this. */
+:root { --phone-bar-gap: max(calc(env(safe-area-inset-bottom) - 0.75rem), 0.5rem); --phone-bar: calc(var(--phone-bar-gap) + 3rem);
+  --mini-player: 0px; --corner-cards: 0px; --trial-bar: 0px; --page-end: 1.5rem; }
 /* A bundle being tried (components/BundleTrial.tsx): its bar's height and a gap, which toasts sit above. */
 :root[data-trying] { --trial-bar: 44px; }
 @media (max-width: 767px) { :root[data-trying] { --trial-bar: 62px; } }
@@ -326,10 +327,12 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 [data-bars-away]:not([data-keyboard]) [data-phone-header] > div { opacity: 0; pointer-events: none; }
 [data-bars-away] [data-phone-bar] { transform: translateY(calc(100% + 2.5rem)); opacity: 0; pointer-events: none; transition-duration: 280ms; }
 @media (prefers-reduced-motion: reduce) { [data-phone-header], [data-phone-bar] { transition-property: opacity; } }
-.pb-safe { padding-bottom: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar) + 1.5rem); }
+.pb-safe { padding-bottom: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar) + var(--page-end)); }
 @media (min-width: 768px) { .pb-safe { padding-bottom: calc(3rem + var(--mini-player) + var(--trial-bar)); } }
-/* Phones: the screen between the header (3.5rem) and the bar, for what fills it (a canvas, a terminal). */
-.phone-fill { height: calc(100dvh - env(safe-area-inset-top) - 3.5rem - var(--phone-bar)); }
+/* Phones: the screen between the header (3.5rem) and the bar and what sits on it, for what fills it (a canvas, a terminal);
+   it takes back the page's end room, so the page never scrolls under it. */
+.phone-fill { height: calc(100dvh - env(safe-area-inset-top) - 3.5rem - var(--phone-bar) - var(--mini-player) - var(--trial-bar));
+  margin-bottom: calc(-1 * var(--page-end)); }
 
 /* Metrics use SF Pro Rounded, like Health and Fitness. */
 .num { font-family: var(--font-rounded); font-variant-numeric: tabular-nums; }

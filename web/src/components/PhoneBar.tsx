@@ -133,7 +133,7 @@ export function PhoneBar({ system, active, listOpen, onSearch, onCommands, onNew
         </>
       )}
       <nav ref={nav} data-phone-bar aria-label="Navigation" style={{ viewTransitionName: listOpen ? undefined : "phone-bar", touchAction: "none" }}
-        className="sight-foot glass-strong fixed inset-x-3 bottom-[max(calc(env(safe-area-inset-bottom)-0.75rem),0.5rem)] z-30 mx-auto max-w-md rounded-full p-0.5 md:hidden">
+        className="sight-foot glass-strong fixed inset-x-3 bottom-(--phone-bar-gap) z-30 mx-auto max-w-md rounded-full p-0.5 md:hidden">
         <div className="flex items-stretch gap-0.5">{BAR.map(button)}</div>
       </nav>
     </>
