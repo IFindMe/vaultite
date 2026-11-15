@@ -23,11 +23,31 @@ export const keysText = (s: string, mac = isMac) => mac ? s : s.replace(/([âŒƒâŒ
   return names.join("+") + (next ? "+" : "")
 })
 
-const DESKTOP = "(min-width: 768px)"
-/** A computer's width (the desktop's panes), not a phone's. */
-export const isDesktop = () => matchMedia(DESKTOP).matches
-/** isDesktop that follows the window: a phone's width and a computer's swap as it's resized. */
-export const useDesktop = () => useSyncExternalStore((f) => { const m = matchMedia(DESKTOP); m.addEventListener("change", f); return () => m.removeEventListener("change", f) }, isDesktop)
+const NARROW = "(max-width: 767.98px)", TOUCH = "(pointer: coarse)"
+const PHONE_SIDE = 600
+const canMatch = typeof matchMedia === "function"
+export const isPhoneDevice = () => canMatch && matchMedia(TOUCH).matches && Math.min(screen.width, screen.height) < PHONE_SIDE
+const phoneLayout = () => canMatch && (matchMedia(NARROW).matches || isPhoneDevice())
+/** The desktop's panes, not the phone's layout: a window as narrow as a phone's, or a phone either way up (its short side under 600px: an iPhone's is at most 440, an iPad mini's 744). */
+export const isDesktop = () => !phoneLayout()
+
+let phone = phoneLayout()
+const layoutChanged = new Set<() => void>()
+const markLayout = () => { if (document.documentElement.hasAttribute("data-phone") !== phone) document.documentElement.toggleAttribute("data-phone", phone) }
+function relayout() {
+  if (phoneLayout() === phone) return
+  phone = !phone
+  markLayout()
+  for (const f of layoutChanged) f()
+}
+export const onLayoutChange = (f: () => void) => { layoutChanged.add(f); return () => { layoutChanged.delete(f) } }
+/** isDesktop that follows the window: a computer's window resized as narrow as a phone's takes the phone's layout. */
+export const useDesktop = () => useSyncExternalStore(onLayoutChange, isDesktop)
+if (typeof document !== "undefined" && canMatch) {
+  markLayout()
+  addEventListener("resize", relayout)
+  for (const q of [NARROW, TOUCH]) matchMedia(q).addEventListener("change", relayout)
+}
 
 let measuredAt = 0
 const probe = () => {

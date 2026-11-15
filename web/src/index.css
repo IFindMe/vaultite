@@ -23,6 +23,11 @@
 @source not "../demo/research";
 
 @custom-variant dark (&:is(.dark *));
+/* md: is the desktop's layout, max-md: the phone's: what core/platform.ts chose (the root's data-phone), not the window's
+   width, so a phone turned sideways keeps its own. Rules here say the same: `:where([data-phone]) X` and
+   `X:where(:not([data-phone] *))`. (An ancestor, not :root: a copy of the page in a shadow root has none, and is a desktop's.) */
+@custom-variant md (&:where(:not([data-phone] *)));
+@custom-variant max-md (&:where([data-phone] *));
 
 @theme inline {
     --font-mono: var(--font-code);
@@ -149,10 +154,8 @@
    scale its own margin), pulls it out by its rows' inset, so their text lines up with the page's. */
 [data-size-up] { zoom: 1.1538; }
 .size-up-bleed { margin-inline: calc(var(--spacing) * -1.5 * 1.1538); }
-@media (max-width: 767px) {
-  [data-size-up] { zoom: 1.2308; --spacing: 0.29rem; }
-  .size-up-bleed { margin-inline: calc(0.29rem * -1.5 * 1.2308); }
-}
+:where([data-phone]) [data-size-up] { zoom: 1.2308; --spacing: 0.29rem; }
+:where([data-phone]) .size-up-bleed { margin-inline: calc(0.29rem * -1.5 * 1.2308); }
 
 
 .dark {
@@ -302,16 +305,14 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
    by its lightness, so every scheme's colours stay readable. */
 .on-tint { color: #fff; color: oklch(from var(--tint) clamp(0.22, (0.72 - l) * 1000, 1) 0 0); }
 /* The detail sheet on phones: the whole screen (vh fallback for browsers without dvh). */
-@media (max-width: 767px) {
-  .sheet-h { height: 100vh; height: 100dvh; max-height: none; }
-}
+:where([data-phone]) .sheet-h { height: 100vh; height: 100dvh; max-height: none; }
 /* Phones: the bar floats above the screen's foot (components/PhoneBar.tsx); --phone-bar is how high its top is. What sits
    above it (the page's end, a toast, the bar's menu) keeps clear of it with this. */
 :root { --phone-bar-gap: max(calc(env(safe-area-inset-bottom) - 0.75rem), 0.5rem); --phone-bar: calc(var(--phone-bar-gap) + 3rem);
   --mini-player: 0px; --corner-cards: 0px; --trial-bar: 0px; --page-foot: calc(var(--phone-bar) + var(--mini-player) + var(--trial-bar)); }
 /* A bundle being tried (components/BundleTrial.tsx): its bar's height and a gap, which toasts sit above. */
 :root[data-trying] { --trial-bar: 44px; }
-@media (max-width: 767px) { :root[data-trying] { --trial-bar: 62px; } }
+:root[data-trying][data-phone] { --trial-bar: 62px; }
 /* The on-screen keyboard up (core/sight.ts: markKeyboard): the bar steps down out of the way, and toasts sit above the keys over
    the keyboard instead of over the bar. */
 :root { --toast-floor: calc(var(--page-foot) + 0.75rem); --keyboard-cover: 0px; --key-bar: 0px; }
@@ -332,7 +333,7 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 [data-bars-away] [data-phone-bar] { transform: translateY(calc(100% + 2.5rem)); opacity: 0; pointer-events: none; transition-duration: 280ms; }
 @media (prefers-reduced-motion: reduce) { [data-phone-header], [data-phone-bar] { transition-property: opacity; } }
 .pb-safe { padding-bottom: calc(var(--page-foot) + 1.5rem); }
-@media (min-width: 768px) { .pb-safe { padding-bottom: calc(3rem + var(--mini-player) + var(--trial-bar)); } }
+.pb-safe:where(:not([data-phone] *)) { padding-bottom: calc(3rem + var(--mini-player) + var(--trial-bar)); }
 /* Phones: the screen between the header (3.5rem) and the bar and what sits on it, for what fills it (a canvas, a terminal);
    it takes back .pb-safe's end room, so the page never scrolls under it. */
 .phone-fill { height: calc(100dvh - env(safe-area-inset-top) - 3.5rem - var(--page-foot)); margin-bottom: -1.5rem; }
@@ -428,12 +429,10 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 /* `![[Note]]` in running text: drawn in its place, as on a line of its own */
 .note-prose .md-embed { display: block; margin: 0.5em 0; }
 /* Filter chips: on phones one sideways-scrolling row, no scrollbar (faded at its edges: edge-fade-x); wrapped from md up. */
-@media (max-width: 767px) {
-  .chip-row { scrollbar-width: none; }
-  .chip-row::-webkit-scrollbar { display: none; }
-  .chip-row::after { content: ""; flex: 0 0 8px; }
-}
-@media (min-width: 768px) { .chip-row { flex-wrap: wrap; overflow: visible; } }
+:where([data-phone]) .chip-row { scrollbar-width: none; }
+:where([data-phone]) .chip-row::-webkit-scrollbar { display: none; }
+:where([data-phone]) .chip-row::after { content: ""; flex: 0 0 8px; }
+.chip-row:where(:not([data-phone] *)) { flex-wrap: wrap; overflow: visible; }
 
 /* Scrollbars are the system's where they overlay the page (a Mac's, phones'). Where they'd always show (platform.ts),
    ours show only while scrolling, as a Mac's do; `[scrollbar-width:none]` still hides one (Chromium then skips these). */
@@ -707,11 +706,9 @@ html[data-window-inactive] .vau-editor .cm-content ::selection {
 [data-sonner-toaster] .vau-toast[data-styled=true] [data-button]:hover { background: color-mix(in srgb, var(--foreground) 6%, transparent); }
 [data-sonner-toaster] .vau-toast[data-styled=true] [data-button]:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 50%, transparent); }
 /* Phones: iOS text sizes, full width between the gutters. */
-@media (max-width: 767px) {
-  [data-sonner-toaster] .vau-toast[data-styled=true] { min-height: 48px; padding: 12px 10px 12px 16px; font-size: 15px; line-height: 20px; border-radius: 12px; }
-  [data-sonner-toaster] .vau-toast[data-styled=true] [data-title] { line-height: 20px; -webkit-line-clamp: 4; }
-  [data-sonner-toaster] .vau-toast[data-styled=true] [data-button] { height: 32px; padding: 0 10px; font-size: 15px; border-radius: 8px; }
-}
+:where([data-phone]) [data-sonner-toaster] .vau-toast[data-styled=true] { min-height: 48px; padding: 12px 10px 12px 16px; font-size: 15px; line-height: 20px; border-radius: 12px; }
+:where([data-phone]) [data-sonner-toaster] .vau-toast[data-styled=true] [data-title] { line-height: 20px; -webkit-line-clamp: 4; }
+:where([data-phone]) [data-sonner-toaster] .vau-toast[data-styled=true] [data-button] { height: 32px; padding: 0 10px; font-size: 15px; border-radius: 8px; }
 
 /* The editor (CodeMirror with live preview; web/src/editor). Body text at iOS body size, like the note reader was.
    Heading lines keep their size and spacing whether their # shows or not, so moving the cursor doesn't move text. */
@@ -728,10 +725,10 @@ html[data-window-inactive] .vau-editor .cm-content ::selection {
 [data-pane], [data-kept], [data-stacked], [data-tab-overlay] { --vau-panel-top: calc(var(--spacing) * 10); }
 /* A page of cards anchors its own scrolling (core/anchor.ts): the browser's is off inside it. */
 [data-anchored], [data-anchored] * { overflow-anchor: none; }
-@media (max-width: 767px) { #main-scroll { --vau-panel-top: calc(env(safe-area-inset-top) + var(--spacing) * 11); } }
+:where([data-phone]) #main-scroll { --vau-panel-top: calc(env(safe-area-inset-top) + var(--spacing) * 11); }
 dialog { --vau-panel-top: 0px; }
 /* Bottom panels (Vim's command line) stick at the pane's foot: on a computer, above the status bar drawn over it. */
-@media (min-width: 768px) { [data-pane], [data-kept] { --vau-panel-bottom: calc(var(--spacing) * 7); } }
+[data-pane]:where(:not([data-phone] *)), [data-kept]:where(:not([data-phone] *)) { --vau-panel-bottom: calc(var(--spacing) * 7); }
 dialog { --vau-panel-bottom: 0px; }
 /* What the status bar leaves out while it doesn't fit (StatusBar.tsx, useFit). */
 [data-status-row] [data-fit-out] { display: none !important; }
@@ -755,11 +752,9 @@ body[data-resizing] [data-status-bar] { transition: none; }
 ::highlight(vau-find-current) { background-color: color-mix(in srgb, var(--orange) 50%, transparent); }
 /* Desktop: 16px text, line height 1.5; phones a point bigger (iOS body size). Headings are sized
    relative to it (em), so they follow. */
-@media (min-width: 768px) {
-  .vau-editor .cm-editor { font-size: 16px; }
-  .vau-editor .cm-scroller { line-height: 1.5; }
-  .note-prose:not(.compact, .inline) { font-size: 16px; line-height: 24px; }
-}
+.vau-editor .cm-editor:where(:not([data-phone] *)) { font-size: 16px; }
+.vau-editor .cm-scroller:where(:not([data-phone] *)) { line-height: 1.5; }
+.note-prose:not(.compact, .inline):where(:not([data-phone] *)) { font-size: 16px; line-height: 24px; }
 /* The editor inside something else (NoteEditor, FileEditor: a canvas card): its box's text size, no room kept under it. */
 .note-editor .vau-editor .cm-editor { font-size: inherit; }
 .note-editor .vau-editor .cm-content { padding-bottom: 0; }
@@ -811,9 +806,7 @@ body[data-resizing] [data-status-bar] { transition: none; }
   font-family: var(--font-code); font-size: 12px; font-variant-numeric: tabular-nums; }
 .vau-editor.has-numbers .cm-lineNumbers .cm-gutterElement { padding: 0 8px 0 0; min-width: 20px; line-height: calc(17px * 1.53); }
 .vau-editor.has-numbers .cm-activeLineGutter { background: transparent; color: var(--foreground); }
-@media (min-width: 768px) {
-  .vau-editor.has-numbers .cm-lineNumbers .cm-gutterElement { padding-right: 12px; min-width: 28px; line-height: 24px; }
-}
+.vau-editor.has-numbers .cm-lineNumbers .cm-gutterElement:where(:not([data-phone] *)) { padding-right: 12px; min-width: 28px; line-height: 24px; }
 /* A notebook's code cells (editor/Notebook.tsx: @lezer/highlight's classHighlighter), in the same colours as code files. */
 .nb-code { font-family: var(--font-code); }
 .nb-code :is(.tok-keyword, .tok-operatorKeyword) { color: oklch(from var(--purple) var(--ink-l) c h); }
@@ -1005,7 +998,7 @@ body[data-resizing] [data-status-bar] { transition: none; }
 /* Markdown between a dashboard's blocks (a heading over a group of cards, a line of text) */
 /* Its type is the editor's (sizes, heading colours), so reading and editing a dashboard show the same text. */
 .dash-prose { font-size: 17px; line-height: 25px; }
-@media (min-width: 768px) { .dash-prose { font-size: 16px; line-height: 24px; } }
+.dash-prose:where(:not([data-phone] *)) { font-size: 16px; line-height: 24px; }
 .dash-prose > :where(:not(:first-child)) { margin-top: 10px; }
 .dash-prose > :is(h1, h2, h3, h4, h5, h6):not(:first-child) { margin-top: 22px; }
 .dash-prose h1 { font-size: 1.625em; line-height: 1.31; font-weight: 700; color: oklch(from var(--h1) var(--ink-l) c h); }
@@ -1176,15 +1169,13 @@ details.callout[open] > summary .callout-fold { transform: rotate(90deg); }
   font-size: 12px; white-space: nowrap; }
 :is(.cm-editor, .vau-tooltips) .cm-tooltip-autocomplete .cm-completionMatchedText { text-decoration: none; font-weight: 650; }
 /* Phones: rows and text like the app's other phone menus (44px, 17px). */
-@media (max-width: 767px) {
-  :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete { border-radius: 12px; }
-  :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete > ul { max-height: min(352px, 45dvh); }
-  :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete > ul > li { align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px;
+:where([data-phone]) :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete { border-radius: 12px; }
+:where([data-phone]) :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete > ul { max-height: min(352px, 45dvh); }
+:where([data-phone]) :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete > ul > li { align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px;
     font-size: 17px; line-height: 22px; }
-  :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete > ul > completion-section { padding: 10px 12px 4px; font-size: 13px; line-height: 18px; }
-  :is(.cm-editor, .vau-tooltips) .cm-tooltip-autocomplete .cm-completionDetail { font-size: 14px; }
-  :is(.cm-editor, .vau-tooltips) .cm-tooltip-autocomplete .cm-slash-icon { font-size: 20px; margin-right: 12px; }
-}
+:where([data-phone]) :is(.cm-editor, .vau-tooltips) .cm-tooltip.cm-tooltip-autocomplete > ul > completion-section { padding: 10px 12px 4px; font-size: 13px; line-height: 18px; }
+:where([data-phone]) :is(.cm-editor, .vau-tooltips) .cm-tooltip-autocomplete .cm-completionDetail { font-size: 14px; }
+:where([data-phone]) :is(.cm-editor, .vau-tooltips) .cm-tooltip-autocomplete .cm-slash-icon { font-size: 20px; margin-right: 12px; }
 
 /* With no right sidebar on screen (data-right-sidebar, App.tsx), its toggle (fixed in the window's top-right corner)
    sits at the end of the tab bar (without it, the top-right pane's bar): the bar keeps clear of it. */
@@ -1271,10 +1262,8 @@ html[data-electron][data-platform=win32] [data-right-corner] > [data-title-row] 
    the screen's edge, PhoneDrawer.tsx, wherever it starts, the screen below a short page too; rows' swipes). touch-action
    stops at the nearest scroller, so everything in a drawer says so too, or its panels' scroller would hand a sideways
    swipe to the browser (pointercancel) before the drawer or a row sees it. */
-@media (max-width: 767.98px) {
-  html { scroll-padding-top: calc(env(safe-area-inset-top) + 3.5rem); }
-  html, [data-phone-drawer] * { touch-action: pan-y pinch-zoom; }
-}
+html[data-phone] { scroll-padding-top: calc(env(safe-area-inset-top) + 3.5rem); }
+html[data-phone], :where([data-phone]) [data-phone-drawer] * { touch-action: pan-y pinch-zoom; }
 /* Phones: Back/Forward move like a browser's (core/motion.ts sets data-motion). The pictures of the screen before and
    after (old/new root) are moved; the phone's bar is a group of its own and stays put. */
 ::view-transition-old(root), ::view-transition-new(root) { mix-blend-mode: normal; transform-origin: 0 0; }
@@ -1394,7 +1383,7 @@ section[data-moving="up"] { z-index: 4; }
   height: calc(var(--spacing) * 6); margin: 0 var(--pane-gap) calc(var(--pane-gap) * 2); padding-right: calc(var(--spacing) * 2);
   border: 0.5px solid var(--color-border); border-radius: var(--radius-chip); background: var(--card); box-shadow: var(--card-lift);
 }
-@media (min-width: 768px) { :root[data-pane-cards] :is([data-pane], [data-kept]) { --vau-panel-bottom: calc(var(--spacing) * 6 + var(--pane-gap)); } }
+:root[data-pane-cards]:not([data-phone]) :is([data-pane], [data-kept]) { --vau-panel-bottom: calc(var(--spacing) * 6 + var(--pane-gap)); }
 /* The sidebar's foot (the vault, Plugins, Settings) in line with those chips: its buttons centred on theirs, as tall. */
 :root[data-pane-cards] aside[data-side=left]:not([data-collapsed], [data-peek]) [data-sidebar-foot] {
   padding-top: calc(var(--spacing) * 4.5 - var(--pane-gap) * 2); padding-bottom: calc(var(--pane-gap) * 2 - var(--spacing) * 0.5);

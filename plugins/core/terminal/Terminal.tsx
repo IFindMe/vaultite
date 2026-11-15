@@ -198,7 +198,7 @@ export default function TerminalView({ id, focused, close }: { id: string; focus
 
   const restart = () => { live.current?.restart(); setRestarts((n) => n + 1) }
   return (
-    <div ref={view} data-terminal-view className={cn("flex flex-col bg-background", full ? "fixed inset-x-0 z-40 pt-[env(safe-area-inset-top)]" : "relative h-full min-h-[240px] w-full",
+    <div ref={view} data-terminal-view className={cn("flex flex-col bg-background", full ? "fixed inset-x-0 z-40 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]" : "relative h-full min-h-[240px] w-full",
       full && !area.keyboard && "pb-[env(safe-area-inset-bottom)]")}
       style={full ? { top: area.top, height: area.height } : undefined}>
       {status.kind === "live" && status.blocked && (

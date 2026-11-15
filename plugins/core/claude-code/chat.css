@@ -1,5 +1,5 @@
 /* The chat transcript's own styles: loaded with the chat's chunk (ChatTab.tsx), not with the app, so its type, rows and
-   code don't weigh on every launch. A phone is Tailwind's max-md (under 48rem). */
+   code don't weigh on every launch. A phone is the phone's layout (core/platform.ts: data-phone), as Tailwind's max-md. */
 
 /* Its text sizes: prose, a step below (rows, notes, the status line; `chat-lines` where it wraps), the small print
    (outcomes), code in a row, an edit's counts. */
@@ -10,15 +10,13 @@
 .chat-code { font-family: var(--font-code); font-size: 13px; }
 .chat-count { font-family: var(--font-code); font-size: 12.5px; }
 .chat-think { font-size: 14px !important; line-height: 22px !important; }
-@media (width < 48rem) {
-  .chat-prose { font-size: 17px !important; line-height: 26px !important; }
-  .chat-small { font-size: 16px; }
-  .chat-lines { line-height: 22px; }
-  .chat-fine { font-size: 15px; }
-  .chat-code { font-size: 14.5px; }
-  .chat-count { font-size: 14px; }
-  .chat-think { font-size: 16px !important; line-height: 24px !important; }
-}
+:where([data-phone]) .chat-prose { font-size: 17px !important; line-height: 26px !important; }
+:where([data-phone]) .chat-small { font-size: 16px; }
+:where([data-phone]) .chat-lines { line-height: 22px; }
+:where([data-phone]) .chat-fine { font-size: 15px; }
+:where([data-phone]) .chat-code { font-size: 14.5px; }
+:where([data-phone]) .chat-count { font-size: 14px; }
+:where([data-phone]) .chat-think { font-size: 16px !important; line-height: 24px !important; }
 
 /* Its Markdown: code scrolls sideways, fading where it's cut (index.css' edge-fade-x), never wraps; inline code keeps to
    the line's height, so lines with it are as evenly spaced as the rest; paragraphs breathe a little more than a sheet's. */
@@ -46,7 +44,7 @@
   .chat-row:hover [data-what] { color: color-mix(in srgb, var(--foreground) 75%, transparent); }
   .chat-row:hover [data-chevron] { color: var(--muted-foreground); }
 }
-@media (width < 48rem) { .chat-row::before { content: ""; position: absolute; inset: -4px 0; } }
+:where([data-phone]) .chat-row::before { content: ""; position: absolute; inset: -4px 0; }
 
 /* What runs moves in steps, a few redraws a second rather than sixty. Claude at work twinkles as Claude Code's star does,
    never turning: its frames, mark first (where it rests with motion off), played to the dot and back. */
@@ -58,7 +56,7 @@
 /* A line down the side of what belongs to the row above it: a thought's text, a subagent's steps. */
 .chat-rule { border-left: 1.5px solid var(--border); }
 .chat-steps { margin-left: 7px; padding-left: 15px; }
-@media (width < 48rem) { .chat-steps { padding-left: 12px; } }
+:where([data-phone]) .chat-steps { padding-left: 12px; }
 
 /* A todo's dot: open, under way, done. */
 .chat-todo { margin-top: 5px; border: 1.5px solid var(--border); }
@@ -67,12 +65,12 @@
 
 /* A long run of calls while they run: a few rows high, the newest in sight. */
 .chat-capped { max-height: 168px; }
-@media (width < 48rem) { .chat-capped { max-height: 220px; } }
+:where([data-phone]) .chat-capped { max-height: 220px; }
 
 /* A message's pictures: small, larger in place when clicked. */
 .chat-thumb { transition: height var(--motion) var(--ease-out), max-width var(--motion) var(--ease-out); }
 [aria-pressed="true"] > .chat-thumb { cursor: zoom-out; }
-@media (width < 48rem) { .chat-run { gap: 4px; } }
+:where([data-phone]) .chat-run { gap: 4px; }
 
 /* Jump to latest: only while scrolled away from it, fading in and out just over the composer. */
 .chat-jump { position: absolute; bottom: 10px; left: 50%; translate: -50% 0; box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
@@ -81,12 +79,12 @@
 .chat-scrim { position: absolute; inset-inline: 0; bottom: 0; height: 56px; pointer-events: none; opacity: 0;
   background: linear-gradient(to bottom, transparent, var(--background) 70%); transition: opacity var(--motion) var(--ease-out); }
 .chat-scrim[data-on] { opacity: 1; }
-@media (width < 48rem) { .chat-scrim { height: 72px; } }
+:where([data-phone]) .chat-scrim { height: 72px; }
 
 /* A call's long output: its start, fading out, then Show all. */
 .chat-clamp { max-height: 240px; }
 .chat-clamped { mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent); }
-@media (width < 48rem) { .chat-clamp { max-height: 200px; } }
+:where([data-phone]) .chat-clamp { max-height: 200px; }
 
 /* The composer and what docks over it float a little; a card in the conversation rests. */
 .chat-float { box-shadow: 0 2px 10px rgb(0 0 0 / 0.06); }
@@ -98,10 +96,8 @@
    phone). */
 .chat-chips { mask-image: linear-gradient(to right, black calc(100% - 14px), transparent); }
 .chat-pic-x { box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); }
-@media (width >= 48rem) {
-  .chat-pic-x { opacity: 0; transition: opacity 150ms var(--ease-out); }
-  .group\/pic:hover .chat-pic-x, .group\/pic:focus-within .chat-pic-x { opacity: 1; }
-}
+.chat-pic-x:where(:not([data-phone] *)) { opacity: 0; transition: opacity 150ms var(--ease-out); }
+.group\/pic:hover .chat-pic-x:where(:not([data-phone] *)), .group\/pic:focus-within .chat-pic-x:where(:not([data-phone] *)) { opacity: 1; }
 /* What failed, in a box tinted red. */
 .chat-alarm { border-color: color-mix(in srgb, var(--red) 35%, transparent); background: color-mix(in srgb, var(--red) 6%, transparent); }
 
@@ -110,7 +106,7 @@
 .chat-fresh { padding-block: 32px; }
 .chat-fresh-in { padding-bottom: 6vh; }
 .chat-strong:hover { background: color-mix(in srgb, var(--foreground) 85%, transparent); }
-@media (width < 48rem) { .chat-fresh-in { padding-bottom: 0; } .chat-talk { padding-top: 16px; } }
+:where([data-phone]) .chat-fresh-in { padding-bottom: 0; } :where([data-phone]) .chat-talk { padding-top: 16px; }
 
 /* The frame's own: the composer's dock and field, its pictures, a queued message; what asks; the header's states. */
 .chat-dock { padding: 0 16px max(12px, env(safe-area-inset-bottom)); }
@@ -141,22 +137,20 @@
 .chat-head { container: head / inline-size; }
 .chat-term > span { display: none; }
 @container head (width >= 42rem) { .chat-term { display: flex; padding-inline: 8px; } .chat-term > span { display: inline; } }
-@media (width < 48rem) {
-  .chat-dock { padding: 0 10px 8px; }
-  .chat-field { min-height: 44px; padding: 10px 14px 4px; font-size: 17px; line-height: 24px; }
-  .chat-foot { gap: 2px; padding: 0 6px 6px; }
-  .chat-plus { width: 22px; height: 22px; }
-  .chat-pic { height: 64px; width: 208px; }
-  .chat-pic-hit { top: -14px; right: -14px; width: 44px; height: 44px; }
-  .chat-chip-skel { height: 16px; }
-  .chat-plan { margin-inline: 14px; }
-  .chat-ask-x { padding-inline: 14px; }
-  .chat-act { flex: 1 1 auto; }
-  .chat-gone { padding-block: 48px; }
-  .chat-gone-acts { width: 100%; max-width: 20rem; flex-direction: column; }
-  .chat-alarm-acts { padding-left: 0; flex-direction: column; }
-  .chat-welcome-title { font-size: 22px !important; line-height: 28px !important; }
-}
+:where([data-phone]) .chat-dock { padding: 0 10px 8px; }
+:where([data-phone]) .chat-field { min-height: 44px; padding: 10px 14px 4px; font-size: 17px; line-height: 24px; }
+:where([data-phone]) .chat-foot { gap: 2px; padding: 0 6px 6px; }
+:where([data-phone]) .chat-plus { width: 22px; height: 22px; }
+:where([data-phone]) .chat-pic { height: 64px; width: 208px; }
+:where([data-phone]) .chat-pic-hit { top: -14px; right: -14px; width: 44px; height: 44px; }
+:where([data-phone]) .chat-chip-skel { height: 16px; }
+:where([data-phone]) .chat-plan { margin-inline: 14px; }
+:where([data-phone]) .chat-ask-x { padding-inline: 14px; }
+:where([data-phone]) .chat-act { flex: 1 1 auto; }
+:where([data-phone]) .chat-gone { padding-block: 48px; }
+:where([data-phone]) .chat-gone-acts { width: 100%; max-width: 20rem; flex-direction: column; }
+:where([data-phone]) .chat-alarm-acts { padding-left: 0; flex-direction: column; }
+:where([data-phone]) .chat-welcome-title { font-size: 22px !important; line-height: 28px !important; }
 
 /* A thought in the status line, cut at its start: its latest words stay in sight. */
 .chat-tail { direction: rtl; text-align: left; }

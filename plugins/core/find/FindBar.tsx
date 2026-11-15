@@ -7,7 +7,7 @@ import { EditorSelection, Prec, StateEffect, StateField, type EditorState, type 
 import {
   closeSearchPanel, findNext, findPrevious, getSearchQuery, openSearchPanel, replaceAll, replaceNext, search, searchPanelOpen, SearchQuery, setSearchQuery,
 } from "@codemirror/search"
-import { cn, commandKeys, editorOf, keyHint, openAround, textRanges } from "@vaultite"
+import { cn, commandKeys, editorOf, isDesktop, keyHint, onLayoutChange, openAround, textRanges } from "@vaultite"
 import { badField, countText, field, FindTools, floatingCard, floatingSpot, MAX, tool } from "./tools"
 
 type Spec = { search: string; replace: string; caseSensitive: boolean; regexp: boolean; wholeWord: boolean }
@@ -161,8 +161,6 @@ function Bar({ view, query, count, readOnly, replacing, setReplacing, focus, flo
   )
 }
 
-const wide = typeof matchMedia === "undefined" ? null : matchMedia("(min-width: 768px)")
-
 class FindPanel implements Panel {
   dom: HTMLElement
   top = true
@@ -178,6 +176,7 @@ class FindPanel implements Panel {
   watcher: MutationObserver
   card: HTMLDivElement | null = null
   redraw = () => this.draw(false)
+  unlayout: () => void
 
   constructor(view: EditorView) {
     this.view = view
@@ -187,7 +186,7 @@ class FindPanel implements Panel {
     panels.set(view, this)
     this.watcher = new MutationObserver(() => this.light())
     this.watcher.observe(view.contentDOM, { childList: true, subtree: true, characterData: true })
-    wide?.addEventListener("change", this.redraw)
+    this.unlayout = onLayoutChange(this.redraw)
   }
   mount() { this.recount(); this.draw(true); this.light() }
   update(u: ViewUpdate) {
@@ -205,7 +204,7 @@ class FindPanel implements Panel {
     if (this.timer) clearTimeout(this.timer)
     cancelAnimationFrame(this.frame)
     this.watcher.disconnect()
-    wide?.removeEventListener("change", this.redraw)
+    this.unlayout()
     lit.delete(this.view)
     paintLit()
     panels.delete(this.view)
@@ -258,7 +257,7 @@ class FindPanel implements Panel {
     this.count = countOf(s, q)
   }
   host(): HTMLElement | null {
-    const body = wide?.matches ? this.view.dom.closest<HTMLElement>("[data-tab-body]") : null
+    const body = isDesktop() ? this.view.dom.closest<HTMLElement>("[data-tab-body]") : null
     return body?.parentElement?.querySelector<HTMLElement>(`:scope > [data-tab-overlay="${CSS.escape(body.dataset.tabBody ?? "")}"]`) ?? null
   }
   draw(sync: boolean) {

@@ -232,18 +232,6 @@ function remember(path: string, track: Track) {
   })
 }
 
-// CodeMirror's themes can't hold a media query, and it owns its element's classes.
-const NARROW = typeof matchMedia === "function" ? matchMedia("(max-width: 767px)") : null
-const narrow = [
-  EditorView.editorAttributes.of(() => (NARROW?.matches ? { class: "vau-narrow" } : null)),
-  ViewPlugin.fromClass(class {
-    view: EditorView
-    constructor(view: EditorView) { this.view = view; NARROW?.addEventListener("change", this.redraw) }
-    redraw = () => { this.view.dispatch({}) }
-    destroy() { NARROW?.removeEventListener("change", this.redraw) }
-  }),
-]
-
 const theme = EditorView.theme({
   "& .cm-gutters:not(:has(.cm-gutter:not(.cm-vau-fold-gutter)))": { position: "absolute !important", insetInlineStart: "-22px", top: "0", width: "20px", background: "transparent", border: "none", zIndex: "1" },
   "& .cm-vau-fold-gutter": { order: "1" },
@@ -264,12 +252,12 @@ const theme = EditorView.theme({
     verticalAlign: "middle", fontWeight: "500",
   },
   "& .cm-foldPlaceholder:hover": { background: "color-mix(in srgb, var(--foreground) 12%, transparent)", color: "var(--foreground)" },
-  "&.vau-narrow .cm-vau-fold-gutter": { display: "none !important" },
-  "&.vau-narrow .cm-gutters:not(:has(.cm-gutter:not(.cm-vau-fold-gutter)))": { display: "none !important" },
+  ":where([data-phone]) & .cm-vau-fold-gutter": { display: "none !important" },
+  ":where([data-phone]) & .cm-gutters:not(:has(.cm-gutter:not(.cm-vau-fold-gutter)))": { display: "none !important" },
 })
 
 export function foldingExtension(path?: string, track: Track = () => () => {}): Extension {
   const pointer = typeof matchMedia === "function" && matchMedia("(hover: hover) and (pointer: fine)").matches
   // A "fixed" gutter's width CodeMirror counts as a margin over the text, hiding what's anchored at a line's start.
-  return [codeFolding({ placeholderText: "…" }), pointer ? [chevrons, gutters({ fixed: false }), hover, narrow] : [], theme, path ? remember(path, track) : []]
+  return [codeFolding({ placeholderText: "…" }), pointer ? [chevrons, gutters({ fixed: false }), hover] : [], theme, path ? remember(path, track) : []]
 }

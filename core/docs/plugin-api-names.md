@@ -333,7 +333,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `insertOnOwnLine(text, f?)`: Text typed at the cursor of the file being edited (at its end when nothing is), on lines of its own.
 - `isArchived(x)`: Whether a file (its frontmatter) or an item (a person, a routine: the vault puts `archived: true` on the items of archived files) is archived.
 - `isColor(c)`
-- `isDesktop()`: A computer's width (the desktop's panes), not a phone's.
+- `isDesktop()`: The desktop's panes, not the phone's layout: a window as narrow as a phone's, or a phone either way up (its short side under 600px: an iPhone's is at most 440, an iPad mini's 744).
 - `isDoc(path)`: Notes, JSON and pages plugins draw (artifacts, tables): the files that can be pages (pinned).
 - `isFolder(t, path)`
 - `isHidden`: In a dot folder, or a dot file: shown only with hidden files on.
@@ -443,6 +443,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `onCanvases(fn)`: Called when a canvas comes or goes.
 - `onCommandsChanged`: Call `fn` whenever commands or hotkeys change (the desktop app's menu bar follows them); returns how to stop.
 - `onDictation(fn)`: Hear each session's events (pending at most a few times a second; level never), with the editor and note they go into, if any.
+- `onLayoutChange(f)`
 - `onLook(fn)`: Calls `fn` whenever the look changes (light or dark, colour scheme, a theme, a snippet, fonts), once it applies: read the colour tokens again there.
 - `onlyMode(scheme)`: The one mode a scheme has, if it has only one (Dracula: dark).
 - `onMachine(id, machine?)`: `id` on `machine` ("" or none: as it is).
@@ -790,7 +791,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `useCornerDrag(corner, setCorner)`: Dragging a corner card anywhere (a click still clicks), and where it lands: the corner it was thrown towards, as iOS's and browsers' picture in picture do.
 - `useCornerStack(id, corner, rank, ref)`: Cards in one corner stack, the lower `rank` nearest it (the mini player 0, agents' pages 1, pages playing 2): this card's place in it, as a margin from its corner (CORNERS' top or bottom stays;…
 - `useDefaultPlace()`
-- `useDesktop()`: isDesktop that follows the window: a phone's width and a computer's swap as it's resized.
+- `useDesktop()`: isDesktop that follows the window: a computer's window resized as narrow as a phone's takes the phone's layout.
 - `useDictation`: The session in React (`pick`: the part drawn from, so the voice's level doesn't redraw what doesn't show it).
 - `useDismiss(open, close, { inside, anchor, hash, escape })`: An open popover (a flyout, a switcher) closes on Escape (not under a menu or palette, nor if `escape(e)` says no), a press outside `inside` (a selector) and `anchor`, and (`hash`) the address…
 - `useDrag`: The drag, drawn again on every move; with `pick`, only when what it picks changes (`(d) => d?.item`: once a drag).

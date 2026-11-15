@@ -116,7 +116,7 @@ export const DECK_CSS = `
 [data-deck] { background-image: radial-gradient(circle at 50% 45%, color-mix(in oklab, var(--r-background-color), white var(--deck-glow)), var(--r-background-color) 75%); }
 /* The text's size is the slide's, as in reveal.js: an annotation's font-size on a box reaches what's in it. */
 :where([data-deck-slide]) { font-size: 17px; line-height: 1.53; }
-@media (min-width: 768px) { :where([data-deck-slide]) { font-size: 16px; line-height: 1.5; } }
+:where([data-deck-slide]:not([data-phone] *)) { font-size: 16px; line-height: 1.5; }
 [data-deck-slide] .note-prose { font-size: inherit; line-height: inherit; }
 [data-deck-theme] [data-deck-slide] { font-family: var(--r-main-font); font-size: var(--r-main-font-size); font-weight: var(--r-main-font-weight); line-height: 1.3; text-align: center; }
 [data-deck-theme] .note-prose { font-family: inherit; font-weight: inherit; line-height: inherit; }

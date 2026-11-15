@@ -295,7 +295,7 @@ export { setFocusedPane, isPopout } from "@/core/workspace"
 // A pop-out with its bars hidden (Hide window bars): only what it shows, a view's own bars too (the Browser's page bar).
 export { useBarsHidden } from "@/core/workspace"
 export { offeredCommand, onCommandsChanged, runCommandById, runCommandNamed } from "@/core/commands"
-export { isDesktop, useDesktop } from "@/core/platform"
+export { isDesktop, onLayoutChange, useDesktop } from "@/core/platform"
 // Every command and its keys in effect (Vim's list of its keys).
 export { commandList, keysOf, useCommandList } from "@/core/commands"
 export { currentRow, focusSidebar, foldInList, inKeyList, leaveList, moveInList, openInList } from "@/core/keylist"

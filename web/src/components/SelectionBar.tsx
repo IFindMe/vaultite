@@ -12,7 +12,7 @@ export function SelectionBar() {
   const actions = (e: MouseEvent) => menuAbove(e, selectionMenu(sel.list, sel.keys).slice(1))
   return createPortal(
     <div data-selection-bar role="toolbar" aria-label="Selection"
-      className="glass-strong fixed inset-x-0 bottom-0 z-[45] px-3 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.375rem)] shadow-[0_-0.5px_0_var(--border)]">
+      className="glass-strong fixed inset-x-0 bottom-0 z-[45] pr-[max(--spacing(3),env(safe-area-inset-right))] pl-[max(--spacing(3),env(safe-area-inset-left))] pt-1.5 pb-[max(env(safe-area-inset-bottom),0.375rem)] shadow-[0_-0.5px_0_var(--border)]">
       <div className="mx-auto flex max-w-md items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-[17px] text-muted-foreground tabular-nums" aria-live="polite">{n ? countOf(sel.list, n) : "Tap to select"}</span>
         <button type="button" disabled={!n} onClick={actions} aria-label="Actions"

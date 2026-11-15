@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { ChevronRight, Filter, Maximize, Search, X } from "lucide-react"
-import { cn, menuFor, useFocusedFile, useQuerySuggest, type MenuItem } from "@vaultite"
+import { cn, isDesktop, menuFor, useFocusedFile, useQuerySuggest, type MenuItem } from "@vaultite"
 import { BODY, filterGraph, grouping, linkTypes, localGraph, nameOf, PALETTE, tokenOf, withoutLinks, withTags, type ColorBy, type ColorGroup, type LegendRow } from "./graph"
 import { colourItems, GraphPanel, Swatch } from "./GraphPanel"
 import { dirOf, GraphCanvas, graphSettings, Loading, lookOf, openNode, trimmed, useGraph, useGroups, useLinkStyle, type Patch, type Settings } from "./GraphView"
@@ -35,7 +35,7 @@ export function GraphView({ arg }: { arg: string }) {
   const { groups, first: [found], found: inGroups } = useGroups(settings, [asked])
   const [panel, setPanel] = useState(false)
   const [refit, setRefit] = useState(0)
-  const [legend, setLegend] = useState(() => !matchMedia("(max-width: 767px)").matches)
+  const [legend, setLegend] = useState(isDesktop)
   const hidden = useMemo(() => new Set(settings.hidden ?? []), [settings.hidden])
   const sets = useMemo(() => inGroups.map((m) => m.paths), [inGroups])
   const { rows, colorOf, hides } = useMemo(() => grouping(data, by, groups, sets, hidden), [data, by, groups, sets, hidden])

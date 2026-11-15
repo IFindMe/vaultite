@@ -3,6 +3,7 @@ import { PreviewLive, type Store } from "@/core/data"
 import type { SlashItem } from "@/core/define"
 import { mockLive } from "@/core/mock"
 import { getPrefs } from "@/core/prefs"
+import { isDesktop } from "@/core/platform"
 import { BlockView, segments } from "@/components/Blocks"
 import { Catch } from "@/components/Guard"
 import { Markdown } from "@/components/Markdown"
@@ -22,7 +23,7 @@ function NoteSample({ text, store }: { text: string; store: Store }) {
 
 export function SlashPreview({ item, store }: { item: SlashItem; store: Store }) {
   const live = useMemo(() => mockLive(), [])
-  const small = matchMedia("(max-width: 767px)").matches
+  const small = !isDesktop()
   const w = small ? Math.min(340, innerWidth * 0.9) - 20 : 240, h = small ? 112 : 150
   const sample = item.sample ?? item.text?.replace("$|", "")
   const drawn: ReactNode = item.preview ? item.preview(store) : sample !== undefined && <NoteSample text={sample} store={store} />

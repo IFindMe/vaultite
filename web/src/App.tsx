@@ -17,6 +17,7 @@ import { useBarFade } from "@/core/barfade"
 import { hideBarsOnUserScroll } from "@/core/barhide"
 import { keepTypingInSight, markKeyboard } from "@/core/sight"
 import { useTypedYet } from "@/core/keyboard"
+import { keepPlaceAcrossWidths } from "@/core/anchor"
 import { phoneApp, takeLinks } from "@/core/phoneapp"
 import { GrantAsker } from "@/components/GrantAsker"
 import { isProtected, inVault, isReadOnly, openFile, stem } from "@/core/files"
@@ -504,7 +505,7 @@ export default function App() {
   const leftMotion = useSideMotion(hideLeft, leftIn), rightMotion = useSideMotion(hideRight, peek === "right")
   useBarFade(desktop && fileBarFade)
   const typedYet = useTypedYet(coarse)
-  useEffect(() => { const a = keepTypingInSight(), b = markKeyboard(), c = desktop ? null : hideBarsOnUserScroll(); return () => { a(); b(); c?.() } }, [desktop])
+  useEffect(() => { const a = keepTypingInSight(), b = markKeyboard(), c = desktop ? null : hideBarsOnUserScroll(), d = desktop ? null : keepPlaceAcrossWidths(); return () => { a(); b(); c?.(); d?.() } }, [desktop])
   useLayoutEffect(() => setRoom(desktop ? side : "0px", desktop ? rside : "0px"), [side, rside, desktop])
   useLayoutEffect(() => { setOpenWidth("left", sidebarPx(sidebarWidth)); setOpenWidth("right", sidebarPx(rightSidebarWidth)) }, [sidebarWidth, rightSidebarWidth])
   // Data attributes, not body:has(aside...) in CSS: :has made every DOM change recalc styles 4x.
@@ -599,9 +600,9 @@ export default function App() {
       {desktop ? (
         <Workspace store={store} error={error} left={side} right={rside} pageInfo={pageInfo} page={pageTabOf} />
       ) : (
-        <div id="main-scroll" className="overflow-x-clip">
+        <div id="main-scroll" className="overflow-x-clip pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
           {store && <PhoneHeader title={tabInfo(activeTab()).label} tab={activeTab()} />}
-          <main className="pb-safe relative mx-auto max-w-5xl px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)]">
+          <main className="pb-safe relative mx-auto max-w-(--line-width) px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)]">
             {error && !store && <p className="mt-10 text-muted-foreground">{error}</p>}
             {!error && !store && <VaultLoading />}
             {store && <Guard what="This tab" size="tab" reset={tab} close={() => closeTab(activeTab().id)}>

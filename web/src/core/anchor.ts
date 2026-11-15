@@ -58,6 +58,67 @@ export function keepAnchored(grid: HTMLElement, selector: string): () => void {
   }
 }
 
+type Place = { el: Element; into: number }
+const phonePage = () => document.querySelector<HTMLElement>("#main-scroll > main")
+const readingLine = () => (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) + 1
+const fullScreen = () => !!document.fullscreenElement
+const keptByItsGrid = (el: Element) => !!el.closest("[data-anchored]")
+
+function placeRead(): Place | null {
+  const main = phonePage()
+  if (scrollY <= 0 || !main) return null
+  const y = readingLine(), box = main.getBoundingClientRect()
+  let el = document.elementsFromPoint(box.left + box.width / 2, y).find((e) => e !== main && main.contains(e)) ?? null
+  while (el && el !== main && getComputedStyle(el).display.startsWith("inline")) el = el.parentElement
+  if (!el || el === main || keptByItsGrid(el)) return null
+  const r = el.getBoundingClientRect()
+  return { el, into: r.height ? Math.min(1, Math.max(0, (y - r.top) / r.height)) : 0 }
+}
+
+const putBack = (was: Place, done: () => void) => holdPlace(null, () => {
+  const r = was.el.getBoundingClientRect()
+  return r.top + was.into * r.height - readingLine()
+}, { gone: () => !was.el.isConnected || fullScreen(), done })
+
+export function keepPlaceAcrossWidths(): () => void {
+  let place: Place | null = null, owedAfterFullScreen: Place | null = null, width = innerWidth, held: (() => void) | null = null, frame = 0
+  const pick = () => { place = placeRead() }
+  const hold = (was: Place) => {
+    held?.()
+    trace("scroll", { kept: "place", width })
+    held = putBack(was, () => { held = null; pick() })
+  }
+  const settle = () => { cancelAnimationFrame(frame); frame = 0 }
+  const onScroll = () => { if (!held && !frame && !owedAfterFullScreen) frame = requestAnimationFrame(() => { frame = 0; pick() }) }
+  const onResize = () => {
+    if (innerWidth === width) return
+    width = innerWidth
+    const was = owedAfterFullScreen ?? place
+    if (!was?.el.isConnected || fullScreen()) return
+    settle()
+    hold(was)
+  }
+  const onFullScreen = () => {
+    settle()
+    if (fullScreen()) { owedAfterFullScreen ??= place; held?.(); return }
+    const was = owedAfterFullScreen
+    owedAfterFullScreen = null
+    if (was?.el.isConnected) hold(was)
+    else pick()
+  }
+  addEventListener("scroll", onScroll, { passive: true })
+  addEventListener("resize", onResize)
+  document.addEventListener("fullscreenchange", onFullScreen)
+  pick()
+  return () => {
+    settle()
+    held?.()
+    removeEventListener("scroll", onScroll)
+    removeEventListener("resize", onResize)
+    document.removeEventListener("fullscreenchange", onFullScreen)
+  }
+}
+
 function inSight(box: HTMLElement | null, y: number): number {
   const r = box ? box.getBoundingClientRect() : { top: 0, bottom: innerHeight }
   const pad = parseFloat(getComputedStyle(box ?? document.documentElement).scrollPaddingTop) || 0

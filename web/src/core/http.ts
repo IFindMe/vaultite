@@ -1,4 +1,5 @@
 import { tracked } from "@/core/live"
+import { isPhoneDevice } from "@/core/platform"
 import { errorIn } from "../../../core/plainerror.ts"
 
 export function api<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -6,7 +7,7 @@ export function api<T>(method: string, path: string, body?: unknown): Promise<T>
   return method === "GET" ? p : tracked(p)
 }
 /** Which app this is, as the server hears it (X-Vaultite-Client: app/<device>, for Activity). */
-export const appDevice = window.vaultite ? "desktop" : matchMedia("(pointer: coarse) and (max-width: 820px)").matches ? "phone" : "web"
+export const appDevice = window.vaultite ? "desktop" : isPhoneDevice() ? "phone" : "web"
 const CLIENT = `app/${appDevice}`
 const headers = (body: unknown): HeadersInit => ({ "X-Vaultite-Client": CLIENT, ...(body ? { "Content-Type": "application/json" } : {}) })
 // A browser cancels requests made as the page goes away unless they're `keepalive`.

@@ -12,11 +12,11 @@ const g = globalThis as Any
 const mem = new Map<string, string>()
 g.location = { hash: "", search: "", pathname: "/" }
 g.history = { state: null, pushState(st: unknown, _: string, h: string) { this.state = st; g.location.hash = h }, replaceState(st: unknown, _: string, h?: string) { this.state = st; if (h) g.location.hash = h } }
-g.matchMedia = () => ({ matches: desktop })
+g.matchMedia = (q: string) => ({ matches: /max-width|pointer: coarse/.test(q) ? !desktop : desktop, addEventListener() {} })
 g.localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem() {} }
 g.addEventListener = () => {}
 g.requestAnimationFrame = () => 0
-g.document = { addEventListener() {}, activeElement: null, querySelector: () => null, documentElement: { dataset: {} } }
+g.document = { addEventListener() {}, activeElement: null, querySelector: () => null, documentElement: { dataset: {}, hasAttribute: () => false, toggleAttribute() {} } }
 g.CSS = { escape: (s: string) => s, supports: () => false }
 g.dispatchEvent = () => true
 g.HashChangeEvent = class { type: string; constructor(type: string) { this.type = type } }

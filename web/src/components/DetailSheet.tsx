@@ -156,7 +156,7 @@ export function DetailSheet({ open, onClose, onBack, backLabel, title, path, dep
       onClick={(e) => { if (onBackdrop(e) && performance.now() - openedAt.current >= 400) close() }}
       style={dy ? { transform: `translateY(${dy}px)`, transition: "none" } : undefined}
       className={cn(
-        "sheet-h m-0 flex w-full max-w-none flex-col overflow-hidden overscroll-none border-0 p-0 text-foreground outline-none",
+        "sheet-h m-0 flex w-full max-w-none flex-col overflow-hidden overscroll-none border-0 p-0 text-foreground outline-none max-md:pr-[env(safe-area-inset-right)] max-md:pl-[env(safe-area-inset-left)]",
         "bg-card md:shadow-2xl md:ring-1 md:ring-border/40 md:bg-card/90 md:backdrop-blur-2xl md:backdrop-saturate-200",
         "inset-0 transition-transform duration-200",
         "md:inset-0 md:m-auto md:max-h-[80dvh] md:w-[calc(100%-2rem)] md:max-w-[560px] md:rounded-[12px]",

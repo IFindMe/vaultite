@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
-import { askAbout, copyText, Loading, Markdown, notify, onLook, openWebLink, type BlockCtx, errorText } from "@vaultite"
+import { askAbout, copyText, isDesktop, Loading, Markdown, notify, onLook, openWebLink, type BlockCtx, errorText } from "@vaultite"
 import { dilText, obj, parse, savedData, savedState, stateNames, withState } from "./dil"
 import { sandboxDoc, type FromSandbox, type ToSandbox, type Tree } from "./sandbox"
 import type { Host } from "./parts"
@@ -42,7 +42,7 @@ export function GenUiFence(ctx: BlockCtx) {
   useEffect(() => () => { if (timer.current) save() }, [])
 
   const box = useRef<HTMLDivElement>(null)
-  const env = () => ({ dark: document.documentElement.classList.contains("dark"), mobile: matchMedia("(pointer: coarse)").matches && innerWidth < 768, width: box.current?.clientWidth ?? innerWidth })
+  const env = () => ({ dark: document.documentElement.classList.contains("dark"), mobile: matchMedia("(pointer: coarse)").matches && !isDesktop(), width: box.current?.clientWidth ?? innerWidth })
   useEffect(() => onLook(() => { if (ready.current) run.current() }), [])
   useEffect(() => { if (ready.current) run.current() }, [nodes])
   useEffect(() => {

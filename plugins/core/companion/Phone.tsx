@@ -1,17 +1,16 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, useSyncExternalStore } from "react"
 import type { EditorView } from "@codemirror/view"
 import { ArrowDown, ArrowUp, X } from "lucide-react"
-import { cn, haptic, Markdown, menuBelow, notifyError, useVisibleArea } from "@vaultite"
+import { cn, haptic, isDesktop, Markdown, menuBelow, notifyError, onLayoutChange, useVisibleArea } from "@vaultite"
 import { type Agent, answer, answered, askedFromHere, type Note, sawShown, sawSays, typing, viewOf } from "./live"
 import { answerAsk, unsent } from "./overlaykit"
 import { coords, posIn, scroller } from "./spots"
 import { Mark, Popover, readMs, SayActions } from "./Bubble"
 import { agentMenu } from "./session"
 
-const PHONE = "(max-width: 767px), (hover: none) and (pointer: coarse)"
-const query = typeof matchMedia === "function" ? matchMedia(PHONE) : null
-export const isPhone = () => !!query?.matches
-const onPhone = (f: () => void) => { query?.addEventListener("change", f); return () => query?.removeEventListener("change", f) }
+const touch = typeof matchMedia === "function" ? matchMedia("(hover: none) and (pointer: coarse)") : null
+export const isPhone = () => !isDesktop() || !!touch?.matches
+const onPhone = (f: () => void) => { const off = onLayoutChange(f); touch?.addEventListener("change", f); return () => { off(); touch?.removeEventListener("change", f) } }
 export const usePhone = () => useSyncExternalStore(onPhone, isPhone)
 
 type Doing = "writing" | "thinking" | "listening" | "pointing" | "seen"

@@ -48,7 +48,7 @@ function Bar({ desktop, corner, setCorner }: { desktop: boolean; corner: Corner;
   return (
     <div data-mini-player role="region" aria-label="Now playing" {...(desktop ? drag : {})}
       className={cn("glass-strong fixed z-[19] overflow-hidden", desktop ? cn("w-[340px] touch-none rounded-[12px] select-none transition-[left,right,margin] duration-200 ease-out data-dragging:cursor-grabbing data-dragging:shadow-2xl data-dragging:transition-none", CORNERS[corner])
-        : "inset-x-2 rounded-[14px]")}
+        : "inset-x-2 mx-auto max-w-md rounded-[14px]")}
       style={desktop ? place : { bottom: "calc(var(--phone-bar) + 0.5rem)" }}>
       {desktop && inMini && <div ref={box} onClick={open} className="aspect-video w-full cursor-pointer bg-black [&>video]:size-full [&>video]:object-contain [&>video]:pointer-events-none" />}
       <div className={cn("flex items-center gap-2", desktop ? "h-11 px-2" : "h-[60px] px-2")}>

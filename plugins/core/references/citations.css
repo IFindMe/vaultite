@@ -28,7 +28,5 @@
 .vau-cite-action:hover { background: color-mix(in oklab, var(--foreground) 11%, transparent); }
 .vau-cite-from, .vau-cite-loading, .vau-cite-none { margin-top: 6px; color: var(--muted-foreground); font-size: 12px; }
 .vau-cite-loading, .vau-cite-none { margin-top: 0; }
-@media (max-width: 767px) {
-  .vau-cite-card { font-size: 15px; line-height: 21px; }
-  .vau-cite-action { height: 32px; font-size: 14px; }
-}
+:where([data-phone]) .vau-cite-card { font-size: 15px; line-height: 21px; }
+:where([data-phone]) .vau-cite-action { height: 32px; font-size: 14px; }

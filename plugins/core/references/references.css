@@ -5,6 +5,4 @@
 :is(.vau-ref-numbered .vau-ref-text, .vau-ref-text.vau-ref-numbered) .csl-entry { display: flex; gap: 0.5em; }
 :is(.vau-ref-numbered .vau-ref-text, .vau-ref-text.vau-ref-numbered) .csl-left-margin { flex: none; min-width: 1.8em; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 :is(.vau-ref-numbered .vau-ref-text, .vau-ref-text.vau-ref-numbered) .csl-right-inline { flex: 1; min-width: 0; }
-@media (max-width: 767px) {
-  [data-references-panel] .vau-ref-text { font-size: 15px; line-height: 21px; }
-}
+:where([data-phone]) [data-references-panel] .vau-ref-text { font-size: 15px; line-height: 21px; }

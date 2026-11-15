@@ -17,7 +17,8 @@
     <!-- The vault's state on its way while the app's code loads, not after it (core/http.ts takes it). -->
     <script id="vau-early">
       try {
-        const device = window.vaultite ? "desktop" : matchMedia("(pointer: coarse) and (max-width: 820px)").matches ? "phone" : "web"
+        // (core/platform.ts isPhoneDevice: a touch screen with a phone's short side)
+        const device = window.vaultite ? "desktop" : matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 600 ? "phone" : "web"
         window.__vauEarly = { "state?since=0": fetch("api/state?since=0", { headers: { "X-Vaultite-Client": `app/${device}` } }) }
       } catch {}
     </script>

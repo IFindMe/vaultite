@@ -88,7 +88,7 @@ const PaletteRow = memo(function PaletteRow({ id, i, selected, draw, act, onHove
 
 const Hints = memo(function Hints({ hints }: { hints: [string, string][] }) {
   return (
-    <div className="hidden flex-wrap items-center gap-x-3 gap-y-1.5 border-t-[0.5px] border-border px-5 py-2.5 text-[12px] text-muted-foreground md:flex [@media(pointer:coarse)_and_(max-height:500px)]:hidden">
+    <div className="hidden flex-wrap items-center gap-x-3 gap-y-1.5 border-t-[0.5px] border-border px-5 py-2.5 text-[12px] text-muted-foreground md:flex">
       {hints.map(([k, what]) => (
         <span key={k} className="flex items-center gap-1 whitespace-nowrap"><Keys keys={k} small />{what}</span>
       ))}

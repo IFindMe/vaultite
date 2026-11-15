@@ -152,7 +152,7 @@ export function PhoneDrawers(props: BodyProps) {
             if (e.defaultPrevented || selecting()) return
             if (closestOf(e.target, "[data-tree-path]:not([data-tree-folder]), a[href^='#']") && !closestOf(e.target, "[aria-haspopup], [data-no-drag]")) setTimeout(() => openDrawer(null))
           }}
-          className={cn("fixed inset-y-0 z-40 flex flex-col bg-sidebar shadow-xl md:hidden", s === "right" ? "right-0" : "left-0", drawn !== s && "invisible")}
+          className={cn("fixed inset-y-0 z-40 flex flex-col bg-sidebar shadow-xl md:hidden", s === "right" ? "right-0 pr-[env(safe-area-inset-right)]" : "left-0 pl-[env(safe-area-inset-left)]", drawn !== s && "invisible")}
           style={{ width: "min(86vw, 360px)", transform: `translateX(${s === "right" ? 100 : -100}%)`, touchAction: "pan-y" }}>
           {(phone || drawn === s) && (
             <Activity mode={drawn === s ? "visible" : "hidden"}><DrawerBody side={s} asleep={drawn !== s} {...props} /></Activity>
