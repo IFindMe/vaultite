@@ -134,7 +134,7 @@ export function HistoryView({ openPage, onImport }: { openPage: (url: string) =>
   } })
 
   const loadingRows = useKeptCount(text ? null : "web-viewer:history", visits ? rows.size : undefined, 8)
-  if (!hasHistory()) return <p className="mx-auto max-w-[720px] px-4 pt-6 text-[13px] text-tertiary">The history is kept by Vaultite's desktop app.</p>
+  if (!hasHistory()) return <p className="mx-auto max-w-[720px] px-4 pt-6 text-[13px] text-tertiary max-md:text-[15px]">The history is kept by Vaultite's desktop app.</p>
   return (
     <div className="mx-auto max-w-[720px] px-4 pt-3 pb-10" data-web-history>
       <div className="mb-3 flex items-center gap-2">

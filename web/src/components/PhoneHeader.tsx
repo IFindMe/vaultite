@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react"
+import { useEffect, useLayoutEffect, useRef } from "react"
 import { Ellipsis, PanelLeft, PanelRight } from "lucide-react"
 import { focusedPane, panesOf, type Pane, type Tab } from "../../../core/layout.ts"
 import { besideOf, useSwipe } from "@/core/phoneTabs"
@@ -7,6 +7,7 @@ import { openDrawer, useHasDrawer } from "@/components/PhoneDrawer"
 import { phoneTabMenu, useTabLabels } from "@/components/Tabs"
 import { titleInSight } from "@/components/FileTitle"
 import { usePrefs } from "@/core/prefs"
+import { nameEntry } from "@/core/nav"
 import { useStore } from "@/core/data"
 import { selectPane } from "@/core/workspace"
 import { phoneApp } from "@/core/phoneapp"
@@ -24,6 +25,7 @@ export function PhoneHeader({ title, tab }: { title: string; tab: Tab }) {
   const ps = panesOf(tab), at = ps.findIndex((p) => p.id === tab.focus)
   const label = useTabLabels(useStore().store)
   const name = ps.length > 1 ? label(focusedPane(tab)).label : title
+  useEffect(() => nameEntry(name), [name])
   const swipe = useSwipe()
   const near = swipe ? besideOf(swipe) : []
   const nameOf = (t: Tab, p: Pane) => (swipe === "panes" || panesOf(t).length > 1 ? label(p).label : label(t).label)

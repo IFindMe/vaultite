@@ -31,6 +31,7 @@ import { pickFolder } from "@/components/FolderPicker"
 import { ICON_BUTTON } from "@/components/FileTitle"
 import { SwipeRow, type SwipeAction } from "@/components/SwipeRow"
 import { capitalize, cn, scrollingBox, space } from "@/lib/utils"
+import { coarse } from "@/core/haptics"
 import { listOrders, rowMenu, selectClick, selectedAttr, selectionFor, useSelectable, useSelected } from "@/core/select"
 import { SidebarHeading } from "@/components/SidebarHeading"
 import { signal } from "@/core/signal"
@@ -808,7 +809,7 @@ const TreeRow = memo(function TreeRow({ n, depth, pos, size, index, rows, isOpen
           <button type="button" data-keyrow role="treeitem" aria-level={depth + 1} aria-setsize={size} aria-posinset={pos}
             aria-expanded={n.folder ? isOpen : undefined} aria-selected={selected || picked} aria-current={selected ? "page" : undefined} onClick={click} onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); if (n.folder) openFolder(n.path, { newTab: true, pane }); else openFile(n.path, { newTab: true, pane }) } }}
             data-tip={n.name} data-tip-side="right" data-tip-trunc data-archived={archived || undefined}
-            className={cn("flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 pr-8 text-left", compact ? "h-full" : "min-h-11 self-stretch", archived && "opacity-50")} style={{ paddingLeft: space(pad) }}>
+            className={cn("flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left", compact ? "h-full pr-8" : coarse ? "min-h-11 self-stretch pr-12" : "min-h-11 self-stretch pr-8", archived && "opacity-50")} style={{ paddingLeft: space(pad) }}>
             {n.folder
               ? <ChevronRight className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform duration-150", isOpen && "rotate-90")} strokeWidth={2.5} />
               : <span className="w-3.5 shrink-0" />}
@@ -822,8 +823,8 @@ const TreeRow = memo(function TreeRow({ n, depth, pos, size, index, rows, isOpen
           {/* Compact, mouse only: an ARIA tree may hold only its items; the keyboard opens this menu with Shift+F10. */}
           <button type="button" data-no-drag aria-label={`More for ${n.name}`} tabIndex={compact ? -1 : undefined} aria-hidden={compact || undefined}
             onClick={(e) => on.current.more(e, n)}
-            className={cn("absolute right-1 grid size-5 cursor-pointer place-items-center rounded-[4px] text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground",
-              compact ? "opacity-0 group-hover:opacity-100" : "")}>
+            className={cn("absolute right-1 grid cursor-pointer place-items-center text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground",
+              compact ? "size-5 rounded-[4px] opacity-0 group-hover:opacity-100" : coarse ? "size-11 rounded-control active:bg-foreground/[0.08]" : "size-5 rounded-[4px]")}>
             <Ellipsis className="size-4" strokeWidth={2.25} />
           </button>
         </div>

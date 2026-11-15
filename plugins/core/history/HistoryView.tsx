@@ -35,7 +35,7 @@ export function HistoryView({ path }: { path: string }) {
 
   const load = useCallback(() => {
     get<{ versions: Version[]; others?: Other[] }>(`history?path=${q}`).then((r) => {
-      const all = [...r.versions, ...(r.others ?? []).flatMap((o) => o.versions.map((v) => ({ ...v, source: o.source, label: o.label })))].sort((a, b) => b.t - a.t)
+      const all = [...(r.versions ?? []), ...(r.others ?? []).flatMap((o) => o.versions.map((v) => ({ ...v, source: o.source, label: o.label })))].sort((a, b) => b.t - a.t)
       setVersions(all)
       setSel((s) => (s !== null && all.some((v) => keyOf(v) === s) ? s : all[0] ? keyOf(all[0]) : null))
     }, () => setVersions([]))

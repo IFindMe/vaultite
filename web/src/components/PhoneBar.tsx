@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { Check, ChevronLeft, ChevronRight, Command, FilePlus, Menu, Plus, Search } from "lucide-react"
-import { tabCount, useWorkspace } from "@/core/workspace"
+import { Check, ChevronLeft, ChevronRight, Command, FilePlus, Menu, Plus, Search, X } from "lucide-react"
+import { activeTab, closeTab, closeTabs, tabCount, useWorkspace } from "@/core/workspace"
 import { slide } from "@/core/motion"
-import { canGoBack, canGoForward } from "@/core/nav"
+import { canGoBack, canGoForward, entriesToward } from "@/core/nav"
+import { menuAbove } from "@/components/ContextMenu"
 import { liftFrom } from "@/core/pageLift"
 import { usePageLock } from "@/core/pagelock"
 import { newPhoneTab, openSwitcher } from "@/core/phoneTabs"
@@ -22,11 +23,29 @@ const onHistory = (f: () => void) => {
 }
 const useCanGoBack = () => useSyncExternalStore(onHistory, canGoBack)
 const useCanGoForward = () => useSyncExternalStore(onHistory, canGoForward)
+const go = (dir: -1 | 1) => { void shootTab().then(() => slide(dir)) }
+const historyMenu = (dir: -1 | 1) => (e: React.MouseEvent) => {
+  const items = entriesToward(dir).map(({ steps, title }) => ({ label: title, run: () => { if (steps === dir) go(dir); else history.go(steps) } }))
+  if (items.length) menuAbove(e, items)
+}
+
+const tabsMenu = (n: number, button: Element | null) => {
+  const t = activeTab()
+  return [
+    { label: "New tab", icon: Plus, run: () => { void newPhoneTab(button) } },
+    ...(t ? [
+      { label: "Close tab", icon: X, sep: true, run: () => closeTab(t.id) },
+      { label: "Close other tabs", run: () => closeTabs("others", t.id), disabled: n < 2 },
+      { label: "Close all tabs", danger: true, run: () => closeTabs("all", t.id) },
+    ] : []),
+  ]
+}
 
 function TabsButton({ listOpen }: { listOpen: boolean }) {
   const n = tabCount(useWorkspace())
   return (
     <button type="button" data-tabs-button onClick={() => { void openSwitcher() }} aria-label={`Open tabs: ${n}`} aria-expanded={listOpen}
+      onContextMenu={(e) => menuAbove(e, tabsMenu(n, e.currentTarget))}
       className={cn(slot, "cursor-pointer", listOpen ? lit : idle)}>
       <span className="grid h-[21px] min-w-[21px] place-items-center rounded-[6px] border-[1.75px] border-current px-[3px] text-[11px] leading-none font-semibold tabular-nums">
         {n > 99 ? "99+" : n}
@@ -59,13 +78,13 @@ export function PhoneBar({ system, active, listOpen, onSearch, onCommands, onNew
   const button = (it: Item) => {
     switch (it) {
       case "back": return (
-        <button key={it} type="button" data-bar="back" aria-label="Back" disabled={!back} onClick={() => { void shootTab().then(() => slide(-1)) }}
+        <button key={it} type="button" data-bar="back" aria-label="Back" disabled={!back} onClick={() => go(-1)} onContextMenu={historyMenu(-1)}
           className={cn(slot, back ? cn("cursor-pointer", idle) : "text-muted-foreground opacity-35")}>
           <ChevronLeft className="size-[25px]" strokeWidth={2} />
         </button>
       )
       case "forward": return (
-        <button key={it} type="button" data-bar="forward" aria-label="Forward" disabled={!forward} onClick={() => { void shootTab().then(() => slide(1)) }}
+        <button key={it} type="button" data-bar="forward" aria-label="Forward" disabled={!forward} onClick={() => go(1)} onContextMenu={historyMenu(1)}
           className={cn(slot, forward ? cn("cursor-pointer", idle) : "text-muted-foreground opacity-35")}>
           <ChevronRight className="size-[25px]" strokeWidth={2} />
         </button>

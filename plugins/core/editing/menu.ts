@@ -150,7 +150,8 @@ export const editorMenu = EditorView.domEventHandlers({
     const at = { x: e.clientX, y: e.clientY }
     // Electron's spell checker answers only after the event reaches the system.
     if (spelling && editable) { e.stopPropagation(); void spelling.at().then((s) => openMenu(at, menuItems(view, at, link, s))); return false }
-    const items = menuItems(view, at, link, null)
+    const heldFinger = !e.isTrusted
+    const items = link && heldFinger ? linkItems(link.link, { from: editorOf(view)?.path, text: link.text, edit: null }) : menuItems(view, at, link, null)
     if (!items.length) return false
     e.preventDefault(); e.stopPropagation()
     openMenu(at, items)

@@ -18,7 +18,8 @@ import { SharedWith } from "@/components/SharedWith"
 import { selecting } from "@/core/select"
 import { signal } from "@/core/signal"
 import { trackSoon } from "@/core/unsaved"
-import { closestOf } from "@/core/dom"
+import { closestOf, elementOf } from "@/core/dom"
+import { edgeTouch, setEdgeTouch } from "@/core/edgetouch"
 
 let out: Side | null = null
 const subs = signal()
@@ -40,6 +41,18 @@ export function useHasDrawer(side: Side) {
 const EASE = "cubic-bezier(.2,.8,.2,1)"
 const width = () => Math.min(innerWidth * 0.86, 360)
 const EDGE = 18
+
+function ownsEdge(el: Element, top: Element, side: Side) {
+  if (el.closest("input, textarea, select, [contenteditable=true]:focus, [data-term], [data-keeps-touch], [data-own-hold]")) return true
+  for (let a: Element | null = el; a && a !== top; a = a.parentElement) {
+    const cs = getComputedStyle(a)
+    if (cs.touchAction === "none" || cs.touchAction === "pinch-zoom") return true
+    if (/auto|scroll/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 1) {
+      if (side === "left" ? a.scrollLeft > 0 : a.scrollLeft + a.clientWidth < a.scrollWidth - 1) return true
+    }
+  }
+  return false
+}
 
 export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store: Store; file: string; tab: string; vaultName: string
   vaultMenu: (e: React.MouseEvent) => void }) {
@@ -100,12 +113,12 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
     return () => { removeEventListener("hashchange", on); removeEventListener("keydown", esc) }
   }, [])
 
-  const start = (e: React.PointerEvent, s: Side, from: number) => {
+  const start = (e: React.PointerEvent | PointerEvent, s: Side, from: number) => {
     if (e.pointerType === "mouse" && e.button) return
     drag.current?.quit?.()
     drag.current = { side: s, x: e.clientX, y: e.clientY, axis: null, from, p: from, t: e.timeStamp, v: 0 }
   }
-  const move = (e: React.PointerEvent) => {
+  const move = (e: React.PointerEvent | PointerEvent) => {
     const d = drag.current
     if (!d) return
     if (fingerHolding()) { drag.current = null; return }
@@ -113,7 +126,7 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
     if (!d.axis) {
       if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) {
         d.axis = "x"
-        try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
+        try { (e.currentTarget instanceof Element ? e.currentTarget : elementOf(e.target))?.setPointerCapture(e.pointerId) } catch {}
         d.quit = onAway(end)
         if (drawn !== d.side) setDrawn(d.side)
       } else if (Math.abs(my) > 8) { d.axis = "y"; drag.current = null; return }
@@ -128,6 +141,7 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
   const end = () => {
     const d = drag.current
     drag.current = null
+    setEdgeTouch(false)
     d?.quit?.()
     if (!d || d.axis !== "x") return
     const open = Math.abs(d.v) > 0.0015 ? d.v > 0 : d.from ? d.p > 0.66 : d.p > 0.33
@@ -138,13 +152,36 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
   }
   const handlers = { onPointerMove: move, onPointerUp: end, onPointerCancel: end }
 
+  const live = useRef({ has, side, start, move, end })
+  live.current = { has, side, start, move, end }
+  useEffect(() => {
+    const down = (e: PointerEvent) => {
+      const { has, side, start } = live.current
+      if (e.pointerType !== "touch" || !e.isPrimary || side || innerWidth >= 768) return
+      const s: Side | null = e.clientX < EDGE ? "left" : e.clientX > innerWidth - EDGE ? "right" : null
+      const el = elementOf(e.target), page = document.getElementById("main-scroll")
+      if (!s || !has[s] || !el || !page?.contains(el) || el.closest("[data-phone-header]") || ownsEdge(el, page, s)) return
+      setEdgeTouch(true)
+      start(e, s, 0)
+    }
+    const move = (e: PointerEvent) => { if (edgeTouch()) live.current.move(e) }
+    const up = () => { if (edgeTouch()) live.current.end() }
+    const opts = { capture: true, passive: true }
+    addEventListener("pointerdown", down, opts)
+    addEventListener("pointermove", move, opts)
+    addEventListener("pointerup", up, opts)
+    addEventListener("pointercancel", up, opts)
+    return () => {
+      removeEventListener("pointerdown", down, opts)
+      removeEventListener("pointermove", move, opts)
+      removeEventListener("pointerup", up, opts)
+      removeEventListener("pointercancel", up, opts)
+    }
+  }, [])
+
   const shown = side ?? drawn
   return (
     <>
-      {!side && (["left", "right"] as const).filter((s) => has[s]).map((s) => (
-        <div key={s} aria-hidden data-drawer-edge={s} onPointerDown={(e) => start(e, s, 0)} {...handlers}
-          className={cn("fixed inset-y-0 z-20 md:hidden", s === "left" ? "left-0" : "right-0")} style={{ width: EDGE, touchAction: "pan-y" }} />
-      ))}
       <div ref={shade} aria-hidden onPointerDown={(e) => shown && start(e, shown, 1)} {...handlers}
         onClick={() => { if (pos.current === 1) openDrawer(null) }}
         className="fixed inset-0 z-40 bg-black/40 md:hidden" style={{ opacity: 0, pointerEvents: "none", touchAction: "pan-y" }} />

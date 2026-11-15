@@ -16,6 +16,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   before swiping no longer lifts a copy of it sliding with nothing behind it.
 - The companion knows which sites the agents' browser is signed in to (`vau browser sites`), and reads a site's
   dashboard there, changing nothing, when a command line tool has no login.
+- Phone: the screen's edges no longer lie over the page: a tap there reaches what's under it and a scroller there
+  scrolls, while a sideways drag from the edge still opens the sidebar. A held link in a note shows its menu, held Back
+  and Forward list where they go, and the held tabs button has New tab and Close tabs; small buttons and the Files
+  page's More buttons are a finger's size.
 
 ## 0.14.0 (2026-11-14)
 

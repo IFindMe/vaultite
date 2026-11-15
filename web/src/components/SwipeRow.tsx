@@ -6,6 +6,7 @@ import { haptic } from "@/core/haptics"
 import { selecting } from "@/core/select"
 import { cn } from "@/lib/utils"
 import { nodeOf } from "@/core/dom"
+import { edgeTouch } from "@/core/edgetouch"
 
 /** `removes`: it takes the row away (Done, Delete) at once, like Mail's, back if `run` fails or the row stays. `run`
  *  gets the row's box, for a menu it opens (Snooze ▸). */
@@ -30,8 +31,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
-  // Stable (refs only): a redraw while open mustn't change `shut`, or a press on its own button closes it first, and iOS
-  // drops a click whose press changed the page.
+  // Stable (refs only): a redraw mustn't change `shut`, or a press on its own button closes it first and iOS drops it.
   const place = useCallback((x: number, animate = false) => {
     at.current = x
     const r = row.current, u = under.current
@@ -75,7 +75,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
   }
 
   const down = (e: React.PointerEvent) => {
-    if (e.pointerType !== "touch" || selecting()) return
+    if (e.pointerType !== "touch" || selecting() || edgeTouch()) return
     swiped.current = false
     if (shut && shut !== close) shut()
     if (!at.current) {

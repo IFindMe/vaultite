@@ -142,9 +142,11 @@ export function checklist(id: string, { on, off = [], set }: {
 // Under iOS's own hold (~500ms: text selection, a link's preview), so the menu comes first.
 const HOLD_MS = 450
 const OWN_HOLD = "input, textarea, select, [contenteditable=''], [contenteditable='true'], .cm-editor, [data-term], [data-own-hold]"
+const READING_HOLD = ".cm-content[contenteditable=false] :is([data-wiki], [data-url], [data-tag], a[href], .cm-image-wrap)"
+const holdMenu = (el: Element) => el.closest("[data-hold-menu]") ?? el.closest(READING_HOLD)
 const ownHold = (el: Element) => {
   if (el.closest("[data-own-hold]")) return true
-  const own = el.closest(OWN_HOLD), menu = el.closest("[data-hold-menu]")
+  const own = el.closest(OWN_HOLD), menu = holdMenu(el)
   return !!own && !(menu && own.contains(menu))
 }
 const held = new WeakSet<Event>()
@@ -168,7 +170,7 @@ function watchHolds() {
     from = { x: e.clientX, y: e.clientY }
     target = t
     // Marked as the finger lands: that's when WebKit judges whether the text under it is selectable.
-    if (t.closest("[data-hold-menu]")) mark(true)
+    if (holdMenu(t)) mark(true)
     timer = window.setTimeout(() => {
       timer = 0
       // A press during a view transition targets the document itself: look again at what's under the finger.

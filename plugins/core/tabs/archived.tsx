@@ -75,7 +75,7 @@ export function ArchivedView({ store }: { store: Store }) {
   return (
     <div className="flex flex-col gap-3 pb-10" data-archived-tabs>
       <h1 className="truncate text-[22px] leading-[28px] font-bold max-md:hidden">Archived tabs</h1>
-      <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+      <div className="flex items-center gap-2 text-[13px] text-muted-foreground max-md:text-[15px]">
         <p className="min-w-0 flex-1">{WORDS[after] ? `Unpinned tabs you haven't looked at in ${WORDS[after]} are archived here.` : "Tabs don't archive themselves: Archive tabs is Never."}</p>
         <Button look="quiet" size="small" onClick={() => openPluginSettings("tabs")}>Settings…</Button>
         {!!list?.length && <Button look="quiet" size="small" onClick={() => remove(list)} data-archived-clear>Remove all</Button>}

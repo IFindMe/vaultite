@@ -432,7 +432,7 @@ export default definePlugin({
       render: ({ store }) => (
         <div className="flex flex-col gap-4 pb-10" data-tabs-view>
           <h1 className="truncate text-[22px] leading-[28px] font-bold max-md:hidden">Tabs</h1>
-          <TabRows store={store} />
+          <div className="size-up-bleed"><div data-size-up><TabRows store={store} /></div></div>
           <OtherDevices store={store} />
         </div>
       ),

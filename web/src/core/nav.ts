@@ -91,8 +91,7 @@ export function replaceDetail(path: string) {
   replaceHash(`${route().tab}/${path}`, history.state)
 }
 
-// The browser won't say whether Back stays in the app (from Safari's first entry it leaves), so entries are
-// numbered in sessionStorage.
+// The browser won't say whether Back stays in the app (from Safari's first entry it leaves): entries are numbered.
 const SEQ = "vaultite.history.n", FLOOR = "vaultite.history.floor", TOP = "vaultite.history.top"
 function session(key: string, v?: number) {
   try {
@@ -107,12 +106,48 @@ const nextN = () => { top = session(TOP, ++seq); return seq }
 const numberOf = () => { const s: unknown = history.state; return isNumbered(s) ? s.n : 0 }
 const rawReplace = history.replaceState.bind(history), rawPush = history.pushState.bind(history)
 const withN = (s: unknown, n: number) => ({ ...(s && typeof s === "object" ? s : {}), n })
+const BOOK = "vaultite.history.book"
+type Page = { b?: number; f?: number; t?: string }
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- the parse at the boundary
+const readBook = (saved: unknown): Record<string, Page> => (!isObj(saved) ? {} : Object.fromEntries(Object.entries(saved).map(([k, v]) =>
+  [k, isObj(v) ? { b: isNumber(v.b) ? v.b : undefined, f: isNumber(v.f) ? v.f : undefined, t: isText(v.t) ? v.t : undefined } : {}])))
+const storedBook = () => { try { return readBook(JSON.parse(sessionStorage.getItem(BOOK) ?? "{}")) } catch { return {} } }
+const book = storedBook()
+const keep = () => {
+  const n = numberOf()
+  for (const k of Object.keys(book)) if (Number(k) < n - 100) delete book[k]
+  try { sessionStorage.setItem(BOOK, JSON.stringify(book)) } catch { return }
+}
+function follows(from: number, n: number) {
+  if (!from || from === n) return
+  book[from] = { ...book[from], f: n }
+  book[n] = { ...book[n], b: from }
+  keep()
+}
+export function nameEntry(title: string) {
+  const n = numberOf()
+  if (!n || !title || book[n]?.t === title) return
+  book[n] = { ...book[n], t: title }
+  keep()
+}
+export function entriesToward(dir: -1 | 1, most = 12): { steps: number; title: string }[] {
+  const out: { steps: number; title: string }[] = [], next = (k: number | undefined) => (k ? book[k]?.[dir < 0 ? "b" : "f"] : undefined)
+  for (let k = next(numberOf()), i = 1; k && (dir < 0 ? k >= floor : k <= top) && out.length < most; k = next(k), i++) {
+    out.push({ steps: dir * i, title: book[k]?.t ?? "Page" })
+  }
+  return out
+}
+
 history.replaceState = (s: unknown, unused: string, url?: string | URL | null) => {
   const n = isNumbered(s) ? s.n : numberOf()
   rawReplace(n ? withN(s, n) : s, unused, url)
 }
-history.pushState = (s: unknown, unused: string, url?: string | URL | null) => rawPush(withN(s, nextN()), unused, url)
-const numberHere = () => { if (!numberOf()) rawReplace(withN(history.state, nextN()), "") }
+history.pushState = (s: unknown, unused: string, url?: string | URL | null) => { const from = numberOf(), n = nextN(); rawPush(withN(s, n), unused, url); follows(from, n) }
+let shown = 0
+const numberHere = () => {
+  if (!numberOf()) { rawReplace(withN(history.state, nextN()), ""); follows(shown, numberOf()) }
+  shown = numberOf()
+}
 numberHere()
 let floor = session(FLOOR)
 if (!floor || floor > numberOf() || history.length === 1) { floor = session(FLOOR, numberOf()); top = session(TOP, numberOf()) }
