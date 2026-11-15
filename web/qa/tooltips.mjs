@@ -33,7 +33,8 @@ try {
   check("a name that fits: no tooltip", (await tipOf(short)) === null, await tipOf(short))
   const cut = await page.$eval(`${long} .fade-end`, (e) => e.scrollWidth > e.clientWidth)
   check("the long name is cut off", cut)
-  check("a name cut off: its whole name", (await tipOf(long)) === LONG, await tipOf(long))
+  const tip = await tipOf(long), card = await page.$eval("[data-hover-card] [data-card-title]", (e) => e.textContent.trim()).catch(() => null)
+  check("a name cut off: its whole name, in its preview card", card === LONG && tip === null, { card, tip })
 
   // The rail: every row says its name, cut off or not.
   await page.click("[aria-label='Hide left sidebar']")
