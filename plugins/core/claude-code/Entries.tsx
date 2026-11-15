@@ -2,7 +2,7 @@ import { createContext, Suspense, useContext, useEffect, useLayoutEffect, useRef
 import { Brain, ChevronRight, CircleAlert, FileText, Folder, Globe, ListTodo, Pencil, Search, SquareTerminal, Bot, Wrench, LoaderCircle, FilePlus } from "lucide-react"
 import { cn, Markdown, moves, plural } from "@vaultite"
 import type { Entry } from "./chatlog"
-import { ClaudeIcon } from "./ClaudeIcon"
+import { ClaudeIcon, ClaudeWorking } from "./ClaudeIcon"
 import { type Driven } from "./driven"
 import { type Ask, type Tool, TINT, home } from "./chatbits"
 import { rec, recs, str } from "./inputs"
@@ -287,11 +287,12 @@ export function Status({ entries, since, state, asking }: { entries: Entry[]; si
     : last && "live" in last && last.live && last.k === "text" && !last.parent ? "Writing"
     : call ? [GERUND[call.name] ?? `Running ${toolName(call.name)}`, target(call, x.cwd, x.home, true)].filter(Boolean).join(" ")
     : "Thinking"
+  const going = !asking && state !== "waiting"
   const thought = word === "Thinking" && last?.k === "thinking" && last.live && !last.parent ? last.text.replace(/[`*#>_]/g, "").replace(/\s+/g, " ").trim().slice(-160) : ""
   return (
     <div className="chat-small flex h-7 min-w-0 items-center gap-2 text-muted-foreground" data-working={state} aria-live="polite">
-      <ClaudeIcon className={cn("size-4 shrink-0", !asking && state !== "waiting" && "chat-mark animate-spin")} style={{ color: TINT }} />
-      <span className={cn("text-foreground/75", thought ? "shrink-0" : "min-w-0 truncate")}>{word}</span>
+      {going ? <ClaudeWorking className="size-4 shrink-0" style={{ color: TINT }} /> : <ClaudeIcon className="size-4 shrink-0" style={{ color: TINT }} />}
+      <span className={cn("text-foreground/75", thought ? "shrink-0" : "min-w-0 truncate", going && "shimmer")}>{word}</span>
       {thought && <span className="chat-tail min-w-0 truncate italic" data-thought><bdi>{thought}</bdi></span>}
       <span className="shrink-0 text-tertiary tabular-nums">{took(Date.now() - since)}</span>
     </div>

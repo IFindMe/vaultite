@@ -48,9 +48,12 @@
 }
 @media (width < 48rem) { .chat-row::before { content: ""; position: absolute; inset: -4px 0; } }
 
-/* What runs turns in steps, a few redraws a second rather than sixty. */
+/* What runs moves in steps, a few redraws a second rather than sixty. Claude at work twinkles as Claude Code's star does,
+   never turning: its frames, mark first (where it rests with motion off), played to the dot and back. */
 .chat-spin { color: color-mix(in srgb, var(--foreground) 70%, transparent); animation-duration: 0.9s !important; animation-timing-function: steps(12) !important; }
-.chat-mark { animation-duration: 3s !important; animation-timing-function: steps(30) !important; }
+.chat-twinkle { display: inline-block; overflow: hidden; }
+.chat-twinkle > svg { display: block; width: 500%; height: 100%; animation: chat-twinkle 0.6s steps(5, jump-none) infinite alternate; }
+@keyframes chat-twinkle { to { transform: translateX(-80%); } }
 
 /* A line down the side of what belongs to the row above it: a thought's text, a subagent's steps. */
 .chat-rule { border-left: 1.5px solid var(--border); }
