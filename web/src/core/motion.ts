@@ -108,7 +108,7 @@ function partsFor(sheet: ParentNode, id: string, block: ScrollLogicalPosition): 
   return {
     sheet: dialog, scroller, card, shot, grid: card.closest<HTMLElement>("[data-tabs-grid]"),
     heads: [...dialog.querySelectorAll<HTMLElement>("[data-tabs-header], [data-group-head]")],
-    chrome: [...dialog.querySelectorAll<HTMLElement>(":scope > header, :scope > footer")],
+    chrome: [...dialog.querySelectorAll<HTMLElement>(":scope > header, #sheet-bar > div, [data-sheet-done]")],
   }
 }
 
@@ -281,7 +281,7 @@ export function zoomIn(id: string, show: () => void) {
     if (!mine()) return
     showNow()
     const left = Math.max(0.25 * T, T - (performance.now() - t0))
-    fade(p.chrome, { opacity: c?.chrome ?? 1 }, { opacity: 0 }, 0, left)
+    fade([...p.chrome, ...p.sheet.querySelectorAll(":scope > footer")], { opacity: c?.chrome ?? 1 }, { opacity: 0 }, 0, left)
     fade([ground], { opacity: c?.sheet ?? 1 }, { opacity: 0 }, 0, left)
     if (h.drawn) fade([h.el], { opacity: 1 }, { opacity: 0 }, 0, left + 0.15 * T)
     const through = h.drawn ? Promise.resolve() : settle(160).then(() => {

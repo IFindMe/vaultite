@@ -1,6 +1,6 @@
 // Phone tabs through Workspaces: a phone-sized and a desktop-sized page sharing workspace 1's tabs, both ways. Writes
 // Qa tabs/ and the Workspaces data.json (removed after): throwaway server only.
-// A file tab kept drawn behind the shown one (PhoneFiles.tsx) is in [data-kept]: what is on screen is outside it.
+// [data-kept]: a tab drawn behind (PhoneFiles.tsx). TabSwitcher.tsx's bars sit on PhoneBar.tsx's and PhoneHeader.tsx's.
 //   node web/qa/phonetabs.mjs <base url> <vault path> [out dir]
 import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -94,7 +94,7 @@ try {
   check("phone: shares workspace 1's tabs (count 2)", !!(await until(async () => (await pCount()) === 2, 6000)), await pCount())
   check("phone: current workspace is 1 on this device", await P.evaluate(() => JSON.parse(localStorage.getItem("vaultite.prefs") ?? "{}").device?.workspace === 1))
   const bar = await P.locator("[data-phone-bar]").boundingBox()
-  check("phone bar: docked, edge to edge at the bottom", Math.round(bar.x) === 0 && Math.round(bar.width) === 390 && Math.round(bar.y + bar.height) === 844, bar)
+  check("phone bar: a capsule floating over the bottom, 12px from the sides, 8px up (no home indicator)", Math.round(bar.x) === 12 && Math.round(bar.width) === 366 && Math.round(bar.y + bar.height) === 836, bar)
   check("phone bar: no pinned pages in it (they're in the drawer)", !(await P.locator("[data-phone-bar] a").count()), await P.locator("[data-phone-bar] a").count())
   const countBox = await P.locator("[data-tabs-button] span").boundingBox()
   check("phone bar: the count is a small square", countBox.height <= 24 && countBox.width <= 26, countBox)
@@ -132,6 +132,13 @@ try {
 
   // ---------- a blank tab, filled from Open a file ----------
   await P.click("[data-tabs-button]"); await P.waitForSelector("[data-tab-row]"); await pUi.idle()
+  const box = (sel) => P.locator(sel).first().boundingBox().then((r) => r && [r.x, r.y, r.width, r.height].map(Math.round))
+  const plus = { bar: await box("[data-phone-bar] [data-bar=new]"), list: await box("dialog[open] [data-tabs-new]") }
+  check("tab list: its + lines up with the bar's +, the same size", !!plus.bar && plus.list?.join() === plus.bar.join(), plus)
+  const done = { menu: await box("[data-phone-bar] [data-bar=menu]"), done: await box("dialog[open] [data-sheet-done]") }
+  check("tab list: Done where the bar's menu is", !!done.menu && done.done?.join() === done.menu.join(), done)
+  const tops = { header: await box("[data-phone-header] button[aria-label=More]"), list: await box("dialog[open] [data-tabs-more]") }
+  check("tab list: its top row's … where the header's is", !!tops.header && tops.list?.join() === tops.header.join(), tops)
   await list().getByRole("button", { name: "New tab", exact: true }).click(); await pUi.idle()
   check("New tab: a blank tab on screen", /#new$/.test(P.url()) && (await pCount()) === n0 + 1, [P.url(), await pCount()])
   check("desktop: follows the phone's new tab", !!(await until(async () => (await dTabs()).length === n0 + 1, 6000)), await dTabs())

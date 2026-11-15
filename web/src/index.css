@@ -323,6 +323,10 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
    back; only the user's own scrolling counts, never a place restored. With the keyboard up iOS pans the screen to the
    caret, taking fixed things with it: the header follows what's seen (core/sight.ts: markKeyboard). */
 [data-phone-header] { transition: transform 280ms cubic-bezier(.32, .72, 0, 1); }
+/* A navigation bar as iOS draws one (PhoneHeader.tsx, the tab list's TabsHeader): clear at its page's top, its material
+   and a hairline once the page scrolls under it (data-scrolled: the window's, core/barhide.ts; a sheet's, DetailSheet.tsx). */
+[data-phone-header], [data-tabs-header] { box-shadow: 0 .5px 0 var(--border); }
+:root:not([data-scrolled]) [data-phone-header], dialog:not([data-scrolled]) [data-tabs-header] { background: none; box-shadow: none; backdrop-filter: none; }
 [data-bars-away]:not([data-keyboard]) [data-phone-header] { transform: translateY(-2.75rem); }
 [data-bars-away]:not([data-keyboard]) [data-phone-header] > div { opacity: 0; pointer-events: none; }
 [data-bars-away] [data-phone-bar] { transform: translateY(calc(100% + 2.5rem)); opacity: 0; pointer-events: none; transition-duration: 280ms; }

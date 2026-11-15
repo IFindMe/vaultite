@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Phone: the header is clear at a page's top and gets its frosted glass and a hairline once the page scrolls under it,
+  as iOS's do; a sheet's bar floats like the app's, so the tab list's + sits exactly on the bar's + and Done where the
+  menu is; the tab list's top row lines up with the header and stays as the tabs scroll; the bar's buttons are tinted.
 - Phone: a terminal, the graph, a canvas and other views that fill the screen fit it exactly, ending at the bottom bar,
   so the page no longer scrolls a little under them.
 - Phone: every field has Done over the keyboard to hide it (the palette, search, sheets, chats), not only notes; the

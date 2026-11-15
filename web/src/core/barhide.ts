@@ -14,6 +14,7 @@ export function hideBarsOnUserScroll() {
     frame = 0
     const at = Math.max(0, scrollY), d = at - last
     last = at
+    root.toggleAttribute("data-scrolled", at > 0)
     if (at < NEAR_TOP || at >= root.scrollHeight - innerHeight - 2) return away(false)
     if (!live()) return
     if (pageHeld()) return away(false)
@@ -39,6 +40,7 @@ export function hideBarsOnUserScroll() {
   listen("touchend", lifted); listen("touchcancel", lifted)
   listen("wheel", () => { liveUntil = performance.now() + LIVE_MS })
   listen("hashchange", placed); listen("popstate", placed)
+  read()
   return () => {
     cancelAnimationFrame(frame)
     root.removeAttribute("data-bars-away")

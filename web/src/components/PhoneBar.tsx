@@ -11,11 +11,15 @@ import { shootTab } from "@/core/tabShots"
 import { hrefOf, openAppPage, type AppPage } from "@/core/apppages"
 import { cn } from "@/lib/utils"
 
+export const NAV_BUTTON = "grid size-11 shrink-0 cursor-pointer place-items-center text-primary active:opacity-50"
+export const BOTTOM_BAR = "fixed inset-x-3 bottom-(--phone-bar-gap) mx-auto max-w-md rounded-full p-0.5"
+export const BAR_SLOT = "flex h-11 min-w-0 cursor-pointer items-center justify-center rounded-full text-primary transition-colors active:bg-foreground/[0.08] active:duration-0"
+export const BAR_PLUS = <Plus className="size-[26px]" strokeWidth={1.6} />
+
 type Item = "back" | "forward" | "new" | "tabs" | "menu"
 const BAR: Item[] = ["back", "forward", "new", "tabs", "menu"]
-const slot = "flex h-11 min-w-0 flex-1 items-center justify-center rounded-full transition-colors"
-const idle = "text-muted-foreground active:bg-foreground/[0.06]"
-const lit = "bg-foreground/[0.08] text-primary"
+const lit = "bg-foreground/[0.08]"
+const off = "text-muted-foreground opacity-35"
 
 const onHistory = (f: () => void) => {
   addEventListener("hashchange", f); addEventListener("popstate", f)
@@ -46,8 +50,8 @@ function TabsButton({ listOpen }: { listOpen: boolean }) {
   return (
     <button type="button" data-tabs-button onClick={() => { void openSwitcher() }} aria-label={`Open tabs: ${n}`} aria-expanded={listOpen}
       onContextMenu={(e) => menuAbove(e, tabsMenu(n, e.currentTarget))}
-      className={cn(slot, "cursor-pointer", listOpen ? lit : idle)}>
-      <span className="grid h-[21px] min-w-[21px] place-items-center rounded-[6px] border-[1.75px] border-current px-[3px] text-[11px] leading-none font-semibold tabular-nums">
+      className={cn(BAR_SLOT, listOpen && lit)}>
+      <span className="num grid h-[22px] min-w-[22px] place-items-center rounded-control border-[1.75px] border-current px-[3px] text-[12px] font-semibold">
         {n > 99 ? "99+" : n}
       </span>
     </button>
@@ -79,26 +83,26 @@ export function PhoneBar({ system, active, listOpen, onSearch, onCommands, onNew
     switch (it) {
       case "back": return (
         <button key={it} type="button" data-bar="back" aria-label="Back" disabled={!back} onClick={() => go(-1)} onContextMenu={historyMenu(-1)}
-          className={cn(slot, back ? cn("cursor-pointer", idle) : "text-muted-foreground opacity-35")}>
-          <ChevronLeft className="size-[25px]" strokeWidth={2} />
+          className={cn(BAR_SLOT, !back && off)}>
+          <ChevronLeft className="size-7" strokeWidth={1.5} />
         </button>
       )
       case "forward": return (
         <button key={it} type="button" data-bar="forward" aria-label="Forward" disabled={!forward} onClick={() => go(1)} onContextMenu={historyMenu(1)}
-          className={cn(slot, forward ? cn("cursor-pointer", idle) : "text-muted-foreground opacity-35")}>
-          <ChevronRight className="size-[25px]" strokeWidth={2} />
+          className={cn(BAR_SLOT, !forward && off)}>
+          <ChevronRight className="size-7" strokeWidth={1.5} />
         </button>
       )
       case "new": return (
-        <button key={it} type="button" data-bar="new" aria-label="New tab" onClick={(e) => newPhoneTab(e.currentTarget)} className={cn(slot, "cursor-pointer", idle)}>
-          <Plus className="size-[25px]" strokeWidth={2} />
+        <button key={it} type="button" data-bar="new" aria-label="New tab" onClick={(e) => newPhoneTab(e.currentTarget)} className={BAR_SLOT}>
+          {BAR_PLUS}
         </button>
       )
       case "tabs": return <TabsButton key={it} listOpen={listOpen} />
       case "menu": return (
         <button key={it} type="button" data-bar="menu" aria-label="Menu" aria-haspopup="menu" aria-expanded={menu} aria-controls="bar-menu"
-          onClick={() => setMenuAt(menu ? null : here)} className={cn(slot, "cursor-pointer", menu || inMenu ? lit : idle)}>
-          <Menu className="size-[22px]" strokeWidth={2} />
+          onClick={() => setMenuAt(menu ? null : here)} className={cn(BAR_SLOT, (menu || inMenu) && lit)}>
+          <Menu className="size-6" strokeWidth={1.75} />
         </button>
       )
     }
@@ -108,7 +112,7 @@ export function PhoneBar({ system, active, listOpen, onSearch, onCommands, onNew
       {menu && (
         <>
           <button type="button" aria-label="Close menu" tabIndex={-1} className="fixed inset-0 z-[60] cursor-default md:hidden" onClick={() => setMenuAt(null)} />
-          <div className="pointer-events-none fixed inset-x-2 bottom-[calc(var(--phone-bar)+0.5rem)] z-[61] mx-auto flex max-w-md justify-end md:hidden">
+          <div className="pointer-events-none fixed inset-x-3 bottom-[calc(var(--phone-bar)+0.5rem)] z-[61] mx-auto flex max-w-md justify-end md:hidden">
             <div id="bar-menu" role="menu" className="glass-strong pointer-events-auto w-56 rounded-[12px] p-1 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-150">
               <div>
                 <button type="button" role="menuitem" onClick={() => { setMenuAt(null); onNewNote() }} className={item}>
@@ -133,8 +137,8 @@ export function PhoneBar({ system, active, listOpen, onSearch, onCommands, onNew
         </>
       )}
       <nav ref={nav} data-phone-bar aria-label="Navigation" style={{ viewTransitionName: listOpen ? undefined : "phone-bar", touchAction: "none" }}
-        className="sight-foot glass-strong fixed inset-x-3 bottom-(--phone-bar-gap) z-30 mx-auto max-w-md rounded-full p-0.5 md:hidden">
-        <div className="flex items-stretch gap-0.5">{BAR.map(button)}</div>
+        className={cn("sight-foot glass-strong z-30 md:hidden", BOTTOM_BAR)}>
+        <div className="grid grid-cols-5 gap-0.5">{BAR.map(button)}</div>
       </nav>
     </>
   )

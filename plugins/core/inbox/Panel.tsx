@@ -26,7 +26,7 @@ export function InboxButton({ store, open, phone }: SidebarCtx) {
     <button type="button" data-inbox-button data-count={n} onClick={openInbox} aria-label={label} data-tip={open && !phone ? label : undefined}
       data-tip-side={open ? undefined : "right"}
       className={cn("relative grid shrink-0 cursor-pointer place-items-center rounded-[5px] text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground",
-        phone ? "size-11 rounded-[10px]" : "size-7")}>
+        phone ? "size-11 rounded-full text-primary" : "size-7")}>
       <InboxIcon className={phone ? "size-[22px]" : "size-4"} strokeWidth={2} />
       {n > 0 && (
         <span aria-hidden className={cn("absolute grid h-3.5 min-w-3.5 place-items-center rounded-full bg-primary px-[3px] text-[10px] leading-none font-semibold text-primary-foreground tabular-nums ring-[1.5px] ring-sidebar",

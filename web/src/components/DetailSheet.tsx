@@ -9,6 +9,7 @@ import { closePalette } from "@/components/Palette"
 import { lockPage } from "@/core/pagelock"
 import { isDesktop } from "@/core/platform"
 import { trackUnsaved } from "@/core/unsaved"
+import { BOTTOM_BAR, BAR_SLOT } from "@/components/PhoneBar"
 import { cn } from "@/lib/utils"
 import { closestOf, focusableOf } from "@/core/dom"
 
@@ -99,6 +100,7 @@ export function DetailSheet({ open, onClose, onBack, backLabel, title, path, dep
   // Offsets, not rects: they ignore the open animation's transform, and are 0 while the dialog is still hidden.
   const syncCompact = () => {
     const sc = scroller.current, t = sc?.querySelector<HTMLElement>("#sheet-title")
+    ref.current?.toggleAttribute("data-scrolled", !!sc && sc.scrollTop > 0)
     setCompact(!!sc && !!t && t.offsetHeight > 0 && sc.scrollTop > t.offsetTop + t.offsetHeight - 4)
   }
   useLayoutEffect(() => {
@@ -196,9 +198,9 @@ export function DetailSheet({ open, onClose, onBack, backLabel, title, path, dep
       {/* flex-auto, not flex-1: the sheet has no height of its own, and iOS WebKit sizes a 0% basis in it as 0. */}
       <div ref={scroller} onScroll={(e) => { pos.current.set(key, e.currentTarget.scrollTop); syncCompact() }}
         className={cn(
-          "relative min-h-0 flex-auto overflow-x-hidden overflow-y-auto overscroll-contain px-5 pb-7 [scrollbar-gutter:stable] md:px-6",
+          "relative min-h-0 flex-auto overflow-x-hidden overflow-y-auto overscroll-contain px-5 pb-[calc(var(--phone-bar)+1.5rem)] [scrollbar-gutter:stable] md:px-6 md:pb-7",
           "pr-[max(0px,calc(--spacing(5)-var(--scrollbar-room,0px)))] md:pr-[max(0px,calc(--spacing(6)-var(--scrollbar-room,0px)))]",
-          floating ? "pt-[calc(env(safe-area-inset-top)+22px)] md:pt-[17px]" : "pt-1",
+          floating ? cn("md:pt-[17px]", !own && "pt-[calc(env(safe-area-inset-top)+22px)]") : "pt-1",
         )}>
         {open && (
           <div key={key} className={cn(anim && "animate-in fade-in duration-200", anim === "push" && "slide-in-from-right-8", anim === "pop" && "slide-in-from-left-8")}>
@@ -206,12 +208,9 @@ export function DetailSheet({ open, onClose, onBack, backLabel, title, path, dep
           </div>
         )}
       </div>
-      <footer data-sheet-bar className="relative mt-auto flex shrink-0 items-center gap-1 border-t-[0.5px] border-border px-2 pt-1 pb-[max(env(safe-area-inset-bottom),0.25rem)] md:hidden">
-        <div id="sheet-bar" className="flex h-11 min-w-0 flex-1 items-center" />
-        <button type="button" data-sheet-done onClick={close}
-          className="h-11 shrink-0 cursor-pointer rounded-[12px] px-3 text-[17px] font-semibold text-primary active:bg-foreground/[0.06]">
-          Done
-        </button>
+      <footer data-sheet-bar className={cn("sight-foot glass-strong z-10 grid grid-cols-5 gap-0.5 md:hidden", BOTTOM_BAR)}>
+        <div id="sheet-bar" className="contents" />
+        <button type="button" data-sheet-done onClick={close} className={cn(BAR_SLOT, "col-start-5 text-[17px] font-semibold")}>Done</button>
       </footer>
     </dialog>
   )

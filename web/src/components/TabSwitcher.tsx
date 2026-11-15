@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react"
 import { createPortal, flushSync } from "react-dom"
-import { CheckSquare, ChevronDown, ChevronLeft, Columns2, Ellipsis, Plus, RotateCcw, Search, X } from "lucide-react"
+import { CheckSquare, ChevronDown, ChevronLeft, Columns2, Ellipsis, RotateCcw, Search, X } from "lucide-react"
 import { onAway } from "@/core/away"
 import type { Store } from "@/core/data"
 import { activePane, activeTab, closedTabs, closePane, closeTab, closeTabIds, here, paneById, reopenClosed, tabCount, useTabList } from "@/core/workspace"
@@ -16,6 +16,7 @@ import { shownHeaderItems, viewFor } from "@/core/plugins"
 import { usePrefs } from "@/core/prefs"
 import { haptic } from "@/core/haptics"
 import { Badged, PageHeader, TitledAbove, usePortalHost } from "@/components/kit"
+import { BAR_PLUS, BAR_SLOT, NAV_BUTTON } from "@/components/PhoneBar"
 import { groupItems, groupMenu, groupName, paneCardMenu, TABS, tabCardMenu, tabsMenu, type TabInfo } from "@/components/Tabs"
 import { colorVar } from "../../../core/colors.ts"
 import { namedIcon } from "@/core/pages"
@@ -83,13 +84,13 @@ function CardFace({ store, tab, info, current, panes }: { store: Store; tab: Tab
         {fileIcons && <Badged on={info.badge}><Icon className={cn("size-4 shrink-0", !info.tint && "text-muted-foreground", info.iconClassName)} strokeWidth={2} style={info.tint ? { color: info.tint } : undefined} /></Badged>}
         <span className={cn("min-w-0 flex-1 truncate text-[15px] leading-[20px]", current && "font-semibold")}>{info.label}</span>
       </span>
-      <span data-tab-shot className="relative mx-1.5 mb-1.5 block min-h-0 flex-1 overflow-hidden rounded-[10px] bg-background">
+      <span data-tab-shot className="relative mx-1.5 mb-1.5 block min-h-0 flex-1 overflow-hidden rounded-[8px] bg-background">
         {tiles.length ? tiles.map(({ pane, rect }) => (
           <span key={pane.id} data-tab-mini={pane.id} data-mini-pane={pane.id} className={cn("absolute overflow-hidden rounded-[7px] bg-background ring-[0.5px] ring-border", pane.float && "shadow-md")}
             style={{ left: `calc(${rect.x * 100}% + 1px)`, top: `calc(${rect.y * 100}% + 1px)`, width: `calc(${rect.w * 100}% - 2px)`, height: `calc(${rect.h * 100}% - 2px)` }}>
             <span data-tab-pic style={PAGE_SHAPE} className="absolute top-0 left-0 w-[200%] origin-top-left scale-50 rounded-[14px] bg-background"><TabPreview store={store} pane={pane} info={panes!(pane)} /></span>
           </span>
-        )) : <span data-tab-pic style={PAGE_SHAPE} className="absolute inset-x-0 top-0 rounded-[10px] bg-background"><TabPreview store={store} pane={focusedPane(tab)} info={info} /></span>}
+        )) : <span data-tab-pic style={PAGE_SHAPE} className="absolute inset-x-0 top-0 rounded-[8px] bg-background"><TabPreview store={store} pane={focusedPane(tab)} info={info} /></span>}
       </span>
     </>
   )
@@ -455,15 +456,15 @@ function Pager({ pages, at, go, peek, children, head }: {
   )
 }
 
-function TabsHeader({ title, count, pages, at, menu, more, query, setQuery, items }: {
-  title: string; count: number; pages: WorkspaceInfo[]; at: number; menu: (() => MenuItem[]) | null; more: () => MenuItem[]
-  query: string | null; setQuery: (q: string | null) => void; items: ReactNode
-}) {
-  const icon = "grid size-11 shrink-0 cursor-pointer place-items-center text-primary active:opacity-50"
-  const here = pages[at], Mark = here?.icon ? namedIcon(here.icon) : null
-  if (query !== null) return (
-    <div data-tabs-header className="relative z-20 -mt-2 mb-4 flex min-h-11 items-center gap-2 md:mr-11">
-      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[10px] bg-foreground/[0.06] px-2.5">
+const NAV = "sight-top glass-strong sticky top-0 z-20 -mx-5 mb-3 pt-[env(safe-area-inset-top)]"
+const TabsBar = ({ className, children }: { className: string; children: ReactNode }) => (
+  <div data-tabs-header className={NAV}><div className={cn("relative flex h-11 items-center", className)}>{children}</div></div>
+)
+
+function TabsSearch({ query, setQuery }: { query: string; setQuery: (q: string | null) => void }) {
+  return (
+    <TabsBar className="gap-3 px-4 md:mr-11">
+      <label className="flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-[10px] bg-foreground/[0.06] px-2">
         <Search className="size-[17px] shrink-0 text-muted-foreground" strokeWidth={2} />
         <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tabs" aria-label="Search tabs" data-tabs-query
           enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false}
@@ -471,37 +472,44 @@ function TabsHeader({ title, count, pages, at, menu, more, query, setQuery, item
           className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-tertiary" />
       </label>
       <button type="button" onClick={() => setQuery(null)} className="h-11 shrink-0 cursor-pointer text-[17px] text-primary active:opacity-50">Cancel</button>
-    </div>
+    </TabsBar>
   )
+}
+
+function TabsHeader({ title, count, pages, at, menu, more, query, setQuery, items }: {
+  title: string; count: number; pages: WorkspaceInfo[]; at: number; menu: (() => MenuItem[]) | null; more: () => MenuItem[]
+  query: string | null; setQuery: (q: string | null) => void; items: ReactNode
+}) {
+  const here = pages[at], Mark = here?.icon ? namedIcon(here.icon) : null
+  if (query !== null) return <TabsSearch query={query} setQuery={setQuery} />
+  const dots = pages.length > 1
   return (
-    <div data-tabs-header className="relative z-20 -mx-3 -mt-2 mb-4 grid min-h-11 grid-cols-[1fr_minmax(0,auto)_1fr] items-center md:mr-8">
+    <TabsBar className="grid grid-cols-[1fr_minmax(0,auto)_1fr] px-1 md:mr-8">
       <div className="flex items-center">
-        <button type="button" aria-label="Search tabs" data-tabs-search onClick={() => setQuery("")} className={icon}>
-          <Search className="size-[21px]" strokeWidth={2} />
+        <button type="button" aria-label="Search tabs" data-tabs-search onClick={() => setQuery("")} className={NAV_BUTTON}>
+          <Search className="size-[22px]" strokeWidth={1.9} />
         </button>
       </div>
       <button type="button" data-tabs-workspace disabled={!menu} aria-haspopup={menu ? "menu" : undefined} onClick={(e) => menu && menuBelow(e, menu())}
-        className="flex min-h-11 min-w-0 cursor-pointer flex-col items-center justify-center px-1 disabled:cursor-default">
-        <span className="flex max-w-full min-w-0 items-center gap-1.5">
-          {Mark && <Mark data-tabs-workspace-icon className="size-[18px] shrink-0" strokeWidth={2} style={here?.tint ? { color: colorVar(here.tint) } : undefined} />}
-          <h2 data-tabs-title className="min-w-0 truncate text-[17px] leading-[22px] font-semibold">{title}</h2>
-          <span data-tabs-count className="shrink-0 text-[17px] leading-[22px] text-muted-foreground tabular-nums" aria-label={plural(count, "tab")}>{count}</span>
-          {menu && <ChevronDown className="size-4 shrink-0 text-muted-foreground" strokeWidth={2.25} />}
-        </span>
-        {pages.length > 1 && (
-          <span aria-hidden className="mt-1 flex gap-1.5">
-            {pages.map((p, i) => <span key={p.n} className={cn("size-1.5 rounded-full transition-colors", !p.tint && (i === at ? "bg-foreground/70" : "bg-foreground/20"))}
-              style={p.tint ? { background: colorVar(p.tint), opacity: i === at ? 1 : 0.35 } : undefined} />)}
-          </span>
-        )}
+        className={cn("flex min-w-0 cursor-pointer items-center justify-center self-stretch px-1 active:opacity-50 disabled:cursor-default", dots && "pb-2.5")}>
+        {Mark && <Mark data-tabs-workspace-icon className="mr-1.5 size-[18px] shrink-0" strokeWidth={2} style={here?.tint ? { color: colorVar(here.tint) } : undefined} />}
+        <h2 data-tabs-title className="min-w-0 truncate text-[17px] leading-[22px] font-semibold">{title}</h2>
+        <span data-tabs-count className="ml-1.5 shrink-0 text-[17px] leading-[22px] text-muted-foreground tabular-nums" aria-label={plural(count, "tab")}>{count}</span>
+        {menu && <ChevronDown className="ml-1 size-4 shrink-0 text-muted-foreground" strokeWidth={2.25} />}
       </button>
+      {dots && (
+        <span aria-hidden className="pointer-events-none absolute bottom-[7px] left-1/2 flex -translate-x-1/2 gap-1.5">
+          {pages.map((p, i) => <span key={p.n} className={cn("size-1.5 rounded-full transition-colors", !p.tint && (i === at ? "bg-foreground/70" : "bg-foreground/20"))}
+            style={p.tint ? { background: colorVar(p.tint), opacity: i === at ? 1 : 0.35 } : undefined} />)}
+        </span>
+      )}
       <div className="flex items-center justify-end">
         {items}
-        <button type="button" aria-label="More" aria-haspopup="menu" data-tabs-more onClick={(e) => menuBelow(e, more())} className={icon}>
+        <button type="button" aria-label="More" aria-haspopup="menu" data-tabs-more onClick={(e) => menuBelow(e, more())} className={cn(NAV_BUTTON, "-mr-0.5")}>
           <Ellipsis className="size-[22px]" strokeWidth={2} />
         </button>
       </div>
-    </div>
+    </TabsBar>
   )
 }
 
@@ -799,10 +807,10 @@ function SheetBar({ left, group, lit, add }: { left: ReactNode; group?: string; 
   if (!host) return null
   return createPortal(
     <>
-      {left}
+      <div className="col-span-2 flex min-w-0 items-center">{left}</div>
       <button type="button" aria-label={add ? "New pane" : "New tab"} data-tabs-new onClick={(e) => (add ? add() : newPhoneTab(e.currentTarget, group))}
-        className={cn("absolute left-1/2 grid h-11 w-14 -translate-x-1/2 cursor-pointer place-items-center rounded-[12px] text-primary active:bg-foreground/[0.06]", lit && "bg-primary/15 ring-2 ring-[var(--primary)]")}>
-        <Plus className="size-[25px]" strokeWidth={2.25} />
+        className={cn(BAR_SLOT, lit && "bg-primary/15 ring-2 ring-[var(--primary)]")}>
+        {BAR_PLUS}
       </button>
     </>,
     host,

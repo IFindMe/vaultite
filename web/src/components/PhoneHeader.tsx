@@ -3,6 +3,7 @@ import { Ellipsis, PanelLeft, PanelRight } from "lucide-react"
 import { focusedPane, panesOf, type Pane, type Tab } from "../../../core/layout.ts"
 import { besideOf, useSwipe } from "@/core/phoneTabs"
 import { menuBelow } from "@/components/ContextMenu"
+import { NAV_BUTTON } from "@/components/PhoneBar"
 import { openDrawer, useHasDrawer } from "@/components/PhoneDrawer"
 import { phoneTabMenu, useTabLabels } from "@/components/Tabs"
 import { titleInSight } from "@/components/FileTitle"
@@ -15,8 +16,6 @@ import { cn } from "@/lib/utils"
 
 const edgesOurs = typeof navigator !== "undefined" && (!!phoneApp
   || (/iPhone|iPad|iPod/.test(navigator.userAgent) && (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true)))
-
-const button = "grid size-11 shrink-0 cursor-pointer place-items-center text-primary active:opacity-50"
 
 export function PhoneHeader({ title, tab }: { title: string; tab: Tab }) {
   const buttons = usePrefs().sidebarButtons || !edgesOurs
@@ -37,7 +36,7 @@ export function PhoneHeader({ title, tab }: { title: string; tab: Tab }) {
         <div className="flex min-w-(--side) items-center">
           <div data-side className="flex w-max items-center">
             {left && (
-              <button type="button" aria-label="Open sidebar" onClick={() => openDrawer("left")} className={button}>
+              <button type="button" aria-label="Open sidebar" onClick={() => openDrawer("left")} className={NAV_BUTTON}>
                 <PanelLeft className="size-[22px]" strokeWidth={1.9} />
               </button>
             )}
@@ -57,11 +56,11 @@ export function PhoneHeader({ title, tab }: { title: string; tab: Tab }) {
           <div data-side className="flex w-max items-center">
             <div id="phone-actions" className="flex items-center empty:hidden" />
             {right && (
-              <button type="button" aria-label="Open right sidebar" onClick={() => openDrawer("right")} className={button}>
+              <button type="button" aria-label="Open right sidebar" onClick={() => openDrawer("right")} className={NAV_BUTTON}>
                 <PanelRight className="size-[22px]" strokeWidth={1.9} />
               </button>
             )}
-            <button type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => menuBelow(e, phoneTabMenu(tab))} className={cn(button, "-mr-0.5")}>
+            <button type="button" aria-label="More" aria-haspopup="menu" onClick={(e) => menuBelow(e, phoneTabMenu(tab))} className={cn(NAV_BUTTON, "-mr-0.5")}>
               <Ellipsis className="size-[22px]" strokeWidth={2} />
             </button>
           </div>

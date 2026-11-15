@@ -111,6 +111,7 @@ check("back to all tabs: the one that left is a card again", (await ids()).lengt
 // Into a group and back is going to another page: the group at its top, All tabs where it was left, every time (the
 // list kept its old height and offset, so a second visit showed the group's cards scrolled out of sight).
 {
+  await P.setViewportSize({ width: 390, height: 640 }); await ui.idle()
   const list = () => P.evaluate(() => { const sc = document.querySelector("dialog[open] [data-tabs-grid]").closest(".overflow-y-auto"); const c = document.querySelector("dialog[open] [data-tab-row] [data-tab-card]")?.getBoundingClientRect(); return { top: Math.round(sc.scrollTop), card: c ? Math.round(c.top) : null, h: sc.clientHeight } })
   await P.evaluate(() => { const sc = document.querySelector("dialog[open] [data-tabs-grid]").closest(".overflow-y-auto"); sc.scrollTop = sc.scrollHeight }); await ui.idle()
   const left = await list(), seen = []
@@ -121,6 +122,7 @@ check("back to all tabs: the one that left is a card again", (await ids()).lengt
     seen.push({ inGroup, back: await list() })
   }
   check("a group opened (twice): at its top, its first card in sight; back, All tabs where it was", left.top > 0 && seen.every((v) => v.inGroup.top === 0 && v.inGroup.card > 0 && v.inGroup.card < v.inGroup.h && Math.abs(v.back.top - left.top) <= 1), { left, seen })
+  await P.setViewportSize({ width: 390, height: 844 }); await ui.idle()
   await P.evaluate(() => { document.querySelector("dialog[open] [data-tabs-grid]").closest(".overflow-y-auto").scrollTop = 0 }); await ui.idle()
 }
 // Held on All tabs, a group's card is carried out to all tabs (spring-loaded), still under the finger: let go on a card's
