@@ -29,6 +29,7 @@ import { openFromApp } from "./linklogins"
 import { fillLoginIn, hasLoginForm, watchLogins } from "./LoginFill"
 import { useSecretKeeper } from "./secretkeeper"
 import { engine } from "./engine"
+import { WebPicture } from "./WebPicture"
 
 const WebPage = lazy(() => import("./WebPage"))
 // oxlint-disable-next-line react/only-export-components -- a lazy view's loader, like the ones below; fast refresh is dev-only
@@ -222,6 +223,7 @@ export default definePlugin({
         return tab && loadingIn(tab) ? spinnerIcon(color) : url.startsWith("view-source:") ? FileCode2 : siteIcon(url, color)
       },
       tabColor: (arg) => { const c = containerById(splitArg(arg).container); return c ? colorOf(c) : undefined },
+      tabPicture: (arg, tab) => <WebPicture arg={arg} tab={tab} />,
       groupName: (arg) => siteName(splitArg(arg).url),
       full: true,
       history: (_arg, tab, dir) => {

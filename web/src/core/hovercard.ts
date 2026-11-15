@@ -121,3 +121,4 @@ export function placeBesideColumn(columnOf: (anchor: HTMLElement) => Element | n
       : { side: "above", left, top: a.top - h - CARD_GAP, growFromX: x, growFromY: h }
   }
 }
+export const placeBesideSidebar = placeBesideColumn((row) => row.closest("aside"))

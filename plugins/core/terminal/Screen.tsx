@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react"
-import { Captioned, HoverCard, onLook, placeBesideColumn, type HoverShown } from "@vaultite"
+import { Captioned, HoverCard, onLook, placeBesideSidebar, type HoverShown } from "@vaultite"
 import { paletteBeyondTheme, useScreen } from "./screens"
 import { codeFont, theme } from "./theme"
 
@@ -48,11 +48,9 @@ export function TerminalPicture({ id }: { id: string }) {
   )
 }
 
-const sidebarOf = (row: HTMLElement) => row.closest("aside")
-
 export function ScreenCard({ shown, row, id, title, about }: { shown: HoverShown; row: RefObject<HTMLElement | null>; id: string; title: string; about: string }) {
   return (
-    <HoverCard shown={shown} anchor={row} place={placeBesideColumn(sidebarOf)} data-terminal-card={id}>
+    <HoverCard shown={shown} anchor={row} place={placeBesideSidebar} data-terminal-card={id}>
       <Captioned picture={<TerminalPicture id={id} />} title={title} about={about} />
     </HoverCard>
   )

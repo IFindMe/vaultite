@@ -5,7 +5,7 @@ import {
   groupsAsDrawn, HeadingButton, IconAction, isPopout, menuFor, openNewTab, isViewOpen, notifyError, openView, paneById, paneMenuOf, panesOf, placeMenuOf, placesIn, placesOf, reorder, rightClickBelow, useArchivedTabs, useMenuShowing, pastEnd, put, rowMenu, RowKeys, selectClick,
   selectedAttr, selectPane, selectTab, SidebarHeading, SidebarRow, springing, springTabAt, startDrag, tabButtons, tabListDrop, tabMenuOf, tabPreview, tabPreviewOrder, TABS, tabSlot, tabSlotBeside, tabsMenu, useDrag, useDropHit,
   useDropTarget, useGroupIn, useGroupLines, useGrowIn, useListsIn, useReflow, useShrinkOut, useSelectable, useSelected, useSlide, useTabLabels, useTabList, useUiMarks,
-  INCOMING, laidOut,
+  INCOMING, laidOut, placeBesideSidebar, TabCard, useHoverCard,
   type DragItem, type Pane, type SidebarCtx, type Store, type Tab, type TabDrop, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
 import type { Device, DeviceTab } from "./types"
@@ -137,8 +137,9 @@ function Row({ t, l, info, only, line, hit }: { t: Tab; l: TabList; info: (x: Ta
   const map = split ? <SplitMap t={t} active={active} info={info} listed={lists} /> : null
   const buttons = split || item ? [] : tabButtons(ps[0].to)
   const dragging = item?.tab === t.id || (picked && item?.tabs) || (!!t.group && item?.group === t.group)
+  const hover = useHoverCard(box, { off: active || !!item })
   return (
-    <div ref={box} data-slide={t.id} data-ui={`tab:${t.id}`} data-spring-tab={t.id} data-in-group={t.group} data-line-of={line} onPointerDown={press}
+    <div ref={box} data-slide={t.id} data-ui={`tab:${t.id}`} data-spring-tab={t.id} data-in-group={t.group} data-line-of={line} onPointerDown={press} {...hover.props}
       className={cn("relative", dragging && "opacity-50")}
       onContextMenu={menuFor(rowMenu(TABS, t.id, () => tabMenuOf(t.id)))}>
       <SidebarRow data-open-tab={t.id} data-select-key={t.id} data-split={split ? "" : undefined} {...selectedAttr(picked)} icon={split ? undefined : i.icon} iconClassName={i.iconClassName} tint={i.tint}
@@ -154,6 +155,7 @@ function Row({ t, l, info, only, line, hit }: { t: Tab; l: TabList; info: (x: Ta
         {split && <SplitMore label={ps.map((p) => info(p).label).join(" | ")} held={!!dragging} />}
       </SidebarRow>
       {lists && <PaneLists t={t} active={active} line={!!line} info={info} hit={hit} />}
+      {hover.shown && <TabCard shown={hover.shown} chip={box} tab={t} info={info} place={placeBesideSidebar} />}
     </div>
   )
 }

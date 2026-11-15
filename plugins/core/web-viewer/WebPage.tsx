@@ -34,6 +34,7 @@ import { agentPages, doneAsk, pauseAgents, takeOver, toBackground, working, WORK
 import { AgentWatch } from "./AgentWatch"
 import { framing } from "./framed"
 import FramedPage from "./FramedPage"
+import { useThumbs } from "./thumbs"
 
 type Props = { arg: string; focused: boolean; setArg: (arg: string) => void }
 
@@ -152,6 +153,7 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked, blank])
   const framed = !!frame && !state.painted && !state.error && !state.crashed
+  useThumbs(web, id, tab, tabArg, !tabHidden && !blank && !away && !!state.painted && !state.loading && !state.error && !state.crashed)
 
   useEffect(() => { if (blank) setState({ url: "", title: "", back: false, forward: false, loading: false }) }, [blank])
 

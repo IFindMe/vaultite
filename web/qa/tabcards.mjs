@@ -1,5 +1,4 @@
-// Hover cards (core/hovercard.ts, components/HoverCard.tsx, components/TabCard.tsx, components/TabPreview.tsx, plugins/core/terminal/Screen.tsx, plugins/core/terminal/screens.ts):
-// a tab's after a rest, warm to the next, a terminal's screen in its tab's and its Terminals row's. Starts a shell, opens tabs: throwaway server only.   node web/qa/tabcards.mjs <base url> [out dir]
+// Hover cards (core/hovercard.ts, components/HoverCard.tsx, components/TabCard.tsx, components/TabPreview.tsx, components/FileTree.tsx, plugins/core/pages/Pinned.tsx, plugins/core/tabs/index.tsx, plugins/core/terminal/Screen.tsx, plugins/core/terminal/screens.ts): a tab's after a rest, warm to the next, a terminal's screen in its tab's and its Terminals row's; a file's, a pin's and a Tabs panel row's beside the sidebar. Starts a shell, opens tabs: throwaway server only.   node web/qa/tabcards.mjs <base url> [out dir]
 import { execFileSync } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import path from "node:path"
@@ -84,6 +83,49 @@ check("a Terminals row's card: its screen", await until(async () => ((await term
   check("…beside the sidebar", c && a && (c.x >= a.x + a.width - 1 || c.x + c.width <= a.x + 1), { a, c })
 }
 await away()
+
+const rowCard = () => page.locator("[data-hover-card]")
+const restOn = async (loc) => { const b = await loc.boundingBox(); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await ui.idle() }
+const besideSidebar = async () => {
+  const [a, c] = [await page.locator("aside").first().boundingBox(), await rowCard().locator(".preview-card").boundingBox()]
+  return !!a && !!c && (c.x >= a.x + a.width - 1 || c.x + c.width <= a.x + 1)
+}
+const inTree = await page.$$eval("aside [data-tree-path]:not([data-tree-folder])", (els) => els.map((e) => e.dataset.treePath).filter((p) => p.endsWith(".md")))
+const [shownNote, note] = inTree
+await page.evaluate((h) => { location.hash = h }, `#file/${encodeURIComponent(shownNote)}`); await ui.idle()
+await restOn(page.locator(`aside [data-tree-path="${note}"]`).first())
+check("a file's card in the tree, titled as the file", (await rowCard().getAttribute("data-target-hover-card")) === `file:${note}`
+  && (await rowCard().locator("[data-card-title]").textContent()).trim() === path.basename(note, ".md"), await rowCard().getAttribute("data-target-hover-card").catch(() => null))
+check("…with its text, beside the sidebar", ((await rowCard().locator("[data-card-picture]").textContent()) ?? "").trim().length > 0 && await besideSidebar())
+await page.screenshot({ path: `${OUT}file.png` })
+await away()
+await restOn(page.locator(`aside [data-tree-path="${shownNote}"]`).first())
+check("none for the file on screen", (await rowCard().count()) === 0)
+await away()
+await restOn(page.locator("aside [data-tree-folder]").first())
+check("none for a folder", (await rowCard().count()) === 0)
+await away()
+const pin = (await page.$$eval("nav[aria-label=Pages] [data-pin]:not([data-pin-folder])", (els) => els.filter((e) => !e.className.includes("font-medium")).map((e) => e.dataset.pin)))[0]
+check("a pinned page", !!pin)
+await restOn(page.locator(`nav[aria-label=Pages] [data-pin="${pin}"]`).first())
+check("a pinned page's card, beside the sidebar", !!(await rowCard().getAttribute("data-target-hover-card").catch(() => null)) && await besideSidebar(), pin)
+await away()
+
+if (!/\d+\. \w+:tabs/.test(vau("panels", "--vault"))) vau("panels", "show", "tabs", "--vault")
+await page.locator("aside [data-open-tab]").first().waitFor()
+const rows = await page.$$eval("aside [data-open-tab]", (els) => els.map((e) => ({ id: e.dataset.openTab, active: e.className.includes("font-medium"), text: e.textContent.trim() })))
+const other = rows.find((r) => !r.active && !/Terminal/.test(r.text)), onScreen = rows.find((r) => r.active)
+check("the Tabs panel lists the tabs", rows.length >= 4 && !!other && !!onScreen, rows)
+await restOn(page.locator(`aside [data-open-tab="${other.id}"]`))
+check("a Tabs panel row's card, titled as the tab", (await rowCard().getAttribute("data-tab-hover-card").catch(() => null)) === other.id
+  && (await rowCard().locator("[data-card-title]").textContent()).trim() === other.text)
+check("…beside the sidebar", await besideSidebar())
+await page.screenshot({ path: `${OUT}tabs-panel.png` })
+await away()
+await restOn(page.locator(`aside [data-open-tab="${onScreen.id}"]`))
+check("none for the tab on screen", (await rowCard().count()) === 0)
+await away()
+vau("panels", "hide", "tabs", "--vault")
 await api("PUT", "config/appearance", look)
 await page.evaluate((s) => new Promise((ok) => { const w = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/terminal/${s}?end=1`); w.onopen = w.onerror = w.onclose = ok }), TERM)
 await done()
