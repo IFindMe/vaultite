@@ -8,7 +8,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 - Phone: turned sideways, the app keeps the phone's layout instead of switching to the desktop's, so a video playing (full
   screen too), a terminal or anything else carries on undisturbed, the page keeps its place, and the header, sidebar,
-  sheets and page keep clear of the notch.
+  sheets and page keep clear of the notch; notes keep a reading width, while terminals, chats and graphs use the whole
+  screen.
 - Phone: the sidebars open from anywhere along the screen's edges again (over a task's checkbox, below a short page),
   slide in at once with their panels already drawn, and no longer scroll sideways, so swiping a row in them works.
 - Phone: the header is clear at a page's top and gets its frosted glass and a hairline once the page scrolls under it,

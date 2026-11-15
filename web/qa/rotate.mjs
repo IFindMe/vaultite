@@ -1,4 +1,4 @@
-// A turned phone keeps its layout, place and video (full screen too), clear of the notch: core/platform.ts, core/anchor.ts, index.css, App.tsx, components/PhoneDrawer.tsx, components/PhoneHeader.tsx, components/DetailSheet.tsx. Needs ffmpeg: node web/qa/rotate.mjs <base url> <vault path> [out dir]
+// A turned phone keeps its layout, place and video (full screen too), clear of the notch: core/platform.ts, core/anchor.ts, index.css, App.tsx, components/PhoneDrawer.tsx, components/PhoneHeader.tsx, components/DetailSheet.tsx, components/FileView.tsx, components/TabSwitcher.tsx. Needs ffmpeg: node web/qa/rotate.mjs <base url> <vault path> [out dir]
 import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import { SHOTS, qa, until } from "./lib/qa.mjs"
@@ -114,6 +114,19 @@ for (const [w, h] of [[390, 844], [430, 932]]) {
   check(`${label}: and turned back`, read2?.text === read0?.text && Math.abs(read2.into - read0.into) < 0.2, { read0, read2 })
   const back = await state(page)
   check(`${label}: back upright, still nothing drawn anew`, back.phone && back.main === "main" && back.video === "video" && !back.drawer, back)
+  await ctx.close()
+}
+
+{
+  const ctx = await browser.newContext({ viewport: { width: 932, height: 430 }, screen: { width: 932, height: 430 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true })
+  const page = watch(await ctx.newPage()), ui = app(page), cdp = await ctx.newCDPSession(page), NOTCH = 59
+  await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: { top: 0, left: NOTCH, right: NOTCH, bottom: 21 } })
+  await page.goto(`${B}#view/conversations`); await page.locator(".phone-fill").waitFor({ timeout: 30000 }); await ui.idle()
+  const fill = await page.evaluate(() => { const r = document.querySelector(".phone-fill").getBoundingClientRect(); return { left: Math.round(r.left), right: Math.round(innerWidth - r.right) } })
+  check("932x430 turned: a view that fills the screen spans it, notch to notch, past the page's reading width", fill.left === NOTCH && fill.right === NOTCH, fill)
+  await page.setViewportSize({ width: 430, height: 932 }); await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: { top: 59, left: 0, right: 0, bottom: 34 } }); await ui.idle()
+  const up = await page.evaluate(() => { const r = document.querySelector(".phone-fill").getBoundingClientRect(); return { left: Math.round(r.left), right: Math.round(innerWidth - r.right) } })
+  check("430x932 upright: it spans the screen edge to edge", up.left === 0 && up.right === 0, up)
   await ctx.close()
 }
 

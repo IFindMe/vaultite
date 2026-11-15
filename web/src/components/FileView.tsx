@@ -885,7 +885,7 @@ function Loaded({ store, initial, pane, docked, onGone }: { store: Store; initia
 function PaneFile({ path, kind, bar, toggle, notices, children, onContextMenu }: { path: string; kind: FileKind; bar: ReactNode; toggle: ReactNode; notices: ReactNode; children: ReactNode
   onContextMenu?: (e: MouseEvent) => void }) {
   return (
-    <article className={cn("file-view flex flex-col", isDesktop() ? "h-full" : "phone-fill -mx-4")} data-path={path} data-kind={kind} data-layout="pane" onContextMenu={onContextMenu}>
+    <article className={cn("file-view flex flex-col", isDesktop() ? "h-full" : "phone-fill")} data-path={path} data-kind={kind} data-layout="pane" onContextMenu={onContextMenu}>
       {bar && <div className="shrink-0 px-8">{bar}</div>}
       {toggle}
       <div className="shrink-0 px-4 empty:hidden md:px-8">{notices}</div>

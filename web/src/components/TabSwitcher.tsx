@@ -826,7 +826,7 @@ function PaneBody({ store, to }: { store: Store; to: string }) {
   if (to === "new") return startPage ? <FileView store={store} path={startPage} pane /> : <NewTab store={store} phone />
   const view = viewFor(to, disabled)
   const v = viewBody(store, activePane(), to, view, true)
-  if (v.drawn && view?.def.full) return <div className="phone-fill relative -mx-4 min-h-[240px] overflow-hidden">{v.drawn}</div>
+  if (v.drawn && view?.def.full) return <div className="phone-fill relative min-h-[240px] overflow-hidden">{v.drawn}</div>
   return (
     <>
       <PageHeader title={v.title} />

@@ -335,8 +335,9 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 .pb-safe { padding-bottom: calc(var(--page-foot) + 1.5rem); }
 .pb-safe:where(:not([data-phone] *)) { padding-bottom: calc(3rem + var(--mini-player) + var(--trial-bar)); }
 /* Phones: the screen between the header (3.5rem) and the bar and what sits on it, for what fills it (a canvas, a terminal);
-   it takes back .pb-safe's end room, so the page never scrolls under it. */
-.phone-fill { height: calc(100dvh - env(safe-area-inset-top) - 3.5rem - var(--page-foot)); margin-bottom: -1.5rem; }
+   it takes back .pb-safe's end room, so the page never scrolls under it, and reaches past the page's reading width to
+   the screen's sides (a turned phone's page is narrower than the screen). */
+.phone-fill { height: calc(100dvh - env(safe-area-inset-top) - 3.5rem - var(--page-foot)); margin: 0 calc(50% - 50vw + env(safe-area-inset-left) / 2 + env(safe-area-inset-right) / 2) -1.5rem; }
 
 /* Metrics use SF Pro Rounded, like Health and Fitness. */
 .num { font-family: var(--font-rounded); font-variant-numeric: tabular-nums; }
