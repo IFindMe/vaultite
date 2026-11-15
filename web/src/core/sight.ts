@@ -125,8 +125,7 @@ const typingNow = () => {
   return at instanceof HTMLElement && at.matches(TYPED) && at.inputMode !== "none" && !at.closest("[data-term]")
 }
 
-// The viewport tells of the keyboard only once its slide ends: marked as a field takes focus (the bar goes as the keys
-// rise) and unmarked once they're down; no keys by the slide's end (a hardware keyboard), unmarked then.
+// iOS resizes the viewport only once the keyboard's slide ends: marked from the focus until the keys are down.
 const RISE_MS = 700, FALL_MS = 1000
 export function markKeyboard() {
   const vv = visualViewport

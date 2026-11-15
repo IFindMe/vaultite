@@ -125,7 +125,6 @@ const Title = memo(function Title({ path, editable, sheet, focus, settle, mode, 
   )
 })
 
-/** The row over the keyboard while a phone types a name: its own keys, and the one that hides the keyboard. */
 function TitleKeys({ field, back, next }: { field: RefObject<HTMLTextAreaElement | null>; back?: () => void; next: (t: HTMLTextAreaElement) => void }) {
   const area = useVisibleArea(true)
   const t = field.current

@@ -100,8 +100,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
         } else if (!s.from) {
           const list = actions?.() ?? []
           if (!list.length) { s.axis = "pass"; return }
-          // At once: a render left for later waits on whatever else is pending (a page still loading on a slow
-          // connection), and the row slid open over nothing.
+          // A deferred render waits on other pending work (a slow connection's loads): the row slid open over nothing.
           flushSync(() => { setShown(list); setShort((row.current?.offsetHeight ?? 44) < 40) })
           s.room = list.length * BUTTON
         }
