@@ -1,5 +1,5 @@
-// A phone's swipes (components/SwipeRow.tsx, core/drag.ts) with real touches at 390px: the drawer's headings and pins, Inbox rows,
-// the new tab; a computer keeps its buttons. WRITES sidebars, newtab, pages.json (put back), the Inbox: throwaway.
+// A phone's swipes (components/SwipeRow.tsx, core/drag.ts, components/PhoneDrawer.tsx, components/Sidebar.tsx, components/SidebarHeading.tsx) with real touches
+// at 390px: the drawers' headings, pins and Inbox rows, the new tab; a computer keeps its buttons. WRITES sidebars, newtab, pages.json (put back), the Inbox: throwaway.
 //   node web/qa/swipes.mjs <base url> [shots dir]
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
@@ -14,7 +14,7 @@ const api = async (method, p, body) => {
 }
 const conf = (name) => path.join(VAULT, `.vaultite/${name}.json`)
 const kept = Object.fromEntries(["sidebars", "newtab", "pages"].map((n) => { try { return [n, readFileSync(conf(n), "utf8")] } catch { return [n, null] } }))
-writeFileSync(conf("sidebars"), JSON.stringify({ left: ["buttons:buttons", "inbox:inbox", "pages:pages", "files:files"], right: [], collapsed: [] }))
+writeFileSync(conf("sidebars"), JSON.stringify({ left: ["buttons:buttons", "inbox:inbox", "pages:pages", "files:files", "tabs:tabs", "search:search"], right: ["outline:outline", "tags:tags"], collapsed: [] }))
 writeFileSync(conf("newtab"), JSON.stringify({ sections: ["core:actions", "inbox:inbox"] }))
 const pinned = JSON.parse(kept.pages ?? "{}").pinned ?? []
 // Titles of their own each run (the Inbox numbers a title it has already).
@@ -37,8 +37,22 @@ const status = async (title) => (await api("GET", "inbox")).find((r) => r.title 
   }
   const drawer = async () => { await page.locator("[data-phone-header] button[aria-label='Open sidebar']").tap(); await ui.idle() }
   await page.goto(B); await page.waitForSelector("[data-phone-header]"); await ui.idle()
+  check("both drawers drawn ahead, hidden, so opening one only slides it in", await until(() => page.evaluate(() =>
+    ["Sidebar", "Right sidebar"].every((n) => document.querySelector(`[role=dialog][aria-label='${n}'] [data-sidebar-body]`))), 5000))
+  const wider = (side) => page.evaluate((side) => [...document.querySelectorAll(`[data-phone-drawer=${side}], [data-phone-drawer=${side}] *`)].flatMap((e) => {
+    const cs = getComputedStyle(e)
+    if (!/auto|scroll/.test(cs.overflowX + cs.overflowY)) return []
+    return e.scrollWidth > e.clientWidth + 1 || /auto|scroll/.test(cs.overflowX) ? [`${e.className}: ${e.scrollWidth} in ${e.clientWidth}, ${cs.overflowX}`] : []
+  }), side)
+  await touch("touchStart", 386, 420)
+  for (let i = 1; i <= 12; i++) { await touch("touchMove", 386 - i * 24, 422); await page.evaluate(() => new Promise(requestAnimationFrame)) }
+  await touch("touchEnd"); await ui.idle()
+  check("the right edge opens the right drawer", await page.evaluate(() => document.documentElement.dataset.drawer === "right"))
+  check("the right drawer is no wider than itself, nor scrolls sideways", !(await wider("right")).length, await wider("right"))
+  await page.keyboard.press("Escape"); await ui.idle()
   await drawer()
   const D = "[data-phone-drawer]"
+  check("the left one neither (else iOS scrolls it under a row's swipe)", !(await wider("left")).length, await wider("left"))
 
   const sync = await page.evaluate(() => {
     const row = [...document.querySelectorAll("[data-phone-drawer] [data-tree-path]")].find((e) => !e.matches("[data-tree-folder]"))
@@ -105,7 +119,11 @@ const status = async (title) => (await api("GET", "inbox")).find((r) => r.title 
   // An Inbox row swiped open, then redrawn (a live change) before Settle.
   if (!(await page.locator(D).isVisible().catch(() => false))) await drawer()
   const res = page.locator(`${D} [data-result]`, { hasText: T.redraw }).first()
+  await res.scrollIntoViewIfNeeded(); await ui.idle()
+  await page.evaluate(() => { window.__kept = []; addEventListener("touchmove", (e) => window.__kept.push(e.defaultPrevented), { passive: true }) })
   await swipe(res, 200)
+  const kept = await page.evaluate(() => window.__kept)
+  check("a row's sideways drag in the drawer is kept from the browser", kept[0] === true, kept)
   await api("POST", "inbox", { title: "Arrives while it's open", body: "Body.", from: "Qa" })
   await page.locator(`${D} [data-result]`, { hasText: "Arrives while it's open" }).first().waitFor({ state: "attached" }); await ui.idle()
   const done = page.locator(`${D} button[aria-label=Settle]:not([data-tip])`).first()
@@ -117,6 +135,12 @@ const status = async (title) => (await api("GET", "inbox")).find((r) => r.title 
   await touch("touchEnd"); await ui.idle()
   check("pressing Settle leaves it open until it acts", open)
   check("and Settle settles it", (await until(async () => (await status(T.redraw)) === "done")) === true, await status(T.redraw))
+  if (!(await page.locator(D).isVisible().catch(() => false))) await drawer()
+  const other = page.locator(`${D} [data-result]`, { hasText: T.open }).first()
+  await other.scrollIntoViewIfNeeded(); await ui.idle()
+  await swipe(other, 200)
+  await page.keyboard.press("Escape"); await ui.idle()
+  check("shut after a row's swipe, the drawer is put away", await page.evaluate(() => !document.querySelector("[data-phone-drawer]")))
 
   // The new tab: the same headings and rows.
   await page.goto(`${B}#new`); await page.waitForSelector("[data-newtab-section]"); await ui.idle()

@@ -108,7 +108,7 @@ export function SidebarPanels({ head, side = "left", ...ctx }: SidebarCtx & { he
     <SidebarSide.Provider value={side}>
     {rail}
     <div ref={box} data-sidebar-body={ctx.open ? side : undefined} data-sidebar-kept={ctx.open ? undefined : side} inert={!ctx.open} data-mode-fade={fades || undefined} data-headings-peek={item?.from === "panel" || docking || undefined} data-scroll={own ? "panels" : "sidebar"} onDoubleClick={(e) => { const key = emptyRoomOf(e.target, box.current); panels.find((p) => p.key === key)?.panel.emptyDoubleClick?.() }}
-      className={cn("edge-fade-b relative flex min-h-0 flex-1 flex-col pb-1", !ctx.open && "hidden", own ? "overflow-x-hidden overflow-y-auto" : "overflow-y-auto overscroll-contain",
+      className={cn("edge-fade-b relative flex min-h-0 flex-1 flex-col pb-1", !ctx.open && "hidden", "overflow-x-hidden overflow-y-auto", !own && "overscroll-contain",
         making && "[&>:not([data-slide])]:invisible")}>
       {panels.length ? panels.map((p, i) => {
         const { key, panel } = p

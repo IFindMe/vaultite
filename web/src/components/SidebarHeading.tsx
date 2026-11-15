@@ -19,8 +19,8 @@ export const PanelAlone = createContext<(() => void) | null>(null)
 
 const LeaveMode = ({ leave }: { leave: () => void }) => <HeadingButton icon={X} label="Show panels" data-leave-mode onClick={leave} className="ml-0.5" />
 
-/** A panel's heading: label left, hover buttons right (touch: swiped to), then … for its menu, then `aside` (always
- *  shown: a picker of what it shows); click folds the panel, drag moves it (`data-panel-handle`). Nothing in the rail. */
+/** A panel's heading: label left, hover buttons right (touch: swiped to), then … for its menu (touch: held), then `aside`
+ *  (always shown: a picker of what it shows); click folds the panel, drag moves it (`data-panel-handle`). Nothing in the rail. */
 export function SidebarHeading({ title, open, children, aside, className }: {
   title: string; open: boolean
   children?: React.ReactNode
@@ -61,12 +61,9 @@ export function SidebarHeading({ title, open, children, aside, className }: {
     )
   }
   const box = cn("group/head mt-2 shrink-0", f && "sticky top-0 z-[2] bg-sidebar", className)
-  if (coarse && children) {
-    return (
-      <SwipeRow {...head} under={children} className={box}>
-        <div className="flex h-7 items-center gap-0.5 pr-0.5 pl-1.5">{label}<span className="flex-1" />{aside}{alone && <LeaveMode leave={alone} />}</div>
-      </SwipeRow>
-    )
+  if (coarse) {
+    const row = <div className="flex h-7 items-center gap-0.5 pr-0.5 pl-1.5">{label}<span className="flex-1" />{aside}{alone && <LeaveMode leave={alone} />}</div>
+    return children ? <SwipeRow {...head} under={children} className={box}>{row}</SwipeRow> : <div {...head} className={box}>{row}</div>
   }
   return (
     <div {...head} className={cn("flex h-7 items-center gap-0.5 pr-0.5 pl-1.5 transition-opacity duration-200", box)}>

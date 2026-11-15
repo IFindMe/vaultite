@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Activity, memo, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import { ChevronsUpDown } from "lucide-react"
 import { APP_PAGES, appPageOf, hrefOf, openAppPage } from "@/core/apppages"
 import { onAway } from "@/core/away"
@@ -7,6 +8,7 @@ import { fingerHolding } from "@/core/drag"
 import { haptic } from "@/core/haptics"
 import { route } from "@/core/nav"
 import { usePageLock } from "@/core/pagelock"
+import { isDesktop, useDesktop } from "@/core/platform"
 import { drawerPanels, phoneDock, setDrawerOpener, useSidebars, type Side } from "@/core/plugins"
 import { usePrefs } from "@/core/prefs"
 import { menuFor } from "@/components/ContextMenu"
@@ -19,7 +21,7 @@ import { selecting } from "@/core/select"
 import { signal } from "@/core/signal"
 import { trackSoon } from "@/core/unsaved"
 import { closestOf, elementOf } from "@/core/dom"
-import { edgeTouch, setEdgeTouch } from "@/core/edgetouch"
+import { EDGE, edgeTouch, setEdgeTouch } from "@/core/edgetouch"
 
 let out: Side | null = null
 const subs = signal()
@@ -39,35 +41,42 @@ export function useHasDrawer(side: Side) {
 }
 
 const EASE = "cubic-bezier(.2,.8,.2,1)"
+const SIDES = ["left", "right"] as const
 const width = () => Math.min(innerWidth * 0.86, 360)
-const EDGE = 18
 
-function ownsEdge(el: Element, top: Element, side: Side) {
-  if (el.closest("input, textarea, select, [contenteditable=true]:focus, [data-term], [data-keeps-touch], [data-own-hold]")) return true
-  for (let a: Element | null = el; a && a !== top; a = a.parentElement) {
+function edgeOpens(el: Element, side: Side) {
+  const page = document.getElementById("main-scroll")
+  if (!page || el.closest("[data-phone-header]")) return false
+  if (el !== document.body && el !== document.documentElement && !page.contains(el)) return false
+  if (el.closest("input:not([type=checkbox], [type=radio]), textarea, select, [contenteditable=true]:focus, [data-term], [data-keeps-touch], [data-own-hold]")) return false
+  for (let a: Element | null = el; a && a !== page; a = a.parentElement) {
     const cs = getComputedStyle(a)
-    if (cs.touchAction === "none" || cs.touchAction === "pinch-zoom") return true
+    if (cs.touchAction === "none" || cs.touchAction === "pinch-zoom") return false
     if (/auto|scroll/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 1) {
-      if (side === "left" ? a.scrollLeft > 0 : a.scrollLeft + a.clientWidth < a.scrollWidth - 1) return true
+      if (side === "left" ? a.scrollLeft > 0 : a.scrollLeft + a.clientWidth < a.scrollWidth - 1) return false
     }
   }
-  return false
+  return true
 }
 
-export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store: Store; file: string; tab: string; vaultName: string
-  vaultMenu: (e: React.MouseEvent) => void }) {
+type BodyProps = { store: Store; file: string; tab: string; vaultName: string; vaultMenu: (e: React.MouseEvent) => void }
+type Drag = { side: Side; x: number; y: number; axis: "x" | "y" | null; from: number; p: number; t: number; v: number; quit?: () => void }
+
+/** Both drawers, drawn ahead while the phone idles and kept hidden while shut (Activity), so opening one only slides it. */
+export function PhoneDrawers(props: BodyProps) {
   const side = useDrawer()
+  const phone = !useDesktop()
   usePageLock(!!side)
   useEffect(() => { if (side) document.documentElement.dataset.drawer = side; else delete document.documentElement.dataset.drawer }, [side])
   const has = { left: useHasDrawer("left"), right: useHasDrawer("right") }
   const [drawn, setDrawn] = useState<Side | null>(null)
-  const panel = useRef<HTMLDivElement>(null), shade = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ side: Side; x: number; y: number; axis: "x" | "y" | null; from: number; p: number; t: number; v: number; quit?: () => void } | null>(null)
+  const boxes = { left: useRef<HTMLDivElement>(null), right: useRef<HTMLDivElement>(null) }, shade = useRef<HTMLDivElement>(null)
+  const drag = useRef<Drag | null>(null)
   const pos = useRef(0)
 
   const place = (s: Side, p: number, ms = 0) => {
     pos.current = p
-    const el = panel.current, bg = shade.current
+    const el = boxes[s].current, bg = shade.current
     if (!el || !bg) return
     const t = ms ? `${ms}ms ${EASE}` : ""
     // Put there at once: a running slide would carry on from where it was.
@@ -78,40 +87,18 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
     bg.style.opacity = String(p)
     bg.style.pointerEvents = p > 0 ? "auto" : "none"
   }
-
-  // Before paint, layout forced: a leftover transition would slide the right drawer in from the left.
-  useLayoutEffect(() => {
-    const s = side ?? drawn
-    if (!s) return
-    place(s, pos.current)
-    panel.current?.getBoundingClientRect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs only when the drawn side changes
-  }, [side ?? drawn])
+  const putAway = (s: Side) => { if (!out && !drag.current) { place(s, 0); setDrawn(null) } }
 
   useEffect(() => {
     if (side) { setDrawn(side); requestAnimationFrame(() => place(side, 1, 280)); return }
     if (!drawn) return
     place(drawn, 0, 240)
     let due = true
-    const t = setTimeout(() => { due = false; if (!out && !drag.current) { place(drawn, 0); setDrawn(null) } }, 260), off = trackSoon("the drawer closing", () => due)
+    const t = setTimeout(() => { due = false; putAway(drawn) }, 260), off = trackSoon("the drawer closing", () => due)
     return () => { clearTimeout(t); off() }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs only when a drawer opens or closes
   }, [side])
-
-  useEffect(() => {
-    let was = route().tab
-    const on = () => {
-      const now = route().tab
-      if (now === was) return
-      was = now
-      const typing = document.activeElement?.closest("[data-phone-drawer]") && document.activeElement.matches("input, textarea, [contenteditable]")
-      if (out && !typing) openDrawer(null)
-    }
-    addEventListener("hashchange", on)
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape" && out) openDrawer(null) }
-    addEventListener("keydown", esc)
-    return () => { removeEventListener("hashchange", on); removeEventListener("keydown", esc) }
-  }, [])
+  useEffect(closesOnLeaving, [])
 
   const start = (e: React.PointerEvent | PointerEvent, s: Side, from: number) => {
     if (e.pointerType === "mouse" && e.button) return
@@ -128,7 +115,7 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
         d.axis = "x"
         try { (e.currentTarget instanceof Element ? e.currentTarget : elementOf(e.target))?.setPointerCapture(e.pointerId) } catch {}
         d.quit = onAway(end)
-        if (drawn !== d.side) setDrawn(d.side)
+        if (drawn !== d.side) flushSync(() => setDrawn(d.side))
       } else if (Math.abs(my) > 8) { d.axis = "y"; drag.current = null; return }
     }
     if (d.axis !== "x") return
@@ -147,20 +134,62 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
     const open = Math.abs(d.v) > 0.0015 ? d.v > 0 : d.from ? d.p > 0.66 : d.p > 0.33
     if (open !== (out === d.side)) haptic("soft")
     if (open && out === d.side) place(d.side, 1, 220)
-    else if (!open && !out) { place(d.side, 0, 220); setTimeout(() => { if (!out && !drag.current) { place(d.side, 0); setDrawn(null) } }, 240) }
+    else if (!open && !out) { place(d.side, 0, 220); setTimeout(() => putAway(d.side), 240) }
     else openDrawer(open ? d.side : null)
   }
-  const handlers = { onPointerMove: move, onPointerUp: end, onPointerCancel: end }
+  const handlers = { onPointerMove: move, onPointerUpCapture: end, onPointerCancelCapture: end }
+  useEdgeSwipes({ has, side, start, move, end })
 
-  const live = useRef({ has, side, start, move, end })
-  live.current = { has, side, start, move, end }
+  return (
+    <>
+      <div ref={shade} aria-hidden onPointerDown={(e) => drawn && start(e, drawn, 1)} {...handlers}
+        onClick={() => { if (pos.current === 1) openDrawer(null) }}
+        className="fixed inset-0 z-40 bg-black/40 md:hidden" style={{ opacity: 0, pointerEvents: "none", touchAction: "pan-y" }} />
+      {SIDES.map((s) => has[s] && (
+        <div key={s} ref={boxes[s]} data-phone-drawer={drawn === s ? s : undefined} role="dialog" aria-label={s === "right" ? "Right sidebar" : "Sidebar"} aria-hidden={side !== s}
+          onPointerDown={(e) => start(e, s, 1)} {...handlers}
+          onClick={(e) => {
+            if (e.defaultPrevented || selecting()) return
+            if (closestOf(e.target, "[data-tree-path]:not([data-tree-folder]), a[href^='#']") && !closestOf(e.target, "[aria-haspopup], [data-no-drag]")) setTimeout(() => openDrawer(null))
+          }}
+          className={cn("fixed inset-y-0 z-40 flex flex-col bg-sidebar shadow-xl md:hidden", s === "right" ? "right-0" : "left-0", drawn !== s && "invisible")}
+          style={{ width: "min(86vw, 360px)", transform: `translateX(${s === "right" ? 100 : -100}%)`, touchAction: "pan-y" }}>
+          {(phone || drawn === s) && (
+            <Activity mode={drawn === s ? "visible" : "hidden"}><DrawerBody side={s} asleep={drawn !== s} {...props} /></Activity>
+          )}
+        </div>
+      ))}
+    </>
+  )
+}
+
+function closesOnLeaving() {
+  let was = route().tab
+  const on = () => {
+    const now = route().tab
+    if (now === was) return
+    was = now
+    const typing = document.activeElement?.closest("[data-phone-drawer]") && document.activeElement.matches("input, textarea, [contenteditable]")
+    if (out && !typing) openDrawer(null)
+  }
+  addEventListener("hashchange", on)
+  const esc = (e: KeyboardEvent) => { if (e.key === "Escape" && out) openDrawer(null) }
+  addEventListener("keydown", esc)
+  return () => { removeEventListener("hashchange", on); removeEventListener("keydown", esc) }
+}
+
+type Gesture = { has: Record<Side, boolean>; side: Side | null; start: (e: PointerEvent, s: Side, from: number) => void; move: (e: PointerEvent) => void; end: () => void }
+
+function useEdgeSwipes(now: Gesture) {
+  const live = useRef(now)
+  useLayoutEffect(() => { live.current = now })
   useEffect(() => {
     const down = (e: PointerEvent) => {
       const { has, side, start } = live.current
-      if (e.pointerType !== "touch" || !e.isPrimary || side || innerWidth >= 768) return
+      if (e.pointerType !== "touch" || !e.isPrimary || side || isDesktop()) return
       const s: Side | null = e.clientX < EDGE ? "left" : e.clientX > innerWidth - EDGE ? "right" : null
-      const el = elementOf(e.target), page = document.getElementById("main-scroll")
-      if (!s || !has[s] || !el || !page?.contains(el) || el.closest("[data-phone-header]") || ownsEdge(el, page, s)) return
+      const el = elementOf(e.target)
+      if (!s || !has[s] || !el || !edgeOpens(el, s)) return
       setEdgeTouch(true)
       start(e, s, 0)
     }
@@ -178,29 +207,9 @@ export function PhoneDrawers({ store, file, tab, vaultName, vaultMenu }: { store
       removeEventListener("pointercancel", up, opts)
     }
   }, [])
-
-  const shown = side ?? drawn
-  return (
-    <>
-      <div ref={shade} aria-hidden onPointerDown={(e) => shown && start(e, shown, 1)} {...handlers}
-        onClick={() => { if (pos.current === 1) openDrawer(null) }}
-        className="fixed inset-0 z-40 bg-black/40 md:hidden" style={{ opacity: 0, pointerEvents: "none", touchAction: "pan-y" }} />
-      <div ref={panel} data-phone-drawer={shown ?? undefined} role="dialog" aria-label={shown === "right" ? "Right sidebar" : "Sidebar"} aria-hidden={!side}
-        onPointerDown={(e) => shown && start(e, shown, 1)} {...handlers}
-        onClick={(e) => {
-          if (e.defaultPrevented || selecting()) return
-          if (closestOf(e.target, "[data-tree-path]:not([data-tree-folder]), a[href^='#']") && !closestOf(e.target, "[aria-haspopup], [data-no-drag]")) setTimeout(() => openDrawer(null))
-        }}
-        className={cn("fixed inset-y-0 z-40 flex flex-col bg-sidebar shadow-xl md:hidden", shown === "right" ? "right-0" : "left-0", !shown && "invisible")}
-        style={{ width: "min(86vw, 360px)", transform: `translateX(${shown === "right" ? 100 : -100}%)`, touchAction: "pan-y" }}>
-        {shown && has[shown] && <DrawerBody side={shown} store={store} file={file} tab={tab} vaultName={vaultName} vaultMenu={vaultMenu} />}
-      </div>
-    </>
-  )
 }
 
-function DrawerBody({ side, store, file, tab, vaultName, vaultMenu }: { side: Side; store: Store; file: string; tab: string; vaultName: string
-  vaultMenu: (e: React.MouseEvent) => void }) {
+const DrawerBody = memo(function DrawerBody({ side, store, file, tab, vaultName, vaultMenu }: BodyProps & { side: Side; asleep: boolean }) {
   const { tab: on } = route()
   return (
     <>
@@ -231,7 +240,7 @@ function DrawerBody({ side, store, file, tab, vaultName, vaultMenu }: { side: Si
       )}
     </>
   )
-}
+}, (_was, now) => now.asleep)
 
 function Dock({ store, file, tab }: { store: Store; file: string; tab: string }) {
   const { disabled } = usePrefs()

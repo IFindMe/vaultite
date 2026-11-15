@@ -16,6 +16,7 @@ import { cell } from "@/core/signal"
 import { share } from "@/core/share"
 import { shootTab, shotOf } from "@/core/tabShots"
 import { elementOf, htmlOf } from "@/core/dom"
+import { EDGE } from "@/core/edgetouch"
 
 export async function openSwitcher(from?: { page: DOMRect; reset: () => void }) {
   if (!from) await shootTab()
@@ -56,7 +57,6 @@ export function tabMeta(to: string) {
   return "App"
 }
 
-const EDGE = 24
 const GAP = 20, SLOP = 7
 const page = () => document.querySelector<HTMLElement>("#main-scroll > main")
 

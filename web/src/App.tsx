@@ -83,7 +83,6 @@ import { PhoneBar } from "@/components/PhoneBar"
 import { coarse } from "@/core/haptics"
 import { PhoneHeader } from "@/components/PhoneHeader"
 import { drawerOut, openDrawer, PhoneDrawers } from "@/components/PhoneDrawer"
-import { SIDEWAYS_TO_DRAWERS } from "@/core/edgetouch"
 import { Tooltips } from "@/components/Tooltip"
 import { Toaster } from "@/components/Toast"
 import { BundleTrial } from "@/components/BundleTrial"
@@ -600,7 +599,7 @@ export default function App() {
       {desktop ? (
         <Workspace store={store} error={error} left={side} right={rside} pageInfo={pageInfo} page={pageTabOf} />
       ) : (
-        <div id="main-scroll" className="overflow-x-clip" style={SIDEWAYS_TO_DRAWERS}>
+        <div id="main-scroll" className="overflow-x-clip">
           {store && <PhoneHeader title={tabInfo(activeTab()).label} tab={activeTab()} />}
           <main className="pb-safe relative mx-auto max-w-5xl px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)]">
             {error && !store && <p className="mt-10 text-muted-foreground">{error}</p>}

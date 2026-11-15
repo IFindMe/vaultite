@@ -1,5 +1,5 @@
-// Phones' edges and held fingers: components/PhoneDrawer.tsx, core/edgetouch.ts, components/ContextMenu.tsx, core/nav.ts,
-// components/PhoneBar.tsx, plugins/core/editing/menu.ts. WRITES Qa holds/: node web/qa/phoneholds.mjs <base url> [out dir]
+// Phones' edges and held fingers: components/PhoneDrawer.tsx, core/edgetouch.ts, core/phoneTabs.ts, components/ContextMenu.tsx,
+// core/nav.ts, components/PhoneBar.tsx, plugins/core/editing/menu.ts. WRITES Qa holds/: node web/qa/phoneholds.mjs <base url> [out dir]
 import { mkdirSync } from "node:fs"
 import { app } from "./lib/app.mjs"
 import { apiAt, fingers, qa, until, wait } from "./lib/qa.mjs"
@@ -44,6 +44,32 @@ await swipe(4, 420, 280, 424); await ui.idle()
 check("a sideways drag from the edge still opens the sidebar", await until(drawer, 3000))
 await page.screenshot({ path: `${OUT}edge-drawer.png` })
 await page.keyboard.press("Escape"); await until(async () => !(await drawer()), 3000)
+
+const edgeOpens = async (x0, y, x1) => {
+  await swipe(x0, y, x1, y + 4); await ui.idle()
+  const opened = await until(drawer, 3000)
+  await page.keyboard.press("Escape"); await until(async () => !(await drawer()), 3000); await ui.idle()
+  return !!opened
+}
+const under = (x, y) => page.evaluate(([x, y]) => {
+  const el = document.elementFromPoint(x, y), chain = []
+  for (let e = el; e; e = e.parentElement) chain.unshift(e)
+  let pans = "auto"
+  for (const a of chain) {
+    const cs = getComputedStyle(a)
+    if (/auto|scroll/.test(cs.overflowX + cs.overflowY)) pans = "auto"
+    if (cs.touchAction !== "auto") pans = cs.touchAction
+  }
+  return { task: !!el?.closest(".cm-task, .cm-task-hit"), page: el === document.body || el === document.documentElement, pans }
+}, [x, y])
+const ticked = await page.evaluate(() => document.querySelector(".cm-task")?.checked)
+check("a task's checkbox reaches the screen's edge", (await under(8, box.y)).task)
+check("a sideways drag from the edge over it opens the sidebar", await edgeOpens(8, box.y, 300))
+check("…and leaves the checkbox as it was", await page.evaluate((t) => document.querySelector(".cm-task")?.checked === t, ticked))
+const below = await under(6, 740)
+check("below a short page the edge is the page's background, kept from the browser sideways (WebKit's touch-action)", below.page && below.pans.startsWith("pan-y"), below)
+check("a sideways drag from the edge there opens the sidebar", await edgeOpens(6, 740, 300))
+check("so does one 20px in, where the panes' swipe leaves off", await edgeOpens(20, 420, 310))
 
 const link = await at(".cm-wikilink", "Lighthouse walk")
 await hold(link)
