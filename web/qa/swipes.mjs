@@ -37,8 +37,10 @@ const status = async (title) => (await api("GET", "inbox")).find((r) => r.title 
   }
   const drawer = async () => { await page.locator("[data-phone-header] button[aria-label='Open sidebar']").tap(); await ui.idle() }
   await page.goto(B); await page.waitForSelector("[data-phone-header]"); await ui.idle()
-  check("both drawers drawn ahead, hidden, so opening one only slides it in", await until(() => page.evaluate(() =>
-    ["Sidebar", "Right sidebar"].every((n) => document.querySelector(`[role=dialog][aria-label='${n}'] [data-sidebar-body]`))), 5000))
+  const drawnAhead = () => page.evaluate(() => ["Sidebar", "Right sidebar"].filter((n) => document.querySelector(`[role=dialog][aria-label='${n}'] [data-sidebar-body]`)).length)
+  check("no drawer drawn while the app starts, so its own loads go first", await drawnAhead() === 0)
+  await touch("touchStart", 195, 8); await touch("touchEnd"); await ui.idle()
+  check("both drawers drawn ahead from the first touch, hidden, so opening one only slides it in", await until(async () => await drawnAhead() === 2, 5000))
   const wider = (side) => page.evaluate((side) => [...document.querySelectorAll(`[data-phone-drawer=${side}], [data-phone-drawer=${side}] *`)].flatMap((e) => {
     const cs = getComputedStyle(e)
     if (!/auto|scroll/.test(cs.overflowX + cs.overflowY)) return []

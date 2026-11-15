@@ -62,10 +62,21 @@ function edgeOpens(el: Element, side: Side) {
 type BodyProps = { store: Store; file: string; tab: string; vaultName: string; vaultMenu: (e: React.MouseEvent) => void }
 type Drag = { side: Side; x: number; y: number; axis: "x" | "y" | null; from: number; p: number; t: number; v: number; quit?: () => void }
 
-/** Both drawers, drawn ahead while the phone idles and kept hidden while shut (Activity), so opening one only slides it. */
+function useTouched() {
+  const [touched, setTouched] = useState(false)
+  useEffect(() => {
+    if (touched) return
+    const on = () => setTouched(true), opts = { capture: true, passive: true }
+    addEventListener("pointerdown", on, opts)
+    return () => removeEventListener("pointerdown", on, opts)
+  }, [touched])
+  return touched
+}
+
+/** Both drawers, drawn ahead from the first touch and kept hidden while shut (Activity), so opening one only slides it. */
 export function PhoneDrawers(props: BodyProps) {
   const side = useDrawer()
-  const phone = !useDesktop()
+  const touched = useTouched(), ahead = !useDesktop() && touched
   usePageLock(!!side)
   useEffect(() => { if (side) document.documentElement.dataset.drawer = side; else delete document.documentElement.dataset.drawer }, [side])
   const has = { left: useHasDrawer("left"), right: useHasDrawer("right") }
@@ -154,7 +165,7 @@ export function PhoneDrawers(props: BodyProps) {
           }}
           className={cn("fixed inset-y-0 z-40 flex flex-col bg-sidebar shadow-xl md:hidden", s === "right" ? "right-0 pr-[env(safe-area-inset-right)]" : "left-0 pl-[env(safe-area-inset-left)]", drawn !== s && "invisible")}
           style={{ width: "min(86vw, 360px)", transform: `translateX(${s === "right" ? 100 : -100}%)`, touchAction: "pan-y" }}>
-          {(phone || drawn === s) && (
+          {(ahead || drawn === s) && (
             <Activity mode={drawn === s ? "visible" : "hidden"}><DrawerBody side={s} asleep={drawn !== s} {...props} /></Activity>
           )}
         </div>
