@@ -2,7 +2,7 @@ import { execFile } from "node:child_process"
 import fs from "node:fs"
 import type { IncomingMessage } from "node:http"
 import path from "node:path"
-import { agentSession, serversOwn, parseTerminal } from "../../../core/agents.ts"
+import { agentSession, serversOwn, parseTerminal, userZdotdir } from "../../../core/agents.ts"
 import { agentLines, HTTPError, LOCAL as LOCAL_DIR, logger, onTailnet, vauDir, writeWslVau, serverUrl, type Access, accessOf } from "../../../core/plugins.ts"
 import { loadPty, localBackend, mirrored, plain, ptyLink, serverFiles, termdBackend, type Backend, type Listed as Shell } from "./backend.ts"
 import { launch, runScript, SHELL_DIR, shellArgs, shellFiles } from "./launch.ts"
@@ -181,7 +181,8 @@ export function context(id: string | null, from: From, sh = shell(), home?: Home
   }
   if (kind === "posix" && progName(sh) === "zsh") {
     Object.assign(out, { ZDOTDIR: SHELL_DIR, VAULTITE_ZDOTDIR: SHELL_DIR })
-    if (process.env.ZDOTDIR) out.VAULTITE_USER_ZDOTDIR = process.env.ZDOTDIR
+    const zdot = userZdotdir(process.env)
+    if (zdot) out.VAULTITE_USER_ZDOTDIR = zdot
   }
   if (from.remote) out.VAULTITE_REMOTE = "tailscale"
   if (kind === "wsl") {

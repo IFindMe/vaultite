@@ -110,11 +110,15 @@ fs.rmSync(path.join(home, ".local/bin/claude"))
   const bin = path.join(tmp, "app-bin"), sep = path.delimiter
   const launched = () => ({ HOME: home, PATH: [bin, "/usr/bin"].join(sep), CLAUDECODE: "1", CLAUDE_CODE_SESSION_ID: "s1", CLAUDE_CONFIG_DIR: path.join(home, ".claude-alice"),
     CODEX_HOME: path.join(home, ".codex-alice"), CODEX_THREAD_ID: "t1", GIT_EDITOR: "true", AI_AGENT: "claude-code", VAULTITE: "1", VAULTITE_TERMINAL: "claude-x1",
-    VAULTITE_URL: "http://127.0.0.1:21001", VAULTITE_BIN: bin, VAULTITE_ZDOTDIR: "/tmp/zdot", VAULTITE_USER_DATA: "/tmp/ud", VAULTITE_DEBUG_PORT: "9339" } as Record<string, string | undefined>)
+    VAULTITE_URL: "http://127.0.0.1:21001", VAULTITE_BIN: bin, ZDOTDIR: "/tmp/zdot", VAULTITE_ZDOTDIR: "/tmp/zdot", VAULTITE_USER_DATA: "/tmp/ud", VAULTITE_DEBUG_PORT: "9339" } as Record<string, string | undefined>)
   const e = launched()
   asFromDock(e)
   check("from the Dock: an agent's session, its account and its terminal's variables dropped, the app's own kept",
     JSON.stringify(Object.keys(e).sort()) === JSON.stringify(["HOME", "PATH", "VAULTITE_DEBUG_PORT", "VAULTITE_USER_DATA"]) && e.PATH === "/usr/bin", e)
+  const zsh = launched()
+  zsh.VAULTITE_USER_ZDOTDIR = path.join(home, ".zsh")
+  asFromDock(zsh)
+  check("from the Dock: zsh's ZDOTDIR is the user's again, not the terminal's own (which sources itself forever)", zsh.ZDOTDIR === path.join(home, ".zsh"), zsh.ZDOTDIR)
   const kept = launched()
   asFromDock(kept, true)
   check("from the Dock: a script's copy keeps the account it chose", kept.CLAUDE_CONFIG_DIR === path.join(home, ".claude-alice") && kept.CODEX_HOME && !kept.CLAUDECODE, kept)

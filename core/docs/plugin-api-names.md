@@ -1241,6 +1241,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `Turn`: How long a turn worked, as a JSONL agent's transcripts say.
 - `Usage`: What an agent's GET route answers: its tally, plan, limits and live sessions.
 - `usedFirst(accts, used)`: `accts` with what each is used for (`uses`), the ones in `used` first in its order: an agent's accounts for a plugin that runs them (agent-limits' `for:`).
+- `userZdotdir(env)`
 - `vauMcpServer()`: `vau mcp` as an agent's MCP server: by the Node running this server (an agent may pass its servers no PATH), told this server's address (another port isn't vau's default).
 - `when(s)`: ISO time -> "Thu 09:00 (in 2 h 10 min)".
 - `winCommand(argv, env)`: How to run `argv` on Windows (spawn can't run a .cmd itself): [program, its arguments, verbatim (cmd's own quoting)], or null when there's no such program.

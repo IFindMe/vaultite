@@ -20,14 +20,19 @@ const ACCOUNT = ["CLAUDE_CONFIG_DIR", "CODEX_HOME"]
 const TERMINAL = ["VAULTITE", ...`URL VAULT CLIENT TERMINAL BIN AGENT_BIN ZDOTDIR USER_ZDOTDIR REMOTE RUN HOME HOME_AS PLUGIN_ID PLUGIN_DIR
   PLUGIN_STATE PLUGIN_EVENT ACTOR OP PARAMS_JSON SCHEDULE EVENT_JSON`.split(/\s+/).map((k) => `VAULTITE_${k}`)]
 
+export const userZdotdir = (env: Record<string, string | undefined>) =>
+  env.ZDOTDIR && env.ZDOTDIR === env.VAULTITE_ZDOTDIR ? env.VAULTITE_USER_ZDOTDIR : env.ZDOTDIR
+
 /** Changes `env` in place; `keepAccount`: the account was set on purpose. The names it dropped. */
 export function asFromDock(env: Record<string, string | undefined>, keepAccount = false): string[] {
   const session = Object.keys(env).some((k) => agentSession(k)), terminal = env.VAULTITE === "1"
   if (!session && !terminal) return []
   const bins = terminal ? [env.VAULTITE_BIN, env.VAULTITE_AGENT_BIN].filter(Boolean) : []
+  const zdot = userZdotdir(env), ours = terminal && zdot !== env.ZDOTDIR
   const dropped = Object.keys(env).filter((k) => (session && (agentSession(k, env[k]) || (!keepAccount && ACCOUNT.includes(k))))
-    || (terminal && TERMINAL.includes(k)))
+    || (terminal && TERMINAL.includes(k)) || (ours && k === "ZDOTDIR"))
   for (const k of dropped) delete env[k]
+  if (ours && zdot) env.ZDOTDIR = zdot
   const PATH = Object.keys(env).find((k) => k.toUpperCase() === "PATH") // (Windows spells it Path)
   if (PATH && bins.length) env[PATH] = env[PATH]!.split(path.delimiter).filter((d) => !bins.includes(d)).join(path.delimiter)
   return dropped
