@@ -1,6 +1,8 @@
-import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type MouseEvent, type ReactNode } from "react"
+import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react"
 import { createPortal } from "react-dom"
-import { BookOpen, Folder, FolderInput, Smile, Trash2, type LucideIcon } from "lucide-react"
+import { BookOpen, CornerDownLeft, Folder, FolderInput, Smile, Trash2, Undo2, type LucideIcon } from "lucide-react"
+import { KeyBar, useVisibleArea } from "@/components/KeyBar"
+import { coarse } from "@/core/haptics"
 import { Banner } from "@/components/Banner"
 import { menuFor, menuOnCard } from "@/components/ContextMenu"
 import { copyToVault, copyToVaultItem, folderMenu, revealItem } from "@/components/FileActions"
@@ -90,6 +92,7 @@ const Title = memo(function Title({ path, editable, sheet, focus, settle, mode, 
   const [v, setV] = useDraft(name)
   const ref = useRef<HTMLTextAreaElement>(null)
   const enter = useRef(false)
+  const [typing, setTyping] = useState(false)
   useEffect(() => { if (focus && editable) { ref.current?.focus(); ref.current?.select() } }, [focus, editable])
   // A hidden tab's textarea measures 0 high: fitting it there would jump the page when it's shown.
   const fit = () => { const t = ref.current; if (t?.offsetWidth) { t.style.height = "0"; t.style.height = `${t.scrollHeight}px` } }
@@ -104,20 +107,40 @@ const Title = memo(function Title({ path, editable, sheet, focus, settle, mode, 
   }, [editable])
   if (!editable) return <h1 id={sheet ? "sheet-title" : undefined} className={TITLE}>{name}</h1>
   const commit = () => {
+    setTyping(false)
     const write = enter.current
     enter.current = false
     rename(path, v, settle, !focus, mode && { mode, write }).then((ok) => { if (!ok) { setV(name); if (write) onEnter?.() } })
   }
+  const toText = (t: HTMLTextAreaElement) => { const { why } = renaming(path, t.value); if (why) return refuseName(why, t); enter.current = true; t.blur() }
   return (
     <h1 className={TITLE}><textarea ref={ref} id={sheet ? "sheet-title" : undefined} value={v} rows={1} spellCheck={false} aria-label="File name"
-      onChange={(e) => setV(e.target.value)} onBlur={commit}
+      onChange={(e) => setV(e.target.value)} onBlur={commit} onFocus={() => setTyping(coarse)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") { e.preventDefault(); const { why } = renaming(path, v); if (why) return refuseName(why, e.currentTarget); enter.current = true; e.currentTarget.blur() }
+        if (e.key === "Enter") { e.preventDefault(); toText(e.currentTarget) }
         if (e.key === "Escape") { setV(name); e.currentTarget.blur() }
       }}
-      className="block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-muted-foreground" /></h1>
+      className="block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-muted-foreground" />
+      {typing && <TitleKeys field={ref} back={v !== name ? () => setV(name) : undefined} next={toText} />}</h1>
   )
 })
+
+/** The row over the keyboard while a phone types a name: its own keys, and the one that hides the keyboard. */
+function TitleKeys({ field, back, next }: { field: RefObject<HTMLTextAreaElement | null>; back?: () => void; next: (t: HTMLTextAreaElement) => void }) {
+  const area = useVisibleArea(true)
+  const t = field.current
+  if (!t || !area?.keyboard) return null
+  const key = (Icon: LucideIcon, text: string) => <span className="flex items-center gap-1.5 font-sans text-[14px]"><Icon className="size-[17px]" strokeWidth={2} />{text}</span>
+  return createPortal(
+    <div className="fixed inset-x-0 z-[45] -translate-y-full" style={{ top: area.top + area.height }} data-title-keys>
+      <KeyBar label="Name keys" hide={() => t.blur()} keys={[
+        ...(back ? [{ name: "Put the name back", label: key(Undo2, "Put back"), run: back }] : []),
+        { name: "Go to the text", label: key(CornerDownLeft, "Go to the text"), run: () => next(t) },
+      ]} />
+    </div>,
+    t.closest<HTMLElement>("dialog[open]") ?? document.body,
+  )
+}
 
 function renaming(path: string, typed: string) {
   const ext = path.split("/").pop()!.slice(stem(path).length)

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react"
+import { flushSync } from "react-dom"
 import type { LucideIcon } from "lucide-react"
 import { onAway } from "@/core/away"
 import { getDrag } from "@/core/drag"
@@ -99,8 +100,9 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
         } else if (!s.from) {
           const list = actions?.() ?? []
           if (!list.length) { s.axis = "pass"; return }
-          setShown(list)
-          setShort((row.current?.offsetHeight ?? 44) < 40)
+          // At once: a render left for later waits on whatever else is pending (a page still loading on a slow
+          // connection), and the row slid open over nothing.
+          flushSync(() => { setShown(list); setShort((row.current?.offsetHeight ?? 44) < 40) })
           s.room = list.length * BUTTON
         }
         s.axis = "x"

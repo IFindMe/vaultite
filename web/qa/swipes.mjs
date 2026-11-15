@@ -40,6 +40,23 @@ const status = async (title) => (await api("GET", "inbox")).find((r) => r.title 
   await drawer()
   const D = "[data-phone-drawer]"
 
+  // A file's row: its buttons drawn in the same task the swipe starts in, not left to a render that whatever else is
+  // pending (a slow connection's loads) can hold up while the row slides open over nothing.
+  const sync = await page.evaluate(() => {
+    const row = [...document.querySelectorAll("[data-phone-drawer] [data-tree-path]")].find((e) => !e.matches("[data-tree-folder]"))
+    const box = row?.closest("[data-swipe-row]")
+    if (!row || !box) return null
+    const b = row.getBoundingClientRect(), x = b.x + 30, y = b.y + b.height / 2
+    const ev = (type, dx) => row.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "touch", pointerId: 77, isPrimary: true, clientX: x + dx, clientY: y }))
+    ev("pointerdown", 0); ev("pointermove", 12); ev("pointermove", 30)
+    const n = box.querySelectorAll("[data-swipe-under] button").length
+    ev("pointerup", 30)
+    return n
+  })
+  check("a file's row swiped: its buttons there as it starts to slide", sync === 2, sync)
+  await page.mouse.click(380, 10); await ui.idle()
+  if (!(await page.locator(D).isVisible().catch(() => false))) await drawer()
+
   // Files' heading: its buttons behind it.
   const files = page.locator(`${D} [data-panel-handle]`, { has: page.getByText("Files", { exact: true }) }).first()
   await swipe(files, 240)

@@ -1,4 +1,4 @@
-// Phones: the keys over the keyboard, a note's (bold, undo, indent, Hide keyboard) and a terminal's, on a made-up
+// Phones: the keys over the keyboard, a note's (bold, undo, indent, Hide keyboard), its name's and a terminal's, on a made-up
 // keyboard (the visual viewport cut short). Writes and starts a shell: throwaway servers.
 //   node web/qa/notekeys.mjs <base url> [out dir]
 import { mkdirSync } from "node:fs"
@@ -48,7 +48,7 @@ check("the keys come up with the keyboard", await bar.count() === 1)
 const box = await bar.boundingBox()
 check("over the keyboard, at the visible part's foot", !!box && Math.abs(box.y + box.height - (844 - KB)) <= 2, box)
 const names = await bar.locator("button").evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-label")))
-check("the default keys, then Hide keyboard", names.join() === "Undo,Redo,Link,Task,Unindent,Indent,Bold,Italic,Highlight,Bullet list,Photo,Hide keyboard", names)
+check("the default keys, then Hide keyboard", names.join() === "Undo,Redo,Link,Task,Unindent,Indent,Bold,Italic,Highlight,Bullet list,Photo or video,Hide keyboard", names)
 await page.screenshot({ path: path.join(OUT, "keys.png") })
 
 await tap(key("Bold"))
@@ -69,6 +69,36 @@ await tap(bar.locator("button[aria-label='Hide keyboard']"))
 await page.evaluate(() => window.__keyboard(false))
 check("Hide keyboard: the editor lets go, the keys go", !!await until(async () => !(await bar.count()), 2000)
   && !(await page.evaluate(() => document.activeElement?.classList.contains("cm-content"))))
+
+// The note's name: its own keys over the keyboard, Hide keyboard among them.
+const title = page.locator(".file-view textarea[aria-label='File name']").first()
+const nbar = page.locator("[role=toolbar][aria-label='Name keys']")
+const marked = () => page.evaluate(() => document.documentElement.hasAttribute("data-keyboard"))
+await tap(title)
+check("a name taken: the bar steps away before the keyboard's slide ends", await marked())
+await page.evaluate(() => window.__keyboard(true)); await wait(300)
+const nnames = await nbar.locator("button").evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-label")))
+check("the name's keys over the keyboard: Go to the text, Hide keyboard", nnames.join() === "Go to the text,Hide keyboard", nnames)
+const name = await title.inputValue()
+await page.keyboard.type("zz"); await wait(100)
+await page.screenshot({ path: path.join(OUT, "name.png") })
+await tap(nbar.locator("button[aria-label='Put the name back']"))
+check("Put the name back: the name as it was, still typing it", await title.inputValue() === name
+  && await page.evaluate(() => document.activeElement?.getAttribute("aria-label") === "File name"), await title.inputValue())
+await tap(nbar.locator("button[aria-label='Go to the text']"))
+check("Go to the text: the note's text takes the keyboard", !!await until(() => page.evaluate(() => document.activeElement?.classList.contains("cm-content")), 2000))
+await tap(title); await wait(200)
+await tap(nbar.locator("button[aria-label='Hide keyboard']"))
+check("Hide keyboard on the name: it lets go, the keys go", !!await until(async () => !(await nbar.count()), 2000)
+  && await page.evaluate(() => document.activeElement?.getAttribute("aria-label") !== "File name"))
+check("the bar stays away while the keyboard slides down", await marked())
+await page.evaluate(() => window.__keyboard(false)); await wait(400)
+check("and comes back once it's down", !(await marked()))
+await tap(title)
+check("a field with no keys rising (a hardware keyboard): marked at first", await marked())
+check("then not, once the slide would have ended", !!await until(async () => !(await marked()), 2000))
+await page.evaluate(() => document.activeElement?.blur()); await wait(200)
+
 // The terminal's keys are the same bar: esc to paste, then Hide keyboard.
 await page.goto(`${B}#view/terminal%2Fnotekeys-${Date.now()}`)
 const term = page.locator("[data-terminal] [data-term-input]")
