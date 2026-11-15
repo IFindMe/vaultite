@@ -11,6 +11,7 @@ export type ScreenOptions = {
   onReply?(data: string): void
   onTrouble?(text: string): void
   onBlank?(): void
+  onFree?(): void
 }
 
 type Waiting = { n: number; at: number; bytes: number; ok?: (v: never) => void; fail?: (e: Error) => void }
@@ -57,6 +58,7 @@ export class Screen {
     if (!x || x.n !== m.n) return
     this.waiting.shift()
     this.inflight -= x.bytes
+    this.freed()
     this.modes = { app: m.app, paste: m.paste }
     if (m.title !== undefined) this.o.onTitle?.(m.title)
     if (m.reply) this.o.onReply?.(m.reply)
@@ -64,6 +66,8 @@ export class Screen {
     if (failed && !x.ok) { this.o.onTrouble?.(`libghostty-vt failed on its output (${failed}): started again blank`); this.o.onBlank?.() }
     if (m.error) x.fail?.(new Error(m.error)); else x.ok?.(m.out as never)
   }
+
+  private freed() { this.o.onFree?.() }
 
   private post(m: Record<string, unknown>, bytes = 0, ok?: Waiting["ok"], fail?: Waiting["fail"]) {
     if (this.off || !this.w) { fail?.(new Error("its screen is off")); return }
@@ -109,6 +113,7 @@ export class Screen {
       this.o.onBlank?.()
     }
     for (const x of pending) x.fail?.(new Error(`${why}: started again blank`))
+    this.freed()
   }
 
   dispose() {

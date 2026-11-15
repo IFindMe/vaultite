@@ -705,6 +705,21 @@ export default async ($: VaultTest) => {
     r.driver.kill()
     check("terminal server: a screen started again blank has its program draw itself again, at its own size, its paste mode kept (a long text typed reaches it whole)",
       /drawn 24 80/.test(String(drawn)) && !/ready/.test(String(drawn)) && paste === true, [drawn, paste])
+
+    c.take({ op: "create", id: "held1", file: "/bin/sh", args: ["-c", "printf 'begin\\n'; read x; yes line | head -n 40000; printf 'all out\\n'; sleep 5"], cwd: tmp, env: { PATH: "/usr/bin:/bin" }, re: 10 })
+    const hd = h.sessions.get("held1")!
+    await waitFor(() => { c.take({ op: "capture", id: "held1", re: 11 }); return /begin/.test(Answers.capture.safeParse(l.reply(11)).data?.text ?? "") || null }, 5_000, 50)
+    hd.term.inflight += 2 << 20
+    hd.hold()
+    const pausedFirst = hd.held
+    c.take({ op: "input", id: "held1", b64: Buffer.from("\r").toString("base64") })
+    await new Promise((res) => setTimeout(res, 300))
+    c.take({ op: "capture", id: "held1", re: 12 })
+    hd.term.check(performance.now() + HUNG + 1)
+    const out = await waitFor(async () => { c.take({ op: "capture", id: "held1", re: 13 }); await new Promise((res) => setTimeout(res, 50)); const t = Answers.capture.safeParse(l.reply(13)).data?.text ?? ""; return /all out/.test(t) ? t : null }, 8_000, 100)
+    hd.driver.kill()
+    check("terminal server: a program held while its screen was behind goes on once that screen started again (never left blocked on its writes)",
+      pausedFirst && !!out && !hd.held, [pausedFirst, out, hd.held])
   }
 
   // A terminal server that stops answering (stuck): said once, its trouble told, what's asked then failing at once; heard

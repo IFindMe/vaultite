@@ -1,11 +1,13 @@
 import { OpError, type Plugin, quoted, userSurface } from "../../../core/plugins.ts"
 import { cardOf, choiceIn, jobsText, jobText, linkOf, queuedLine, terminalOf, str } from "./jobs.ts"
 import { BY_THEIR_WORD, NOT_THEIRS, plainWords, wordsOf } from "./jobword.ts"
+import { RESTART } from "./joblife.ts"
+import { tellerOf } from "./jobtold.ts"
 import type { JobCore, JobDeps } from "./workers.ts"
 
 
 export function jobsOps(plugin: Plugin, d: JobDeps, core: JobCore) {
-  const { jobOf, refresh, links, changed, all, seen, wake, clockOf, close, unsure } = core
+  const { jobOf, refresh, links, changed, all, seen, wake, clockOf, close, restart, unsure } = core
   const theirWord = wordsOf(plugin)
   plugin.op({
     id: "companion.job-answer",
@@ -33,6 +35,12 @@ its terminal (companion job-open).
       if (!w.choices.length) throw new OpError(`what it asks is answered in its terminal: companion job-open ${j.id}`, 409)
       const n = choiceIn(w, str(p.choice))
       if (!n) throw new OpError(`choice: one of ${w.choices.map((c, i) => `${i + 1} "${c}"`).join(", ")}`)
+      if (w.kind === "stuck") {
+        if (w.choices[n - 1] === RESTART) await restart(ctx, j, tellerOf(ctx, d.own(d.who(p), ctx) ? d.who(p) : ""))
+        else { clockOf(j).kept = Date.now(); delete j.waits; await refresh(j, true).catch(() => {}); changed() }
+        d.did(d.who(p), "job-answer")
+        return { ...cardOf(j), answered: w.choices[n - 1] }
+      }
       let by = ctx.who
       if (!userSurface(ctx.who)) {
         const m = d.own(d.who(p), ctx) ? d.askOf(d.who(p)) : undefined
@@ -128,7 +136,8 @@ its terminal (companion job-open).
     id: "companion.job-stop",
     cli: "companion job-stop",
     summary: "Stop a job (its worker's terminal ends; its conversation stays, to resume); one ready for review is closed as done, only on the user's own word.",
-    help: `A job ready for review (or merging what they kept) is closed by an agent only with said quoting the user's words
+    help: `A job still at work (working, needs you, one that seems stuck) is stopped by anyone: its terminal ends, its
+conversation is kept, and opening it (companion job-open) resumes it. One ready for review is closed by an agent only with said quoting the user's words
 that close it ("close it", "drop it"): their ask to the companion, or their latest message in your own session (typed
 by them, read from its transcript). Never as a fallback for "keep it", nor on your own. Unsure what they want: ask
 in one short line, merge it or close it as it is (each a button).
@@ -147,7 +156,7 @@ in one short line, merge it or close it as it is (each a button).
       if (ctx.who.agent) {
         const m = d.own(d.who(p), ctx) ? d.askOf(d.who(p)) : undefined, why = unsure(j, m, str(p.which))
         if (why) throw new OpError(why, 409)
-        if (j.state === "ready for review" || (j.land && j.land.at === undefined)) {
+        if (j.state === "ready for review") {
           const word = await theirWord(ctx, m, plainWords(str(p.said)), { closes: true })
           if ("why" in word) throw new OpError(`"${j.title}" is ready for review: it's closed only on their own word (said quoting it: "close it"). Not this time: ${word.why}. Else ask them in one short line, merge it or close it as it is, each a button`, 403)
           byWord = word.by
@@ -156,7 +165,7 @@ in one short line, merge it or close it as it is (each a button).
       await close(ctx, j)
       return { ...cardOf(j), ...(byWord ? { word: byWord } : {}) }
     },
-    text: (r) => `${r.state === "done" ? "Closed" : "Stopped"} "${r.title}" (${r.id}): ${r.state}${r.word ? `, on the word of ${r.word}` : ""}.`,
+    text: (r) => `${r.state === "done" ? "Closed" : "Stopped"} "${r.title}" (${r.id}): ${r.state}${r.word ? `, on the word of ${r.word}` : ""}.${r.state === "stopped" ? ` Its conversation is kept: companion job-open ${r.id} resumes it.` : ""}`,
     did: (p) => ({ action: "run", text: `Stopped the job ${p.id}`, by: d.who(p) }),
   })
 }

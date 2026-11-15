@@ -9,6 +9,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Phone: while you type a note's name, keys over the keyboard put the name back, go to the text, or hide the keyboard.
 - Phone: the bottom bar steps away as soon as the keyboard starts to rise and comes back only once it is down.
 - Phone: a swiped sidebar row shows its buttons at once, even while a slow connection is still loading.
+- Jobs: one that says it's working but has shown nothing for 20 minutes needs you, saying it seems stuck, with Restart it
+  (its conversation kept) and Keep waiting; a follow-up it can't take says so; stop always works on a job at work, and a
+  terminal no longer freezes when its screen falls behind.
 - Notes: Add photo is Add photo or video, so the iPhone's library offers videos too.
 - Updates: a CI run that passes when it is re-run is taken within a few minutes, and shows as running while it re-runs.
 - Voice: on a busy Mac, the end of an ElevenLabs answer is no longer cut off.

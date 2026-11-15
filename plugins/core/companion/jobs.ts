@@ -73,7 +73,7 @@ export type Transition = { t: number; ev: JobEvent; from: JobState; to: JobState
 export type Last = { text: string; at: number; told?: string; asks?: string[]; background?: number
   by?: string }
 export type Tell = { at: number; by: string; text: string }
-export type Waits = { kind: "permission" | "question"; question: string; choices: string[]; at: number }
+export type Waits = { kind: "permission" | "question" | "stuck"; question: string; choices: string[]; at: number }
 export const inPlace = (w: Pick<Where, "repo" | "preview" | "live" | "moved">) => !!w.repo && !!w.preview && !w.live && !w.moved
 
 export type Marks = { whole: string; each: string[] }
@@ -260,7 +260,8 @@ export function jobText(j: Job, now = Date.now()) {
   return [`${j.id} · ${j.state}${unseen(j) ? " (new)" : ""} · "${j.title}" · ${whereLine(j.where)} · ${took(j, now)}`,
     j.where.why ? `why there: ${j.where.why}` : "",
     live(j.state) && j.now && !(said && j.now === gist(said.text)) ? `now: ${j.now}` : "",
-    j.state === "needs you" && j.waits ? `waits on: ${waitsLine(j.waits)}${j.waits.choices.length ? ": companion job-answer with the user's choice, only on their words" : ""}` : "",
+    j.state === "needs you" && j.waits ? `waits on: ${waitsLine(j.waits)}${j.waits.kind === "stuck" ? `: companion job-answer ${j.id} --choice "Restart it" restarts it, its conversation kept; companion job-stop ${j.id} stops it`
+      : j.waits.choices.length ? ": companion job-answer with the user's choice, only on their words" : ""}` : "",
     j.queued?.length ? `${queuedLine(j)} (sent by itself then: nothing to retry): ${j.queued.map((q) => cut(plain(q.note), 120)).join(" | ")}` : "",
     l?.background ? `in the background: ${l.background} task${l.background > 1 ? "s" : ""} of its still running (a command, a subagent)` : "",
     j.by ? `handed off by ${j.by}` : "", tellsLine(j, now),

@@ -30,6 +30,7 @@ function typed(id: string, sent?: Omit<Sent, "at">) {
 /** How long typed text needs before its Enter: an agent takes a long text as a paste, and an Enter inside that is a new line. */
 const settle = (text: string) => Math.min(1000, 150 + Math.floor(text.length / 4))
 async function sendText(b: Backend, id: string, text: string, enter: boolean, by = "app") {
+  lastInput.set(id, Date.now())
   if (text) await b.send(id, { text, paste: asPaste(text) })
   if (enter) {
     if (text) await new Promise((r) => setTimeout(r, settle(text)))

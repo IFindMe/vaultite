@@ -1,4 +1,4 @@
-import { type Job, type JobState, live, mergedSaid, NEWS, type Transition } from "./jobs.ts"
+import { type Job, type JobState, live, mergedSaid, NEWS, type Transition, type Waits } from "./jobs.ts"
 
 export const JOB_EVENTS = ["start", "working", "asks", "changed", "answered", "landed", "error", "ended", "told", "stop"] as const
 export type JobEvent = typeof JOB_EVENTS[number]
@@ -120,17 +120,30 @@ export type Pace = {
   grace: number
   flush: number
   cloudQuiet: number
+  stuck: number
 }
-export const PACE: Pace = { tick: 3000, hold: 1500, read: 15_000, ship: 5 * 60_000, live: 20_000, learn: 30_000, prune: 3600_000, grace: 120_000, flush: 5, cloudQuiet: 20 * 60_000 }
+export const PACE: Pace = { tick: 3000, hold: 1500, read: 15_000, ship: 5 * 60_000, live: 20_000, learn: 30_000, prune: 3600_000, grace: 120_000, flush: 5, cloudQuiet: 20 * 60_000,
+  stuck: 20 * 60_000 }
 
 export const answered = (t: { final: boolean; at: number; text: string; files: string[] } | null | undefined, since: number) =>
   !!t?.final && t.at >= since - 1000 && !!(t.text.trim() || t.files.length)
 
-export type Clock = { rest?: number; goingOn?: number; read?: number; ship?: number; live?: number; learn?: number; prune?: number; opened?: number }
+export type Clock = { rest?: number; goingOn?: number; read?: number; ship?: number; live?: number; learn?: number; prune?: number; opened?: number; kept?: number }
 
 const ago = (t: number | undefined, now: number) => (t === undefined ? Infinity : now - t)
 
-export type Worker = { running: boolean; state?: string }
+export type Worker = { running: boolean; state?: string; quiet?: number }
+
+export const RESTART = "Restart it", KEEP_WAITING = "Keep waiting"
+export const stuckLine = (question: string) => question.replace(/^It /, "").replace(/\. Restart it\?.*$/, "")
+const span = (ms: number) => (ms < 60_000 ? `${Math.round(ms / 1000)} s` : ms < 3600_000 ? `${Math.round(ms / 60_000)} min` : `${(ms / 3600_000).toFixed(1)} h`)
+export function stuckOf(j: Pick<Job, "state" | "waits" | "now">, c: Clock, w: Worker, now: number, pace: Pace): Omit<Waits, "at"> | null {
+  if (!w.running || w.state !== "working" || w.quiet === undefined || w.quiet < pace.stuck || ago(c.kept, now) < pace.stuck) return null
+  if (j.waits?.kind === "stuck") return j.state === "needs you" ? { kind: "stuck", question: j.waits.question, choices: j.waits.choices } : null
+  if (j.state !== "working") return null
+  const doing = j.now.replace(/\s+/g, " ").trim(), after = doing ? ` after "${doing.length > 80 ? `${doing.slice(0, 79)}…` : doing}"` : ""
+  return { kind: "stuck", question: `It seems stuck: nothing on its screen for ${span(w.quiet)}${after}. Restart it? Its conversation is kept.`, choices: [RESTART, KEEP_WAITING] }
+}
 export type Next = { do: "end" | "finish" | "tidy" | "learn" } | { do: "again"; ms: number }
 
 const resting = (w: Worker) => w.state === "idle" || w.state === "done"

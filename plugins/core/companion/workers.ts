@@ -5,7 +5,7 @@ import { logger, type OpCtx, OpError, type Plugin, type Who, whoOf } from "../..
 import { cardOf, commitsIn, turnWord, fixTask, landedSaid, mergedCommit, mergedSaid, type Handoff, type Job, type JobCard, jobsLine, jobTimings, lastOf, linkOf, linksIn, live, type Marks, messageOf, nowOf,
   type Queued, toldBy, type Result, resumeOf, str, type Waits, type Where } from "./jobs.ts"
 import { JobLogRow } from "./rows.ts"
-import { answered, type Clock, due, endEvent, type Going, type GoingEvent, going, goingLine, type JobEvent, PACE, type Pace, read, readTurn, restEvent, shipDue, step, turnOver, waitsLive } from "./joblife.ts"
+import { answered, type Clock, due, endEvent, stuckLine, stuckOf, type Going, type GoingEvent, going, goingLine, type JobEvent, PACE, type Pace, read, readTurn, restEvent, shipDue, step, turnOver, waitsLive } from "./joblife.ts"
 import { diffSince, marksOf, onMainSince } from "./jobgit.ts"
 import { handoffOps } from "./jobhandoff.ts"
 import { jobMachines } from "./jobmachines.ts"
@@ -34,7 +34,7 @@ export type JobDeps = {
   pageOf?: (id: string) => string
   as: object
 }
-export type Seen = { running: boolean; state?: string; kind?: string; msg?: string; title?: string; typed?: number; asks?: string[]; waits?: Omit<Waits, "at">
+export type Seen = { running: boolean; state?: string; kind?: string; msg?: string; title?: string; typed?: number; quiet?: number; asks?: string[]; waits?: Omit<Waits, "at">
   turn?: { text: string; files: string[]; at: number; final: boolean; session?: string; prompt?: string; background?: number } | null; diff?: string
   exit?: { code: number; signal: number; lost?: boolean }
   unreachable?: string
@@ -45,7 +45,7 @@ export type Seen = { running: boolean; state?: string; kind?: string; msg?: stri
 const KEEP = 40, KEEP_DAYS = 7
 export type JobCore = {
   all: () => Job[]; jobOf: (id: string) => Job; changed: () => void; refresh: (j: Job, now?: boolean) => Promise<void>
-  wake: (ctx: OpCtx, j: Job, prompt?: string) => Promise<boolean>; close: (ctx: OpCtx, j: Job) => Promise<void>
+  wake: (ctx: OpCtx, j: Job, prompt?: string) => Promise<boolean>; close: (ctx: OpCtx, j: Job) => Promise<void>; restart: (ctx: OpCtx, j: Job, by?: string) => Promise<void>
   unsure: (j: Job, m: Moment | undefined, which: string) => string; seen: (ids: string[]) => void; clockOf: (j: Job) => Clock
   links: ReturnType<typeof workerLinks>; keep: (j: Job, q: Queued) => boolean
   land: (ctx: OpCtx, j: Job, note?: string, shown?: string, by?: string) => Promise<void>
@@ -97,7 +97,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
   async function seenHere(id: string, o: Read = {}): Promise<Seen> {
     const running = await plugin.ask<boolean>("terminal:runs", false, id)
     const st = await plugin.ask<{ state?: string; kind?: string; msg?: string } | null>("terminal:state", null, id)
-    const info = running ? await plugin.ask<{ title?: string; typed?: number } | null>("terminal:info", null, id) : null
+    const info = running ? await plugin.ask<{ title?: string; typed?: number; quiet?: number } | null>("terminal:info", null, id) : null
     const exit = running ? null : await plugin.ask<Seen["exit"] | null>("terminal:ended", null, id)
     const unreachable = running || exit ? null : await plugin.ask<string | null>("terminal:trouble", null, id).catch(() => null)
     if (unreachable) return { running: false, unreachable }
@@ -111,7 +111,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     const asks = o.turn ? (asking?.questions ?? []).map((q) => str(q.question)).filter(Boolean) : []
     const waits = blocked ? await waitsOf(id, st, asking?.questions) : null
     return { running, ...(st?.state ? { state: st.state } : {}), ...(st?.kind ? { kind: st.kind } : {}), ...(st?.msg ? { msg: st.msg } : {}), ...(info?.title ? { title: info.title } : {}),
-      ...(info?.typed ? { typed: info.typed } : {}), ...(asks.length ? { asks } : {}), ...(waits ? { waits } : {}), ...(context?.tokens ? { context } : {}),
+      ...(info?.typed ? { typed: info.typed } : {}),  quiet: info?.quiet, ...(asks.length ? { asks } : {}), ...(waits ? { waits } : {}), ...(context?.tokens ? { context } : {}),
       ...(exit ? { exit: { code: exit.code, signal: exit.signal, ...(exit.lost ? { lost: true } : {}) } } : {}),
       ...(o.turn ? { turn: turn ? { text: str(turn.text), files: turn.files ?? [], at: turn.at ?? 0, final: turn.final !== false && !!turn.text, ...(turn.session ? { session: turn.session } : {}),
         ...(turn.prompt ? { prompt: turn.prompt } : {}), ...(turn.background ? { background: turn.background } : {}) } : null } : {}),
@@ -162,8 +162,10 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     busy.add(j.id)
     try {
       const fresh = now || readTurn(j, clockOf(j), Date.now(), pace)
-      const s = await seenOf(j, fresh, false).catch(() => null)
-      if (!s) return
+      const seen = await seenOf(j, fresh, false).catch(() => null)
+      if (!seen) return
+      const stuck = stuckOf(j, clockOf(j), seen, Date.now(), pace)
+      const s: Seen = stuck ? { ...seen, state: "blocked", waits: stuck, msg: `It ${stuckLine(stuck.question)}` } : seen
       if (s.unreachable) { if (lasted(unanswered, j.id, AWAY) && j.unreachable !== s.unreachable) { j.unreachable = s.unreachable; changed() } return }
       unanswered.delete(j.id); if (j.unreachable) { delete j.unreachable; marked.add(j.id) }
       let moved = false, waited = false
@@ -334,8 +336,9 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     return !!j.session
   }
 
-  const tell = jobTell({ all, changed, move, log: jobLog, clockOf, sending, links, setting, d, seenOf, ended, refresh })
-  const { wake, fresh, retitle, steer, land, close, unsure } = tell
+  const stuck = (j: Job, s: Seen) => { const w = stuckOf(j, clockOf(j), s, Date.now(), pace); return w ? stuckLine(w.question) : "" }
+  const tell = jobTell({ all, changed, move, log: jobLog, clockOf, sending, links, setting, d, seenOf, ended, refresh, stuck })
+  const { wake, fresh, retitle, steer, land, close, restart, unsure } = tell
   const { keep, flush, begin } = jobStarts(plugin, { all, changed, move, links, machines, places, appCtx, tell })
   plugin.onEvent({ types: ["terminal.state", "terminal.ended"] }, (ev) => {
     const j = all().find((x) => !x.where.machine && x.terminal === str(ev.id))
@@ -371,7 +374,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     if (any) changed()
   }
 
-  const core: JobCore = { all, jobOf, changed, refresh, wake, close, unsure, seen, clockOf, links, keep, land, steer, retitle, begin }
+  const core: JobCore = { all, jobOf, changed, refresh, wake, close, restart, unsure, seen, clockOf, links, keep, land, steer, retitle, begin }
   handoffOps(plugin, d, core, machines)
   jobsOps(plugin, d, core)
   workerOps(plugin, { places, machines, links, seenHere })

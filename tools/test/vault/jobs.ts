@@ -945,6 +945,69 @@ export default async ($: VaultTest) => {
     }
   }
 
+  check("jobs: stuck only while its agent says it works and its program drew nothing for long, not after they said to keep waiting",
+    !!L.stuckOf({ state: "working", now: "Reading a.jpg" }, {}, { running: true, state: "working", quiet: 30 * 60_000 }, 1e9, L.PACE)?.question.includes('nothing on its screen for 30 min after "Reading a.jpg"') &&
+    !L.stuckOf({ state: "working", now: "" }, {}, { running: true, state: "working", quiet: 60_000 }, 1e9, L.PACE) &&
+    !L.stuckOf({ state: "working", now: "" }, {}, { running: true, state: "idle", quiet: 3600_000 }, 1e9, L.PACE) &&
+    !L.stuckOf({ state: "working", now: "" }, { kept: 1e9 - 60_000 }, { running: true, state: "working", quiet: 3600_000 }, 1e9, L.PACE) &&
+    !L.stuckOf({ state: "ready for review", now: "" }, {}, { running: true, state: "working", quiet: 3600_000 }, 1e9, L.PACE))
+  if (process.platform !== "win32") {
+    const Wk = await import("../../../plugins/core/companion/workers.ts")
+    const cc = app.plugins.find((p) => p.id === "claude-code")!.services, was = { ...cc }
+    const agent = request({ host: "127.0.0.1:8793", "x-vaultite-client": "cli", "x-vaultite-agent": "claude-code" }, { remote: "127.0.0.1" })
+    const plain = fs.mkdtempSync(path.join(os.tmpdir(), "jobs-stuck-")), started: Any[] = [], ids = new Set<string>()
+    cc["agent:claude"] = async (start: Any) => { started.push(start); return { command: "stty -icanon -echo 2>/dev/null; sleep 0.3; printf '\\033]7501;state=working\\033\\\\'; IFS= read -r k; echo \"$k\" >> told.txt; printf '\\033]7501;state=working\\033\\\\'; sleep 600", cwd: null } }
+    cc["agent-turn:claude"] = async () => ({ session: "sess-stuck", text: "", files: [], at: Date.now() - 3600_000, final: false })
+    const job = async (id: string) => (await api("POST", "ops/companion.job", { id }))[1]
+    const stuckNow = (id: string) => waitFor(async () => { const r = await job(id); ids.add(r.terminal); return r.state === "needs you" && r.waits?.kind === "stuck" && r }, 15000, 200)
+    Wk.paced({ stuck: 60_000 })
+    try {
+      const [st, b] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "Read the sheets", cwd: plain }, agent))
+      await waitFor(async () => (await job(b.id)).state === "working", 10000, 100)
+      const [sl, bl] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "They kept it: merge it", job: b.id, land: true }, agent))
+      await waitFor(() => fs.existsSync(path.join(plain, "told.txt")), 5000, 100)
+      Wk.paced({ stuck: 2500 })
+      const stuck = await stuckNow(b.id)
+      check("jobs: working yet drawing nothing for long, it needs them, saying it seems stuck, with a restart (its card's choices, its notification's buttons)",
+        st === 200 && sl === 200 && !!stuck && stuck.waits.question.startsWith("It seems stuck: nothing on its screen for") && JSON.stringify(stuck.waits.choices) === '["Restart it","Keep waiting"]' &&
+        stuck.now.startsWith("It seems stuck") && J.jobText(stuck).includes(`companion job-answer ${b.id} --choice "Restart it"`), [bl, stuck ?? await job(b.id)])
+      const [s1, r1] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "go on", job: b.id }, agent))
+      check("handoff --job to a job that seems stuck: refused, saying it can't reach its session and how to restart it, never \"Handed off\"",
+        s1 === 409 && /seems stuck: nothing on its screen .*a follow-up can't reach its session: restart it first/.test(r1.error), [s1, r1])
+      const [s2, r2] = await asItsTool(() => api("POST", "ops/companion.job-answer", { id: b.id, choice: "Keep waiting" }, agent))
+      const kept = await job(b.id)
+      check("job-answer Keep waiting: it works again, not asked again for a while", s2 === 200 && kept.state === "working" && !kept.waits, [s2, r2, kept])
+      const [s3, r3] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "are you there?", job: b.id }, agent))
+      check("handoff --job that its session drew nothing for once sent: refused, saying so (it seems stuck)",
+        s3 === 409 && /drew nothing on its screen once it was sent/.test(r3.error), [s3, r3])
+      const old = String((await stuckNow(b.id) || { terminal: "" }).terminal)
+      const [s4, r4] = await asItsTool(() => api("POST", "ops/companion.job-answer", { id: b.id, choice: "Restart it" }, agent))
+      const restarted = started.at(-1)
+      ids.add("resume-claude-sess-stuck")
+      check("job-answer Restart it: its terminal ended, its conversation resumed in a new one, told why",
+        !!old && old !== "resume-claude-sess-stuck" && s4 === 200 && r4.answered === "Restart it" && restarted?.resume === "sess-stuck" && String(restarted?.prompt).startsWith("(Vaultite restarted this session: it seems stuck: nothing on its screen for") &&
+        r4.link === "view:terminal/resume-claude-sess-stuck" && !!(await waitFor(async () => !(await api("GET", "terminals/sessions"))[1].sessions.some((x: Any) => x.id === old), 10000, 100)), [s4, r4, old, restarted?.prompt])
+      await api("POST", "ops/companion.job-stop", { id: b.id }, agent)
+      Wk.paced({ stuck: 60_000 })
+      cc["agent-turn:claude"] = async () => ({ session: "sess-stuck2", text: "", files: [], at: Date.now() - 3600_000, final: false })
+      const [, c] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "Read more sheets", cwd: plain }, agent))
+      await waitFor(async () => { const r = await job(c.id); ids.add(r.terminal); return r.state === "working" && r.session === "sess-stuck2" }, 10000, 100)
+      const [sl2] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "They kept it: merge it", job: c.id, land: true }, agent))
+      const merging = await job(c.id)
+      const was = { state: merging.state, land: !!merging.land && merging.land.at === undefined }
+      const [s5, r5] = await asItsTool(() => api("POST", "ops/companion.job-stop", { id: c.id }, agent))
+      ids.add("resume-claude-sess-stuck2")
+      check("job-stop by an agent of a job at work, told to merge: it follows its state (stopped, not refused as ready for review), its conversation kept to resume",
+        sl2 === 200 && was.state === "working" && was.land && s5 === 200 && r5.state === "stopped" && r5.link === "view:terminal/resume-claude-sess-stuck2", [was, s5, r5])
+    } finally {
+      Wk.paced({ stuck: L.PACE.stuck })
+      Object.assign(cc, was)
+      for (const k of Object.keys(cc)) if (!(k in was)) delete cc[k]
+      for (const id of ids) if (id) await api("DELETE", `terminals/${id}`).catch(() => {})
+      fs.rmSync(plain, { recursive: true, force: true })
+    }
+  }
+
   // Their word to a terminal agent: "close it" typed to it closes a job ready for review (read from its session), never
   // words another agent typed into it. A companion's handoff long after their ask isn't given that ask.
   if (process.platform !== "win32") {

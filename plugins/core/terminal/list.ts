@@ -12,7 +12,7 @@ import { agentOf, backends, fromReq, ours, ownedBy } from "./backends.ts"
 import { FRONT_AGE, frontSeen, metas, nameOf, noteOf, oldMeta, progressOf, sight, terms, watchAsks, watching } from "./terms.ts"
 import { makeSpare } from "./start.ts"
 import { allowed, terminalMachines } from "./machines.ts"
-import { pageInput } from "./routes.ts"
+import { lastInput, pageInput } from "./routes.ts"
 const SHELLS = new Set(["zsh", "bash", "fish", "sh", "dash", "-zsh", "-bash", "-sh", "login", "pwsh", "powershell", "cmd", "wsl", ""])
 const VERSION = /^\d+(\.\d+)+$/
 /** A shell's process by its name: on Linux node-pty says the path it was started by ("/bin/bash"). */
@@ -80,6 +80,15 @@ function titleOf(raw: string) {
   return !t || t === HOST || t === os.hostname() ? undefined : t.slice(0, 120)
 }
 
+const ECHO = 3000
+const outputs = new Map<string, { activity: number; out: number }>()
+function outputOf(id: string, activity: number) {
+  const was = outputs.get(id), typed = lastInput.get(id) ?? 0
+  const out = !was ? activity : activity !== was.activity && Math.abs(activity - typed) > ECHO ? activity : was.out
+  outputs.set(id, { activity, out })
+  return out
+}
+
 export function localList(): Promise<Listed[]> {
   if (lastLocal && performance.now() - lastLocal.at < LIST_FRESH) return lastLocal.list
   const mine = { at: performance.now(), list: readList() }
@@ -100,6 +109,7 @@ async function readList(): Promise<Listed[]> {
     for (const x of lists[i].map(byName)) {
       if (x.spare || x.id.startsWith(SPARE) || out.has(x.id)) continue
       oldMeta(b, x)
+      if (x.activity) outputOf(x.id, x.activity)
       if (b.setMeta) metas.set(x.id, x.meta ?? {})
       if (!ours(b)) ownedBy(x.id, b)
       const s = sessions.get(x.id)
@@ -123,6 +133,7 @@ async function readList(): Promise<Listed[]> {
     }
   }
   timing.mark("in front")
+  for (const id of outputs.keys()) if (!out.has(id)) outputs.delete(id)
   const meters = plugin.service("terminal:meters"), agents = [...new Set([...out.values()].flatMap((x) => (x.busy ? [x.agent ?? x.process] : [])))]
   const live = (await Promise.all(agents.map((a) => liveOf(a, typeof meters === "function")))).flat().filter((m) => out.get(m.terminal)?.busy)
   for (const m of live) {
@@ -261,9 +272,10 @@ plugin.provide("terminal:of-pids", async (pids: number[]) => {
   return null
 })
 
-/** A terminal's id and title (the user's name for it, else a Claude Code session's), whether something runs in it, its
- *  agent's session id and when it was last typed into in a tab (`typed`), or null when it isn't running. */
+/** A terminal's id, title, whether something runs in it, its agent's session, when it was last typed into in a tab
+ *  (`typed`) and for how long its program drew nothing (`quiet`, ms), or null when it isn't running. */
 plugin.provide("terminal:info", async (id: string) => {
-  const s = (await localList()).find((x) => x.id === id), typed = pageInput.get(id)
-  return s ? { id: s.id, title: s.name ?? s.title, busy: s.busy, ...(s.session ? { session: s.session } : {}), ...(typed ? { typed } : {}) } : null
+  const s = (await localList()).find((x) => x.id === id), typed = pageInput.get(id), out = outputs.get(id)?.out
+  return s ? { id: s.id, title: s.name ?? s.title, busy: s.busy, ...(s.session ? { session: s.session } : {}), ...(typed ? { typed } : {}),
+    quiet: out ? Math.max(0, Date.now() - out) : undefined } : null
 })

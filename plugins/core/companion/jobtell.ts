@@ -1,8 +1,8 @@
 import type { z } from "zod"
 import { parseTerminal } from "../../../core/agents.ts"
 import { logger, type OpCtx, OpError } from "../../../core/plugins.ts"
-import { gist, type Job, landTask, linkOf, messageOf, prunedLine, terminalOf } from "./jobs.ts"
-import { type Clock, type JobEvent, untell } from "./joblife.ts"
+import { gist, type Job, landTask, linkOf, messageOf, prunedLine, resumeOf, terminalOf } from "./jobs.ts"
+import { type Clock, type JobEvent, stuckLine, untell } from "./joblife.ts"
 import { COMPANION, THEM } from "./jobtold.ts"
 import { plainWords } from "./jobword.ts"
 import type { workerLinks } from "./links.ts"
@@ -16,10 +16,12 @@ export type TellDeps = {
   all: () => Job[]; changed: () => void; move: (j: Job, ev: JobEvent, t?: number) => boolean; log: { append: (t: number, rows: z.infer<typeof JobLogRow>[]) => void }
   clockOf: (j: Job) => Clock; sending: Set<string>; links: ReturnType<typeof workerLinks>; setting: (k: string) => string; d: JobDeps
   seenOf: (j: Job, turn?: boolean, diff?: boolean) => Promise<Seen>; ended: (j: Job, s: Seen) => Promise<boolean>; refresh: (j: Job, now?: boolean) => Promise<void>
+  stuck: (j: Job, s: Seen) => string
 }
 
 export function jobTell(o: TellDeps) {
-  const { all, changed, move, log: jobLog, clockOf, sending, links, setting, d, seenOf, ended, refresh } = o
+  const { all, changed, move, log: jobLog, clockOf, sending, links, setting, d, seenOf, ended, refresh, stuck } = o
+  const unreached = (j: Job, why: string) => new OpError(`${j.id} ${why}, so a follow-up can't reach its session: restart it first (companion job-answer ${j.id} --choice "Restart it": its conversation is kept), then tell it again (${linkOf(j)})`, 409)
   async function wake(ctx: OpCtx, j: Job, prompt = "") {
     const s = await seenOf(j).catch(() => null)
     if (!s || s.running) return false
@@ -64,11 +66,14 @@ export function jobTell(o: TellDeps) {
       if (!await wake(ctx, j, text)) throw new OpError(`${j.id}'s terminal can't be reached now: try again (${linkOf(j)})`, 502)
       toldFrom(j, by, text)
     } else {
+      const stuckWhy = s ? stuck(j, s) : ""
+      if (stuckWhy) throw unreached(j, stuckWhy)
       if (s?.state === "blocked" && s.kind === "permission") throw new OpError(`${j.id} waits on a permission in its terminal (${s.msg ?? "open it"}): only the user answers it (its notification, or job-answer on their words; ${linkOf(j)})`, 409)
       const was = { state: j.state, turn: j.turn, now: j.now, at: j.at }
       toldNow(j, `Told: ${gist(shown, 120)}`)
       const x = j.state === was.state ? undefined : j.log.at(-1)
       sending.add(j.id)
+      const sent = Date.now()
       const back = () => {
         const b = untell(j, x, was), t = Date.now()
         if (b) jobLog.append(t, [{ t, job: j.id, ev: "untold", ...b }])
@@ -76,6 +81,10 @@ export function jobTell(o: TellDeps) {
       }
       const r = await link[how](ctx, j.terminal, text).catch((e) => { back(); throw e }).finally(() => sending.delete(j.id))
       if (r.submitted === false) { back(); throw new OpError(`it didn't take it: ${r.why ?? "its input kept the text"} (${linkOf(j)})`, 409) }
+      if (r.submitted !== true) {
+        const after = await seenOf(j).catch(() => null)
+        if (after?.running && after.state === "working" && after.quiet !== undefined && after.quiet >= Date.now() - sent) { back(); throw unreached(j, "drew nothing on its screen once it was sent (it seems stuck)") }
+      }
       toldFrom(j, by, text)
       void refresh(j).catch((e) => log.error("jobs", e))
       return
@@ -109,7 +118,27 @@ export function jobTell(o: TellDeps) {
   async function close(ctx: OpCtx, j: Job) {
     if (move(j, "stop")) { j.seen = true; changed() }
     if (!j.terminal) return
-    await links.of(j.where).end(ctx, j.terminal).catch((e: unknown) => { if (!(e instanceof OpError && (e.status === 404 || e.status === 502))) throw e })
+    await endIt(ctx, j)
+    const to = j.where.cloud ? "" : resumeOf(j)
+    if (to && to !== j.terminal) { j.terminal = to; changed() }
+  }
+  const endIt = (ctx: OpCtx, j: Job) => links.of(j.where).end(ctx, j.terminal).catch((e: unknown) => { if (!(e instanceof OpError && (e.status === 404 || e.status === 502))) throw e })
+  async function restart(ctx: OpCtx, j: Job, by = COMPANION) {
+    if (j.where.cloud) throw new OpError(`a cloud session restarts in its session: companion job-open ${j.id}`, 409)
+    if (!j.session) throw new OpError(`${j.id}'s conversation isn't known, so it can't be resumed: hand it off again`, 409)
+    const why = j.waits?.kind === "stuck" ? stuckLine(j.waits.question) : "seemed stuck"
+    await endIt(ctx, j)
+    for (let i = 0; i < 40; i++) {
+      const s = await seenOf(j).catch(() => null)
+      if (!s?.running) break
+      await new Promise((r) => setTimeout(r, 250))
+    }
+    const prompt = `(Vaultite restarted this session: it ${why}. Carry on with your task from where you were; a command you were running may need running again.)`
+    await startIn(ctx, j, prompt, j.session)
+    delete j.waits
+    delete clockOf(j).kept
+    toldFrom(j, by, prompt)
+    toldNow(j, "Restarted: it seemed stuck")
   }
   const jobOver = (m: Moment | undefined) => { const to = m?.pane ? d.paneTo?.(m.pane) ?? "" : ""; return to ? all().find((x) => linkOf(x) === to) : undefined }
   function unsure(j: Job, m: Moment | undefined, which: string) {
@@ -120,6 +149,6 @@ export function jobTell(o: TellDeps) {
     const short = (x: Job) => x.title.split(/\s+/).slice(0, 4).join(" ")
     return `their ask was over the job "${over.title}" (${over.id}), not "${j.title}" (${j.id}): unless their words name the one they mean (then which: those words), ask them which in one short line ("${short(j)}, or ${short(over)}?"), each a button (draw: a button each, its ask the job's name, the question in its say)`
   }
-  return { wake, fresh, retitle, steer, trust, startOf, land, close, unsure }
+  return { wake, fresh, retitle, steer, trust, startOf, land, close, restart, unsure }
 }
 export type Tell = ReturnType<typeof jobTell>

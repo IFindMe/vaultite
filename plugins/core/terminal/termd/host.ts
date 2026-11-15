@@ -114,7 +114,7 @@ export class Session {
       onTitle: (t) => { if (t === this.title) return; this.title = t; if (!this.spare) this.h.emit({ type: "title", id: this.id, title: t }) },
       onReply: (d) => { if (!this.attached.size && !this.exit) this.driver.write(d) },
       onTrouble: (text) => { this.h.log("screen", this.id, text); if (!this.spare) this.h.trouble?.(this.id, text) },
-      onBlank: () => this.redraw() })
+      onBlank: () => this.redraw(), onFree: () => this.hold() })
   }
 
   // An idle program (an agent done with its turn) draws nothing more: a width changed and put back makes it (SIGWINCH).
