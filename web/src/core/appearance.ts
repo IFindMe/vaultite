@@ -70,7 +70,7 @@ export const DEFAULT_FONTS = {
 const system = matchMedia("(prefers-color-scheme: dark)")
 const LOOK = "vaultite.look"
 const ROOM = new Set(["--vvh", "--vvtop", "--tab-aspect", "--mto", "--mfrom", "--scrollbar-room", "--window-controls", "--mini-player",
-  "--corner-cards", "--trial-bar"])
+  "--corner-cards", "--trial-bar", "--keyboard-cover", "--key-bar"])
 
 const looks = new Set<() => void>()
 let looking = false

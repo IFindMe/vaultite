@@ -79,6 +79,7 @@ import { closeSwitcher } from "@/core/phoneTabs"
 import { PhoneTab, TabSwitcher } from "@/components/TabSwitcher"
 import { PullActions } from "@/components/PullActions"
 import { PhoneBar } from "@/components/PhoneBar"
+import { coarse } from "@/core/haptics"
 import { PhoneHeader } from "@/components/PhoneHeader"
 import { drawerOut, openDrawer, PhoneDrawers } from "@/components/PhoneDrawer"
 import { SIDEWAYS_TO_DRAWERS } from "@/core/edgetouch"
@@ -101,6 +102,7 @@ import { chooseNewTabPage, showNewTabSections } from "@/components/NewTab"
 
 const Setup = lazy(() => import("@/pages/Setup").then((m) => ({ default: m.Setup })))
 const PluginGroupSheet = lazy(() => import("@/pages/Plugins").then((m) => ({ default: m.PluginGroupSheet })))
+const KeyboardKeys = lazy(() => import("@/components/KeyboardKeys").then((m) => ({ default: m.KeyboardKeys })))
 const GetPluginSheet = lazy(() => import("@/components/PluginBrowse").then((m) => ({ default: m.GetPluginSheet })))
 const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })))
 const SchemeGallery = lazy(() => import("@/components/Appearance").then((m) => ({ default: m.SchemeGallery })))
@@ -645,6 +647,7 @@ export default function App() {
       <ConfirmDialogs />
       <BundleTrial store={store} />
       <Toaster desktop={desktop} />
+      {coarse && <Suspense><KeyboardKeys /></Suspense>}
 
       {running}
       {store && <GrantAsker store={store} />}

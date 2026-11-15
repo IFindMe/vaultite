@@ -1,5 +1,5 @@
 import type { EditorView } from "@codemirror/view"
-import { keyboardUp } from "@/components/KeyBar"
+import { keyboardUp, typesText } from "@/core/keyboard"
 import { currentEditor } from "@/core/editors"
 import { scrollingBox } from "@/lib/utils"
 import { elementOf } from "@/core/dom"
@@ -119,10 +119,7 @@ export function keepTypingInSight() {
   }
 }
 
-const typingNow = () => {
-  const at = document.activeElement
-  return at instanceof HTMLElement && at.matches("textarea, [contenteditable=true], input:not([type=checkbox], [type=radio], [type=range])") && !at.closest("[data-term]")
-}
+const typingNow = () => { const at = document.activeElement; return typesText(at) && !at.closest("[data-term]") }
 
 // iOS resizes the viewport only once the keyboard's slide ends: marked from the focus until the keys are down.
 export function markKeyboard() {
@@ -133,7 +130,8 @@ export function markKeyboard() {
   const read = () => {
     const keys = keyboardUp(), live = performance.now() < until, up = typingNow() ? keys || live : keys && live
     root.toggleAttribute("data-keyboard", up)
-    const bar = document.querySelector("[data-key-bar]")?.getBoundingClientRect().height ?? 0
+    const bar = keys ? document.querySelector("[data-key-bar]")?.getBoundingClientRect().height ?? 0 : 0
+    root.style.setProperty("--key-bar", `${bar}px`)
     root.style.setProperty("--keyboard-cover", keys ? `${Math.max(0, innerHeight - vv.offsetTop - vv.height) + bar}px` : "0px")
   }
   const soon = (e?: Event) => {
@@ -149,6 +147,6 @@ export function markKeyboard() {
     for (const t of timers) clearTimeout(t)
     vv.removeEventListener("resize", soon); vv.removeEventListener("scroll", soon)
     document.removeEventListener("focusin", soon); document.removeEventListener("focusout", soon)
-    root.removeAttribute("data-keyboard"); root.style.removeProperty("--keyboard-cover")
+    root.removeAttribute("data-keyboard"); root.style.removeProperty("--keyboard-cover"); root.style.removeProperty("--key-bar")
   }
 }

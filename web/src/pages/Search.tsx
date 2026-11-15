@@ -4,6 +4,7 @@ import { type Store } from "@/core/data"
 import { get } from "@/core/http"
 import { startDrag } from "@/core/drag"
 import { openFile, openView } from "@/core/files"
+import { coarse } from "@/core/haptics"
 import { isDesktop } from "@/core/platform"
 import { useFocusedFile } from "@/core/workspace"
 import { openDetail } from "@/core/nav"
@@ -184,9 +185,10 @@ export function SearchPage({ store, query, setQuery }: { store: Store; query: st
         <label className="flex h-9 items-center gap-1 rounded-[8px] border-[0.5px] border-border bg-card pr-1 pl-2.5 focus-within:ring-2 focus-within:ring-primary/40 max-md:h-11">
           <SearchIcon className="mr-1 size-4 shrink-0 text-muted-foreground" strokeWidth={2.25} />
           <input ref={field} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the vault" aria-label="Search the vault" spellCheck={false}
-            autoCapitalize="off" autoCorrect="off"
+            autoCapitalize="off" autoCorrect="off" enterKeyHint="search"
             onKeyDown={(e) => {
               if (e.key === "Enter" && names[0] && !results?.length) pick(names[0], e.metaKey || e.ctrlKey)
+              else if (e.key === "Enter" && coarse) e.currentTarget.blur()
               if (e.key === "ArrowDown") {
                 const first = e.currentTarget.closest("[data-search-view]")?.querySelector<HTMLElement>("[data-keyrow]")
                 if (first) { e.preventDefault(); first.focus() }
@@ -200,7 +202,8 @@ export function SearchPage({ store, query, setQuery }: { store: Store; query: st
         </label>
         <label className="flex h-7 items-center gap-2 text-[13px] text-muted-foreground max-md:h-9 max-md:text-[15px]">
           <span className="shrink-0">In folder</span>
-          <input value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Anywhere" aria-label="Only in this folder" spellCheck={false}
+          <input value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Anywhere" aria-label="Only in this folder" spellCheck={false} enterKeyHint="search"
+            onKeyDown={(e) => { if (e.key === "Enter" && coarse) e.currentTarget.blur() }}
             className="h-full min-w-0 flex-1 rounded-[6px] border-[0.5px] border-border bg-card px-2 text-foreground outline-none focus:ring-2 focus:ring-primary/40 max-md:text-[16px]" />
         </label>
         {error ? <p role="alert" className="text-[13px] text-ink-(--red) max-md:text-[15px]">{error}</p>

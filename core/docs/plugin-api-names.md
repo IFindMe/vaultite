@@ -219,6 +219,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `errorText(e, what?)`: An error as a line of a page or a form (plainText), a bug kept in Errors.
 - `fenceLayout(info, body)`: Where a fence sits on a dashboard's grid: a ```block-<name>'s options say (`wide: true`); any other fence a plugin draws (its body the plugin's own: a ```tasks query) has it after its language,…
 - `fetchMachines()`: The machines, once ([] with the plugin off or when the server doesn't answer).
+- `FieldKeys`: Keys over the keyboard, before Done, while a field it `owns` has it; one drawing its own bar sits in `[data-own-keys]`.
 - `fileAt(files, path)`
 - `FileBarItem`: Drawn in a file's header: on desktop in the tab's top bar (`place: "bar"`), in a sheet and on phones above the title (`"line"`); docked in a sidebar by the user, there for the focused file.
 - `FileBlocks({ store, path, fm, fallback })`: Another file's blocks, as that file has them (Projects: each project's card is its file's blocks).
@@ -799,6 +800,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `useEnabled()`
 - `useFileIcon(store)`: A file's icon as the file tree draws it (its own, a dashboard's or a person's, in its colour), by path.
 - `useFocusedFile()`
+- `useGiveKeys(k)`
 - `useGlide(box, order)`: The rows in `box` that change places (each `data-glide`, its key) glide there, so the eye can follow where one went.
 - `useGroupIn(ref, id)`: A tab group's chip or row, made just now: it comes in where it stays (its editor opens under it at once).
 - `useGroupLines(root, axis)`: `root`'s tab groups' lines: a group's chip is its `data-line-head` (its colour `--line`), each tab drawn in it (a drag's preview's, a closed one's copy) `data-line-of`; along the bar (x) or down…

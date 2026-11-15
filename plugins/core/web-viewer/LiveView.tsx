@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
-import { createPortal } from "react-dom"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Bot, ChevronLeft, ClipboardPaste, Copy, Globe, Keyboard, MousePointer2, Pause, Play } from "lucide-react"
-import { Button, closePane, cn, copyText, dateText, errorText, get, haptic, KeyBar, keysText, LoadingSidebarRows, notify, notifyError, onMachine, openInSplit, PaneControls, post, selectPane, SidebarHeading, SidebarRow, splitMachine, useChosen, useKeptCount, usePane, usePaneTopBar, useScopedState, useVisibleArea, webPages, coarse, type BarKey } from "@vaultite"
+import { Button, closePane, cn, copyText, dateText, errorText, get, haptic, keysText, LoadingSidebarRows, notify, notifyError, onMachine, openInSplit, PaneControls, post, selectPane, SidebarHeading, SidebarRow, splitMachine, useChosen, useKeptCount, usePane, usePaneTopBar, useGiveKeys, useScopedState, webPages, coarse, type BarKey, type FieldKeys } from "@vaultite"
 import { hostOf } from "./address"
 import { argOf, colorOf, containerById } from "./containers"
 import type { LiveStep, LiveTab, LiveTabs } from "./livetabs"
@@ -490,8 +489,6 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
   }
   const paste = () => void navigator.clipboard?.readText().then((text) => { if (text) send({ type: "text", text }) },
     (e) => { if (!(e instanceof Error && e.name === "NotAllowedError")) notifyError(e, "Couldn't paste") })
-  const [typing, setTyping] = useState(false)
-  const area = useVisibleArea(coarse && typing)
   const arrow = (name: string, Icon: typeof ArrowUp) => ({ name, label: <Icon className="size-[17px]" strokeWidth={2} />, run: () => send({ type: "key", key: `Arrow${name}` }) })
   const barKeys: BarKey[] = [
     { name: "Escape", label: "esc", run: () => send({ type: "key", key: "Escape" }) },
@@ -500,6 +497,9 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
     arrow("Left", ArrowLeft), arrow("Up", ArrowUp), arrow("Down", ArrowDown), arrow("Right", ArrowRight),
     { name: "Paste", label: <ClipboardPaste className="size-[17px]" strokeWidth={2} />, run: paste },
   ]
+  const pageKeys = useRef(barKeys)
+  useLayoutEffect(() => { pageKeys.current = barKeys })
+  useGiveKeys(useMemo<FieldKeys>(() => ({ label: "Page keys", owns: (el) => el === keys.current, keys: () => pageKeys.current }), []))
 
   const [paused, choosePaused] = useChosen(!!info.paused)
   const pause = () => choosePaused(!paused, () => post(`web-viewer/tabs/${id}/pause`, { on: !paused }), paused ? "Couldn't let agents go on" : "Couldn't stop the agents")
@@ -562,7 +562,7 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
           {shown && <p className="max-w-[420px] px-4 text-center text-[15px] text-muted-foreground md:text-[13px]">{shown}</p>}
           {status === "connecting" && framed && <span className="absolute top-3 right-3 rounded-[6px] bg-background/90 px-1.5 py-0.5 text-[11px] text-muted-foreground">Reconnecting…</span>}
           {error && status === "live" && <span className="absolute bottom-3 left-1/2 max-w-[90%] -translate-x-1/2 truncate rounded-[6px] bg-background/90 px-2 py-1 text-[12px]">{error}</span>}
-          <textarea ref={keys} onKeyDown={key} onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} aria-label="Type in the page" autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
+          <textarea ref={keys} onKeyDown={key} aria-label="Type in the page" autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
             className="pointer-events-none absolute top-0 left-0 size-px resize-none border-0 bg-transparent p-0 text-[16px] opacity-0 outline-none" />
         </div>
         <aside className="flex max-h-[38%] min-h-0 shrink-0 flex-col border-t-[0.5px] border-border @3xl:max-h-none @3xl:w-[280px] @3xl:border-t-0 @3xl:border-l-[0.5px]" data-web-live-steps={steps.length}>
@@ -577,12 +577,6 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
           </ol>
         </aside>
       </div>
-      {area?.keyboard && createPortal(
-        <div className="fixed inset-x-0 z-[45] -translate-y-full" style={{ top: area.top + area.height }} data-web-live-keys>
-          <KeyBar label="Page keys" keys={barKeys} hide={() => keys.current?.blur()} />
-        </div>,
-        document.body,
-      )}
     </div>
   )
 }

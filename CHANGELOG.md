@@ -8,8 +8,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 - Phone: a terminal, the graph, a canvas and other views that fill the screen fit it exactly, ending at the bottom bar,
   so the page no longer scrolls a little under them.
-- Phone: the keys over the keyboard end with Done to hide it, and fade in once the keyboard settles instead of jumping
-  with it.
+- Phone: every field has Done over the keyboard to hide it (the palette, search, sheets, chats), not only notes; the
+  palette stays open with its whole list, and keys over the keyboard fade in once it settles instead of jumping with it.
 - Phone: while you type a note's name, keys over the keyboard put the name back, go to the text, or hide the keyboard.
 - Phone: the bottom bar steps out of sight as soon as the keyboard starts to rise and comes back only once it is down.
 - Phone: a swiped sidebar row shows its buttons at once, even while a slow connection is still loading.

@@ -50,6 +50,8 @@
   may copy opts in with `select-text`, a view inside content is `data-chrome`; chrome needs no `select-none`.
 - Desktop: the window never scrolls, each pane does (`scrollPage`, not `window.scrollTo`); dashboards lay out by pane
   width (`@2xl:`).
+- Phones: the row over the keyboard is the core's (`components/KeyboardKeys.tsx`): every field gets its Done in the
+  iPhone app (iOS's own bar is gone there); a surface adds keys for its fields with `useGiveKeys`, never a bar of its own.
 - Phones: 44px targets, 17px text (the sidebar's lists 16px in 40px rows: `data-size-up`), no splits. Move between places through `core/motion.ts`, not `history.back()`. What
   a mouse finds on hover a finger swipes to (`SwipeRow`).
 - A page of the sidebar's lists draws them at the sidebar's sizes (`SidebarRow`, `SidebarHeading`, `data-size-up`), with

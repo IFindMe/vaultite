@@ -1,9 +1,8 @@
 import UIKit
 import ObjectiveC
 
-/// The bar iOS puts over the keyboard in a web view (previous and next field, Done), hidden: the editor's toolbar has
-/// its own close button and the arrows mean nothing in a note. Every other field still closes the keyboard with return
-/// or a tap outside it.
+/// The bar iOS puts over the keyboard in a web view (previous and next field, Done), hidden: the page draws its own row
+/// there for every field (web/src/components/KeyboardKeys.tsx), with Done and the keys of what's being typed in.
 enum KeyboardBar {
     /// WebKit's content view answers no accessory view. Added on that class only (`class_replaceMethod`), so no other
     /// view's is touched.

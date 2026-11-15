@@ -314,7 +314,7 @@ html[data-over-pages] .glass-strong { background: linear-gradient(var(--popover)
 @media (max-width: 767px) { :root[data-trying] { --trial-bar: 62px; } }
 /* The on-screen keyboard up (core/sight.ts: markKeyboard): the bar steps down out of the way, and toasts sit above the keys over
    the keyboard instead of over the bar. */
-:root { --toast-floor: calc(var(--page-foot) + 0.75rem); --keyboard-cover: 0px; }
+:root { --toast-floor: calc(var(--page-foot) + 0.75rem); --keyboard-cover: 0px; --key-bar: 0px; }
 :root[data-keyboard] { --toast-floor: calc(var(--keyboard-cover) + 0.5rem); }
 :root[data-keyboard] [data-phone-bar] { transform: translateY(100%); opacity: 0; visibility: hidden; pointer-events: none; }
 [data-phone-bar] { transition: transform 160ms ease, opacity 160ms ease; }

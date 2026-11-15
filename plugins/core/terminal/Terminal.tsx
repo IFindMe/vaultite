@@ -211,7 +211,7 @@ export default function TerminalView({ id, focused, close }: { id: string; focus
       )}
       <div className={cn("relative isolate min-h-0 flex-1 pl-3 pr-1 pt-2 pb-1", held > 0 && "overflow-hidden")}>
         {/* iOS zooms the page in on a focused field under 16px. */}
-        <div ref={host} data-terminal={id} data-terminal-held={held > 0 || undefined} style={held ? { height: held } : undefined} className={cn("w-full overflow-hidden", !held && "h-full", touchUi && "select-none [-webkit-touch-callout:none] [&_[data-term-input]]:!text-[16px]")} />
+        <div ref={host} data-terminal={id} data-own-keys={phone || undefined} data-terminal-held={held > 0 || undefined} style={held ? { height: held } : undefined} className={cn("w-full overflow-hidden", !held && "h-full", touchUi && "select-none [-webkit-touch-callout:none] [&_[data-term-input]]:!text-[16px]")} />
         {finding > 0 && live.current && <FindBar l={live.current} ask={finding} close={closeFind} />}
         {up && (
           <button type="button" aria-label="Scroll to the end" data-tip="Scroll to the end" data-terminal-end

@@ -1,30 +1,7 @@
-import { useLayoutEffect, useState, type MouseEvent as ReactMouseEvent, type PointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from "react"
+import type { MouseEvent as ReactMouseEvent, PointerEvent, TouchEvent as ReactTouchEvent } from "react"
 import { ChevronDown } from "lucide-react"
+import type { BarKey } from "@/core/keyboard"
 import { cn } from "@/lib/utils"
-
-/** The on-screen keyboard is up: the visible part of the page is well short of the window. */
-export const keyboardUp = () => !!visualViewport && innerHeight - visualViewport.height > 80
-
-const SETTLE_MS = 160
-
-/** The part of the window the user sees (above the on-screen keyboard), followed while `on`. */
-export function useVisibleArea(on: boolean) {
-  const [area, setArea] = useState<{ top: number; height: number; keyboard: boolean; moving: boolean } | null>(null)
-  useLayoutEffect(() => {
-    const vv = visualViewport
-    if (!on || !vv) return
-    let still = 0
-    const at = (moving: boolean) => setArea({ top: vv.offsetTop, height: vv.height, keyboard: keyboardUp(), moving })
-    const read = () => { at(true); clearTimeout(still); still = window.setTimeout(() => at(false), SETTLE_MS) }
-    at(false)
-    vv.addEventListener("resize", read)
-    vv.addEventListener("scroll", read)
-    return () => { clearTimeout(still); vv.removeEventListener("resize", read); vv.removeEventListener("scroll", read) }
-  }, [on])
-  return on ? area : null
-}
-
-export type BarKey = { name: string; label: ReactNode; run: () => void }
 
 /** The row above the keyboard. Its buttons never take focus (on iOS the keyboard would go) and act as the finger
  *  lifts. `scroll`: keys a finger wide, the row scrolling sideways when they don't fit. */

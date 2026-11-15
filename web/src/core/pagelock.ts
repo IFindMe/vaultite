@@ -1,6 +1,6 @@
 // A touch guard holds the page, not a fixed body: under a fixed body WebKit hit-tests overlays' scrollers in the wrong place.
 import { useLayoutEffect } from "react"
-import { keyboardUp } from "@/components/KeyBar"
+import { keyboardUp } from "@/core/keyboard"
 import { elementOf } from "@/core/dom"
 
 function trackViewport() {

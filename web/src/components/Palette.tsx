@@ -260,7 +260,7 @@ export function PaletteFrame({ label, onClose, onKeyDown, aside, children }: { l
         className={cn("absolute inset-0 cursor-default bg-black/30", !swapped && "animate-in fade-in duration-150")} />
       <div className="relative w-full max-w-[680px]">
         <div role="dialog" aria-modal="true" aria-label={label} onKeyDown={onKey}
-          style={{ maxHeight: "min(70dvh, 600px, calc(var(--vvh, 100dvh) - 1.5rem - env(safe-area-inset-top)))" }}
+          style={{ maxHeight: "min(70dvh, 600px, calc(var(--vvh, 100dvh) - var(--key-bar) - 1.5rem - env(safe-area-inset-top)))" }}
           className={cn("relative flex w-full flex-col overflow-hidden rounded-[14px] border-[0.5px] border-border bg-card shadow-2xl", !swapped && "animate-in fade-in zoom-in-95 duration-150")}>
           {children}
         </div>
