@@ -31,7 +31,6 @@ export async function relation(git: Git, head: string, remote: string): Promise<
   return await isAncestor(git, remote, head) ? "ahead" : "diverged"
 }
 
-/** The branch's commit with `head`'s very files: the same code under rewritten history (re-signed, say), or null. */
 export async function sameFilesOn(git: Git, head: string, remote: string, max = 500) {
   const tree = await git("rev-parse", `${head}^{tree}`)
   const hit = (await git("log", "--format=%H %T", `--max-count=${max}`, remote)).split("\n").find((l) => l.endsWith(` ${tree}`))
