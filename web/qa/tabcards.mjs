@@ -103,7 +103,7 @@ await restOn(page.locator(`aside [data-tree-path="${shownNote}"]`).first())
 check("none for the file on screen", (await rowCard().count()) === 0)
 await away()
 await restOn(page.locator("aside [data-tree-folder]").first())
-check("none for a folder", (await rowCard().count()) === 0)
+check("none for a folder", (await rowCard().count()) === 0, await rowCard().evaluateAll((cs) => cs.map((c) => [c.getAttribute("data-target-hover-card"), c.querySelector("[data-card-title]")?.textContent])))
 await away()
 const pin = (await page.$$eval("nav[aria-label=Pages] [data-pin]:not([data-pin-folder])", (els) => els.filter((e) => !e.className.includes("font-medium")).map((e) => e.dataset.pin)))[0]
 check("a pinned page", !!pin)
