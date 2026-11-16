@@ -76,7 +76,7 @@ const PaletteRow = memo(function PaletteRow({ id, i, selected, draw, act, onHove
   return (
     <div className="relative" onMouseMove={() => onHover(i)}>
       {row}
-      <button type="button" tabIndex={-1} aria-label={act.label} aria-pressed={act.on} data-tip={act.label} data-row-action
+      <button type="button" tabIndex={-1} aria-hidden aria-label={act.label} aria-pressed={act.on} data-tip={act.label} data-row-action
         onMouseDown={(e) => e.preventDefault()} onClick={act.run}
         className={cn("absolute top-1/2 right-2 grid size-7 -translate-y-1/2 cursor-pointer place-items-center rounded-[6px] text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground",
           !act.on && !selected && "opacity-60")}>

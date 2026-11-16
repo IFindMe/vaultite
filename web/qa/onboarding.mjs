@@ -118,7 +118,13 @@ try {
   const aiOf = (dir) => { try { return JSON.parse(fs.readFileSync(path.join(dir, ".vaultite/plugins.json"), "utf8")).ai } catch { return undefined } }
   check("a vault new to the app has AI off until the card asks: no AI behind it", aiOf(VAULT) === false && !(await vw.$("[data-newtab-connect]")), aiOf(VAULT))
   await until(() => vw.locator("[data-welcome] [data-layout-pick]").count(), 8000)
-  check("its look page: the three layouts, no Back (the vault is made)", await vw.locator("[data-welcome] [data-layout-pick]").count() === 3 && !(await vw.$("[data-welcome-back]")))
+  const builtIn = fs.readdirSync(path.join(ROOT, "bundles"), { withFileTypes: true }).filter((d) => d.isDirectory())
+    .filter((d) => (JSON.parse(fs.readFileSync(path.join(ROOT, "bundles", d.name, "bundle.json"), "utf8")).kind ?? "layout") === "layout").length
+  const tiles = await vw.evaluate(() => {
+    const card = document.querySelector("[data-welcome]").getBoundingClientRect()
+    return [...document.querySelectorAll("[data-welcome] [data-layout-pick]")].map((t) => { const r = t.getBoundingClientRect(); return r.left >= card.left && r.right <= card.right })
+  })
+  check("its look page: every built-in layout, each whole in the card, no Back (the vault is made)", builtIn >= 3 && tiles.length === builtIn && tiles.every(Boolean) && !(await vw.$("[data-welcome-back]")), { builtIn, tiles })
   await shoot(app, vw, "3-look")
   await vw.click("[data-welcome-next]")
   await vw.waitForSelector("[data-welcome-ai]", { timeout: 15000 })

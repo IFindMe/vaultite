@@ -105,6 +105,12 @@ for (const [w, h] of [[390, 844], [430, 932]]) {
   await page.evaluate(() => document.querySelector("[data-player-for]").pause())
   await page.setViewportSize({ width: w, height: h }); await ui.idle()
   await page.evaluate(() => window.scrollTo(0, 2600)); await ui.idle()
+  await page.evaluate(() => {
+    const y = (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) + 1
+    const read = [...document.querySelectorAll("#main-scroll :is(.cm-line, p)")].find((el) => el.textContent.trim() && el.getBoundingClientRect().bottom > y)
+    const r = read.getBoundingClientRect()
+    window.scrollBy(0, r.top + r.height * 0.4 - y)
+  }); await ui.idle()
   const read0 = await lineReadAtTop(page)
   await page.setViewportSize({ width: h, height: w }); await ui.idle()
   const read1 = await lineReadAtTop(page)

@@ -75,8 +75,12 @@ try {
     await A.click(`text=${item}`)
   }
   await rowMenu(stem(notes[1]), "Close on Safari on iPhone")
-  const shut = await until(() => P.$$eval("[data-open-tab]", (els) => els.map((e) => e.textContent)).then((t) => (t.some((x) => x.includes(stem(notes[1]))) ? null : t)), 8000)
+  const shut = await until(() => P.$$eval("[data-tabs-view] [data-open-tab]", (els) => els.map((e) => e.textContent)).then((t) => (!t.length || t.some((x) => x.includes(stem(notes[1]))) ? null : t)), 8000)
   check("Close on <device> closes the tab on that device", !!shut, shut)
+  await P.locator("[data-phone-header] button[aria-label='Open sidebar']").tap(); await P.locator("[data-phone-drawer=left][aria-hidden=false]").waitFor()
+  const drawer = await until(() => P.$$eval("[data-phone-drawer=left] [data-open-tab]", (els) => els.map((e) => e.textContent)).then((t) => (!t.length || t.some((x) => x.includes(stem(notes[1]))) ? null : t)), 8000)
+  check("  and its sidebar, opened, has it gone too", !!drawer, drawer)
+  await P.keyboard.press("Escape")
   await P.evaluate((p) => { location.hash = `#file/${encodeURIComponent(p)}` }, notes[0])
   await until(async () => ((await theirs(A))[0]?.rows.includes(stem(notes[0])) ? true : null), 8000)
   await rowMenu(stem(notes[0]), "Move here")

@@ -197,7 +197,7 @@ const drag = async (x0, y0, x1, y1, mid) => {
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
   return seen
 }
-const H = 844, count = () => P.locator("[data-tabs-button]").innerText().then((t) => Number(t.trim()))
+const H = 844, count = () => P.locator("[data-tabs-button]").textContent().then((t) => Number(t.trim()))
 
 // The bar dragged up: the page shrinks after the finger, then into its card in the tab list.
 const z1 = await zooms()

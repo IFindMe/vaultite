@@ -73,9 +73,11 @@ function menuOf(b: BundleInfo, current: boolean, open: ApplyOptions["open"]): Me
   ]
 }
 
-function Tile({ b, on, changed, onPick, menu }: { b: BundleInfo; on: boolean; changed: string | null; onPick: () => void; menu: (() => MenuItem[]) | null }) {
+const tileWidth = (fit?: boolean) => fit ? "min-w-0 max-w-[132px] flex-1 basis-0 max-md:max-w-none" : "w-[132px] shrink-0 max-md:w-auto"
+
+function Tile({ b, on, changed, onPick, menu, fit }: { b: BundleInfo; on: boolean; changed: string | null; onPick: () => void; menu: (() => MenuItem[]) | null; fit?: boolean }) {
   return (
-    <div className="group/tile relative w-[132px] shrink-0 max-md:w-auto" onContextMenu={menu ? menuFor(menu) : undefined} data-layout={b.id}>
+    <div className={cn("group/tile relative", tileWidth(fit))} onContextMenu={menu ? menuFor(menu) : undefined} data-layout={b.id}>
       <button type="button" role="radio" aria-checked={on} aria-label={b.name} data-layout-pick={b.id}
         onClick={() => { if (!on) { haptic("selection"); onPick() } }}
         className="flex w-full cursor-pointer flex-col gap-1.5 rounded-[9px] text-left focus-visible:outline-none">
@@ -105,8 +107,8 @@ function Tile({ b, on, changed, onPick, menu }: { b: BundleInfo; on: boolean; ch
   )
 }
 
-const Placeholder = () => (
-  <div className="w-[132px] shrink-0 max-md:w-auto">
+const Placeholder = ({ fit }: { fit?: boolean }) => (
+  <div className={tileWidth(fit)}>
     <div className="skeleton aspect-[16/10] w-full rounded-[8px]" />
     <div className="mt-1.5 h-4 px-0.5"><span className="skeleton block h-[9px] w-[55%] rounded-full" /></div>
   </div>
@@ -119,10 +121,11 @@ export type LayoutPickerProps = {
   silent?: boolean
   onPicked?: (b: BundleInfo) => void
   describe?: "start" | "center"
+  fitOneRow?: boolean
   className?: string
 }
 
-export function LayoutPicker({ menus = true, open = "behind", builtInOnly, silent, onPicked, describe, className }: LayoutPickerProps) {
+export function LayoutPicker({ menus = true, open = "behind", builtInOnly, silent, onPicked, describe, fitOneRow: fit, className }: LayoutPickerProps) {
   const { loaded, list, current } = useLayouts()
   const [shown, choose] = useChosen(current)
   const shownList = builtInOnly ? list.filter((b) => b.source === "app") : list
@@ -139,11 +142,11 @@ export function LayoutPicker({ menus = true, open = "behind", builtInOnly, silen
   }
   const about = shownList.find((b) => b.id === shown)?.description
   const tiles = (
-    <div ref={group} role="radiogroup" aria-label="Layout" onKeyDown={keys} data-layout-picker className={cn("flex flex-wrap gap-x-3 gap-y-3.5 py-[5px] pl-[5px] max-md:grid max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-4 max-md:pl-0", className)}>
-      {!loaded ? [0, 1, 2].map((i) => <Placeholder key={i} />) : shownList.map((b) => {
+    <div ref={group} role="radiogroup" aria-label="Layout" onKeyDown={keys} data-layout-picker className={cn("flex gap-x-3 gap-y-3.5 py-[5px] pl-[5px] max-md:grid max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-4 max-md:pl-0", fit ? "flex-nowrap" : "flex-wrap", className)}>
+      {!loaded ? [0, 1, 2].map((i) => <Placeholder key={i} fit={fit} />) : shownList.map((b) => {
         const on = b.id === shown
         return (
-          <Tile key={b.id} b={b} on={on} changed={menus ? changedOf(b, b.id === current) : null} menu={menus ? () => menuOf(b, b.id === current, open) : null}
+          <Tile key={b.id} b={b} on={on} changed={menus ? changedOf(b, b.id === current) : null} menu={menus ? () => menuOf(b, b.id === current, open) : null} fit={fit}
             onPick={() => choose(b.id, async () => { if (await pickLayout(b, { open, silent })) onPicked?.(b) }, `Couldn't switch to ${b.name}`)} />
         )
       })}

@@ -108,11 +108,11 @@ check("phone: its send button answers with what's typed", JSON.stringify(p.sent[
   const page = watch(await ctx.newPage(), { console: true, label: "chat", ignore: /favicon|Failed to load resource|WebSocket/ })
   const sent = []
   await page.route("**/api/ops/claude-code.chat-answer", (r) => { sent.push(r.request().postDataJSON()); r.fulfill({ status: 200, contentType: "application/json", body: '{"id":"qa-chat","state":"working"}' }) })
-  const asked = { k: "ask", id: "ask1", kind: "question", tool: "AskUserQuestion", title: "Which toppings?", at: Date.now(),
+  const asked = { k: "ask", id: "ask1", kind: "question", tool: "AskUserQuestion", title: "Which toppings?", at: new Date().toISOString(),
     questions: [{ question: "Which toppings?", multi: true, options: [{ label: "Cheese" }, { label: "Basil" }, { label: "Olive" }] }] }
-  const s = { id: "qa-chat", state: "waiting", cwd: "/tmp", account: "default", by: "app", model: "sonnet", effort: "medium", mode: "default", started: Date.now(), at: Date.now(), asks: ["ask1"], seq: 1, told: 0, turn: null }
-  await page.routeWebSocket(/\/api\/claude-code\/chat\/qa-chat$/, (ws) => ws.send(JSON.stringify({ t: "hello", found: true, s, title: "Pizza", cwd: "/tmp", account: "default",
-    model: "sonnet", effort: "medium", tui: null, driven: "", history: { entries: [asked], start: 0 } })))
+  const s = { id: "qa-chat", state: "waiting", cwd: "/tmp", account: "default", by: "app", model: "sonnet", effort: "medium", mode: "default", started: Date.now(), at: Date.now(), asks: ["ask1"], seq: 1, told: 0, turn: null, background: 0 }
+  await page.routeWebSocket(/\/api\/claude-code\/chat\/qa-chat$/, (ws) => ws.send(JSON.stringify({ t: "hello", id: "qa-chat", found: true, s, title: "Pizza", cwd: "/tmp", account: "default",
+    model: "sonnet", effort: "medium", tui: null, driven: "", history: { entries: [asked], start: 0, total: 1 } })))
   await page.goto(`${B}#view/claude-session%2Fqa-chat`)
   const card = page.locator("[data-entry=ask][data-ask=question]")
   await until(() => card.locator("[data-questions]").count(), 8000)

@@ -1,4 +1,5 @@
 import "./core/winspawn.ts"
+import "./electron/inheritedclose.ts"
 import { errorContext, onServerError, startServerLog } from "./core/serverlog.ts"
 import { logger } from "./core/log.ts"
 import { execFile, spawn } from "node:child_process"

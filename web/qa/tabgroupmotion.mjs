@@ -54,7 +54,10 @@ async function frames(page, probe, id, act) {
 }
 /** A click on the group's chip or row from inside the page (Playwright's own waits for it to stop moving). */
 const clickIn = (page, sel, { midway = false } = {}) => page.evaluate(([sel, midway]) => new Promise((r) => {
-  const movedATenth = () => document.getAnimations().some((a) => a.playState === "running" && (a.effect?.getComputedTiming().progress ?? 0) > 0.1)
+  const movedATenth = () => document.getAnimations().some((a) => {
+    const t = a.effect?.getComputedTiming(), endsUnlikeACaretBlink = Number.isFinite(t?.iterations)
+    return a.playState === "running" && endsUnlikeACaretBlink && (t?.progress ?? 0) > 0.1
+  })
   const tick = (left) => { if (midway && left && !movedATenth()) requestAnimationFrame(() => tick(left - 1)); else { document.querySelector(sel).click(); r() } }
   tick(120)
 }), [sel, midway])

@@ -4,7 +4,6 @@ import { fork, type ChildProcess } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
 import { z } from "zod"
-import { pathToFileURL } from "node:url"
 import type { MenuSnapshot } from "./menu.ts"
 import { serverCall, setServerSink } from "./browser/engine.ts"
 import { attach, servedHere, type Call, type Link } from "./host.ts"
@@ -106,7 +105,6 @@ export function startServer(v: Known, port: number, own = false): Promise<ChildP
   const leaks = heldPastExec()
   const child = fork(path.join(root, "server.ts"), [], {
     cwd: root, stdio: ["ignore", fd, fd, "ipc"], detached: !WIN,
-    execArgv: leaks ? [...process.execArgv, "--import", pathToFileURL(path.join(root, "electron", "inheritedclose.ts")).href] : process.execArgv,
     env: {
       ...process.env, ELECTRON_RUN_AS_NODE: "1", VAULTITE_DESKTOP: "1", VAULTITE_VAULT: v.path, VAULTITE_LOCAL: LOCAL,
       HOST: "127.0.0.1", PORT: String(port), [INHERITED]: leaks || undefined,

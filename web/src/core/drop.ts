@@ -159,7 +159,7 @@ export function dropAt(item: DragItem, x: number, y: number, el: Element | null,
   if (!item.to && !item.pane && !item.group && !item.tab) return null
   if (el?.closest("[data-own-drops]")) return null
   const d: Drop | null = held ? (el?.closest("[data-tab-strip]") ? { kind: "list", ...slotBeside(here(), item, held) } : null)
-    : placeAt(x, y, el, !item.tab && !item.pane && !item.group)
+    : placeAt(x, y, el, !item.tab && !item.pane && !item.group && !item.elsewhere)
   if (d?.kind === "list") return listDrop(item, item.group ? { ...d, group: null } : d)
   return d && canDropAt(item, d) ? d : null
 }

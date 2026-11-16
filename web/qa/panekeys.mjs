@@ -5,7 +5,7 @@
 //   node web/qa/panekeys.mjs <base url> <vault path> [out dir]
 import { mkdirSync, readdirSync, readFileSync } from "node:fs"
 import { command, qa, wait } from "./lib/qa.mjs"
-const { args: [B, VAULT, OUT = "/tmp/panekeys-shots/"], browser, check, watch, done } = await qa(import.meta.url)
+const { args: [B, VAULT, OUT = "/tmp/panekeys-shots/"], browser, check, watch, done } = await qa(import.meta.url, { motion: true })
 mkdirSync(OUT, { recursive: true })
 const MAC = process.platform === "darwin"
 const note = readdirSync(`${VAULT}/Notes`).filter((f) => f.endsWith(".md")).sort()[0]

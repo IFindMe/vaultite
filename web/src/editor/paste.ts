@@ -2,6 +2,7 @@ import { syntaxTree } from "@codemirror/language"
 import { EditorSelection, type EditorState, type TransactionSpec } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import type { SyntaxNode } from "@lezer/common"
+import { htmlTable } from "./tablePaste.ts"
 
 const RAW = /^(FencedCode|CodeBlock|InlineCode|Frontmatter|Table)$/
 export function pastesRaw(state: EditorState, pos: number) {
@@ -32,12 +33,13 @@ export function pasteLink(e: Paste, view: Into) {
 }
 
 const FORMATTED = /<(a|b|strong|em|i|u|s|del|strike|mark|h[1-6]|ul|ol|li|img|pre|code|blockquote|table|hr|input)\b|<span\b[^>]*style="[^"]*(font-weight|font-style|line-through)/i
+const tableCellsOnly = (html: string) => htmlTable(html) !== null
 const colouredCode = (d: Paste["clipboardData"] & {}, html: string) => d.types.includes("vscode-editor-data") || (/white-space:\s*pre/i.test(html) && !/<pre\b/i.test(html))
 
 export function pasteHtml(e: Paste, view: Into) {
   const d = e.clipboardData, html = d?.getData("text/html") ?? ""
   const { state } = view, at = state.selection.main
-  if (!d || !FORMATTED.test(html) || colouredCode(d, html) || !state.facet(EditorView.editable)) return false
+  if (!d || !FORMATTED.test(html) || tableCellsOnly(html) || colouredCode(d, html) || !state.facet(EditorView.editable)) return false
   if (state.selection.ranges.length > 1 || pastesRaw(state, at.from)) return false
   e.preventDefault()
   const plain = d.getData("text/plain"), doc = state.doc

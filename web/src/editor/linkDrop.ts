@@ -10,6 +10,8 @@ export function draggedFiles(item: DragItem, isFile: (path: string) => boolean):
   return paths.every(isFile) ? paths : []
 }
 
+const inOwnView = (el: Element) => !!el.closest("[data-no-edit]")
+
 let made = 0
 export function linkDrops(get: () => { isFile: (path: string) => boolean; link: (path: string) => string } | undefined) {
   return ViewPlugin.define((view) => {
@@ -17,7 +19,7 @@ export function linkDrops(get: () => { isFile: (path: string) => boolean; link: 
     const files = (item: DragItem) => { const g = get(); return g ? draggedFiles(item, g.isFile) : [] }
     const off = addDropTarget(id, {
       at: (item, x, y, el) => {
-        if (!el || !view.contentDOM.contains(el) || !takesDrops(view) || !files(item).length) return null
+        if (!el || !view.contentDOM.contains(el) || inOwnView(el) || !takesDrops(view) || !files(item).length) return null
         const spot = pointAt(view, { x, y })
         markDrop(view, spot)
         return { data: spot }

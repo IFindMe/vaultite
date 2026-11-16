@@ -6,6 +6,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Desktop: a pop-out's tab held over a note in the main window shows where it would land and lands there again.
 - Phone: turned sideways, the app keeps the phone's layout instead of switching to the desktop's, so a video playing (full
   screen too), a terminal or anything else carries on undisturbed, the page keeps its place, and the header, sidebar,
   sheets and page keep clear of the notch; notes keep a reading width, while terminals, chats and graphs use the whole
@@ -28,6 +29,13 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Notes: Add photo is Add photo or video, so the iPhone's library offers videos too.
 - Updates: a CI run that passes when it is re-run is taken within a few minutes, and shows as running while it re-runs.
 - Voice: on a busy Mac, the end of an ElevenLabs answer is no longer cut off.
+- Notes: a note open twice (a tab and a sheet or sidebar) no longer saves one copy's older text over the other's, or
+  over a change an agent just made.
+- Notes: a row of cells pasted from a spreadsheet goes in as its text again, not as a table of one header row.
+- Notes: a card dragged to another column of a board in a note moves there again, instead of dropping into the note as
+  a link.
+- First run: the look page's layouts fit its card, all four of them, instead of the first and last being cut off.
+- Browser: quitting on a busy computer no longer loses a web tab's last picture, so it shows again while the page loads.
 
 - iPhone: the header and the bottom bar step out of the way while you scroll down a page and come back when you scroll
   up or tap; the bottom bar floats as a rounded bar, and the header stays in place while the keyboard is up.

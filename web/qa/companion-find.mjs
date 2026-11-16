@@ -36,7 +36,8 @@ await wait(400)
 const named = await page.evaluate(() => {
   const ox = window.screenX, oy = window.screenY + Math.max(0, window.outerHeight - window.innerHeight)
   const at = (r) => ({ x: Math.round(ox + r.left), y: Math.round(oy + r.top), w: Math.round(r.width), h: Math.round(r.height) })
-  const el = [...document.querySelectorAll("button[aria-label]")].find((e) => { const r = e.getBoundingClientRect(); return r.width > 4 && r.top >= 0 && r.bottom <= innerHeight && !e.closest(".companion-overlay") })
+  const seen = (e) => { for (let p = e; p; p = p.parentElement) if (Number(getComputedStyle(p).opacity) < 0.05) return false; return getComputedStyle(e).visibility === "visible" }
+  const el = [...document.querySelectorAll("button[aria-label]")].find((e) => { const r = e.getBoundingClientRect(); return r.width > 4 && r.top >= 0 && r.bottom <= innerHeight && !e.closest(".companion-overlay") && seen(e) })
   const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
   let text = null
   for (let n = walk.nextNode(); n && !text; n = walk.nextNode()) {

@@ -237,6 +237,13 @@ try {
   const fb = await file.boundingBox(), gp2 = await row("Garden planner").boundingBox()
   await page.mouse.move(fb.x + 40, fb.y + fb.height / 2); await page.mouse.down()
   await page.mouse.move(fb.x + 48, fb.y + fb.height / 2 + 4, { steps: 2 }); await page.mouse.move(gp2.x + 60, gp2.y + gp2.height * 0.3, { steps: 12 })
+  const laidOutAfterEdgeScroll = await page.evaluate(() => {
+    const gp = [...document.querySelectorAll("[data-tabs-panel] [data-slide]")].find((e) => e.textContent.trim() === "Garden planner")
+    const r = gp.getBoundingClientRect(), m = /translateY\((-?[\d.]+)px\)/.exec(gp.style.transform)
+    return { x: r.x, y: r.top - (m ? +m[1] : 0), h: r.height }
+  })
+  const laid = laidOutAfterEdgeScroll
+  await page.mouse.move(laid.x + 60, laid.y + laid.h * 0.3, { steps: 2 })
   // (measured as they are now: the sidebar may have scrolled a little under the pointer, near its top)
   const measure = () => page.evaluate(() => {
     const rows = [...document.querySelectorAll("[data-tabs-panel] [data-slide]")], gp = rows.find((e) => e.textContent.trim() === "Garden planner")

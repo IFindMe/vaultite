@@ -211,9 +211,9 @@ try {
   check("desktop: sees the phone's tab back on Three", !!(await until(async () => (await dTabs()).some((t) => t.includes("Three")) && !(await dTabs()).some((t) => t.includes("Board")), 6000)), await dTabs())
 
   // ---------- desktop opens and closes: the phone follows, keeping the tab on screen ----------
+  const n1 = await pCount()
   await D.click("[data-tab-bar] button[aria-label='New tab']"); await dUi.idle()
   await D.evaluate((h) => { location.hash = h }, hash("Four"))
-  const n1 = await pCount()
   check("phone: sees the desktop's new tab", !!(await until(async () => (await pCount()) === n1 + 1, 6000)), await pCount())
   check("phone: still on Three", await onScreen("Three"), await pHash())
   await D.locator("[data-tab-bar] [data-tab-id]", { hasText: "Two" }).hover()

@@ -6,14 +6,14 @@ const { args: [B], browser, check, watch, done } = await qa(import.meta.url)
 
 const at = (s) => new Date(Date.now() - 600_000 + s * 1000).toISOString()
 const S = (state, more = {}) => ({ id: "qa-chat", state, cwd: "/Users/alice/lighthouse", account: "default", by: "app", model: "claude-opus-5-5", effort: "high",
-  mode: "auto", started: Date.now() - 600_000, at: Date.now() - 5000, asks: [], seq: 1, told: 0, turn: null, ...more })
+  mode: "auto", started: Date.now() - 600_000, at: Date.now() - 5000, asks: [], seq: 1, told: 0, turn: null, background: 0, ...more })
 const user = (id, text, s) => ({ k: "user", id, text, at: at(s) })
 const words = Array.from({ length: 40 }, (_, n) => ({ k: "text", id: `m${n}:0`, text: `Paragraph ${n}: the launch page builds from its front matter now.`, at: at(n + 2) }))
 const PERMISSION = { k: "ask", id: "ask:t9", kind: "permission", tool: "Bash", title: "Run a command?", detail: "Deploy to preview", input: { command: "npm run deploy" }, always: "npm run commands", at: at(50) }
 const QUESTION = { k: "ask", id: "ask:t8", kind: "question", tool: "AskUserQuestion", title: "Where should the date live?", at: at(50),
   questions: [{ question: "Where should the launch date live?", header: "Date", options: [{ label: "Front matter" }, { label: "Config file" }, { label: "Environment" }] }] }
-const hello = (s, live) => JSON.stringify({ t: "hello", found: true, s, title: "Read the launch date", cwd: s.cwd, account: "default", model: s.model, effort: "high", tui: null, driven: "",
-  history: { entries: live, start: 0 } })
+const hello = (s, live) => JSON.stringify({ t: "hello", id: s.id, found: true, s, title: "Read the launch date", cwd: s.cwd, account: "default", model: s.model, effort: "high", tui: null, driven: "",
+  history: { entries: live, start: 0, total: live.length } })
 
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
 async function open(first) {

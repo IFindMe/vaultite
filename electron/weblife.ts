@@ -77,7 +77,7 @@ export function mayLeave(wc: WebContents, win: BaseWindow, quiet: boolean) {
 export const unloadPages = async () => {
   for (const p of pages.values()) keepPast(p, true)
   restoreMod?.savePasts()
-  await Promise.race([Promise.all([...pages.values()].filter((p) => shown(p.spot)).map(keepFrame)), new Promise((done) => setTimeout(done, 800))])
+  await Promise.all([...pages.values()].filter((p) => shown(p.spot)).map((p) => keepFrame(p, QUIT_FRAME_MS)))
   return Promise.all([...pages.values()].map((p) => { p.closing = true; return unload(p.view.webContents) })).then(() => {})
 }
 
@@ -139,14 +139,14 @@ export function keepPast(p: Page, settle = false) {
   const h = wc.navigationHistory
   restoreMod.keepPast(p.tab, p.profile, h.getAllEntries(), h.getActiveIndex(), shows, settle)
 }
-const FRAME_MS = 1500
-function keepFrame(p: Page): Promise<void> | null {
+const FRAME_MS = 1500, QUIT_FRAME_MS = 800
+function keepFrame(p: Page, captureMs = FRAME_MS): Promise<void> | null {
   const wc = p.view.webContents
   if (!p.tab || p.agent || p.fresh || p.error || p.crashed || !wc || wc.isDestroyed() || p.win.isDestroyed() || !shows(wc.getURL()) || !mayPicture(p.profile)) return null
   const tab = p.tab, b = p.view.getBounds(), z = p.win.webContents.getZoomFactor()
   const f = { url: wc.getURL(), profile: p.profile, width: Math.round(b.width / z), height: Math.round(b.height / z) }
   if (b.width < 2 || b.height < 2) return null
   // (bounded: on Linux a page just back from its closing player never gets its capture, and its close waits on this)
-  const img = Promise.race([wc.capturePage(), new Promise<null>((r) => setTimeout(r, FRAME_MS, null).unref())])
-  return img.then(async (i) => { if (i) (await restore()).keepFrame(tab, i, f) }).catch(() => {})
+  const img = Promise.race([wc.capturePage(), new Promise<null>((r) => setTimeout(r, captureMs, null).unref())])
+  return img.then(async (i) => { if (i) await (await restore()).keepFrame(tab, i, f) }).catch(() => {})
 }

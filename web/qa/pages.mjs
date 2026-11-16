@@ -141,7 +141,8 @@ await mui.sees(RECAP, () => api("PUT", "file", { path: RECAP, text: "---\ntype: 
 await m.goto(`${B}#settings`); await m.locator('[data-settings-nav="files"]').waitFor(); await mui.idle()
 check("Settings doesn't list the pages (Pinned's settings do)", !(await m.locator("[data-page-row]").count()))
 // (a part of Files)
-await m.locator('[data-settings-nav="files"]').tap(); await m.locator("dialog[open] [data-page-row]").first().waitFor(); await mui.idle()
+await m.locator('[data-settings-nav="files"]').tap()
+await m.locator('dialog[open] [data-settings-advanced-row]').tap(); await m.locator("dialog[open] [data-page-row]").first().waitFor(); await mui.idle()
 check("Pinned's settings: the pages, saying how many are pinned", (await m.locator("dialog[open] [data-page-row]").count()) >= drawer.length &&
   (await m.locator("dialog[open] [data-pages-count]").innerText()).includes(`${drawer.length} pinned`), await m.locator("dialog[open] [data-pages-count]").innerText().catch(() => ""))
 check("Pinned's settings: a day's recap isn't among the pages not pinned", !(await m.locator(`dialog[open] [data-page-row="${RECAP}"]`).count()))

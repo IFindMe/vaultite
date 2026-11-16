@@ -142,6 +142,18 @@ await section("autosave", async () => {
     tab.close(); docked.close()
   }
   {
+    srv.text = "a\n"
+    const tab = open(), sheet = open()
+    tab.type("a b\n")
+    await tab.saver.save()
+    await sheet.saver.check()
+    await sheet.saver.save()
+    await ticks()
+    check("autosave: an editor not following another takes its save as anyone's, never saving its old text back over it",
+      srv.text === "a b\n" && sheet.text === "a b\n", { disk: srv.text, sheet: sheet.text })
+    tab.close(); sheet.close()
+  }
+  {
     srv.text = "a\nb\n"
     const ed = open()
     ed.type("a\nb\nc\n")

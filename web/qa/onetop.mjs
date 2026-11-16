@@ -11,7 +11,7 @@ const B = arg.endsWith("/") ? arg : `${arg}/`
 /** The palette-like boxes open, which one has the keyboard, and whether that one is what's drawn on top (the point at
  *  its middle hits it). */
 const state = (page) => page.evaluate(() => {
-  const boxes = [...document.querySelectorAll("[data-overlay] > [role=dialog]")]
+  const boxes = [...document.querySelectorAll("[data-palette] [role=dialog][aria-modal=true]")]
   const a = document.activeElement
   const typed = boxes.findIndex((b) => b.contains(a))
   const top = (b) => { const r = b.getBoundingClientRect(); return b.contains(document.elementFromPoint(r.x + r.width / 2, r.y + 20)) }

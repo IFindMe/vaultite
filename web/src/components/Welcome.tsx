@@ -152,7 +152,7 @@ function LookPage() {
   return (
     <>
       <Head title="Choose a layout">It changes behind this card as you pick. {"Settings > Appearance"} has it too.</Head>
-      <LayoutPicker builtInOnly menus={false} open="none" silent describe="center" className="flex-nowrap justify-center gap-x-[12px]" />
+      <LayoutPicker builtInOnly menus={false} open="none" silent describe="center" fitOneRow className="justify-center gap-x-[12px]" />
       <Segmented<Theme> label="Theme" value={theme} onChange={(t) => setPrefs({ theme: t })} options={THEMES.map((t) => ({ ...t, attrs: { "data-welcome-theme": t.value } }))}
         className="mx-auto mt-4 w-full max-w-[300px]" />
     </>

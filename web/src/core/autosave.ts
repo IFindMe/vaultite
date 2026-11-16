@@ -196,7 +196,7 @@ export function makeAutosave(path: string, initial: string, options: Options) {
   const sentMaybe = (text: string) => { unconfirmed = [...unconfirmed.filter((t) => t !== text), text].slice(-5) }
   const ownSave = (disk: string, base: string) => {
     const body = splitFm(disk).body
-    return [...unconfirmed, ...sentByOthers(where(), me)].find((t) => t === disk || (splitFm(t).body === body && body !== splitFm(base).body))
+    return [...unconfirmed, ...(following ? sentByOthers(where(), me) : [])].find((t) => t === disk || (splitFm(t).body === body && body !== splitFm(base).body))
   }
   const adopt = (own: string, disk: string) => {
     const typed = now(), merged = own === disk ? typed : merge3(own, typed, disk) ?? typed

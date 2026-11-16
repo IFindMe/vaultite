@@ -203,6 +203,8 @@ import { plugin, same, web } from "./lib.ts"
     !(await pasted(view("x", 1), { "text/html": '<div style="white-space: pre;"><span style="font-style: italic;">// c</span></div>', "text/plain": "// c" })).took &&
     !(await pasted(view("x", 1), { "vscode-editor-data": "{}", ...page })).took &&
     !(await pasted(view("```\nx\n```", 5), page)).took && !(await pasted(view("ab", 0, 0, [1, 1]), page)).took)
+  check("paste HTML: cells a table paste left (a row, a cell) go in as text, not a table of one row",
+    !(await pasted(view("x", 1), { "text/html": "<table><tr><td>Lamp oil</td><td>42</td></tr></table>", "text/plain": "Lamp oil\t42" })).took)
   check("html to Markdown: Google Docs' wrapper isn't bold, the app's own links come back as wikilinks",
     htmlToMarkdown('<b style="font-weight:normal;" id="docs-internal-guid-1"><p>Hi <span style="font-weight:700">there</span></p></b>') === "Hi **there**" &&
     htmlToMarkdown('<a class="wikilink" data-wiki="Idea#Plans">Idea › Plans</a> and <a data-wiki="Idea">the idea</a>') === "[[Idea#Plans]] and [[Idea|the idea]]",
