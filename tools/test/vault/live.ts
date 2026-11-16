@@ -75,6 +75,8 @@ export default async ($: VaultTest) => {
     fs.writeFileSync(path.join(VAULT, ".trash/Deleted 1.md"), "Trashed.\n")
     await new Promise((r) => setTimeout(r, 300))
     check("live: what no walk sees (the trash) doesn't walk", walks === 0 && vault.vouched(), walks)
+    await $.app.callOp("plugin.list", {})
+    check("live: nor does a read op the server runs itself (a plugin's timer), nothing heard since", walks === 0, walks)
     vault.heard("Notes/Live five.md")
     check("live: a change not in the index isn't vouched for", !vault.vouched())
     await vault.synced({ trusting: true })

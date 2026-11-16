@@ -7,7 +7,7 @@ import { inflateZlib } from "../../../plugins/core/terminal/claude-pictures/deco
 import { Unreadable } from "../../../plugins/core/terminal/claude-pictures/decode/pixels.ts"
 import { decodePng } from "../../../plugins/core/terminal/claude-pictures/decode/png.ts"
 import { decodePng as termdPng } from "../../../plugins/core/terminal/termd/png.ts"
-import { check, section } from "../lib.ts"
+import { check, cpuMs, section } from "../lib.ts"
 import { checkPicture, distance, FIXTURES, fixture, LIMITS, reference } from "./compare.ts"
 
 export async function testPng() {
@@ -50,10 +50,10 @@ export async function testPng() {
 
     /** 1 when it threw anything but Unreadable. */
     function attempt(b: Uint8Array) {
-      const t = performance.now()
-      try { decodePng(b, LIMITS) } catch (e) { if (!(e instanceof Unreadable)) return 1; threw++ }
-      if (performance.now() - t > 500) slow++
-      return 0
+      const { value: how, ms } = cpuMs(() => { try { decodePng(b, LIMITS); return "decoded" } catch (e) { return e instanceof Unreadable ? "unreadable" : "threw" } })
+      if (ms > 500) slow++
+      if (how === "unreadable") threw++
+      return how === "threw" ? 1 : 0
     }
   })
 }

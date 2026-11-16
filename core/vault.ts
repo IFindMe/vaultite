@@ -250,7 +250,7 @@ export function readSoon(p: string, wait = READ_WAIT, { join = false } = {}): Pr
   } else {
     data = arrived(p).finally(() => { if (reading.get(p) === r) reading.delete(p) })
     data.catch(() => {})
-    const r = { since: Date.now(), data }
+    const r = { since: was?.since ?? Date.now(), data }
     reading.set(p, r)
   }
   let timer: ReturnType<typeof setTimeout> | undefined

@@ -4,17 +4,15 @@ import fs from "node:fs"
 import path from "node:path"
 import { Unreadable } from "../../../plugins/core/terminal/claude-pictures/decode/pixels.ts"
 import { decodeWebp } from "../../../plugins/core/terminal/claude-pictures/decode/webp/index.ts"
-import { check, section } from "../lib.ts"
+import { check, cpuMs, section } from "../lib.ts"
 import { checkPicture, FIXTURES, fixture, LIMITS, reference } from "./compare.ts"
 
 const DIR = "webp"
 
 /** How a damaged copy went: decoded, thrown Unreadable, or thrown something else (a bug); and how long it took. */
 function attempt(data: Uint8Array) {
-  const t0 = performance.now()
-  let how = "decoded"
-  try { decodeWebp(data, LIMITS) } catch (e) { how = e instanceof Unreadable ? "unreadable" : `threw ${String(e)}` }
-  return { how, ms: performance.now() - t0 }
+  const { value: how, ms } = cpuMs(() => { try { decodeWebp(data, LIMITS); return "decoded" } catch (e) { return e instanceof Unreadable ? "unreadable" : `threw ${String(e)}` } })
+  return { how, ms }
 }
 
 /** A RIFF WebP of `chunks` (fourcc and payload each, an odd one padded). */

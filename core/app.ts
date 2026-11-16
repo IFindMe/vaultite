@@ -710,13 +710,13 @@ export class App {
     const hit = this.opNamed(name)
     if (!hit) throw this.noOp(name)
     const { op, plugin } = hit
-    const write = op.kind !== "read"
+    const write = op.kind !== "read", serversOwn = !opts.http && !who.client && !who.agent
     const run = () => requestWriter.run(writerAs(who), () => this.runOp(op.id, given, { who, http: opts.http, input: opts.input }))
     const t0 = performance.now()
     const end = this.reported("POST", `ops/${op.id}`, {}, who, opts.report)
     try {
       const out = this.holding.getStore()?.on ? await run() : write && op.lock !== false ? await this.hold(run)
-        : opts.synced ? await run() : await this.vault.synced().then(run)
+        : opts.synced ? await run() : await this.vault.synced({ trusting: serversOwn }).then(run)
       const text = op.text ? op.text(out.result, out.params, who) : typeof out.result === "string" ? out.result
         : jsonBlock(out.result ?? null)
       const image = op.image?.(out.result) ?? null

@@ -108,23 +108,25 @@ export default async ($: VaultTest) => {
     const { iCloud, readSoon, readText } = await import("../../../core/vault.ts")
     const file = path.join(VAULT, "Notes/Queued.md"), readAsync = fs.promises.readFile, was = { ...iCloud }
     write("Notes/Queued.md", "Queued.\n")
-    let free = () => {}
+    const frees: (() => void)[] = []
     fs.promises.readFile = ((p: string, ...a: unknown[]) => path.resolve(String(p)) === path.resolve(file)
-      ? new Promise((ok) => { free = () => ok(readAsync(p, ...(a as []))) }) : (readAsync as (...x: unknown[]) => Promise<unknown>)(p, ...a)) as typeof fs.promises.readFile
+      ? new Promise((ok) => { frees.push(() => ok(readAsync(p, ...(a as [])))) }) : (readAsync as (...x: unknown[]) => Promise<unknown>)(p, ...a)) as typeof fs.promises.readFile
     try {
       const late = await readSoon(file, 50)
-      await sleep(1100)
+      await sleep(900)
+      void readSoon(file, 50)
+      await sleep(200)
       let text: string | null = null
       try { text = readText(file) } catch { /* held */ }
       check("a slow read of a file on disk isn't iCloud's: it reads", late === null && text === "Queued.\n", text)
       Object.assign(iCloud, { on: true, evicted: (abs: string) => path.resolve(abs) === path.resolve(file) })
       let held = false
       try { readText(file) } catch (e) { held = (e as NodeJS.ErrnoException).code === "EDEADLK" }
-      check("…a placeholder's still waits for iCloud", held)
+      check("…a placeholder's still waits for iCloud, read again meanwhile or not", held)
     } finally {
       fs.promises.readFile = readAsync
       Object.assign(iCloud, was)
-      free()
+      for (const free of frees) free()
       fs.rmSync(file, { force: true })
     }
   }
