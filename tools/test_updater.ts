@@ -269,12 +269,12 @@ const ahead = placed({ ...at, relation: "ahead", here }), aheadOld = placed({ ..
 check("ahead: current when it runs the checkout's commit, else waits for the push", ahead?.state === "current" && aheadOld?.state === "waiting", { ahead, aheadOld })
 check("ahead: names the commits not on the branch", /2 commits not on origin\/main \(c0ffee1 feat\(web\): local one and c0ffee2/.test(ahead?.why ?? "") && ahead?.blocked?.by === "unpushed" && ahead.blocked.commits?.length === 2, ahead)
 const diverged = placed({ ...at, relation: "diverged", here, there: { count: 5, list: [] } })
-check("diverged: a new failure on the branch's commit, to keep", diverged?.state === "failed" && diverged.fail === true && diverged.next === "r" && /diverged/.test(diverged.why), diverged)
+check("diverged: failed, the checkout's state, not kept against the branch's commit", diverged?.state === "failed" && diverged.next === "r" && /diverged/.test(diverged.why), diverged)
 check("diverged: says what the checkout has and origin has", /has 2 commits not on origin\/main \(c0ffee1.*\), origin has 5 it hasn't/.test(diverged?.why ?? "") && diverged?.blocked?.by === "diverged", diverged)
 const error = { at: 1, commit: "r", message: "r didn't install or build" }
 const again = placed({ ...at, relation: "diverged", failed: error, here }), behindAgain = placed({ ...at, relation: "behind", failed: error })
-check("the commit that failed before: failed again, not kept anew, not tried", again?.state === "failed" && !again.fail && /diverged/.test(again.why) && again.blocked?.by === "diverged"
-  && behindAgain?.state === "failed" && !behindAgain.fail && behindAgain.next === "r" && behindAgain.why === error.message, { again, behindAgain })
+check("the commit that failed before: failed again, not tried", again?.state === "failed" && /diverged/.test(again.why) && again.blocked?.by === "diverged"
+  && behindAgain?.state === "failed" && behindAgain.next === "r" && behindAgain.why === error.message, { again, behindAgain })
 check("an older failure doesn't stop a newer commit", placed({ ...at, relation: "behind", failed: { ...error, commit: "x" } }) === null)
 
 await exit(summary("updater", t0))

@@ -53,9 +53,9 @@ export const updateStatus = (): UpdateStatus => ({ ...status, looking: !!looking
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`
 type Commits = { count: number; list: string[] }
 
-type Stop = { state: UpdateState; why: string; next?: string; fail?: true; blocked?: Blocked }
-/** Where the checkout stands against the branch, before CI is asked: a status to stop at (`fail`: a new failure, to
- *  keep), or null to go on. `here`: the checkout's commits not on the branch (ahead or diverged), `there` the reverse. */
+type Stop = { state: UpdateState; why: string; next?: string; blocked?: Blocked }
+/** Where the checkout stands against the branch, before CI is asked: a status to stop at, or null to go on. `here`: the
+ *  checkout's commits not on the branch (ahead or diverged), `there` the reverse. */
 export function placed(p: { branch: string; head: string; remote: string; running: string; relation: Relation; failed?: Kept["error"]; here?: Commits; there?: Commits }): Stop | null {
   const here = p.here ?? { count: 0, list: [] }
   const mine = `${plural(here.count, "commit")} not on origin/${p.branch}${here.list.length ? ` (${capped(here.list, here.count)})` : ""}`
@@ -66,11 +66,10 @@ export function placed(p: { branch: string; head: string; remote: string; runnin
       ? { state: "current", why: `the checkout runs ${mine}: updates go on once they're pushed`, blocked }
       : { state: "waiting", why: `the checkout has ${mine}: they run once pushed and CI passed`, blocked }
   }
-  const again = p.failed?.commit === p.remote
   if (p.relation === "diverged") {
     const theirs = p.there ? `, origin has ${p.there.count} it hasn't` : ""
     return { state: "failed", why: `the checkout and origin/${p.branch} have diverged, so it can't fast-forward: the checkout has ${mine}${theirs}`,
-      next: p.remote, ...(again ? {} : { fail: true as const }), blocked: { by: "diverged", commits: here.list } }
+      next: p.remote, blocked: { by: "diverged", commits: here.list } }
   }
   if (p.failed?.commit === p.remote) return { state: "failed", why: p.failed.message, next: p.remote }
   return null
@@ -125,7 +124,7 @@ async function lookOnce(o: UpdaterOptions): Promise<UpdateStatus> {
     const here = rel === "ahead" || rel === "diverged" ? await commitsNotIn(git, remote, head) : undefined
     const there = rel === "diverged" ? await commitsNotIn(git, head, remote) : undefined
     const stop = placed({ branch: o.branch, head, remote, running, relation: rel, failed: kept.error, here, there })
-    if (stop) return stop.fail ? fail(remote, stop.why, undefined, stop.blocked) : set(stop.state, stop.why, stop)
+    if (stop) return set(stop.state, stop.why, stop)
     const dirty = o.bare ? [] : await dirtyFiles(git)
     if (dirty.length) return set("waiting", `the checkout has uncommitted changes (${capped(dirty)}): it updates once they're committed or undone`, { next: remote, blocked: { by: "uncommitted", files: dirty.slice(0, 20) } })
     const repo = await originRepo(git) ?? ""

@@ -143,6 +143,9 @@ await section("what it won't update", async () => {
   const d = await look()
   check("diverged from origin: failed, nothing changed", d.state === "failed" && /diverged/.test(d.why) && fs.existsSync(path.join(server, "local.txt")), d)
   check("…naming the checkout's own commit", /has 1 commit not on origin\/main \(\w+ local\), origin has 1 it hasn't/.test(d.why) && d.blocked?.by === "diverged", d)
+  git(server, "reset", "--quiet", "--hard", "HEAD~1")
+  const r = await look()
+  check("…set right with nothing new on origin: it updates, the checkout's state not held against origin's commit", r.state === "current" && head() === git(server, "rev-parse", "origin/main"), r)
 })
 
 await section("the log: each change of state or reason once, with the commits", async () => {

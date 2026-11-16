@@ -6,6 +6,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Updates: a checkout set right after diverging updates at its next look, without waiting for a newer commit.
 - Updates: an app running from its code store keeps updating after main's history is rewritten with the same files (re-signed
   commits, say), instead of stopping as diverged.
 - iCloud: a note iCloud is slow to give no longer holds the server up when the vault is read again meanwhile.
