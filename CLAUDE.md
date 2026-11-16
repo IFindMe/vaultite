@@ -89,6 +89,7 @@ is its point.
   else runs (`pgrep -fl "Chrome for Testing"`), close every browser and server you start, and don't raise `--jobs`.
   QA browsers queue for the machine's slots (`tools/qa_slots.ts`), verify's tests for its own and free memory
   (`tools/verify_room.ts`); a run waiting for one is normal, and verify's `NOT DONE` (exit 3) after 6 min of it means run it again.
+- Subagents in their own worktrees share one build: build once before starting them, never `npm run build` in each at once (4 parallel `tsc` took 14 GB and ran the M4 out of memory).
 - Stop a server by its port: `kill $(lsof -tiTCP:<port> -sTCP:LISTEN)`, then its terminal server (the pid in
   `vaultite-termd<PROTOCOL>-vaultite-<port>.sock.pid` (termd/protocol.ts) under `core/runtime.ts`' dir).
   Pattern kills (`pkill -f`, `killall`) hit the user's own apps.
