@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Updates: an app running from its code store keeps updating after main's history is rewritten with the same files (re-signed
+  commits, say), instead of stopping as diverged.
 - Desktop: a pop-out's tab held over a note in the main window shows where it would land and lands there again.
 - Phone: turned sideways, the app keeps the phone's layout instead of switching to the desktop's, so a video playing (full
   screen too), a terminal or anything else carries on undisturbed, the page keeps its place, and the header, sidebar,

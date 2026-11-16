@@ -218,6 +218,11 @@ await section("a bare clone (a root store's): no branch nor tree, what runs is t
   check("a newer commit: handed to the host from what runs, with the files between", u.state === "current" && applied.length === 1 && applied[0].head === was && applied[0].running === was
     && applied[0].to === next && applied[0].files.join() === "core/bare.ts", { u, applied })
   check("…and what runs is it now", b.running === next && u.running === next)
+  git(dev, "commit", "--quiet", "--amend", "-m", "feat(server): bare, re-signed"); git(dev, "push", "--quiet", "--force", "origin", "HEAD:main")
+  const after = commit({ "core/after.ts": "1" }, "feat(server): after the rewrite")
+  const r = await checkForUpdate(b)
+  check("history rewritten under what runs, the same files: not diverged, it takes what came after", r.state === "current" && applied.length === 2
+    && applied[1].running === next && applied[1].to === after && applied[1].files.join() === "core/after.ts", { r, applied })
 })
 
 section("what restarts the server")

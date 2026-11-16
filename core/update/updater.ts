@@ -7,7 +7,7 @@ import { type Blocked, type Judged, type UpdateState, UpdateStatus } from "../co
 import { readJson } from "../jsonfile.ts"
 import type { Relation } from "./git.ts"
 import { logger } from "../log.ts"
-import { capped, changedFiles, commitsNotIn, commitsSince, currentBranch, dirtyFiles, fetchBranch, gitIn, originRepo, pickTarget, relation, short } from "./git.ts"
+import { capped, changedFiles, commitsNotIn, commitsSince, currentBranch, dirtyFiles, fetchBranch, gitIn, originRepo, pickTarget, relation, sameFilesOn, short } from "./git.ts"
 import { isObj } from "../values.ts"
 
 const Kept = z.object({ last: UpdateStatus.shape.last.catch(undefined), error: UpdateStatus.shape.error.catch(undefined) })
@@ -114,11 +114,14 @@ async function lookOnce(o: UpdaterOptions): Promise<UpdateStatus> {
   try {
     const on = o.bare ? o.branch : await currentBranch(git)
     if (on !== o.branch) return set("waiting", `the checkout is on ${on || "a detached commit"}, not ${o.branch}: it updates once ${o.branch} is checked out again`, { blocked: { by: "branch" } })
-    const fetched = await fetchBranch(git, o.branch), { remote } = fetched, head = o.bare ? o.running || remote : fetched.head
+    const fetched = await fetchBranch(git, o.branch), { remote } = fetched
+    let head = o.bare ? o.running || remote : fetched.head
     origin = remote
     o.running ||= head
     const running = o.running
-    const rel = await relation(git, head, remote)
+    let rel = await relation(git, head, remote)
+    const rewritten = o.bare && rel === "diverged" ? await sameFilesOn(git, head, remote) : null
+    if (rewritten) [head, rel] = [rewritten, await relation(git, rewritten, remote)]
     const here = rel === "ahead" || rel === "diverged" ? await commitsNotIn(git, remote, head) : undefined
     const there = rel === "diverged" ? await commitsNotIn(git, head, remote) : undefined
     const stop = placed({ branch: o.branch, head, remote, running, relation: rel, failed: kept.error, here, there })
