@@ -13,7 +13,7 @@ import { ExtensionButtons, extensionItems, useExtensionBar } from "./Extensions"
 import { AddressBar, type Go } from "./AddressBar"
 import { ContainerButton } from "./ContainerButton"
 import { DownloadsButton } from "./downloads"
-import { signInReached, watchTab } from "./linklogins"
+import { useSignInReached, watchTab } from "./linklogins"
 import { movedFrom } from "./where.ts"
 import { manageContainers } from "./Sites"
 import { argOf, containerById, containers, destination, keepOutside, keptOutside, openBehind, profileIn, splitArg, viewSource } from "./containers"
@@ -170,11 +170,7 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
     if (ownPage(state.url) && state.url !== live.current.arg) { told.current = state.url; live.current.setArg(state.url) }
     if (ownPage(state.url)) setTitle(state.url, state.title)
   }, [state.url, state.title])
-  useEffect(() => {
-    const { signIn, opened } = state
-    if (signIn && opened && tab) void signInReached(tab, container, signIn, opened, (url, c) => live.current.setTabArg(argOf(url, c)))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.signIn])
+  useSignInReached(id, tab, container, state, (url, c) => live.current.setTabArg(argOf(url, c)))
   useEffect(() => setFound(null), [state.url])
 
   const clip = async () => {
@@ -417,7 +413,7 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
         <AddressBar url={state.url} tab={tab} more={() => barItems()} blank={blank} draft={draft} setDraft={setDraft} inputRef={address} onGo={go} onTurn={turn} onTarget={setTarget}
           onLeave={() => { if (id) void web.go(id, "focus") }}
           lead={<ContainerButton container={into.container} url={drafting ? target ?? "" : state.url || arg} why={into.why} pick={pickContainer} manage={manageContainers} />}
-          trail={id > 0 && onWeb ? <>{state.zoom && <ZoomButton zoom={state.zoom} reset={() => void web.go(id, "zoom-reset")} />}<LoginButton id={id} url={state.url} /><ShieldsButton id={id} url={state.url} loading={state.loading} /><StarButton url={state.url} title={state.title} /></> : null} />
+          trail={id > 0 && onWeb ? <>{state.zoom && <ZoomButton zoom={state.zoom} reset={() => void web.go(id, "zoom-reset")} />}<LoginButton id={id} url={state.url} container={container} shown={!tabHidden} /><ShieldsButton id={id} url={state.url} loading={state.loading} /><StarButton url={state.url} title={state.title} /></> : null} />
         {id > 0 && <AgentChip id={id} />}
         {(state.playing || state.muted) && (
           <BarButton icon={state.muted ? VolumeX : Volume2} label={state.muted ? "Unmute tab" : "Mute tab"} onClick={() => void web.go(id, state.muted ? "unmute" : "mute")} />

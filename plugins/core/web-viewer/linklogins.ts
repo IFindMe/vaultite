@@ -1,8 +1,11 @@
+import { useEffect } from "react"
 import { Box } from "lucide-react"
 import { choose, dotIcon, notify, webPages } from "@vaultite"
 import { siteOf } from "./address"
 import { colorOf, containerById, containers, keepOutside, profileIn, setSiteRule } from "./containers"
 import { byLogins, linkRuleIn, ruleSiteOf } from "./where.ts"
+import { useLoginForm } from "./loginforms"
+import { signInOf } from "../../../core/signin.ts"
 
 type Signed = { id: string | null; account: string }
 
@@ -33,6 +36,8 @@ function pick(among: Signed[], site: string, ruleSite: string, current: string |
   })
 }
 
+const pickAny = (...a: Parameters<typeof import("./pickany").pickAny>) => import("./pickany").then((m) => m.pickAny(...a))
+
 const unchosen = new Map<string, number>()
 const watched = new Set<string>()
 const FRESH_MS = 30_000
@@ -54,11 +59,13 @@ export async function openFromApp(url: string, open: (url: string, container: st
   }
   if (d.ask) return pick(among, site, ruleSiteOf(url), undefined, go)
   if (d.open !== undefined) return go(d.open)
+  const signIn = signInOf(url)
+  if (signIn && containers().length) return pickAny(siteOf(`https://${signIn.host}/`), url, undefined, go)
   unchosen.set(url, Date.now())
   open(url, null)
 }
 
-export async function signInReached(tab: string, container: string | null, site: string, opened: string, restart: (url: string, container: string | null) => void) {
+async function signInReached(tab: string, container: string | null, site: string, opened: string, restart: (url: string, container: string | null) => void) {
   if (!watched.delete(tab)) return
   const among = await signedIn(site), d = byLogins(among.map((s) => s.id))
   const go = (id: string | null | undefined) => {
@@ -67,5 +74,20 @@ export async function signInReached(tab: string, container: string | null, site:
     restart(opened, id)
   }
   if (d.ask) pick(among, site, siteOf(opened), container, go)
-  else go(d.open)
+  else if (d.open !== undefined) go(d.open)
+  else if (containers().length) void pickAny(site, opened, container, go)
+}
+
+export function useSignInReached(id: number, tab: string, container: string | null, state: { url: string; opened?: string; signIn?: string },
+  restart: (url: string, container: string | null) => void) {
+  const form = useLoginForm(id)
+  const { signIn, opened, url } = state
+  useEffect(() => {
+    if (signIn && opened && tab) void signInReached(tab, container, signIn, opened, restart)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once per sign-in reached
+  }, [signIn])
+  useEffect(() => {
+    if (form && opened && tab && !signIn) void import("./pickany").then((m) => { if (m.signInPage(url)) void signInReached(tab, container, siteOf(url), opened, restart) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once per login form shown
+  }, [form])
 }

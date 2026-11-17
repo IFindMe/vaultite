@@ -15,7 +15,7 @@ the vault. On the web and phones a web tab links out instead.
   opens stays in its container.
 - Agents: `vau browser ...` and the MCP tools `browser_open`, `browser_tabs`, `browser_snapshot`, `browser_act`,
   `browser_run`, `browser_navigate`, `browser_read`, `browser_wait`, `browser_screenshot`, `browser_pdf`,
-  `browser_evaluate`, `browser_download`, `browser_ask_user`, `browser_login`, `browser_close`, `browser_sites`. Read
+  `browser_evaluate`, `browser_download`, `browser_ask_user`, `browser_login`, `browser_code`, `browser_close`, `browser_sites`. Read
   `vau docs browsing` first.
   - The browser is the desktop app attached to this server. A server without one passes each call to an always-on
     machine in Machines that has one (its tab numbers, its Downloads), never to a laptop's app, and says when none has.
@@ -53,6 +53,8 @@ the vault. On the web and phones a web tab links out instead.
   Nothing else gives a yes. You hear only what happened (filled, entries to pick from, waiting, no entry, said no).
   What's filled reads as ••• everywhere; `evaluate` is off in a page holding it (or any typed password), `screenshot`
   and `pdf` while it shows; a page your script ran in gets no login till it loads again.
+  A code the site mails: `vau browser code <site>` reads it from Gmail signed in to a container agents may read
+  (Gmail's feed of unread mail: nothing opened or marked read), only that site's mail of the last minutes, only its code.
   Adding a passkey, at that Mac: serve Vaultite over https on the tailnet (`tailscale serve --https=8447 8793`), then
   Passwords for agents… > Passkeys that approve logins… > Add a passkey…, scan with the phone, confirm with Touch ID.
 - Bookmarks: the note `Bookmarks.md` (`type: bookmarks`; it may move): a heading per folder (`## Reading`, `### Later`

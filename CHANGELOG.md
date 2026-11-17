@@ -10,6 +10,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   default sends it nothing (only an answer changing it comes back).
 - Companion: what it draws on the screen for an answer stays with that answer in the chat (Conversations and the
   Companion page), with a Play button that draws it on the screen again, beat by beat, instead of being gone once it fades.
+- Browser: a link from another app that reaches a sign-in no container is signed in to asks which container to sign in
+  in, the one signed in with a login your passwords have for the site first; a username-first sign-in page shows the
+  address bar's key, a sign-in page with saved logins offers to fill one (the one this container already uses, among several), and agents read a code a site mails with
+  `vau browser code`.
 - iPhone: a terminal's key row stays right above the keyboard, and the page no longer pans when you start typing or drag
   the terminal.
 - Updates: a checkout set right after diverging updates at its next look, without waiting for a newer commit.

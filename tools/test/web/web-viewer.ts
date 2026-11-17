@@ -199,3 +199,24 @@ import { plugin } from "./lib.ts"
   const from = [...src.matchAll(/^import [^"]*"([^"]+)"/gm)].map((m) => m[1])
   check("Find: the find bar parts other plugins import bring no CodeMirror with them", from.length > 0 && !from.some((f) => /codemirror|lezer/.test(f)), from)
 }
+
+{
+  const { codeFrom, codeIn, mailOf } = await import("../../../electron/signincodes.ts")
+  const entry = (from: string, title: string, summary: string, at: string) =>
+    `<entry><title>${title}</title><summary>${summary}</summary><issued>${at}</issued><author><name>X</name><email>${from}</email></author></entry>`
+  const feed = `<?xml version="1.0"?><feed xmlns="http://purl.org/atom/ns#">${[
+    entry("noreply@lighthouse.app", "Your Lighthouse sign-in code", "Use 482 913 to sign in. It expires in 10 minutes.", "2026-11-16T10:05:00Z"),
+    entry("Alerts@Mail.Lighthouse.App", "Lighthouse: verify your email", "Your verification code is K7Q2XP &amp; nothing else", "2026-11-16T10:01:00Z"),
+    entry("alice.park@example.com", "Lunch on 2026-11-20?", "Code review at 1530 then lunch", "2026-11-16T10:06:00Z"),
+    entry("noreply@lighthouse.app", "Your code", "Your code is 111111", "2026-11-16T09:00:00Z"),
+  ].join("")}</feed>`
+  const mail = mailOf(feed)
+  check("codes: the feed's mail, newest first, its sender lowercased and entities decoded",
+    mail.length === 4 && mail[0].from === "alice.park@example.com" && mail[2].from === "alerts@mail.lighthouse.app" && mail[2].summary.includes("K7Q2XP & nothing"), mail)
+  const since = Date.parse("2026-11-16T09:55:00Z")
+  check("codes: the newest code the site's own domain sent since then, spaces dropped; a lookalike domain's never",
+    codeFrom(mail, "lighthouse.app", since)?.code === "482913" && codeFrom(mail, "lighthouse.com", since) === null && codeFrom(mail, "app", since) === null && codeFrom(mail, "lighthouse.app", Date.parse("2026-11-16T10:06:00Z")) === null)
+  check("codes: letters and digits too; a year, a word or a mail with no sign-in words isn't one",
+    codeIn("Your verification code is K7Q2XP") === "K7Q2XP" && codeIn("Sign in to Lighthouse in 2026") === null
+    && codeIn("Welcome to Lighthouse 482913") === null && codeIn("Your login code: 4821") === "4821")
+}

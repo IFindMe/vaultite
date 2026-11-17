@@ -12,11 +12,13 @@ import { liveView } from "./liveroutes.ts"
 import { grep, within } from "./find.ts"
 import { approvals } from "./approvals.ts"
 import { machineLogins } from "./machinelogins.ts"
+import { signInCodes } from "./codes.ts"
 
 export const plugin = new Plugin(import.meta.url)
 liveView(plugin)
 approvals(plugin)
 machineLogins(plugin)
+signInCodes(plugin)
 
 type Tab = { tab: number; url: string; title: string; container: string | null; access: "none" | "read" | "act"; shown: boolean
   by: string | null; mine: boolean; summary?: string; paused?: boolean; asking?: string }

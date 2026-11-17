@@ -52,6 +52,7 @@ type Answers = {
   "passwords:choose": string | null
   "passwords:fill": { locked?: boolean } | null
   "passwords:fill-list": FillLogin[] | null
+  "passwords:users": string[]
   "passwords:get": Full
   "passwords:give": string
   "passwords:list": { groups: Group[]; entries: Row[] }

@@ -15,15 +15,19 @@ if (/^https?:/.test(location.href)) {
 
   // ---------- whether the frame shows a login form: a password field, a username's or a one-time code's ----------
   // (each document says its state once, even none: a late word from the page before it would stand otherwise)
+  const loginField = (i) => {
+    if (i.type === "password") return true
+    if (!TEXT.has(i.type) && i.type !== "number") return false
+    if (CODE.test(hint(i)) || /one-time-code/.test(ac(i))) return true
+    return !/search|\bq\b/i.test(hint(i)) && (/username|email/.test(ac(i)) || i.type === "email" || USER.test(hint(i)))
+  }
   let told = null, timer = 0
   const scan = () => {
     timer = 0
     let form = false, password = false
     for (const i of document.querySelectorAll("input")) {
       const pw = i.type === "password"
-      if (!pw && !TEXT.has(i.type) && i.type !== "number") continue
-      if (!pw && !/username|one-time-code/.test(ac(i)) && !CODE.test(hint(i))) continue
-      if (!shown(i)) continue
+      if (!loginField(i) || !shown(i)) continue
       form = true
       if (pw) { password = true; break }
     }

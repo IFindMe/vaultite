@@ -75,6 +75,11 @@ handle("passwords:fill-list", async (win, id) => {
   if (!configured()) return null
   return (await entriesForUrl(p.wc.getURL())).map((r) => ({ id: r.id, title: r.title, username: r.username, otp: r.otp }))
 })
+handle("passwords:users", async (_win, url) => {
+  const u = String(url ?? "")
+  if (!configured() || !/^https?:\/\//i.test(u)) return []
+  return [...new Set((await entriesForUrl(u)).map((r) => r.username.trim()).filter(Boolean))]
+})
 /** Fill entry `entry` into page `id`: `{ locked: true }` while the file is (the app unlocks it, then asks again). */
 handle("passwords:fill", async (win, id, entry) => {
   const p = userPage(win, id)

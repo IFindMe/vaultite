@@ -36,6 +36,7 @@ const site = http.createServer((req, res) => {
       res.statusCode = 303; res.setHeader("Location", "/home"); return res.end()
     }
     if (u.pathname === "/home") return res.end(page("Home", "<h1>Welcome</h1>"))
+    if (u.pathname === "/email") return res.end(page("Log in with your email", `<h1>Log in with your email</h1><label>Email <input type="email" name="email"></label><button>Next</button>`))
     res.end(LOGIN)
   })
 })
@@ -110,6 +111,8 @@ check("… locked", (await engine("passwords:status"))?.locked === true)
 await ui({ action: "open", path: `view:web/@work/${SITE}/login`, newTab: true })
 const key = await until(async () => (await win.locator("[data-web-login]").count()) > 0, 20000)
 check("a sign-in page with an entry for its site: the address bar shows the key (the file locked)", !!key)
+const fillToast = await until(async () => { const t = win.locator("[data-sonner-toast]", { hasText: "Sign in to 127.0.0.1 as alice?" }).first(); return (await t.isVisible().catch(() => false)) ? t : null }, 10000)
+check("… and a toast offers to fill its one login", !!fillToast)
 const id = (await win.evaluate(() => window.vaultite.web.list()))?.find((p) => p.url.startsWith(`${SITE}/login`))?.id
 await win.click("[data-web-login]")
 const item = win.locator("[role=menuitem]", { hasText: "Lighthouse" }).first()
@@ -182,6 +185,10 @@ await op("act", { tab: mine.tab, action: "press", ref: ref("Password"), key: "En
 await wait(4000)
 check("an agent signing in in its own page: no offer", (await offers()).length === before, (await offers()).slice(before))
 check("… the agent's page shows no key", !(await engine("passwords:forms"))?.includes?.(mine.tab))
+
+await ui({ action: "open", path: `view:web/@work/${SITE}/email`, newTab: true })
+const emailPage = await until(async () => (await win.evaluate(() => window.vaultite.web.list()))?.find((p) => p.url.startsWith(`${SITE}/email`))?.id, 20000)
+check("an email-only step (no password field yet): it's a login form, so the key shows", await until(async () => (await engine("passwords:forms"))?.includes?.(emailPage), 10000), await engine("passwords:forms"))
 
 // ---------- nothing kept anywhere has a password ----------
 const files = (dir) => { try { return fs.readdirSync(dir, { recursive: true }).map((f) => path.join(dir, String(f))).filter((f) => { try { return fs.statSync(f).isFile() } catch { return false } }) } catch { return [] } }

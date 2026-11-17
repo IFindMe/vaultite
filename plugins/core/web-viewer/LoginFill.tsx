@@ -2,11 +2,10 @@ import { useEffect, useState } from "react"
 import { KeyRound } from "lucide-react"
 import { cell, choose, menuBelow, notify, notifyError, secretDialog, webPages } from "@vaultite"
 import { engine, type FillLogin as Login } from "./engine"
+import { forms, useLoginForm } from "./loginforms"
 
 type Offer = { type: string; offer?: unknown; site?: unknown; username?: unknown; kind?: unknown }
-const forms = cell(new Set<number>())
 const changes = cell(0)
-export const hasLoginForm = (id: number) => !!id && forms.get().has(id)
 const nameOf = (l: Login) => l.title || l.username || "this login"
 
 const loginsFor = (id: number) => engine("passwords:fill-list", id)
@@ -69,8 +68,8 @@ export function watchLogins() {
   })
 }
 
-export function LoginButton({ id, url }: { id: number; url: string }) {
-  const form = forms.use((s) => s.has(id))
+export function LoginButton({ id, url, container, shown }: { id: number; url: string; container: string | null; shown: boolean }) {
+  const form = useLoginForm(id)
   const version = changes.use()
   const [logins, setLogins] = useState<Login[] | null | undefined>(null)
   useEffect(() => {
@@ -79,6 +78,7 @@ export function LoginButton({ id, url }: { id: number; url: string }) {
     loginsFor(id).then((l) => { if (!gone) setLogins(l) }, () => { if (!gone) setLogins(null) })
     return () => { gone = true }
   }, [id, url, form, version])
+  useEffect(() => { if (shown && logins?.length) void import("./filloffer").then((m) => m.offerFill(id, url, container, logins, fill, fillLoginIn)) }, [shown, logins, id, url, container])
   if (!form || !logins?.length) return null
   return (
     <button type="button" aria-label="Fill login" aria-haspopup="menu" data-tip="Fill login" data-web-login

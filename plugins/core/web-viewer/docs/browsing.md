@@ -12,6 +12,6 @@ Each call is a turn of yours, the slow part: let each answer do the work. MCP to
 - **Never sleep.** open, go and act wait for the page to settle; `wait <tab> --text "Saved"` for something slower.
 - **Google Docs:** `read` is the doc's Markdown. Rewrite it whole: `click --name "<some of its text>"`, `press --key Meta+a`, then `paste --format markdown --value - < doc.md`. Add at a place: `click --name "<text there>"`, `press --key End` (or `Meta+ArrowDown`, its end), `paste`. Fix words: `dblclick --name "<word>"`, `type --value "<new>"`; many: Find and replace (`press --key Meta+Shift+h`, fill its fields by name, `click --name "Replace all"`).
 - **Addresses beat clicks** when you know them: `go <tab> <url>` (Gmail: `https://mail.google.com/mail/u/0/#search/<words>`; Drive: `https://drive.google.com/drive/search?q=<words>`).
-- **Only the user can** sign in, pass a check or approve a passkey: `ask <tab> "<what to do>"`, then `wait <tab> --helped --timeout 600`. Logins with the user's passwords for agents: `login <tab>`.
+- **Only the user can** sign in, pass a check or approve a passkey: `ask <tab> "<what to do>"`, then `wait <tab> --helped --timeout 600`. Logins with the user's passwords for agents: `login <tab>`; a code the site mails: `code <site>` (from Gmail, only that code).
 - **Done:** `close <tab>`, unless the user would want to see it.
 - `evaluate` (an expression in the page's DOM, in a world of its own) is for what none of these reach, like every link's address in a table.

@@ -26,7 +26,8 @@ import { barHidden, barItems, marksBarShown, setBarHidden, setMarksBarShown } fr
 import { switcherSearch } from "./switcher"
 import { focusedReplay } from "./replaykeys"
 import { openFromApp } from "./linklogins"
-import { fillLoginIn, hasLoginForm, watchLogins } from "./LoginFill"
+import { fillLoginIn, watchLogins } from "./LoginFill"
+import { hasLoginForm } from "./loginforms"
 import { useSecretKeeper } from "./secretkeeper"
 import { engine } from "./engine"
 
