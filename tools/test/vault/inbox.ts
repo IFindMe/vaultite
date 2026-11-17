@@ -1211,7 +1211,13 @@ export default async ($: VaultTest) => {
           "Waiting on the user (2):\n1. [waits on you] Ship it?\n   Ship: today · Wait (default)\n   The phone is untested\n   Its report: Done on desktop\n   Inbox/Ship it.md · from Claude (Sidebar) · snoozed until 2026-10-24 09:00\n" +
           "2. [went with Keep] Keep it?\n   Keep (default) · Drop\n   Inbox/Keep.md\n\nDealt with in the last day:\n  Old?: answered Yes  (Inbox/Old.md)\n  Moot?: closed (Gone)  (Inbox/Moot.md)"],
         ["inbox.decisions", { decisions: [] }, "No decision waits on the user."],
-        ["inbox.ask", { merged: true, path: "Inbox/Ship it.md", session: true }, "The same question was open already: Inbox/Ship it.md (it says you asked it too). Their answer comes back to this session."],
+        ["inbox.ask", { merged: true, path: "Inbox/Ship it.md", session: true, blocking: true, default: "Wait" }, "The same question was open already: Inbox/Ship it.md (it says you asked it too). Their answer comes back to this session."],
+        ["inbox.ask", { merged: false, path: "Inbox/Keep.md", session: true, blocking: false, default: "Keep" },
+          "Asked: Inbox/Keep.md. You went with \"Keep\": do it now if you haven't, as a default the user keeps isn't sent back; only an answer changing it comes back to this session."],
+        ["inbox.report", { path: "Inbox/R.md", title: "R", inbox: true, closed: [], terminal: "claude-r1", session: null,
+          decisions: [{ path: "Inbox/A.md", question: "A?", merged: false, blocking: true, default: "Wait" }, { path: "Inbox/B.md", question: "B?", merged: false, blocking: false, default: "Make one" }] },
+          "Reported: Inbox/R.md, in the user's inbox.\n  Asked, waiting on it: A? (Inbox/A.md)\n  Asked: B? (Inbox/B.md)\nYou went with \"Make one\": do it now if you haven't, " +
+          "as a default the user keeps isn't sent back; only an answer you wait on, or one changing a default, comes back to this session."],
         ["inbox.ask", { merged: false, path: "Inbox/Ship it.md", blocking: true, session: false, warn: "No why" }, "Asked: Inbox/Ship it.md (it comes first, with a push to the phone).\nWarning: No why"],
         ["inbox.decide", { decided: [], sent: [], failed: [] }, "No decision was open."],
         ["inbox.decide", { decided: [{ path: "a.md", question: "A?", reopened: true }], sent: [], failed: [] }, "Done:\n  Open again: A?"],

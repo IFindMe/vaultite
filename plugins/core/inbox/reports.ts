@@ -2,7 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { defineOp, localDate, OpError } from "../../../core/plugins.ts"
 import { isArchived, nowStamp, safeName, sortBy, str, truthy } from "../../../core/vault.ts"
-import { askAll, type Asker, baseOf, closeSettled, decisionAt, specsOf } from "./asked.ts"
+import { answersBack, askAll, type Asker, baseOf, closeSettled, decisionAt, specsOf } from "./asked.ts"
 import { ending, handed } from "./handed.ts"
 import { clip, TERMINAL } from "./model.ts"
 import { editBody, latest, withTldr } from "./results.ts"
@@ -223,7 +223,7 @@ A job with a proof embeds its demo video: --video <the path tour-save gave> (Gui
     ...r.decisions.map((d) => `  ${d.merged ? "Same as one open already" : d.blocking ? "Asked, waiting on it" : "Asked"}: ${d.question} (${d.path})`),
     ...(r.warn ?? []).map((w) => `Warning: ${w}`),
     ...r.closed.map((c) => `  Closed: ${c}`),
-    r.terminal || r.session ? `Their answers come back to this session${r.terminal && ending.has(r.terminal) ? "; this terminal ends when this turn does." : "."}` : ""].filter(Boolean).join("\n"),
+    r.terminal || r.session ? `${r.decisions.length ? answersBack(r.decisions) : "Their replies come back to this session"}${r.terminal && ending.has(r.terminal) ? "; this terminal ends when this turn does." : "."}` : ""].filter(Boolean).join("\n"),
 })
 
 export function register() {

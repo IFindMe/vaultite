@@ -29,11 +29,20 @@ function tellDecision(r: Item, w: Asker) {
     body: options.map((o) => (o === r.default ? `${o} (default)` : o)).join(" · ") })
 }
 
+type Asked = { path: string; question: string; merged: boolean; blocking: boolean; default: string }
+
+export function answersBack(asked: Pick<Asked, "blocking" | "default">[]) {
+  const went = asked.filter((d) => !d.blocking)
+  if (!went.length) return `Their answer${asked.length > 1 ? "s come" : " comes"} back to this session`
+  return `You went with ${went.map((d) => quoted(d.default)).join(", ")}: do ${went.length > 1 ? "them" : "it"} now if you haven't, ` +
+    `as a default the user keeps isn't sent back; only ${asked.length > went.length ? "an answer you wait on, or one changing a default," : "an answer changing it"} comes back to this session`
+}
+
 export async function askAll(ctx: OpCtx, specs: DecisionSpec[], w: Asker, report: string, gist = "") {
   await plugin.vault.sync()
   const k: Who = { agent: w.agent, terminal: w.terminal, session: w.session }
   const where = w.terminal || w.session ? clip(list().find(rowOf(k))?.title || await sessionTitle(k), 120) : ""
-  const out: { path: string; question: string; merged: boolean; blocking: boolean }[] = []
+  const out: Asked[] = []
   for (const d of specs) {
     const same = openDecisions().find((r) => sameQuestion(str(r.question), d.question)) ??
       out.map((x) => resultAt(x.path)).find((r) => r && sameQuestion(str(r.question), d.question))
@@ -44,13 +53,13 @@ export async function askAll(ctx: OpCtx, specs: DecisionSpec[], w: Asker, report
       const waits = d.blocking && same.blocking !== true
       if (more || waits) await ctx.api("PUT", `inbox/${encodeURIComponent(same.id)}`, { ...(more ? { also: [...also, link] } : {}), ...(waits ? { blocking: true } : {}) })
       if (waits) tellDecision({ ...same, blocking: true }, w)
-      out.push({ path: `${same.id}.md`, question: str(same.question), merged: true, blocking: waits || same.blocking === true })
+      out.push({ path: `${same.id}.md`, question: str(same.question), merged: true, blocking: waits || same.blocking === true, default: str(same.default) })
       continue
     }
     const r = Saved.parse(await ctx.api("POST", "inbox", { title: d.title, body: d.why, from: w.from, question: d.question, options: d.options, effects: d.effects, default: d.default, blocking: d.blocking,
       ...(report ? { report: `[[${report}]]` } : {}), ...(gist ? { gist: clip(gist, 400) } : {}), ...(where ? { where } : {}), ...askerFields(w) }))
     if (d.blocking) tellDecision(r, w)
-    out.push({ path: `${r.id}.md`, question: d.question, merged: false, blocking: d.blocking })
+    out.push({ path: `${r.id}.md`, question: d.question, merged: false, blocking: d.blocking, default: d.default })
   }
   knockSoon(out.some((x) => x.blocking))
   const fresh = out.filter((x) => !x.merged).map((x) => x.path)
@@ -212,7 +221,7 @@ const askOp = defineOp({
   cli: "inbox ask",
   owner: "files on this machine",
   lock: false,
-  summary: "Ask the user one decision: a question with its options as buttons and the default you take if they don't answer; their answer comes back to this session.",
+  summary: "Ask the user one decision: a question with its options as buttons and the default you take if they don't answer; an answer you wait on, or one changing the default you went with, comes back to this session.",
   help: `A file in Inbox/ the user answers with a tap (or by voice, through the companion). blocking: you're stopped on
 it (it comes first, with a toast and a push to the phone); else you've gone with the default already, and it reads "Went
 with X; change it?", quietly. The same question open already (from another agent or report) is that one, not a second.
@@ -251,7 +260,7 @@ resumes it): a default they kept isn't sent.
     return { ...made, session: !!(terminal || session), ...(spec.warn ? { warn: spec.warn } : {}) }
   },
   text: (r) => (r.merged ? `The same question was open already: ${r.path} (it says you asked it too).` : `Asked: ${r.path}${r.blocking ? " (it comes first, with a push to the phone)" : ""}.`) +
-    (r.session ? " Their answer comes back to this session." : "") + (r.warn ? `\nWarning: ${r.warn}` : ""),
+    (r.session ? ` ${answersBack([{ blocking: r.blocking === true, default: str(r.default) }])}.` : "") + (r.warn ? `\nWarning: ${r.warn}` : ""),
   did: (p) => ({ action: "create", text: `Asked ${quoted(p.question)}` }),
 })
 
