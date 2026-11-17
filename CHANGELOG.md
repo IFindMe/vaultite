@@ -8,6 +8,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 - Companion: a ring or point at words in a web page lands on what the page shows, never on words a dialog's
   scroller or a carousel hides, and it can ring a page's element by its ref ([ring e12]).
+- Terminal: an agent's terminal no longer goes blank mid-session: terminals opened before 0.14.0 still ran the old
+  terminal server, without its fix for screens that crashed or hung on big pictures; a new one takes them over.
 - Inbox: an agent asking a decision it doesn't wait on is told to do its default now, since the user keeping that
   default sends it nothing (only an answer changing it comes back).
 - Browser: sites like Google Meet ask for the camera and microphone instead of saying they're blocked, and a site

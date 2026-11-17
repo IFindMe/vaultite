@@ -38,9 +38,10 @@
   isn't used. Names follow the port (backendName), so a QA server's terminals stay out of the live list, and an app
   serving no port (a test's, `npm run check`'s) never reaches them. Under a systemd unit termd needs its own scope.
 - A new protocol (PROTOCOL, in the socket's name) means a new termd beside the old one, which takes over the old one's
-  terminals (`termd/adopt.ts`: held through it, mirrored) so live shells survive the upgrade: list the old socket in
-  `oldServers`. termd's code changing without the protocol: the running one keeps its old code until it has no
-  terminals, so keep changes to it compatible.
+  terminals (`termd/adopt.ts`: held through it, mirrored) so live shells survive the upgrade (`oldServers`: every
+  protocol below). termd's code changing without the protocol: the running one keeps its old code until it has no
+  terminals (for weeks: agents' terminals stay open), so keep changes to it compatible, and bump PROTOCOL for a fix
+  that must reach running terminals (a screen's: `vt/`, `screen.ts`).
 - One terminal has one size, the last device's; a view used again that doesn't match sends its own.
 - A phone's keyboard never resizes the grid (`held.ts`): each size is a redraw of a program's whole screen (Claude
   Code's flickered), so the grid keeps its height and slides up to keep its cursor and last lines above the keys. A

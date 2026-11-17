@@ -9,7 +9,7 @@ import type { Backend, BackendEvent } from "../../../plugins/core/terminal/backe
 import type { Kind, Said } from "../../../plugins/core/terminal/osc7501.ts"
 import type { current } from "../../../plugins/core/terminal/terms.ts"
 import type { Conn } from "../../../plugins/core/terminal/termd/host.ts"
-import { Answers, type Event, type Reply, type Unasked } from "../../../plugins/core/terminal/termd/protocol.ts"
+import { Answers, PROTOCOL, type Event, type Reply, type Unasked } from "../../../plugins/core/terminal/termd/protocol.ts"
 import { freePort } from "../lib.ts"
 import { messageOf } from "../../../core/values.ts"
 
@@ -624,9 +624,8 @@ export default async ($: VaultTest) => {
       cap?.text === "old screen\n$ after" && got.includes("ls\r") && exited?.exit?.code === 2, [cap, got, exited])
   }
 
-  // Protocols 2 (termd with xterm.js), 3 (before pictures) and 4 (screens on its loop): its changes come as events once
-  // subscribed, its picture is its serialize.
-  for (const v of [2, 3, 4]) if (process.platform !== "win32") {
+  // Protocols 2 (termd with xterm.js) on: its changes come as events once subscribed, its picture is its serialize.
+  for (let v = 2; v < PROTOCOL; v++) if (process.platform !== "win32") {
     const net = await import("node:net")
     const { host } = await import("../../../plugins/core/terminal/termd/host.ts")
     const { waitFor } = await import("../lib.ts")

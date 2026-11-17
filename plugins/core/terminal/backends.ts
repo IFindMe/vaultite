@@ -7,12 +7,13 @@ import { agentLines, HTTPError, LOCAL as LOCAL_DIR, logger, onTailnet, vauDir, w
 import { loadPty, localBackend, mirrored, plain, ptyLink, serverFiles, termdBackend, type Backend, type Listed as Shell } from "./backend.ts"
 import { launch, runScript, SHELL_DIR, shellArgs, shellFiles } from "./launch.ts"
 import { kindOf, progName } from "./shells.ts"
+import { PROTOCOL } from "./termd/protocol.ts"
 import { NAME, SPARE, STATES, TERMINAL_ID, UPLOADS, UPLOADS_KEPT, WIN, plugin, sessions, shell } from "./shared.ts"
 import { onEvent } from "./start.ts"
 
 const log = logger("terminal")
 
-const OLD_SERVERS = [1, 2, 3, 4].map((v) => serverFiles(NAME, v))
+const OLD_SERVERS = Array.from({ length: PROTOCOL - 1 }, (_, i) => serverFiles(NAME, i + 1))
 export const keeper = termdBackend(NAME, { daemon: path.join(plugin.dir, "termd", "termd.ts"), log: console.error, oldServers: OLD_SERVERS })
 export const fallback = localBackend({ log: (...a) => console.log("terminal (in this server):", ...a), oldServers: OLD_SERVERS,
   adoptOld: async () => !(await keeper.ready().catch(() => false)) })

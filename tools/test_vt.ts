@@ -27,6 +27,39 @@ import(workerData.vt).then(({ newVt }) => {
   v.write("\\x1b_Ga=T,U=1,q=2,f=32,i=9,s=448,v=291,c=48,r=16;" + px + "\\x1b\\\\")
   try { v.write(("e\\u0301\\u0302".repeat(48) + "\\r\\n").repeat(16) + "after"); parentPort.postMessage(v.text(1)) } catch (e) { parentPort.postMessage(String(e)) }
 })`
+/** Claude Code's kinds of output, pictures and resizes: protocol 5's module trapped (unreachable) or looped on it. */
+const AGENT_OUTPUT_IN_A_WORKER = String.raw`
+const { workerData, parentPort } = require("node:worker_threads")
+import(workerData.vt).then(({ newVt }) => {
+  let seed = 1
+  const r = (n) => { seed = (seed * 1103515245 + 12345) >>> 0; return seed % n }
+  const picture = () => {
+    const w = 64 + r(400), h = 64 + r(300), px = Buffer.alloc(w * h * 4).map((_, i) => (i * 2654435761 + seed) >>> 24).toString("base64")
+    return "\x1b_Ga=T,q=2,f=32,i=" + (1 + r(5)) + ",s=" + w + ",v=" + h + ",c=" + (1 + r(60)) + ",r=" + (1 + r(20)) + ";" + px + "\x1b\\"
+  }
+  const pieces = [
+    () => "\x1b]8;;https://example.com/" + "x".repeat(r(200)) + "\x1b\\link\x1b]8;;\x1b\\ ",
+    () => "\x1b[38;2;" + r(255) + ";" + r(255) + ";" + r(255) + "m" + "styled ".repeat(r(30)) + "\x1b[0m",
+    () => "日本語🙂👍🏽👨‍👩‍👧 e\u0301\u0302 ".repeat(r(20)),
+    () => "\x1b[?2026h\x1b[" + (1 + r(40)) + ";1H\x1b[2K" + "redraw ".repeat(r(20)) + "\x1b[?2026l",
+    () => "\r\n".repeat(r(50)), () => "y".repeat(r(5000)),
+    () => (r(4) ? "" : "\x1b[?1049h\x1b[2J" + "alt ".repeat(200) + "\x1b[?1049l"),
+    () => "\x1b[>1u\x1b[<u\x1b[?25l\x1b[?25h",
+    () => (r(40) ? "" : picture()),
+  ]
+  const v = newVt({ cols: 120, rows: 40, scrollback: 2000 })
+  v.resize(120, 40, 16, 32)
+  try {
+    for (let i = 0; i < 60; i++) {
+      if (!r(200)) v.resize(20 + r(200), 5 + r(60), 16, 32)
+      let s = ""
+      for (let j = 0; j < 20; j++) s += pieces[r(pieces.length)]()
+      v.write(s)
+    }
+    v.write("\r\nafter")
+    parentPort.postMessage(v.text(1))
+  } catch (e) { parentPort.postMessage(String(e)) }
+})`
 const require = createRequire(import.meta.url)
 const { Terminal } = require("@xterm/headless") as typeof import("@xterm/headless")
 const VT = path.join(import.meta.dirname, "../plugins/core/terminal/vt")
@@ -191,14 +224,18 @@ await section("sizes", async () => {
   v.dispose()
 })
 
+const inAWorker = (script: string, seconds = 10) => new Promise<string>((done) => {
+  const w = new Worker(script, { eval: true, workerData: { vt: new URL("../plugins/core/terminal/vt/load.ts", import.meta.url).href } })
+  const t = setTimeout(() => { void w.terminate(); done(`still parsing after ${seconds} s`) }, seconds * 1000)
+  w.on("message", (m: string) => { clearTimeout(t); void w.terminate(); done(m) })
+  w.on("error", (e) => { clearTimeout(t); done(String(e)) })
+})
+
 await section("a grown page after a picture is zeroed (vt/patches/3)", async () => {
-  const got = await new Promise<string>((done) => {
-    const w = new Worker(GRAPHEMES_AFTER_PICTURE_IN_A_WORKER, { eval: true, workerData: { vt: new URL("../plugins/core/terminal/vt/load.ts", import.meta.url).href } })
-    const t = setTimeout(() => { void w.terminate(); done("still parsing after 10 s") }, 10_000)
-    w.on("message", (m: string) => { clearTimeout(t); void w.terminate(); done(m) })
-    w.on("error", (e) => { clearTimeout(t); done(String(e)) })
-  })
+  const got = await inAWorker(GRAPHEMES_AFTER_PICTURE_IN_A_WORKER)
   check("many graphemes after it: written, read back", got === "after", got)
+  const agent = await inAWorker(AGENT_OUTPUT_IN_A_WORKER, 60)
+  check("an agent's output with pictures and resizes: written, read back", agent === "after", agent)
 })
 
 await section("memory", () => {
