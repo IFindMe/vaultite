@@ -3,12 +3,13 @@ import { AppWindow, Archive, Ellipsis, Layers2, ListCollapse, ListTree, MonitorS
 import {
   activePane, Badged, beforeStart, edgeScroller, canDropTab, closePane, closeTab, cn, coarse, colorVar, commandItems, definePlugin, DEVICE, dragTab, dropTab, fmtAgo, foldGroupMoving, foldSplitMoving, groupMenu, groupName,
   groupsAsDrawn, HeadingButton, tabChipCount, tabIntoFolded, IconAction, isPopout, menuFor, openNewTab, isViewOpen, notifyError, openView, paneById, paneMenuOf, panesOf, placeMenuOf, placesIn, placesOf, reorder, rightClickBelow, useArchivedTabs, useMenuShowing, pastEnd, put, rowMenu, RowKeys, selectClick,
-  selectedAttr, selectPane, selectTab, SidebarHeading, SidebarRow, TabGroupRow, springing, springTabAt, startDrag, tabButtons, tabListDrop, tabMenuOf, tabPreview, tabPreviewOrder, TABS, tabSlot, tabSlotBeside, tabsMenu, useDrag, useDropHit,
+  selectedAttr, selectPane, selectTab, SidebarHeading, SidebarRow, springing, springTabAt, startDrag, tabButtons, tabListDrop, tabMenuOf, tabPreview, tabPreviewOrder, TABS, tabSlot, tabSlotBeside, tabsMenu, useDrag, useDropHit,
   useDropTarget, useGroupIn, useGroupLines, useGrowIn, useListsIn, useReflow, useShrinkOut, useSelectable, useSelected, useSlide, useTabLabels, useTabList, useUiMarks,
   INCOMING, laidOut, TabCard, useHoverCard,
   type DragItem, type Pane, type SidebarCtx, type Store, type Tab, type TabDrop, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
 import type { Device, DeviceTab } from "./types"
+import { TabGroupRow } from "./grouprow"
 import { archivedAnswer, ArchivedView, archivedSearch, Archiver, followMove } from "./archived"
 import { settings } from "./settings"
 import { closeOn, deviceItems, deviceName, DeviceNameField, DevicesPanel, inPanel, KIND_ICON, LiveDot, openHere, tabItems, useDevices, useLeaving } from "./devices"

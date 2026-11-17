@@ -731,7 +731,6 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `tabChipCount(l, item, preview, g)`
 - `TabDrop`: Where something dragged would land: a place in the list of tabs (`group` it joins, null none; `home`: where it is already), a pane's edge or middle, or before the `index`th of a split pane's own…
 - `TabGroup`: A tab group, as browsers have them: a named, coloured run of tabs side by side (those whose `group` is its id), folded to its name while `collapsed`.
-- `TabGroupRow({ g, n, target, onFold, more, children, … })`
 - `TabInfo`: `iconClassName`: a status on the icon (a view's `iconClass`: a Claude Code session working or waiting).
 - `tabIntoFolded(l, d)`
 - `tabLabel(t, store)`: The same outside a render (what the quick switcher finds).

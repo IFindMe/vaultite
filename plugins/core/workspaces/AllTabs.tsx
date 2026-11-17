@@ -1,12 +1,14 @@
 import { useRef, useState } from "react"
 import { Pin, X } from "lucide-react"
 import {
-  closeTab, cn, colorVar, Empty, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow, TabGroupRow,
+  closeTab, cn, colorVar, Empty, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow,
   tabMenuOf, useGroupIn, useGroupLines, useGrowIn, useShrinkOut, useTabLabels, useTabLayout, type MenuItem, type Pane, type Store, type Tab, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
+import { TabGroupRow } from "@plugins/tabs/grouprow"
 import { Mark } from "./Mark"
 import { tintWash } from "./tint"
-import { ALL_TABS, closeIn, current, foldIn, label, listsOf, lookOf, moveBetween, showTab, SLOTS, slots, useVersion } from "./state"
+import { closeIn, foldIn } from "./elsewhere"
+import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, showTab, SLOTS, slots, useVersion } from "./state"
 
 type Shown = { l: TabList; tabs: Tab[] }
 type Desk = { n: number; lists: Shown[]; count: number }
@@ -123,7 +125,7 @@ function Row({ t, at, info, active, line, moves }: { t: Tab; at: Where; info: In
   useShrinkOut(box, { tab: t.id })
   const ps = panesOf(t).filter((p) => !p.float), split = ps.length > 1, i = info(t)
   const closes = !t.pinned && (at.thisWindow || at.otherWorkspace)
-  const close = () => { if (at.thisWindow) closeTab(t.id); else void closeIn(at.n, t.id) }
+  const close = () => { if (at.thisWindow) closeTab(t.id); else closeIn(at.n, t.id) }
   const click = (e: React.MouseEvent) => {
     if (e.button === 1) { if (closes) close(); return }
     const half = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-pane-half]")?.dataset.paneHalf : undefined

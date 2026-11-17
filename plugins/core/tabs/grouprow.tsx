@@ -1,10 +1,8 @@
 import { ChevronDown } from "lucide-react"
-import { SidebarRow } from "@/components/Sidebar"
-import { GroupLabel } from "@/components/GroupLabel"
-import type { Group } from "../../../core/layout.ts"
+import { GroupLabel, SidebarRow, type TabGroup } from "@vaultite"
 
 export function TabGroupRow({ g, n, target, onFold, more, children, ...rest }: {
-  g: Group; n: number; target?: boolean; onFold: () => void
+  g: TabGroup; n: number; target?: boolean; onFold: () => void
   more?: boolean
   children?: React.ReactNode
 } & Record<`data-${string}`, string | undefined>) {
