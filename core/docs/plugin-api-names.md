@@ -903,6 +903,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `workspaceList()`: The workspaces in use, and the current one ([] without workspaces).
 - `workspacePins()`: The current workspace's pinned pages, or null: no workspaces, or the current one has no list of its own (it shows the vault's, .vaultite/pages.json: Pinned's).
 - `workspaces()`: The plugin keeping workspaces, as the phone's tab list pages through them (null: none).
+- `WORKSPACES`
 - `Zoom`: A step in (1), out (-1) or back to actual size (0) of what an element draws.
 - `Zoomed`: What a zoom came to, for the line that says so ("Note text 120%"); `actual`: at its own size, so no Reset.
 - `ZoomStep`

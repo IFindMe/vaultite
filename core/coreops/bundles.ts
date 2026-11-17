@@ -5,9 +5,10 @@ import { type Answers, DEFAULT_BUNDLE, type Info, status } from "../bundles.ts"
 import { starter } from "../start.ts"
 import { defineOp, type Op, OpError, type Param } from "../ops.ts"
 import { enc, lines, windowWorkspace } from "./common.ts"
+import { WORKSPACES } from "../layout.ts"
 
 const ID = { type: "string", required: true, description: "the bundle's id (zen, my-desk)" } satisfies Param
-const WORKSPACE = { type: "integer", minimum: 1, maximum: 5, description: "the workspace (1 to 5) whose panels and pins follow; the user's window's when left out" } satisfies Param
+const WORKSPACE = { type: "integer", minimum: 1, maximum: WORKSPACES, description: `the workspace (1 to ${WORKSPACES}) whose panels and pins follow; the user's window's when left out` } satisfies Param
 const SKIP = { type: "array", items: { type: "string" }, commas: false,
   description: "changes to leave out, by the ids bundle.show lists (setting:pages.show, pin:Dashboards/Today.md, panels)" } satisfies Param
 const FRESH = { type: "boolean", description: "clean: without the tweaks remembered for it (Reset), which applying forgets" } satisfies Param

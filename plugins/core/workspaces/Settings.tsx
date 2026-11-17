@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { chooseDefaultPlace, COLOR_NAMES, colorVar, commandKeys, Group, menuBelow, namedIcon, notify, Section, SettingRow, setDefaultSidebars, useDefaultPlace, useEnabled, useMachines } from "@vaultite"
+import { chooseDefaultPlace, COLOR_NAMES, colorVar, commandKeys, Group, menuBelow, namedIcon, notify, Section, SettingRow, setDefaultSidebars, useDefaultPlace, useEnabled, useMachines, WORKSPACES } from "@vaultite"
 import { askIcon, containerItems, current, defaultSidebars, label, lookOf, patch, pinsForNew, slots, tintItems, useVersion } from "./state"
 
 const button = "h-7 shrink-0 cursor-pointer rounded-[6px] border-[0.5px] border-border bg-card px-2.5 text-[13px] hover:bg-foreground/[0.05]"
@@ -85,7 +85,7 @@ export default function WorkspaceSettings() {
         </SettingRow>
       </Group>
       <p className="mt-1.5 px-1 text-[13px] leading-[18px] text-muted-foreground">
-        Kept in this workspace only, for every computer on it. Switch workspaces in the sidebar's header{commandKeys("workspace:1") && `, or with ${commandKeys("workspace:1")} to ${commandKeys("workspace:5")}`}.
+        Kept in this workspace only, for every computer on it. Switch workspaces in the sidebar's header{commandKeys("workspace:1") && `, or with ${commandKeys("workspace:1")} to ${commandKeys(`workspace:${WORKSPACES}`)}`}.
       </p>
     </Section>
     <OpensIn n={n} />

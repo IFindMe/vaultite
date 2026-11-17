@@ -1,17 +1,17 @@
 import { ArrowDown, ArrowUp, Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
   cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
-  replaceHash, sameSidebars, isPhoneDevice, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
+  replaceHash, sameSidebars, WORKSPACES as MAX, isPhoneDevice, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
   allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type TabList, type WorkspaceHost, type WorkspaceInfo,
 } from "@vaultite"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
 import { markIcon } from "./Mark"
 import { NO_MOVES, numberNow, type Moves } from "./order"
 
-const MAX = 5
 export const SLOTS = Array.from({ length: MAX }, (_, i) => i + 1)
 type Def = { name?: string; icon?: unknown; tint?: unknown; container?: unknown; sidebars?: Sidebars; layout?: TabLayout; pinned?: unknown; state?: Obj }
 type Slots = (Def | null)[]
+type Keys = Partial<Record<keyof Def, unknown>>
 
 const current_ = devicePref<number>("workspace", 0)
 const movesSeen = devicePref<number>("workspace-moves", -1)
@@ -74,12 +74,12 @@ function queue(write: () => Promise<unknown>): Promise<unknown> {
     }
   })
 }
-export function patch(n: number, keys: Partial<Record<keyof Def, unknown>>): void {
+export function patch(n: number, keys: Keys): void {
   const list = [...(slots() ?? SLOTS.map(() => null))]
   const had = list[n - 1]
   const next: Record<string, unknown> = { ...(had ?? {}) }
   for (const [k, v] of Object.entries(keys)) { if (v === null) delete next[k]; else next[k] = v }
-  if (isBlank(next, defaultSidebars)) { if (had) clear(n); return }
+  if (isBlank(next, defaultSidebars)) { if (had) blanked(n, keys); return }
   const held = memory.get(n)
   if (!had && held && Object.keys(held).length) { next.state = isObj(next.state) ? { ...held, ...next.state } : held; memory.delete(n) }
   list[n - 1] = defOf(next)
@@ -163,13 +163,13 @@ export const host: WorkspaceHost = {
   pinned: pinnedHere,
   pin: pinHere,
 }
-function clear(n: number) {
+function blanked(n: number, keys: Keys) {
   const list = [...(slots() ?? SLOTS.map(() => null))]
   list[n - 1] = null
   local = list
   emit(); sidebarsChanged()
   const to = at(`workspaces/${n}`)
-  writing = queue(() => del(to)).catch(() => {})
+  writing = queue(() => put(to, keys)).catch(() => {})
 }
 
 const VISIT = new Set(["back", "fwd", "from"])
@@ -413,10 +413,11 @@ export const used = () => SLOTS.filter((n) => slots()?.[n - 1])
 function followMoves() {
   const s = movesSeen.get()
   if (!slots() || s === movesNow.seq) return
-  const n = picked()
+  const was = current_.get()
   movesSeen.set(movesNow.seq)
   if (s < 0 || s > movesNow.seq) return
-  if (current_.get() !== n && n) current_.set(n)
+  const n = was >= 1 && was <= MAX ? numberNow(movesNow, was, s) ?? Math.max(1, Math.min(was, used().length)) : 0
+  if (n && n !== was) current_.set(n)
   const renumber = <V,>(m: Map<number, V>) => {
     const was = [...m]
     m.clear()
@@ -455,6 +456,11 @@ export function cycle(dir: 1 | -1) {
 let renaming = 0
 export const getRenaming = () => renaming
 export const setRenaming = (n: number) => { renaming = n; emit() }
+export function renamed(n: number, name: string | null) {
+  if (renaming !== n) return
+  setRenaming(0)
+  if (name !== null) patch(n, { name: name.trim() || null })
+}
 export const label = (n: number) => slots()?.[n - 1]?.name || `Workspace ${n}`
 export function lookOf(n: number): Pick<WorkspaceInfo, "icon" | "tint" | "container"> {
   const d = slots()?.[n - 1]
@@ -494,20 +500,33 @@ function now(n: number): Def | null {
 export function remove(n: number) {
   const was = now(n)
   if (!was) return
-  kept.delete(n)
-  if (n === current()) { clearTimeout(timer); timer = 0 }
-  clear(n)
-  if (n === current()) { apply(null); sidebarsChanged() }
-  notify(`Deleted ${was.name || `workspace ${n}`}`, { action: { label: "Undo", run: () => {
-    if (slots()?.[n - 1]) return
-    patch(n, { ...was })
-    if (n === current() && !layoutKey(strip(getTabLayout()))) { apply(was.layout ?? null); sidebarsChanged() }
-  } } })
+  const here = n === current()
+  kept.delete(n); memory.delete(n)
+  if (here) { clearTimeout(timer); timer = 0 }
+  moving = true
+  const path = at(`workspaces/${n}`)
+  writing = queue(async () => {
+    const r = await del<{ workspaces: unknown[]; moves: Moves }>(path)
+    reorderedAt = Date.now()
+    local = unusedIfBlank(r.workspaces)
+    movesNow = r.moves
+    followMoves()
+    if (here) { const m = current(), k = kept.get(m), d = local[m - 1]; apply(k && layoutKey(k) === layoutKey(d?.layout) ? k : d?.layout ?? null, false, true) }
+    emit(); sidebarsChanged()
+    notify(`Deleted ${was.name || `workspace ${n}`}`, { action: { label: "Undo", run: () => void restore(n, was, here) } })
+  }).catch((e) => { notifyError(e, "Couldn't delete it") }).finally(() => { moving = false })
+}
+async function restore(n: number, was: Def, here: boolean) {
+  const free = SLOTS.find((m) => !now(m))
+  if (!free) return
+  patch(free, { ...was })
+  if (free !== n) await reorder(free, n)
+  if (here) switchTo(n)
 }
 
 const moveItems = (n: number): MenuItem[] => [
   ...(n > 1 ? [{ label: "Move up", icon: ArrowUp, run: () => void reorder(n, n - 1) }] : []),
-  ...(n < MAX ? [{ label: "Move down", icon: ArrowDown, run: () => void reorder(n, n + 1) }] : []),
+  ...(now(n + 1) ? [{ label: "Move down", icon: ArrowDown, run: () => void reorder(n, n + 1) }] : []),
 ].map((m, i) => (i ? m : { ...m, sep: true }))
 
 export function slotMenu(n: number, rename: (() => void) | null = () => setRenaming(n)): MenuItem[] {
@@ -518,16 +537,16 @@ export function slotMenu(n: number, rename: (() => void) | null = () => setRenam
   return [
     ...(rename ? [{ label: "Rename", icon: Pencil, run: rename }] : []),
     ...lookItems(n),
-    { label: !has ? "Duplicate" : free ? `Duplicate to workspace ${free}` : "Duplicate (all five are in use)", icon: Copy, disabled: !has || !free, run: () => {
+    ...(has ? [{ label: free ? `Duplicate to workspace ${free}` : `Duplicate (all ${MAX} are in use)`, icon: Copy, disabled: !free, run: () => {
       const { name: _name, ...rest } = now(n)!
       patch(free!, rest)
       if (free === current()) { apply(rest.layout ?? null); sidebarsChanged() }
-    } },
+    } }] : []),
     ...(has ? moveItems(n) : []),
     ...(own ? [
       { label: "Use these panels for new workspaces", icon: LayoutPanelLeft, sep: true, run: () => { setDefaultSidebars(own); notify("New workspaces start with these panels") } },
     ] : []),
     ...(n === current() ? [{ label: "Settings…", icon: Settings2, sep: !own, run: () => openPluginSettings("workspaces") }] : []),
-    { label: "Delete", icon: Trash2, danger: true, sep: true, disabled: !has, run: () => remove(n) },
+    ...(has ? [{ label: "Delete", icon: Trash2, danger: true, sep: true, run: () => remove(n) }] : []),
   ]
 }

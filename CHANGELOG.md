@@ -9,6 +9,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Workspaces: All tabs is now the Workspaces page. Each workspace there shows its icon, colour and name: a click on the
   name renames it, right-click or its … button has the switcher's menu (icon, colour, container, duplicate, delete), and
   New workspace at the end makes one, named in place. Drag the switcher's button onto a pane to open the page there.
+- Workspaces: up to nine (⌃1 to ⌃9). The switcher lists only the ones in use and a New workspace row; deleting one
+  moves the ones after it a number lower (Undo puts it back where it was), and `vau workspace delete <n>` does it too.
 - Browser: drag a page's container from its address bar onto a pane, its edge or the tabs to see that container's
   sites and logins there. The Sites page opens as `view:sites`.
 - Notes: a phone back from another app no longer saves an older copy of a note over newer text (an agent's, another

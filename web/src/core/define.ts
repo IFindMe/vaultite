@@ -539,7 +539,7 @@ export type WebContainer = { id: string; name: string; color: Color }
 /** A plugin that keeps workspaces. The rest of the app reads them through web/src/core/scope.ts, never from the plugin;
  *  call `workspaceChanged()` when any answer changes. */
 export type WorkspaceHost = {
-  /** The current workspace, 1 to 5: there always is one. */
+  /** The current workspace, 1 to WORKSPACES: there always is one. */
   current: () => number
   /** The workspace this device picked (0: none yet), the plugin off too: where the window goes when it's turned on. */
   picked: () => number

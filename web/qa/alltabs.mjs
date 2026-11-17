@@ -126,6 +126,7 @@ try {
   check("All tabs: a click goes to its workspace and shows the tab", !!(await until(async () => (await lit()) === "2" && (await active()) === "Sprint review", 6000)), [await lit(), await active()])
 
   await page.click(SWITCHER); await page.waitForSelector("[data-workspace-list]")
+  await page.waitForSelector("[data-workspace-list] [data-workspace-all]")
   const first = await page.$eval("[data-workspace-list] button", (e) => (e.hasAttribute("data-workspace-all") ? e.innerText.trim() : null))
   check("switcher: Workspaces is its first row", !!first?.startsWith("Workspaces"), first)
   await page.click("[data-workspace-list] [data-workspace-all]"); await page.waitForSelector("[data-all-tabs]"); await ui.idle()

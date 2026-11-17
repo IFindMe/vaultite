@@ -24,6 +24,7 @@ export type Group = { id: string; name: string; color: Color; collapsed?: boolea
 /** A window's tabs, in order, their groups (in the order their tabs are) and the one on screen. */
 export type TabList = { tabs: Tab[]; groups?: Group[]; active: string }
 export type Window = TabList & { id: string; barsHidden?: boolean }
+export const WORKSPACES = 9
 /** A workspace: the main window's tabs, and its pop-outs'. */
 export type Workspace = TabList & { windows?: Window[] }
 export type Side = "left" | "right" | "top" | "bottom"

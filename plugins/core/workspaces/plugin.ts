@@ -3,12 +3,11 @@ import path from "node:path"
 import { z } from "zod"
 import { fileTree, HTTPError, type OpCtx, OpError, type Param, pathAsSaid, pinProblem, placePin, Plugin, readSidebars, relocatedPin, repinList, sameSidebars } from "../../../core/plugins.ts"
 import { ConfigError, type Item } from "../../../core/vault.ts"
-import { allPanes, blankList, clean, mapPlaces, newGroupId, newPaneId, newTabId, outsideGroups, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Group, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
+import { allPanes, blankList, WORKSPACES as MAX, clean, mapPlaces, newGroupId, newPaneId, newTabId, outsideGroups, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Group, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
 import { blankLayout, isBlank } from "./blank.ts"
-import { moved, numberNow, type Moves } from "./order.ts"
+import { DELETED, deleted, moved, numberNow, type Moves } from "./order.ts"
 
 export const plugin = new Plugin(import.meta.url)
-export const MAX = 5
 
 const defaultSidebars = (x: unknown) => x === undefined || sameSidebars(readSidebars(x), readSidebars(plugin.vault.config("sidebars")))
 
@@ -84,7 +83,7 @@ function slot(arg: string, seen?: string) {
   if (!Number.isInteger(n) || n < 1 || n > MAX) throw new HTTPError(400, `a workspace is 1 to ${MAX}, not '${arg}'`)
   if (seen === undefined || !/^\d+$/.test(seen)) return n - 1
   const now = numberNow(moves(), n, Number(seen))
-  if (now === null) throw new HTTPError(409, `the workspaces were reordered since workspace ${n} was meant: reload`)
+  if (now === null) throw new HTTPError(409, `the workspaces were reordered or deleted since workspace ${n} was meant: reload`)
   return now - 1
 }
 type Req = { arg: (i: number) => string; query: Record<string, string> }
@@ -95,10 +94,13 @@ plugin.route("POST", "workspaces/order", (req) => {
   if (from === to) return { workspaces: shown(), moves: moves() }
   readable()
   save(moved(slotList(), from, to))
-  const was = moves(), seq = was.seq + 1
-  plugin.keep("moves", { seq, log: [...was.log, { seq, from, to }].slice(-50) }, { shared: true })
+  logMove(from, to)
   return { workspaces: shown(), moves: moves() }
 })
+function logMove(from: number, to: number) {
+  const was = moves(), seq = was.seq + 1
+  plugin.keep("moves", { seq, log: [...was.log, { seq, from, to }].slice(-50) }, { shared: true })
+}
 
 const TERM = "view:terminal/"
 let selfNow = ""
@@ -241,12 +243,16 @@ plugin.provide("tabs:open", () => shown().flatMap((d) => {
   return l ? [l, ...(l.windows ?? [])].flatMap(allPanes).map((p) => p.to) : []
 }))
 
-plugin.route("DELETE", "workspaces/*", (req) => {
-  const i = slotIn(req)
-  const list = slots()
-  if (i < list.length) { list[i] = null; save(list) }
-  return { ok: true }
-})
+plugin.route("DELETE", "workspaces/*", (req) => deleteSlot(slotIn(req)))
+
+function deleteSlot(i: number) {
+  const list = slotList()
+  if (!list[i]) return { workspaces: shown(), moves: moves() }
+  readable()
+  save(deleted(list, i + 1, null))
+  logMove(i + 1, DELETED)
+  return { workspaces: shown(), moves: moves() }
+}
 
 const layoutOf = (d: Item | null): Workspace | null => clean(d?.layout)
 const nothing = (l: Workspace | null) => !l || blankLayout(l)
@@ -495,7 +501,7 @@ async function windowOn(ctx: OpCtx): Promise<number | null> {
 const N = (description: string, required = true): Param => ({ type: "integer", minimum: 1, maximum: MAX, required, description })
 const FROM: Param = { type: "integer", minimum: 1, maximum: MAX, description: "the workspace it's in, when it's open in several" }
 
-const HELP = `The Workspaces plugin keeps up to five workspaces, numbered in the sidebar's header: each is a desk, what's
+const HELP = `The Workspaces plugin keeps up to ${MAX} workspaces, numbered in the sidebar's header: each is a desk, what's
 open (the tabs and splits, \`layout\`), what's within reach (the sidebars' panels, \`sidebars\`, shaped like
 .vaultite/sidebars.json, none: that file's; its pinned pages, \`pinned\`, none: .vaultite/pages.json's, until its
 first pin or unpin) and what the app keeps for it (\`state\`). Its name, icon, sidebars and pins are in
@@ -524,6 +530,10 @@ reorder: moves workspace <n> to number <to>, the ones between shifting over (POS
 dragging it in the switcher; every window on it follows. A write naming a number from before (?moves=<seq>, the
 state's workspaceMoves) is taken as meant.
 
+delete: deletes workspace <n>, its name, look, pins, panels and tabs (DELETE /api/workspaces/<n>), like its menu's
+Delete: the ones after it take a number lower (their ⌃ shortcuts follow), and a window on it goes to the one now there
+(the last one when it was the last). A terminal it showed keeps running.
+
 close: closes a tab or pane by its id, or every pane showing a file or a view (view:terminal/<id>), in every workspace
 or in --from <m>'s (POST /api/workspaces/close); a tab goes with its last pane. Every open window follows at once.
 Closing a terminal's pane doesn't end its session (vau terminal end does both).
@@ -539,6 +549,7 @@ Closing a terminal's pane doesn't end its session (vau terminal end does both).
   vau workspace open "Notes/Idea.md" 3
   vau workspace close t1k2x9a0
   vau workspace reorder 5 2
+  vau workspace delete 3
   vau workspace close view:terminal/claude-k3j2h1g0
   vau workspace close "Notes/Idea.md" --from 2`
 
@@ -551,7 +562,7 @@ async function tabNamed(ctx: OpCtx, what: string, ids: Set<string>) {
 plugin.op({
   id: "workspace.list",
   cli: "workspace list",
-  summary: "The workspaces (1 to 5): each one's panels, pinned pages and how many tabs; unused ones say so.",
+  summary: `The workspaces (1 to ${MAX}): each one's panels, pinned pages and how many tabs; unused ones say so.`,
   help: HELP,
   kind: "read",
   run: (_p, ctx) => listed(ctx),
@@ -598,7 +609,7 @@ function listText(r: { workspaces: (Item | null)[]; window: number | null }) {
 plugin.op({
   id: "workspace.switch",
   cli: "workspace",
-  summary: "Switch the user's window to a workspace (1 to 5); without one, list the workspaces.",
+  summary: `Switch the user's window to a workspace (1 to ${MAX}); without one, list the workspaces.`,
   help: HELP,
   kind: "write",
   params: { n: N("the workspace to switch to; left out: the list (vau workspace list)", false) },
@@ -618,13 +629,30 @@ plugin.op({
 plugin.op({
   id: "workspace.reorder",
   cli: "workspace reorder",
-  summary: "Move a workspace to another number (1 to 5), the ones between shifting over, like dragging it in the switcher: its ⌃ shortcut follows.",
+  summary: `Move a workspace to another number (1 to ${MAX}), the ones between shifting over, like dragging it in the switcher: its ⌃ shortcut follows.`,
   help: HELP,
   kind: "write",
   params: { n: N("the workspace to move"), to: N("the number it takes") },
   args: ["n", "to"],
   run: async ({ n, to }, ctx) => { await ctx.api("POST", "workspaces/order", { from: n, to }); return { n, to } },
   text: (r) => `Workspace ${r.n} is now workspace ${r.to}.`,
+})
+
+plugin.op({
+  id: "workspace.delete",
+  cli: "workspace delete",
+  summary: "Delete a workspace (its name, look, pins, panels and tabs): the ones after it take a number lower, like its menu's Delete.",
+  help: HELP,
+  kind: "write",
+  params: { n: N("the workspace to delete") },
+  args: ["n"],
+  run: async ({ n }, ctx) => {
+    const k = Number(n), was = shown()[k - 1]
+    if (!was) throw new OpError(`workspace ${k} is unused: nothing to delete (vau workspace lists them)`, 404)
+    await ctx.api("DELETE", `workspaces/${k}`)
+    return { n: k, name: nameOf(was, k) }
+  },
+  text: (r) => `Deleted workspace ${r.n} (${r.name}); the ones after it are a number lower.`,
 })
 
 plugin.op({

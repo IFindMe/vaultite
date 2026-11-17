@@ -51,7 +51,7 @@ try {
   check("… and shown for its number", await until(() => page.$(`${SWITCHER} [data-workspace-icon=book-open]`), 3000))
 
   // The list: like a menu, the highlight follows the keyboard and a check marks the one that's on.
-  await page.click(SWITCHER); await page.keyboard.press("ArrowDown"); await ui.idle()
+  await page.click(SWITCHER); await page.waitForSelector("[data-workspace-list] [data-workspace]"); await page.keyboard.press("ArrowDown"); await ui.idle()
   const listed = await page.$$eval("[data-workspace-list] [data-workspace]", (els) => els.map((e) => ({ on: e.getAttribute("aria-pressed") === "true", check: !!e.querySelector("svg.lucide-check"), bg: getComputedStyle(e).backgroundColor, focus: e === document.activeElement })))
   check("the list: only the focused row is lit, a check on the current one", listed[0]?.on && listed[0].check && !listed[1].check && listed[1].focus && listed[0].bg !== listed[1].bg && /, 0\)$|transparent/.test(listed[0].bg), listed)
   await page.hover("[data-workspace-list] [data-workspace='3']"); await page.locator(".tooltip").waitFor()

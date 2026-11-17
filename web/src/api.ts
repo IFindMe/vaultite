@@ -69,7 +69,7 @@ export { archivedTabs, archiveUnseen, removeArchived, reopenArchived, restoreArc
 // Its tabs one by one (the Tabs panel): the layout live, its panes, showing, closing and opening a tab, and what each
 // tab shows and its menu, as in its bar.
 export { activePane, activeTab, closePane, closeTab, goHere, hashOf, newTab, openTab, paneById, paneTab, selectPane, selectTab, useTabList, useWorkspace as useTabLayout } from "@/core/workspace"
-export { newPaneId, newTabId } from "../../core/layout.ts"
+export { newPaneId, newTabId, WORKSPACES } from "../../core/layout.ts"
 // Back and Forward in the focused tab (a view's own history first: ViewDef.history), and whether a tab can go there.
 export { canNavigate, navigate } from "@/core/workspace"
 // What the + buttons open: a blank tab, or the quick switcher picking it (newtab.json's `opens`).

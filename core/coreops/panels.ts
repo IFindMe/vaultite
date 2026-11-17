@@ -8,6 +8,7 @@ import { defineOp, type Op, OpError, type Param, type ParamsOf } from "../ops.ts
 import { anchorFor } from "../slots.ts"
 import { defaultSidebars, filePanelKey, filePanelPath, placePanel, readSidebars, setCollapsed, setDocked, type Side, sideOf, type Sidebars, withoutPanel } from "../sidebars.ts"
 import { lines, serviceOn, windowWorkspace } from "./common.ts"
+import { WORKSPACES } from "../layout.ts"
 import { onOff, pluginList } from "./plugins.ts"
 
 export type Panel = { key: string; title: string; plugin: string; on: boolean
@@ -89,7 +90,7 @@ function namedPanel(app: App, list: Panel[], q: string) {
   return hit
 }
 
-const WORKSPACE = { type: "integer", minimum: 1, maximum: 5, description: "the workspace (1 to 5) whose panels to use; the user's window's when left out (Workspaces on)" } satisfies Param
+const WORKSPACE = { type: "integer", minimum: 1, maximum: WORKSPACES, description: `the workspace (1 to ${WORKSPACES}) whose panels to use; the user's window's when left out (Workspaces on)` } satisfies Param
 const VAULT = { type: "boolean", description: "sidebars.json itself (the default for workspaces without panels of their own), not a workspace's" } satisfies Param
 const PANEL = { type: "string", required: true, description: "the panel: its key (files:files), title or a plain name (terminals, file tree, pinned, search), or a file of the vault to draw as one (Apps/Weather.html)" } satisfies Param
 const MOVE_TO = { type: "string", required: true, description: "where: a position from 1, up, down, top or bottom" } satisfies Param

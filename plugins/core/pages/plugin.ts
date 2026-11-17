@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { HTTPError, movedFilePanels, type OpCtx, OpError, type Param, pinProblem, placePin, Plugin, readSidebars, relocatedPin, repinList, sameSidebars } from "../../../core/plugins.ts"
 import { ConfigError, type Vault } from "../../../core/vault.ts"
+import { WORKSPACES } from "../../../core/layout.ts"
 
 export const plugin = new Plugin(import.meta.url)
 const Shown = z.looseObject({ workspace: z.unknown().optional() }).nullish()
@@ -140,7 +141,7 @@ const FLAGS = `With Workspaces on, each workspace has its own list (the sidebar 
 window is on, --workspace <n> on another's. A workspace that has no list of its own shows .vaultite/pages.json's,
 which is also what new workspaces start with; its first change makes it its own (a copy, changed). --vault acts on
 pages.json itself (the default; without Workspaces, the only list).`
-const WORKSPACE = { type: "integer", minimum: 1, maximum: 5, description: "the workspace (1 to 5) whose list to use; the user's window's when left out (Workspaces on)" } satisfies Param
+const WORKSPACE = { type: "integer", minimum: 1, maximum: WORKSPACES, description: `the workspace (1 to ${WORKSPACES}) whose list to use; the user's window's when left out (Workspaces on)` } satisfies Param
 const VAULT = { type: "boolean", description: "pages.json itself (the default for workspaces without a list of their own)" } satisfies Param
 
 plugin.op({

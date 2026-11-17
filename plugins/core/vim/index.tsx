@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { addKeys, definePlugin, useVaultChange, type PluginCommand, type Store } from "@vaultite"
+import { addKeys, definePlugin, useVaultChange, type PluginCommand, type Store, WORKSPACES } from "@vaultite"
 import * as app from "./app"
 import * as lists from "./lists"
 import { setExStore } from "./ex"
@@ -69,7 +69,7 @@ const LEADER: Record<string, string[]> = {
   "graph:local": ["Space G L"],
   "outline:open-split": ["Space O"],
   "backlinks:open-split": ["Space B"],
-  "workspace:1": ["Space 1"], "workspace:2": ["Space 2"], "workspace:3": ["Space 3"], "workspace:4": ["Space 4"], "workspace:5": ["Space 5"],
+  ...Object.fromEntries(Array.from({ length: WORKSPACES }, (_, i) => [`workspace:${i + 1}`, [`Space ${i + 1}`]])),
 }
 const VIMIUM: Record<string, string[]> = {
   "switcher:open": ["O"],

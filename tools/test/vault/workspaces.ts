@@ -28,8 +28,8 @@ export default async ($: VaultTest) => {
     check("workspaces: an old layout written is read back migrated (old tab ids are pane ids, each tab \"t\" and its first pane's)",
       st === 200 && desc(body.layout) === "t2,[t1|t3]*" && body.layout.tabs.map((t: Any) => t.id).join() === "tt2,tt1" &&
       body.layout.tabs[1].focus === "t3" && !("root" in body.layout) && desc(readWs().workspaces[1].layout) === "t2,[t1|t3]*", [body.layout, readWs().workspaces[1]])
-    ;[st] = await api("PUT", "workspaces/6", { name: "Six" })
-    check("workspaces: only 1 to 5", st === 400)
+    ;[st] = await api("PUT", "workspaces/10", { name: "Ten" })
+    check("workspaces: only 1 to 9", st === 400)
     const s2 = (await api("GET", "state"))[1]
     check("workspaces: in /api/state", s2.workspaces?.[1]?.sidebars?.left[0] === "terminal:sessions", s2.workspaces)
     ;[st] = await api("DELETE", "workspaces/2")
@@ -76,8 +76,8 @@ export default async ($: VaultTest) => {
     check("workspaces move: a tab that isn't there is a 404", st === 404, [st, body])
     ;[st, body] = await api("POST", "workspaces/move", { to: 4, tab: "tx" })
     check("workspaces move: onto its own workspace is refused", st === 400, [st, body])
-    ;[st, body] = await api("POST", "workspaces/move", { to: 7, tab: "tx" })
-    check("workspaces move: only 1 to 5", st === 400, [st, body])
+    ;[st, body] = await api("POST", "workspaces/move", { to: 10, tab: "tx" })
+    check("workspaces move: only 1 to 9", st === 400, [st, body])
     writeWs(({ workspaces: [{ name: "Main", layout: L([T("a", "file:Notes/A.md")]) }, { layout: L([T("q", "file:Notes/Q.md")]) }] }))
     const own = L([T("a", "file:Notes/A.md"), T("d", "file:Notes/D.md"), T("e", "view:web/https://x.com/"), T("q", "file:Notes/Q.md"), T("n", "new")], "te")
     ;[st, body] = await api("POST", "workspaces/take", { to: 1, tabs: own, name: "From Mac app" })
@@ -369,5 +369,25 @@ async function reorders($: VaultTest, { L, T, tos }: { L: (tabs: Any[]) => Any; 
   check("vau workspace reorder", cm.code === 0 && cm.out === "Workspace 3 is now workspace 1." && names() === "Two again,Four,One", [cm, names()])
   ;[st] = await api("PUT", "workspaces/1?moves=-9", { name: "x" })
   check("workspaces: a moves seq that isn't one is ignored", st === 200 && names().startsWith("x,"), names())
+  await deletes($, names)
   clearWs()
+}
+
+async function deletes($: VaultTest, names: () => string) {
+  const { WS_DIR, api, check, exists } = $
+  const { vau } = $.vars
+  const seq = (await api("GET", "state"))[1].workspaceMoves.seq
+  let [st, body] = await api("DELETE", "workspaces/1")
+  check("workspaces: deleting 1 moves the ones after it a number lower, logged as a move to 0", st === 200 && names() === "Four,One" &&
+    body.moves.seq === seq + 1 && body.moves.log.at(-1).to === 0 && !exists(`${WS_DIR}/3.json`), [names(), body.moves])
+  ;[st] = await api("PUT", `workspaces/1?moves=${seq}`, { name: "Gone" })
+  check("workspaces: a write naming the deleted one is refused", st === 409 && names() === "Four,One", [st, names()])
+  ;[st] = await api("PUT", `workspaces/3?moves=${seq}`, { name: "One again" })
+  check("workspaces: a write naming one after it lands where it is now", st === 200 && names() === "Four,One again", names())
+  const cm = await vau("workspace", "delete", "1")
+  check("vau workspace delete", cm.code === 0 && cm.out.startsWith("Deleted workspace 1 (Four)") && names() === "One again", [cm, names()])
+  const un = await vau("workspace", "delete", "5")
+  check("vau workspace delete: an unused one says so", un.code === 1 && un.err.includes("unused"), un)
+  ;[st, body] = await api("DELETE", "workspaces/5")
+  check("workspaces: deleting an unused one changes nothing", st === 200 && names() === "One again" && body.moves.seq === seq + 2, [st, body.moves])
 }

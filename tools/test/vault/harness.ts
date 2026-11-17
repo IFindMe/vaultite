@@ -5,6 +5,7 @@ import path from "node:path"
 import { check, sleep, standIn, stopTerminals, tempDir, type Any } from "../lib.ts"
 import { forgetMachines } from "../isolate.ts"
 import { request } from "../fakes.ts"
+import { WORKSPACES } from "../../../core/layout.ts"
 
 export type { Any }
 export type VaultTest = Awaited<ReturnType<typeof vaultHarness>>
@@ -82,10 +83,11 @@ process.exitCode = 1
   // Workspaces: each one's file (<n>.json) and what's kept of it (`workspaces/<n>`), as one {workspaces: [...]}. A file
   // written with a layout has it taken in at the next sync, as one from before.
   const WS_DIR = ".vaultite/plugins/workspaces"
+  const NUMBERS = Array.from({ length: WORKSPACES }, (_, i) => i + 1)
   const keptWs = (await import("../../../core/kept.ts")).keptOf(VAULT)
   function readWs(): Any {
     const at = (f: string) => path.join(VAULT, WS_DIR, f)
-    const list = [1, 2, 3, 4, 5].map((n) => {
+    const list = NUMBERS.map((n) => {
       const own = fs.existsSync(at(`${n}.json`)) ? JSON.parse(fs.readFileSync(at(`${n}.json`), "utf8")) : null, run = keptWs.get<Any>(`workspaces/${n}`, null)
       return own || run ? { ...own, ...run } : null
     })
@@ -94,7 +96,7 @@ process.exitCode = 1
   }
   function writeWs({ workspaces = [], ...rest }: Any) {
     fs.mkdirSync(path.join(VAULT, WS_DIR), { recursive: true })
-    ;[1, 2, 3, 4, 5].forEach((n) => {
+    ;NUMBERS.forEach((n) => {
       const f = path.join(VAULT, WS_DIR, `${n}.json`)
       keptWs.set(`workspaces/${n}`, null)
       if (workspaces[n - 1]) fs.writeFileSync(f, JSON.stringify(workspaces[n - 1])); else fs.rmSync(f, { force: true })
@@ -102,8 +104,8 @@ process.exitCode = 1
     fs.writeFileSync(path.join(VAULT, WS_DIR, "data.json"), JSON.stringify({ ...rest, files: true }))
   }
   function clearWs() {
-    for (const f of ["1", "2", "3", "4", "5", "data"]) fs.rmSync(path.join(VAULT, WS_DIR, `${f}.json`), { force: true })
-    for (const n of [1, 2, 3, 4, 5]) keptWs.set(`workspaces/${n}`, null)
+    for (const f of [...NUMBERS, "data"]) fs.rmSync(path.join(VAULT, WS_DIR, `${f}.json`), { force: true })
+    for (const n of NUMBERS) keptWs.set(`workspaces/${n}`, null)
   }
 
   /** A route run as the server runs it: [status, body]. */
