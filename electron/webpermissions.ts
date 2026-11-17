@@ -1,4 +1,5 @@
 import { app, dialog, shell, systemPreferences, type WebContents } from "electron"
+import { allPages } from "./browser/engine.ts"
 import { AppWindow } from "./appwindow.ts"
 import { otherAppScheme } from "../core/opening.ts"
 import fs from "node:fs"
@@ -9,14 +10,15 @@ import { logger } from "../core/log.ts"
 
 const log = logger("browser")
 
-export const FREE = new Set(["clipboard-sanitized-write", "notifications", "fullscreen", "pointerLock", "keyboardLock", "speaker-selection",
+export const FREE = new Set(["clipboard-sanitized-write", "fullscreen", "pointerLock", "keyboardLock", "speaker-selection",
   "storage-access", "top-level-storage-access"])
+const UNLESS_BLOCKED = new Set(["notifications"])
 const ASKED: Record<string, string> = {
   camera: "use your camera", microphone: "use your microphone", geolocation: "know your location", "clipboard-read": "see what you copy",
   midi: "use your MIDI devices", midiSysex: "control your MIDI devices", "idle-detection": "know when you're away from the computer",
   "window-management": "see your screens and place windows on them", fileSystem: "edit files on this Mac", openExternal: "open another app",
 }
-type Answers = Record<string, Record<string, Record<string, boolean>>> // profile -> site -> what -> allowed
+type Answers = { [profile: string]: { [site: string]: { [kind: string]: boolean } } }
 let answers: Answers | null = null
 const answersFile = () => path.join(app.getPath("userData"), "web-permissions.json")
 export function loadAnswers(): Answers {
@@ -25,17 +27,29 @@ export function loadAnswers(): Answers {
   return answers!
 }
 export const permissionOf = (profile: string, site: string, kind: string): boolean | undefined => loadAnswers()[profile]?.[site]?.[kind]
+export const allowedNow = (profile: string, site: string, kind: string) =>
+  FREE.has(kind) || (UNLESS_BLOCKED.has(kind) ? permissionOf(profile, site, kind) !== false : permissionOf(profile, site, kind) === true)
+export type SiteChoice = "allow" | "block" | "ask"
+export function choiceOf(profile: string, site: string, kind: string): SiteChoice {
+  const said = permissionOf(profile, site, kind)
+  return said === true || (said === undefined && (FREE.has(kind) || UNLESS_BLOCKED.has(kind))) ? "allow" : said === false ? "block" : "ask"
+}
 export function answer(profile: string, site: string, kind: string, yes: boolean | null) {
   const all = loadAnswers(), of = (all[profile] ??= {}), at = (of[site] ??= {})
   if (yes === null) delete at[kind]; else at[kind] = yes
   if (!Object.keys(at).length) delete of[site]
+  if (!Object.keys(of).length) delete all[profile]
   try { fs.writeFileSync(answersFile(), JSON.stringify(all)) } catch { /* asked again next time */ }
+  for (const p of allPages()) {
+    if (p.profile !== profile || p.wc.isDestroyed() || siteOf(hostOfUrl(p.wc.getURL())) !== site) continue
+    for (const f of p.wc.mainFrame.framesInSubtree) if (!f.detached) f.send("vaultite:web:permissions")
+  }
 }
 const asking = new Map<string, Promise<boolean>>()
 
-/** The camera and microphone also need macOS's yes. */
 export async function askPermission(profile: string, wc: WebContents, perm: string, details: { mediaTypes?: string[]; requestingUrl?: string; externalURL?: string }) {
   if (FREE.has(perm)) return true
+  if (UNLESS_BLOCKED.has(perm)) return permissionOf(profile, siteOf(hostOfUrl(details.requestingUrl || wc.getURL())), perm) !== false
   // (another app by its scheme, said in the question: a yes to zoommtg: is none to ms-msdt:; a frame's link to another
   // app comes only here, never past otherApp)
   const scheme = perm === "openExternal" ? otherAppScheme(details.externalURL ?? "") : ""

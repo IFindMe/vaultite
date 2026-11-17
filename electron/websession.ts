@@ -7,7 +7,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { hostOfUrl, siteOf } from "./webwire.ts"
 import { dl, loadDownloads, pageOf, sessions, shows, tell, toVault } from "./webbase.ts"
-import { askPermission, FREE, permissionOf } from "./webpermissions.ts"
+import { allowedNow, askPermission } from "./webpermissions.ts"
 
 const PRELOAD = fileURLToPath(new URL("./web-preload.cjs", import.meta.url))
 export function webSession(profile: string) {
@@ -20,9 +20,8 @@ export function webSession(profile: string) {
   s.registerPreloadScript({ type: "frame", filePath: PRELOAD })
   s.setPermissionRequestHandler((wc, perm, ok, details) => void askPermission(profile, wc, perm, details).then(ok, () => ok(false)))
   s.setPermissionCheckHandler((_wc, perm, origin, details) => {
-    if (FREE.has(perm)) return true
     const kind = perm === "media" ? (details.mediaType === "video" ? "camera" : details.mediaType === "audio" ? "microphone" : "") : perm
-    return !!kind && permissionOf(profile, siteOf(hostOfUrl(origin)), kind) === true
+    return !!kind && allowedNow(profile, siteOf(hostOfUrl(origin)), kind)
   })
   s.on("will-download", (_e, item, wc) => {
     const p = wc && pageOf(wc)
@@ -43,6 +42,7 @@ export function webSession(profile: string) {
     if (p && !p.agent && wc && !shows(wc.getURL())) { if (p.tab) tell(p.win, { type: "close", tab: p.tab }); else p.downloaded = true }
   })
   sessions.set(profile, s)
+  void import("./sitepermissions.ts")
   void loadDownloads().then((m) => m.downloadSession(profile, s))
   sessionMade(s, profile)
   return s

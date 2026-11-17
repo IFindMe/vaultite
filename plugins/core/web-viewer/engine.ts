@@ -8,6 +8,10 @@ import type { Run, Step } from "./steps"
 export type ExtButton = { id: string; name: string; pinned: boolean; title: string; icon: string; badge: string; badgeColor: string; badgeTextColor: string; popup: boolean; enabled: boolean }
 export type OtherExt = { browser: string; id: string; name: string; version: string; icon: string }
 export type PageShields = { site: string; count: number }
+export type Choice = "allow" | "block" | "ask"
+export type MacMedia = "granted" | "denied" | "restricted" | "not-determined" | "unknown"
+export type PagePermissions = { site: string; profile: string; kinds: { kind: string; choice: Choice }[]; mac: { camera: MacMedia; microphone: MacMedia } }
+export type SitePermission = { profile: string; site: string; kind: string; choice: Choice }
 export type FillLogin = { id: string; title: string; username: string; otp: boolean }
 /** `held`: Linux without a keyring keeps the password only till the app quits. */
 export type AgentLogins = { file: string; entries?: number; free?: number; error?: string; held?: boolean; locked?: boolean } | null
@@ -60,6 +64,9 @@ type Answers = {
   "passwords:set": Status & { error?: string }
   "passwords:status": Status
   "passwords:unlock": Unlocked
+  "permissions:list": SitePermission[]
+  "permissions:mac": MacMedia
+  "permissions:page": PagePermissions | null
 }
 export type Answer<K extends string> = K extends keyof Answers ? Answers[K] : unknown
 

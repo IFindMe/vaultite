@@ -8,6 +8,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 - Inbox: an agent asking a decision it doesn't wait on is told to do its default now, since the user keeping that
   default sends it nothing (only an answer changing it comes back).
+- Browser: sites like Google Meet ask for the camera and microphone instead of saying they're blocked, and a site
+  information button in the address bar (and Site permissions in the browser's settings) shows and changes what each
+  site may use: camera, microphone, location, notifications, in each container.
 - Companion: what it draws on the screen for an answer stays with that answer in the chat (Conversations and the
   Companion page), with a Play button that draws it on the screen again, beat by beat, instead of being gone once it fades.
 - Browser: a link from another app that reaches a sign-in no container is signed in to asks which container to sign in

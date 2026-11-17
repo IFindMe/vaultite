@@ -37,6 +37,46 @@ try {
     Object.defineProperty(window, "prompt", { value: prompt, writable: true, configurable: true, enumerable: true })
   }, args: [(message, value) => ipcRenderer.sendSync("vaultite:web:prompt", message.slice(0, 2000), value.slice(0, 2000))] })
 } catch { /* Electron's own */ }
+// Electron's navigator.permissions says never asked is denied (Google Meet then never asks): webpermissions.ts says prompt.
+if (/^https?:/.test(location.href)) {
+  try {
+    contextBridge.executeInMainWorld({ func: (ask, listen) => {
+      const P = window.Permissions
+      if (!P || !P.prototype.query) return
+      const query = P.prototype.query, live = new Set(), told = new WeakMap()
+      const refresh = () => {
+        for (const ref of live) {
+          const s = ref.deref()
+          if (!s) { live.delete(ref); continue }
+          const t = told.get(s)
+          void ask(t.name).then((now) => { if (now && now !== t.state) { t.state = now; s.dispatchEvent(new Event("change")) } }, () => {})
+        }
+      }
+      listen(refresh)
+      const wrapped = { query(desc) {
+        return query.call(this, desc).then((status) => {
+          const name = String(desc?.name ?? "")
+          return ask(name).then((said) => {
+            if (!said) return status
+            const t = { name, state: said }
+            told.set(status, t)
+            Object.defineProperty(status, "state", { get: () => t.state, configurable: true, enumerable: true })
+            live.add(new WeakRef(status))
+            return status
+          }, () => status)
+        })
+      } }.query
+      Object.defineProperty(P.prototype, "query", { value: wrapped, writable: true, configurable: true, enumerable: true })
+      const md = navigator.mediaDevices && window.MediaDevices && window.MediaDevices.prototype
+      if (md && md.getUserMedia) {
+        const gum = md.getUserMedia
+        const after = { getUserMedia(c) { const r = gum.call(this, c); r.then(refresh, refresh); return r } }.getUserMedia
+        Object.defineProperty(md, "getUserMedia", { value: after, writable: true, configurable: true, enumerable: true })
+      }
+    }, args: [(name) => ipcRenderer.invoke("vaultite:web:permission", String(name)).catch(() => null),
+      (fn) => { ipcRenderer.on("vaultite:web:permissions", () => fn()) }] })
+  } catch { /* Electron's own answers */ }
+}
 // (a page never keeps them, as in Chrome. Chromium's own step through the page's history is stopped: with the app's,
 // one press went two places)
 addEventListener("mouseup", (e) => {
