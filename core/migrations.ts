@@ -312,6 +312,20 @@ const STEPS: { id: string; run: (v: Vault, only?: string[]) => void | Promise<st
     }),
   },
   { id: "dictation-dictionary-2026-11", run: replacementsToDictionary },
+  {
+    id: "review-to-history-2026-11",
+    run: (v) => {
+      eachSettings(v, (get, set) => {
+        const r = get("plugins/review/data"), h = get("plugins/history/data")
+        if (r?.header === false && h?.header === undefined) set("plugins/history/data", { ...h, header: false })
+        const look = get("appearance")
+        if (!look) return
+        const named = Object.entries(look).map(([k, x]) => [k, Array.isArray(x) ? x.map((y) => (y === "review:review" ? "history:edited" : y)) : x])
+        if (JSON.stringify(Object.fromEntries(named)) !== JSON.stringify(look)) set("appearance", Object.fromEntries(named))
+      })
+      fs.rmSync(v.abs(".vaultite/plugins/review"), { recursive: true, force: true })
+    },
+  },
 ]
 
 /** The app's plugins that moved to Vaultite's plugin directory: id -> where they're installed from now. Off the app in

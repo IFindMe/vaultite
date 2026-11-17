@@ -3,13 +3,16 @@ import { once } from "node:events"
 import fs from "node:fs"
 import path from "node:path"
 import { z } from "zod"
-import { HTTPError, isTextKind, kindOf, LOADED, LOCAL, localDate, localTime, logger, Plugin, Text, vaultHere } from "../../../core/plugins.ts"
-import { fetchFromICloud, READ_WAIT, type Vault, writeAtomic } from "../../../core/vault.ts"
+import { HTTPError, isTextKind, kindOf, LOADED, LOCAL, localDate, localTime, logger, OpError, Plugin, Text, vaultHere, type Who } from "../../../core/plugins.ts"
+import { fetchFromICloud, isHiddenPath, READ_WAIT, readText, type Vault, writeAtomic } from "../../../core/vault.ts"
+import { type Change, changesTo, lastByAgents, writerAt, type Writer } from "./who.ts"
 
 export const plugin = new Plugin(import.meta.url)
 const log = logger("history")
 
 const HOUR = 3600_000
+/** A file left alone this long before its next change: what it said then is a version, whatever the interval. */
+const PAUSE = 60_000
 
 type Stat = { mtime: number; size: number; ns?: string }
 const META = z.object({ mtime: z.number(), size: z.number(), ns: z.string().optional(), path: z.string(), hash: z.string(), last: z.number(), gone: z.boolean().optional() })
@@ -204,7 +207,7 @@ export async function follow(vault: Vault) {
       if (hash === undefined) { s.version = -1; s.seen.delete(rel); continue }
       if (hash === null) { untrack(s, rel); s.skip.set(rel, `${st.mtime}:${st.size}`); continue }
       if (hash !== m.hash) {
-        if (Date.now() - m.last >= interval) {
+        if (Date.now() - m.last >= interval || st.mtime - m.mtime >= PAUSE) {
           try { snapshot(s, rel, m.mtime); m.last = Date.now() } catch { /* no head */ }
         }
         fs.renameSync(copy, path.join(dirOf(s, rel), "head"))
@@ -369,7 +372,7 @@ plugin.provide("history:changed", async (since: number) => {
 
 const Kept = z.union([
   z.array(z.looseObject({ path: z.string(), versions: z.number(), latest: z.number(), gone: z.boolean() })),
-  z.looseObject({ path: z.string(), versions: z.array(z.looseObject({ t: z.number(), size: z.number() })) }),
+  z.looseObject({ path: z.string(), versions: z.array(z.looseObject({ t: z.number(), size: z.number(), by: z.string().optional() })) }),
 ])
 
 plugin.route("GET", "history", async (req) => {
@@ -386,18 +389,28 @@ plugin.route("GET", "history", async (req) => {
     return out.sort((a, b) => b.latest - a.latest)
   }
   const rel = relOf(req.query.path)
-  return { path: rel, versions: await byAgents(rel, versions(s, rel)), others: await others(rel) }
+  const head = s.heads.get(rel)
+  const kept = versions(s, rel).filter((v) => v.t !== head?.mtime)
+  const writers = await writersOf(rel, [...kept.map((v) => v.t), ...(head ? [head.mtime] : [])])
+  return {
+    path: rel, versions: kept.map((v) => ({ ...v, ...writers.get(v.t) })), others: await others(rel),
+    ...(head ? { now: { t: head.mtime, size: head.size, ...writers.get(head.mtime) } } : {}),
+  }
 })
 
-type Change = { t: number; last?: number; actor: { kind: string; name: string }; paths?: string[] }
-async function byAgents(rel: string, vs: { t: number; size: number }[]): Promise<{ t: number; size: number; by?: string }[]> {
-  if (!vs.length) return vs
-  const changes = (await plugin.ask<Change[]>("activity:changes", [], vs.at(-1)!.t - 60_000)).filter((e) => e.paths?.includes(rel))
-  return vs.map((v) => {
-    const e = changes.findLast((c) => c.t - 1000 <= v.t && v.t <= (c.last ?? c.t) + 5000)
-    return e?.actor.kind === "agent" ? { ...v, by: e.actor.name } : v
-  })
+async function writersOf(rel: string, ts: number[]): Promise<Map<number, Writer>> {
+  const out = new Map<number, Writer>()
+  if (!ts.length) return out
+  const changes = changesTo(await plugin.ask<Change[]>("activity:changes", [], Math.min(...ts) - 60_000), rel)
+  for (const t of ts) { const w = writerAt(changes, t); if (w) out.set(t, w) }
+  return out
 }
+
+const hidden = (p: string) => isHiddenPath(p) || p.split("/").some((x) => x.startsWith("."))
+plugin.route("GET", "history/edited", async () => {
+  const changes = await plugin.ask<Change[]>("activity:changes", [], Date.now() - 24 * HOUR)
+  return { files: lastByAgents(changes, hidden).filter((f) => plugin.vault.entries.has(f.path) || plugin.vault.others.has(f.path)) }
+})
 
 plugin.route("GET", "history/version", async (req) => {
   await following
@@ -426,7 +439,8 @@ plugin.op({
   mcp: "history",
   summary: "A file's earlier versions (kept on this machine for a week), newest first; without a file, every file that has some.",
   help: `To see what a file said before an edit (yours, an AI's, another device's): its versions, then history.read with one's
-time. Restoring is writing that text back (an ordinary edit, kept here too). A deleted file's last text is kept as well.
+time, and who wrote each (by: You, an agent as Activity names it). history.restore makes the file one of them again. A
+deleted file's last text is kept as well.
 
   vau history Notes/Idea.md
   vau history`,
@@ -436,7 +450,7 @@ time. Restoring is writing that text back (an ordinary edit, kept here too). A d
   run: async ({ path: p }, ctx) => Kept.parse(await ctx.api("GET", p ? `history?path=${encodeURIComponent(p)}` : "history")),
   text: (r) => (Array.isArray(r)
     ? (r.length ? r.map((f) => `- ${f.path}: ${f.versions} version${f.versions === 1 ? "" : "s"}, the latest ${when(f.latest)}${f.gone ? " (deleted)" : ""}`).join("\n") : "No earlier versions kept yet.")
-    : (r.versions.length ? [`${r.path}, newest first (history.read with its t):`, ...r.versions.map((v) => `- ${when(v.t)} (t ${v.t}, ${v.size} bytes)`)].join("\n") : `No earlier versions of ${r.path}.`)),
+    : (r.versions.length ? [`${r.path}, newest first (history.read with its t):`, ...r.versions.map((v) => `- ${when(v.t)}${v.by ? ` by ${v.by}` : ""} (t ${v.t}, ${v.size} bytes)`)].join("\n") : `No earlier versions of ${r.path}.`)),
 })
 
 plugin.op({
@@ -452,4 +466,51 @@ plugin.op({
   args: ["path", "t"],
   run: async ({ path: p, t }, ctx) => ({ path: p, t, text: String(await ctx.api("GET", `history/version?path=${encodeURIComponent(p)}&t=${t}`)) }),
   text: (r) => r.text,
+})
+
+plugin.op({
+  id: "history.restore",
+  cli: "history restore",
+  mcp: "restore_version",
+  summary: "Make a file one of its earlier versions again (t from history.list); what it said is kept as a version, so it can be undone.",
+  help: `An ordinary edit: the file's text now is kept first (was: its version's t, to restore it back), then the version's
+text written over it. A deleted file comes back.
+
+  vau history restore Notes/Idea.md 1759420800000`,
+  kind: "write",
+  params: {
+    path: { type: "string", format: "path", required: true, description: "the file" },
+    t: { type: "integer", required: true, description: "the version's time, in ms (history.list gives them)" },
+  },
+  args: ["path", "t"],
+  run: async ({ path: p, t }, ctx) => {
+    const text = String(await ctx.api("GET", `history/version?path=${encodeURIComponent(p)}&t=${t}`))
+    const now = fs.existsSync(ctx.vault.abs(p)) ? readText(ctx.vault.abs(p)) : null
+    if (now === text) throw new OpError(`${p} already says what that version does`, 409)
+    if (now !== null) keepDisk(p)
+    const was = now === null ? null : Number((fs.statSync(ctx.vault.abs(p), { bigint: true }).mtimeNs / 1_000_000n))
+    if (now === null) await ctx.api("POST", "file", { path: p, text })
+    else await ctx.api("PUT", "file", { path: p, text, base: now })
+    return { path: p, t, was }
+  },
+  text: (r) => `Restored ${r.path} to its version from ${when(r.t)}${r.was ? ` (what it said before is version ${r.was})` : ""}.`,
+  did: (p) => ({ action: "edit", text: `Restored ${p.path} to an earlier version`, paths: [p.path] }),
+})
+
+/** Before and after an agent's write, the file as it is becomes a version: each agent's change is one of its own. */
+const isAgent = (w: Who) => w.client === "mcp" || !!w.agent
+plugin.around("*", async (call, next) => {
+  if (call.kind === "read" || !isAgent(call.who) || plugin.host.did(call.op, call.params)?.action === "ui") return next()
+  const names: string[] = []
+  for (const k of ["path", "from", "file"]) {
+    const v = call.params[k]
+    if (typeof v !== "string" || !v) continue
+    const rel = v.replace(/^\/+/, "")
+    names.push(rel, `${rel}.md`)
+    const hit = [rel, `${rel}.md`].find((r) => followed(plugin.vault, r))
+    if (hit) keepDisk(hit)
+  }
+  const out = await next()
+  for (const rel of names) keepDisk(rel)
+  return out
 })

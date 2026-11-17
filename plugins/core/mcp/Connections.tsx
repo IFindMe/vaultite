@@ -1,6 +1,6 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useState, useSyncExternalStore, type ReactNode } from "react"
 import { Bot, Check, Copy, ExternalLink, Globe, KeyRound, Plug, Plus, type LucideIcon } from "lucide-react"
-import { Button, backDetail, confirmDialog, copyText, del, detailPath, Empty, fmtAgo, Group, GroupNote, iconNamed, Loading, LoadingRows, notify, notifyError, OnThisMac, op, openDetail, openFile, openView, openWebLink, Panel, patch, plural, post, removals, Row, Section, Segmented, SettingRow, SheetHead, Switch, useAi, useChosen, useEnabled, useKeptCount, useLive } from "@vaultite"
+import { Button, backDetail, confirmDialog, copyText, del, detailPath, Empty, fmtAgo, Group, GroupNote, iconNamed, Loading, LoadingRows, notify, notifyError, OnThisMac, op, openDetail, openFile, openView, openWebLink, Panel, patch, post, removals, Row, Section, Segmented, SettingRow, SheetHead, Switch, useAi, useChosen, useEnabled, useKeptCount, useLive } from "@vaultite"
 
 type Access = "read" | "write"
 type Connection = { id: string; name: string; created: string; used: string | null; access: Access; actor: string }
@@ -477,16 +477,6 @@ export const connectionTitle = (id: string) => lastState?.connections.find((c) =
 type Event = { id: string; t: number; last?: number; action: string; text: string; paths?: string[] }
 type Gate = { id: string; title: string; gate?: boolean; answer?: string }
 
-function useReviewCount(by: string) {
-  const [n, setN] = useState<number | null>(null)
-  useEffect(() => {
-    let on = true
-    op<{ files: unknown[] }>("review.list", { by }).then((r) => { if (on) setN(Array.isArray(r?.files) ? r.files.length : null) }, () => { if (on) setN(null) })
-    return () => { on = false }
-  }, [by])
-  return n
-}
-
 function NameField({ c, onDone }: { c: Connection; onDone: () => void }) {
   const [typed, setTyped] = useState<string | null>(null)
   const [named, choose] = useChosen(c.name)
@@ -524,7 +514,6 @@ function ConnectionPage({ c, onDone, remote }: { c: Connection; onDone: () => vo
   const activity = useLive<{ events: Event[] }>(on("activity") ? `activity?name=${encodeURIComponent(c.actor)}&limit=12` : null, undefined, undefined, 15_000)
   const inbox = useLive<{ events: Gate[] }>(on("inbox") ? "inbox/events?local=1&limit=200" : null, undefined, undefined, 10_000)
   const gates = (inbox.data?.events ?? []).filter((e) => e.gate && !e.answer && e.title.startsWith(`${c.name} asks to `))
-  const review = useReviewCount(c.name)
   const change = async (v: Access) => {
     setChosen(v)
     try { await patch(`mcp/connections/${encodeURIComponent(c.id)}`, { access: v }); onDone() } catch (e) { setChosen(null); notifyError(e) }
@@ -549,11 +538,10 @@ function ConnectionPage({ c, onDone, remote }: { c: Connection; onDone: () => vo
           {remote && " Its access and name are changed on this Mac."}
         </p>
       </Section>
-      {(gates.length > 0 || !!review) && (
+      {gates.length > 0 && (
         <Section title="Waiting for you">
           <Group>
             {gates.map((e) => <Row key={e.id} title={`Asks to ${e.title.slice(`${c.name} asks to `.length)}`} meta="Approve or deny" onOpen={() => openDetail(detailPath("inbox-gate", e.id))} data-connection-gate />)}
-            {!!review && <Row title={`Review ${plural(review, "change")}`} meta={`What ${c.name} changed, to keep or undo`} onOpen={() => openView(`review/${encodeURIComponent(c.name)}`)} data-connection-review />}
           </Group>
         </Section>
       )}

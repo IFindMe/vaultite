@@ -663,6 +663,8 @@ export type PluginCommand = { id: string; name: string; keys?: string[]; when?: 
   keysWhen?: () => boolean
   /** Only on computers (a split, the sidebar: phones have neither). */
   desktop?: boolean
+  /** On a phone, what a key does on a computer (⌘F's Find): its name at the top of the More menu, while this gives one. */
+  phoneMenu?: () => string | null
   /** It only opens or shows something: a link runs it without asking (core/commands.ts runCommandLink). */
   fromLink?: boolean
   /** Other words the palette finds it by ("new" for Open terminal, as its button says New terminal). */

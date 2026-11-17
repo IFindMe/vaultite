@@ -29,7 +29,6 @@ const DIR = "QA companion", NOTE = `${DIR}/Garden ideas.md`
 rmSync(file(DIR), { recursive: true, force: true })
 await api("PUT", "file", { path: NOTE, text: "# Garden ideas\n\nTomatos along the fence, where it's sunny.\n\nBasil between them.\n" })
 await api("PUT", "file", { path: `${DIR}/Seeds.md`, text: "# Seeds\n" })
-await asUser("review.keep", { all: true })
 await op("companion.next", { timeout: 0 })
 await op("companion.clear")
 
@@ -251,14 +250,19 @@ await ui.idle()
 check("edit: the user can undo it", !(await editor.innerText()).includes("Water them every morning"))
 await page.keyboard.press("ControlOrMeta+Shift+z")
 
-const rev = await until(async () => (await api("GET", "review")).files?.find((f) => f.path === NOTE && f.by.includes("Claude")), 8000)
-check("edit: in Review as Claude's, against the text before it", !!rev && rev.added >= 1, rev)
+const hist = await until(async () => { const h = await api("GET", `history?path=${enc(NOTE)}`); return h.now?.by?.includes("Claude") && h.versions?.length ? h : null }, 8000)
+check("edit: in History as Claude's, the text before it a version", !!hist, hist)
 await until(() => text(NOTE).includes("Water them every morning"), 5000)
 await ui.idle()
-const reverted = await asUser("review.revert", { path: NOTE })
+let before = null
+for (const v of hist.versions) {
+  const was = await fetch(`${B}/api/history/version?path=${enc(NOTE)}&t=${v.t}`).then((r) => r.text())
+  if (!was.includes("Water them every morning")) { before = v; break }
+}
+const restored = await asUser("history.restore", { path: NOTE, t: before.t })
 await until(() => !text(NOTE).includes("Water them every morning"), 5000)
-check("edit: reverted from Review, gone from the note and its editor", !text(NOTE).includes("Water them every morning") && text(NOTE).includes("Basil between them.") &&
-  !!(await until(async () => !(await editor.innerText()).includes("Water them every morning"), 5000)), { reverted: reverted.reverted?.length, text: text(NOTE), editor: await editor.innerText() })
+check("edit: restored from History, gone from the note and its editor", !text(NOTE).includes("Water them every morning") && text(NOTE).includes("Basil between them.") &&
+  !!(await until(async () => !(await editor.innerText()).includes("Water them every morning"), 5000)), { restored, text: text(NOTE), editor: await editor.innerText() })
 
 await op("companion.highlight", { path: NOTE, find: "sunny" })
 await page.locator(".cm-companion-hl").waitFor({ timeout: 3000 })

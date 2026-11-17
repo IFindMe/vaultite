@@ -26,7 +26,7 @@ import { PANES, previewIn, previewOrder, groupsAsDrawn, sprangOpen, springing, t
 import { INCOMING, reorder, useSlide } from "@/core/slide"
 import { usePane, usePaneHasTopBar } from "@/core/pane"
 import { useUiMarks } from "@/core/uimarks"
-import { tabButtons, tabsInSidebar, useViewsVersion, viewFor, viewMenuItems } from "@/core/plugins"
+import { pluginCommands, tabButtons, tabsInSidebar, useViewsVersion, viewFor, viewMenuItems } from "@/core/plugins"
 import { getPrefs, setPrefs, usePrefs } from "@/core/prefs"
 import { commandItems, menuBelow, menuFor, openMenu, type MenuItem } from "@/components/ContextMenu"
 import { useCommandKeys } from "@/core/commands"
@@ -279,8 +279,16 @@ function placeItems(p: Pane, phone = false): MenuItem[] {
   return out
 }
 
+function phoneCommands(): MenuItem[] {
+  return pluginCommands(getPrefs().disabled).flatMap((c) => {
+    const label = c.phoneMenu?.()
+    return label && (!c.when || c.when()) ? [{ label, icon: typeof c.icon === "string" ? undefined : c.icon, run: () => c.run() }] : []
+  })
+}
+
 export function phoneTabMenu(tab: Tab): MenuItem[] {
-  const items = placeItems(focusedPane(tab), true).map((it, i) => (i === 0 ? { ...it, sep: false } : it))
+  const keys = phoneCommands()
+  const items = [...keys, ...placeItems(focusedPane(tab), true).map((it, i) => (i === 0 ? { ...it, sep: keys.length > 0 } : it))]
   const split = panesOf(tab).length > 1
   return [...items, ...(split ? [
     { label: "Move to new tab", icon: SquareArrowOutUpRight, sep: items.length > 0, run: () => paneToTab(tab.focus) },

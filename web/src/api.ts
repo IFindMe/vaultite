@@ -184,6 +184,8 @@ export { baseLayoutOf, baseLayouts, registerBaseLayout, useBaseLayouts, type Bas
 // Highlight colours (==🟢text==): the class each draws with (hl-<colour>), and colouring one in an editor.
 // The palette things are coloured by (a container, a tab group): its names, tokens and menu rows.
 export { COLOR_NAMES, COLORS, colorVar, isColor, type Color } from "../../core/colors.ts"
+// An agent's colour, from its name: the same wherever it shows (its knocks, its versions in File history).
+export { agentTint } from "../../core/agenttint.ts"
 export { colorItems, dotIcon } from "@/components/ColorDot"
 export { blockPieces, paragraphAt, colorHighlight, dropHighlightEmoji, HIGHLIGHT_COLORS, HIGHLIGHT_EMOJI, highlightAt, highlightClass, highlightColor, unhighlight, type HighlightColor } from "@/core/highlights"
 export { highlightItems } from "@/core/highlightMenu"

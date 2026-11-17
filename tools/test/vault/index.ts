@@ -88,7 +88,6 @@ export const AREAS: { name: string; deps: string[] }[] = [
   { name: "mind-map", deps: ["pages"] },
   { name: "provenance", deps: ["pages"] },
   { name: "note-dates", deps: ["pages"] },
-  { name: "review", deps: ["pages"] },
   { name: "bundles", deps: ["pages"] },
   { name: "bundle-links", deps: ["pages"] },
   { name: "formats", deps: ["pages","cli"] },

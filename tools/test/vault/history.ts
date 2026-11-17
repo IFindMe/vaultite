@@ -98,4 +98,67 @@ export default async ($: VaultTest) => {
   ;[, allHist] = await api("GET", "history")
   check("history: a gone file's history goes once it's pruned", !allHist.some((f: Any) => f.path === "Hist/b.md"), allHist)
   check("history: kept outside the vault", !fs.readdirSync(VAULT).includes("history") && fs.existsSync(path.join(tmp, "local", "history")))
+
+  await whoWrote($)
 }
+
+/** Who wrote each version (Activity's changes), an agent's edit a version of its own, restoring one and undoing that. */
+async function whoWrote($: VaultTest) {
+  const { VAULT, api, app, check, read, sentBy, sleep } = $
+  const { whoOf } = await import("../../../core/ops.ts")
+  write$($, ".vaultite/plugins/history/data.json", JSON.stringify({ interval_min: 5, keep_days: 7 }))
+  const user = whoOf("app/desktop", null), chatgpt = whoOf("mcp", "ChatGPT")
+  // Further apart than a coarse clock's tick (MTIME_LAG), as a person's edits and an agent's are.
+  const call = async (id: string, params: Any, who = user) => {
+    await sleep(40)
+    const r = (await app.callOp(id, params, who, { report: `mcp ${id}` })).result as Any
+    if (id.startsWith("file.")) app.changed([params.path])
+    return r
+  }
+  async function typed(p: string, text: string) {
+    await sleep(40)
+    const end = app.requestStarted({ t: Date.now(), method: "PUT", route: "file", query: {}, client: "app/desktop", agent: null, command: null, ua: "", remote: "", port: 1, forwarded: false })
+    const r = await api("PUT", "file", { path: p, text, base: read(p) }, sentBy("app/desktop"))
+    end({ status: r[0], ms: 1, body: { path: p } })
+  }
+  const listed = async (p: string) => (await api("GET", `history?path=${p}`))[1]
+  const N = "Who/Plans.md"
+  await call("file.write", { path: N, text: "# Plans\n\nCall Alice.\n" })
+  await listed(N)
+  await typed(N, "# Plans\n\nCall Alice.\nBook the train.\n")
+  await listed(N)
+  await call("file.edit", { path: N, old: "Book the train.", new: "Book the train to Porto." }, chatgpt)
+  let h = await listed(N)
+  check("history: an agent's edit through the API is the current version, by its name", h.now?.by === "ChatGPT" && h.now.kind === "agent", h)
+  const yours = h.versions.find((v: Any) => v.kind === "you")
+  check("history: the text just before it is a version, the user's, though the interval hadn't passed", yours && (await api("GET", `history/version?path=${N}&t=${yours.t}`))[1] === "# Plans\n\nCall Alice.\nBook the train.\n", h.versions)
+  check("history: the file now isn't listed again among its versions", !h.versions.some((v: Any) => v.t === h.now.t), h)
+  await typed(N, read(N) + "Pack.\n")
+  h = await listed(N)
+  check("history: the agent's own text stays a version after the user's next edit", h.versions.some((v: Any) => v.by === "ChatGPT") && h.now.kind === "you", h)
+  const [, edited] = await api("GET", "history/edited")
+  check("history: a file whose last change was the user's isn't listed as an agent's", !edited.files.some((f: Any) => f.path === N), edited)
+  await call("file.edit", { path: N, old: "Pack.", new: "Pack light." }, chatgpt)
+  const [, edited2] = await api("GET", "history/edited")
+  check("history: one an agent changed last is, with who", edited2.files.some((f: Any) => f.path === N && f.by === "ChatGPT"), edited2)
+  const was = read(N)
+  const r = await call("history.restore", { path: N, t: yours.t })
+  check("history: restore makes the file that version again", read(N) === "# Plans\n\nCall Alice.\nBook the train.\n" && typeof r.was === "number", [read(N), r])
+  await call("history.restore", { path: N, t: r.was })
+  check("history: and restoring the version it kept undoes it", read(N) === was, read(N))
+  const text = (await app.callOp("history.list", { path: N }, user)).text
+  check("history: as text, each version with who wrote it", /by ChatGPT/.test(text) && /by You/.test(text), text)
+  // A file left alone a minute: what it said is a version at its next change, whatever the interval.
+  const P = "Who/Paused.md"
+  write$($, P, "one\n")
+  await listed(P)
+  const past = new Date(Date.now() - 120_000)
+  fs.utimesSync(path.join(VAULT, P), past, past)
+  await listed(P)
+  write$($, P, "one\ntwo\n")
+  check("history: a pause of a minute ends a version", (await listed(P)).versions.length === 1)
+  write$($, P, "one\ntwo\nthree\n")
+  check("history: changes in a row within the interval don't", (await listed(P)).versions.length === 1)
+  fs.rmSync(path.join(VAULT, "Who"), { recursive: true, force: true })
+}
+const write$ = ($: VaultTest, p: string, text: string) => $.write(p, text)

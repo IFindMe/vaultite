@@ -1,0 +1,7 @@
+.vau-history-text > div:first-child > .note-prose > :first-child { margin-top: 0; }
+.vau-history-text [data-change] { margin: 2px 0; }
+.vau-history-text [data-change="add"] { border-radius: 6px; padding-left: 12px; background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: inset 3px 0 0 var(--c); }
+.vau-history-text [data-change="del"] { border-radius: 6px; padding-left: 12px; color: var(--muted-foreground); text-decoration: line-through color-mix(in srgb, var(--red) 70%, transparent);
+  background: color-mix(in srgb, var(--red) 7%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--red) 60%, transparent); }
+.vau-history-text ins { border-radius: 3px; padding: 0 1px; text-decoration: none; background: color-mix(in srgb, var(--c) 24%, transparent); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.vau-history-text del { color: var(--muted-foreground); text-decoration-color: color-mix(in srgb, var(--red) 75%, transparent); text-decoration-thickness: 1.5px; }

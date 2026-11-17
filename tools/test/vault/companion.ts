@@ -725,7 +725,7 @@ export default async ($: VaultTest) => {
     await api("POST", "ops/companion.clear", {})
   }
   {
-    // Its edits are its own in Activity, History and Review (by its name, not Claude Code's), and the user reverts them.
+    // Its edits are its own in Activity and History (by its name, not Claude Code's), and the user restores what was.
     const { whoOf } = await import("../../../core/ops.ts")
     const { service } = await import("../../../core/plugins.ts")
     const code = whoOf("cli", "claude-code"), user = whoOf("app/desktop", null)
@@ -734,16 +734,17 @@ export default async ($: VaultTest) => {
     await api("PUT", "file", { path: R, text: "# Plans\n\nCall Alice friday\n" })
     await $.sleep(20)
     await call("companion.edit", { path: R, find: "friday", text: "on Friday", as: "Ada" })
-    const f = (await call("review.list", {}, user)).files.find((x: Any) => x.path === R)
-    check("companion: its edit is in Review by its name, against the text just before", f?.by.join() === "Ada" && f.added === 1 && f.removed === 1, f)
+    let [, h] = await api("GET", `history?path=${R}`)
+    const first = h.versions.find((v: Any) => !v.by || v.by !== "Ada")
+    check("companion: its edit is the current version, by its name, the text just before kept", h.now?.by === "Ada" && !!first, h)
     const [, acts] = await api("GET", "activity?actor=agent&limit=10")
     check("companion: and in Activity as Ada", acts.events.some((e: Any) => e.actor.name === "Ada" && e.paths?.includes(R)), acts.events.slice(0, 3))
     await $.sleep(20)
     await call("companion.edit", { path: R, find: "Alice", text: "Alice Park", as: "Ada" })
-    const [, h] = await api("GET", `history?path=${R}`)
+    ;[, h] = await api("GET", `history?path=${R}`)
     check("companion: a version it wrote names it in History", h.versions.some((v: Any) => v.by === "Ada"), h.versions)
-    await call("review.revert", { path: R }, user)
-    check("companion: the user reverts its edits like any AI's", read(R) === "# Plans\n\nCall Alice friday\n", read(R))
+    await call("history.restore", { path: R, t: first.t }, user)
+    check("companion: the user restores the version before its edits", read(R) === "# Plans\n\nCall Alice friday\n", read(R))
     // A comment or a suggestion leaves the note as it is: Review keeps no version of it first.
     await $.sleep(20)
     await api("PUT", "file", { path: R, text: read(R) + "\nMore\n", base: read(R) }, $.sentBy("app/desktop"))

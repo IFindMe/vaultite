@@ -38,6 +38,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `AgentShare`
 - `agentsOn(disabled?)`: The coding agents of the plugins that are on, in the plugins' order.
 - `AgentSource`: Which agent, and where its plugin answers.
+- `agentTint(id)`
 - `AgentUsage`
 - `AgentUsageBlock({ src, options, fm })`: Its value estimated at list prices (or tokens) per day, today and the period (`days: 30`).
 - `AgentWindow`

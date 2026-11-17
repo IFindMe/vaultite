@@ -23,7 +23,7 @@ export default async ($: VaultTest) => {
   const off = vault.switchedOff()
   check("ai off: the app's plugins for AI are off (Claude Code, the companion, cloud sessions, the Agents panel, Screen)",
     ["claude-code", "companion", "cloud-sessions", "agents", "screen"].every((id) => off.has(id)), [...off])
-  check("ai off: what shows what AI wrote or changed is off too (provenance, review, MCP Apps)", ["provenance", "review", "mcp-apps"].every((id) => off.has(id)), [...off])
+  check("ai off: what shows what AI wrote or changed is off too (provenance, MCP Apps)", ["provenance", "mcp-apps"].every((id) => off.has(id)), [...off])
   check("ai off: what serves agents through ops stays on (MCP, inbox, terminal, watches, agent files), and dictation",
     ["mcp", "inbox", "terminal", "watches", "agent-files", "dictation"].every((id) => !off.has(id)), [...off])
   check("ai off: a vault plugin for AI is off too, another isn't", !app.vaultPlugins.enabled().has("qa-ai-tool") && app.vaultPlugins.enabled().has("qa-plain-tool"))

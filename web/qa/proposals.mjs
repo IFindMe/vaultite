@@ -98,9 +98,9 @@ check("Accept all: the rest is in the note, the card gone", text(NOTE).includes(
 r = await until(async () => { const x = await op("companion.next", { timeout: 2 }); return x.moments?.find((m) => m.item === pid) ? x : null }, 5000)
 check("Accept all: its agent hears what was taken, once", r?.moments.filter((m) => m.item === pid).length === 1 && /took 2 of 3 changes/.test(r.moments.find((m) => m.item === pid).text), r?.moments)
 
-// What it took is the agent's: Review names Claude.
-const rev = await until(async () => (await api("GET", "review")).files?.find((f) => f.path === NOTE && f.by.includes("Claude")), 8000)
-check("taken changes are Claude's in Review", !!rev, (await api("GET", "review")).files?.filter((f) => f.path === NOTE))
+// What it took is the agent's: its version history names Claude.
+const rev = await until(async () => (await api("GET", `history?path=${encodeURIComponent(NOTE)}`)).now?.by?.includes("Claude"), 8000)
+check("taken changes are Claude's in version history", !!rev, (await api("GET", `history?path=${encodeURIComponent(NOTE)}`)).now)
 await page.screenshot({ path: `${OUT}taken.png` })
 
 // A big edit comes as a proposal; ⌘Z isn't needed to undo what never landed.

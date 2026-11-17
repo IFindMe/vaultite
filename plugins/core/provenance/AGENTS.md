@@ -5,8 +5,7 @@ unlabeled, which is the user's own unless the vault labels theirs (`label_user`,
 file marked `origin: human`, or an unlabeled one, only when the user asks; mark notes you write `origin: ai` (an agent's
 new notes through the API get it by themselves; the user's, made in the app or the CLI by hand, get `human` only with
 `label_user` on) and never set `human`, `reviewed` or `mixed` yourself. Leave the key alone when you edit a file: the
-user relabels. Bases filter on it like any key (`origin == "ai"`, `!origin`; `vau query --where "origin = ai"`). Keeping
-an AI's change in Review (`review.keep`, the user's) labels a file that was `ai` `reviewed`.
+user relabels. Bases filter on it like any key (`origin == "ai"`, `!origin`; `vau query --where "origin = ai"`).
 
 Files that aren't Markdown (images, videos, SVG, audio, PDFs, any attachment) have the same label, kept in
 `.vaultite/plugins/provenance/files.json` (`{"<vault path>": "<value>"}`), never in the file: relabelling never rewrites

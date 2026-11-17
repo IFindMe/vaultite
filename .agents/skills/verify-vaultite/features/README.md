@@ -27,6 +27,7 @@ What a user can do in Vaultite, one file per feature: how to reach it, how to dr
 - [Split panes](./split-panes.md): split right and down, open into and focus a pane, close one, split by dragging a tab.
 - [File tree](./file-tree.md): fold folders, new folder and note, move by drag and Move file to…, delete with Undo.
 - [Find notes](./find-notes.md): the quick switcher by name and text, search in a tab, opening a line.
+- [Version history](./version-history.md): a file's versions, who wrote each, what each changed, restoring one.
 - [Tasks in a note](./tasks.md): tick and untick boxes into the file, make tasks by slash, key and menu; Do it offered.
 - [Links and backlinks](./links.md): follow, the link menu, `[[` suggestions, the Links panel and its Link button.
 - [Settings](./settings.md): sections, search, a switch kept in `.vaultite/editor.json`, the palette, plugins off and on.
