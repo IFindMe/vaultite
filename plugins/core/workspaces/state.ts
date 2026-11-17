@@ -1,4 +1,3 @@
-import { z } from "zod"
 import { ArrowDown, ArrowUp, Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
   cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
@@ -7,7 +6,7 @@ import {
 } from "@vaultite"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
 import { markIcon } from "./Mark"
-import { Moves, NO_MOVES, numberNow } from "./order"
+import { NO_MOVES, numberNow, type Moves } from "./order"
 
 const MAX = 5
 export const SLOTS = Array.from({ length: MAX }, (_, i) => i + 1)
@@ -46,7 +45,7 @@ export function slots(): Slots | null {
   const d = JSON.stringify(savedSidebars())
   if (w !== seen || d !== seenDef) {
     seen = w; seenDef = d
-    const m = Moves.parse(getStore()?.workspaceMoves)
+    const m = getStore()?.workspaceMoves ?? NO_MOVES
     if (local && m.seq < movesNow.seq && Date.now() - reorderedAt < 10_000) return local
     movesNow = m
     local = Array.isArray(w) ? unusedIfBlank(w) : null
@@ -322,8 +321,9 @@ async function bringBack(n: number, to: number, what: Sent, place: { at?: number
 export const moveTab = (id: string, n: number) => sendTo(n, { tab: id })
 export const moveBetween = (from: number, to: number, id: string) => (from === current() ? sendTo(to, { tab: id }) : bringBack(from, to, { tab: id }, {}))
 
-const Devices = z.object({ devices: z.array(z.object({ id: z.string(), name: z.string(), label: z.string().optional() })) })
 async function deviceName(): Promise<string | null> {
+  const { z } = await import("zod")
+  const Devices = z.object({ devices: z.array(z.object({ id: z.string(), name: z.string(), label: z.string().optional() })) })
   try { const d = Devices.parse(await get("tabs/devices")).devices.find((x) => x.id === DEVICE); return d ? d.label || d.name : null } catch { return null }
 }
 
@@ -415,16 +415,15 @@ export function reorder(from: number, to: number) {
   if (timer) saveTabs()
   const path = at("workspaces/order")
   writing = queue(async () => {
-    const r = Reordered.parse(await post(path, { from, to }))
+    const r = await post<{ workspaces: unknown[]; moves: Moves }>(path, { from, to })
     reorderedAt = Date.now()
     local = unusedIfBlank(r.workspaces)
-    movesNow = Moves.parse(r.moves)
+    movesNow = r.moves
     followMoves()
     emit(); sidebarsChanged()
   }).catch((e) => { notifyError(e, "Couldn't reorder the workspaces") })
   return writing
 }
-const Reordered = z.object({ workspaces: z.array(z.unknown()), moves: z.unknown() })
 
 export function openElsewhere(): string[] {
   const n = current()

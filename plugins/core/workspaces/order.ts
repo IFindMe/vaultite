@@ -1,8 +1,4 @@
-import { z } from "zod"
-
-const Move = z.object({ seq: z.int(), from: z.int(), to: z.int() })
-export const Moves = z.object({ seq: z.int(), log: z.array(Move) }).catch({ seq: 0, log: [] })
-export type Moves = z.infer<typeof Moves>
+export type Moves = { seq: number; log: { seq: number; from: number; to: number }[] }
 export const NO_MOVES: Moves = { seq: 0, log: [] }
 
 export function afterMove({ from, to }: { from: number; to: number }, n: number): number {

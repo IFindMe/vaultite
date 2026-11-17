@@ -59,7 +59,7 @@ function OpensIn({ n }: { n: number }) {
   )
 }
 
-export function WorkspaceSettings() {
+export default function WorkspaceSettings() {
   useVersion()
   const pinning = useEnabled()("pages")
   const n = current()

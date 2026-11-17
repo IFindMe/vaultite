@@ -5,7 +5,7 @@ import { fileTree, HTTPError, type OpCtx, OpError, type Param, pathAsSaid, pinPr
 import { ConfigError, type Item } from "../../../core/vault.ts"
 import { allPanes, blankList, clean, mapPlaces, newGroupId, newPaneId, newTabId, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Group, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
 import { blankLayout, isBlank } from "./blank.ts"
-import { moved, Moves, numberNow } from "./order.ts"
+import { moved, numberNow, type Moves } from "./order.ts"
 
 export const plugin = new Plugin(import.meta.url)
 export const MAX = 5
@@ -77,7 +77,8 @@ function readable(i?: number) {
   }
 }
 
-const moves = (): Moves => Moves.parse(plugin.kept("moves", null))
+const MovesKept = z.object({ seq: z.int(), log: z.array(z.object({ seq: z.int(), from: z.int(), to: z.int() })) }).catch({ seq: 0, log: [] })
+const moves = (): Moves => MovesKept.parse(plugin.kept("moves", null))
 function slot(arg: string, seen?: string) {
   const n = Number(arg)
   if (!Number.isInteger(n) || n < 1 || n > MAX) throw new HTTPError(400, `a workspace is 1 to ${MAX}, not '${arg}'`)

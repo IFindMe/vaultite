@@ -1,8 +1,7 @@
 import { LayoutGrid } from "lucide-react"
 import { definePlugin, isMac, isPhoneDevice, isPopout, vaultSidebars } from "@vaultite"
-import { AllTabs } from "./AllTabs"
+import { AllTabs, WorkspaceSettings } from "./later"
 import { Background, Workspaces } from "./Numbers"
-import { WorkspaceSettings } from "./Settings"
 import { ALL_TABS, current, currentTab, cycle, host, lit, moveTab, openElsewhere, patch, showAllTabs, slots, SLOTS, switchTo, used } from "./state"
 
 export default definePlugin({

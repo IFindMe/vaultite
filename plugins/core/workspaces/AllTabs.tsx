@@ -32,7 +32,7 @@ function desksOf(here: number, keep: Keep): Desk[] {
   })
 }
 
-export function AllTabs({ store }: { store: Store }) {
+export default function AllTabs({ store }: { store: Store }) {
   useVersion()
   const info = useTabLabels(store)
   const [q, setQ] = useState("")
@@ -50,7 +50,7 @@ export function AllTabs({ store }: { store: Store }) {
       {query && shown.every((d) => !d.count) ? <Empty>No tabs match "{query}".</Empty> : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] items-start gap-3">
           {shown.flatMap((d) => (query && !d.count ? [] : [
-            <section key={d.n} data-all-tabs-workspace={d.n} style={tintWash(lookOf(d.n).tint, false)} className={cn("glass rounded-[12px] p-2 [contain:content]", d.n === here && "ring-1 ring-primary/40")}>
+            <section key={d.n} data-all-tabs-workspace={d.n} style={tintWash(lookOf(d.n).tint, false)} className={cn("glass rounded-[12px] p-2", d.n === here && "ring-1 ring-primary/40")}>
               <div className="flex items-center gap-2 px-1.5 pt-1 pb-2">
                 <Mark n={d.n} {...lookOf(d.n)} look="border border-border font-medium text-foreground" />
                 <h2 className="min-w-0 flex-1 truncate text-[14px] font-semibold">{label(d.n)}</h2>
@@ -78,10 +78,10 @@ function GroupRun({ g, n, children }: { g: TabGroup; n: number; children: ReactN
   return (
     <div data-all-tabs-group={g.id} className="py-0.5">
       <div className="flex h-7 items-center gap-2 px-1.5">
-        <GroupLabel g={{ ...g, collapsed: false }} className="max-w-[75%]" />
+        <GroupLabel g={{ ...g, collapsed: false }} className="max-w-40" />
         <span className="text-[12px] text-muted-foreground tabular-nums">{n}</span>
       </div>
-      <div className="ml-2.5 border-l-2 pl-1" style={{ borderColor: colorVar(g.color) }}>{children}</div>
+      <div className="ml-3 border-l-2 pl-1" style={{ borderColor: colorVar(g.color) }}>{children}</div>
     </div>
   )
 }
@@ -109,7 +109,7 @@ function TabRow({ t, n, info, menu }: { t: Tab; n: number; info: Info; menu: () 
   }
   return (
     <div data-all-tabs-tab={t.id} data-all-tabs-split="" role="group" aria-label={`Split: ${ps.map((p) => info(p).label).join(", ")}`} onContextMenu={menuFor(menu)}
-      className="my-px flex h-8 overflow-hidden rounded-[6px] ring-1 ring-foreground/15 ring-inset">
+      className="flex h-8 overflow-hidden rounded-[6px] ring-1 ring-foreground/15 ring-inset">
       {ps.map((p, i) => (
         <button key={p.id} type="button" data-all-tabs-pane={p.id} data-tip={info(p).label} onClick={(e) => open(e, p.id)}
           className={cn(ROW, "flex-1 basis-0", i && "border-l border-foreground/15")}>
