@@ -5,6 +5,7 @@ import { APP_PAGES, appPageOf, hrefOf, openAppPage } from "@/core/apppages"
 import { onAway } from "@/core/away"
 import type { Store } from "@/core/data"
 import { fingerHolding } from "@/core/drag"
+import { FLICK, fling } from "@/core/pager"
 import { haptic } from "@/core/haptics"
 import { route } from "@/core/nav"
 import { usePageLock } from "@/core/pagelock"
@@ -44,23 +45,32 @@ const EASE = "cubic-bezier(.2,.8,.2,1)"
 const SIDES = ["left", "right"] as const
 const width = () => Math.min(innerWidth * 0.86, 360)
 
+const onPage = (el: Element, page: Element) =>
+  el === document.body || el === document.documentElement || page.contains(el) || !!el.closest("[data-phone-bar]")
+const scrollsToward = (a: Element, side: Side) => side === "left" ? a.scrollLeft > 0 : a.scrollLeft + a.clientWidth < a.scrollWidth - 1
+
+function ownsSideways(a: Element, side: Side) {
+  const cs = getComputedStyle(a)
+  if ((cs.touchAction === "none" || cs.touchAction === "pinch-zoom") && !a.matches("[data-phone-bar]")) return true
+  return /auto|scroll/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 1 && scrollsToward(a, side)
+}
+
 function edgeOpens(el: Element, side: Side) {
   const page = document.getElementById("main-scroll")
-  if (!page || el.closest("[data-phone-header]")) return false
-  if (el !== document.body && el !== document.documentElement && !page.contains(el)) return false
-  if (el.closest("input:not([type=checkbox], [type=radio]), textarea, select, [contenteditable=true]:focus, [data-term], [data-keeps-touch], [data-own-hold]")) return false
-  for (let a: Element | null = el; a && a !== page; a = a.parentElement) {
-    const cs = getComputedStyle(a)
-    if (cs.touchAction === "none" || cs.touchAction === "pinch-zoom") return false
-    if (/auto|scroll/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 1) {
-      if (side === "left" ? a.scrollLeft > 0 : a.scrollLeft + a.clientWidth < a.scrollWidth - 1) return false
-    }
-  }
+  if (!page || el.closest("[data-phone-header]") || !onPage(el, page)) return false
+  if (el.closest(":is(input:not([type=checkbox], [type=radio]), textarea, select, [contenteditable=true]):focus, [data-keeps-touch], [data-own-hold]")) return false
+  for (let a: Element | null = el; a && a !== page; a = a.parentElement) if (ownsSideways(a, side)) return false
   return true
 }
 
+type Lift = { type: string; timeStamp: number }
+const opensOn = (d: Drag, e?: Lift) => {
+  const v = (d.side === "left" ? 1 : -1) * (e?.type === "pointerup" ? fling(d.moves, e.timeStamp) : 0)
+  return Math.abs(v) >= FLICK ? v > 0 : d.from ? d.p > 0.66 : d.p > 0.33
+}
+
 type BodyProps = { store: Store; file: string; tab: string; vaultName: string; vaultMenu: (e: React.MouseEvent) => void }
-type Drag = { side: Side; x: number; y: number; axis: "x" | "y" | null; from: number; p: number; t: number; v: number; quit?: () => void }
+type Drag = { side: Side; x: number; y: number; axis: "x" | "y" | null; from: number; p: number; moves: [number, number][]; quit?: () => void }
 
 function useTouched() {
   const [touched, setTouched] = useState(false)
@@ -114,7 +124,7 @@ export function PhoneDrawers(props: BodyProps) {
   const start = (e: React.PointerEvent | PointerEvent, s: Side, from: number) => {
     if (e.pointerType === "mouse" && e.button) return
     drag.current?.quit?.()
-    drag.current = { side: s, x: e.clientX, y: e.clientY, axis: null, from, p: from, t: e.timeStamp, v: 0 }
+    drag.current = { side: s, x: e.clientX, y: e.clientY, axis: null, from, p: from, moves: [[e.timeStamp, 0]] }
   }
   const move = (e: React.PointerEvent | PointerEvent) => {
     const d = drag.current
@@ -131,25 +141,25 @@ export function PhoneDrawers(props: BodyProps) {
     }
     if (d.axis !== "x") return
     const p = Math.max(0, Math.min(1, d.from + ((d.side === "left" ? 1 : -1) * mx) / width()))
-    const dt = Math.max(1, e.timeStamp - d.t)
-    d.v = (p - d.p) / dt
-    d.p = p; d.t = e.timeStamp
+    d.moves.push([e.timeStamp, mx])
+    if (d.moves.length > 8) d.moves.shift()
+    d.p = p
     place(d.side, p)
   }
-  const end = () => {
+  const end = (e?: Lift) => {
     const d = drag.current
     drag.current = null
     setEdgeTouch(false)
     d?.quit?.()
     if (!d || d.axis !== "x") return
-    const open = Math.abs(d.v) > 0.0015 ? d.v > 0 : d.from ? d.p > 0.66 : d.p > 0.33
+    const open = opensOn(d, e)
     if (open !== (out === d.side)) haptic("soft")
     if (open && out === d.side) place(d.side, 1, 220)
     else if (!open && !out) { place(d.side, 0, 220); setTimeout(() => putAway(d.side), 240) }
     else openDrawer(open ? d.side : null)
   }
   const handlers = { onPointerMove: move, onPointerUpCapture: end, onPointerCancelCapture: end }
-  useEdgeSwipes({ has, side, start, move, end })
+  useEdgeSwipes({ has, side, drag, start, move, end })
 
   return (
     <>
@@ -189,7 +199,8 @@ function closesOnLeaving() {
   return () => { removeEventListener("hashchange", on); removeEventListener("keydown", esc) }
 }
 
-type Gesture = { has: Record<Side, boolean>; side: Side | null; start: (e: PointerEvent, s: Side, from: number) => void; move: (e: PointerEvent) => void; end: () => void }
+type Gesture = { has: Record<Side, boolean>; side: Side | null; drag: React.RefObject<Drag | null>
+  start: (e: PointerEvent, s: Side, from: number) => void; move: (e: PointerEvent) => void; end: (e: PointerEvent) => void }
 
 function useEdgeSwipes(now: Gesture) {
   const live = useRef(now)
@@ -205,13 +216,16 @@ function useEdgeSwipes(now: Gesture) {
       start(e, s, 0)
     }
     const move = (e: PointerEvent) => { if (edgeTouch()) live.current.move(e) }
-    const up = () => { if (edgeTouch()) live.current.end() }
+    const up = (e: PointerEvent) => { if (edgeTouch()) live.current.end(e) }
+    const keepFromIosScroll = (e: TouchEvent) => { if (live.current.drag.current?.axis === "x" && e.cancelable) e.preventDefault() }
     const opts = { capture: true, passive: true }
     addEventListener("pointerdown", down, opts)
     addEventListener("pointermove", move, opts)
     addEventListener("pointerup", up, opts)
     addEventListener("pointercancel", up, opts)
+    addEventListener("touchmove", keepFromIosScroll, { capture: true, passive: false })
     return () => {
+      removeEventListener("touchmove", keepFromIosScroll, { capture: true })
       removeEventListener("pointerdown", down, opts)
       removeEventListener("pointermove", move, opts)
       removeEventListener("pointerup", up, opts)

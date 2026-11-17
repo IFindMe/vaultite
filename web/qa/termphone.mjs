@@ -1,6 +1,6 @@
 // A phone's terminal holds still under its keyboard and through a dropped connection: node web/qa/termphone.mjs <base url> (runs a shell: throwaway server only). Paths: plugins/core/terminal/held.ts, plugins/core/terminal/live.ts
 import { app } from "./lib/app.mjs"
-import { PROMPT, qa, terminalText, until } from "./lib/qa.mjs"
+import { PROMPT, fingers, qa, terminalText, until } from "./lib/qa.mjs"
 const { args: [B], browser, check, watch, done } = await qa(import.meta.url)
 const sid = `qa${Date.now().toString(36)}p`
 
@@ -60,6 +60,15 @@ await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")))
 await until(() => page.evaluate(() => window.__sockets.some((s) => s.readyState === 1)), 4000)
 const back = await until(async () => (await terminalText(page)) === reading, 4000)
 check("back: the same lines in sight", !!back, (await terminalText(page)).slice(-80))
+
+const { swipe } = await fingers(page)
+const drawer = () => page.evaluate(() => document.documentElement.dataset.drawer ?? null)
+const right = await page.evaluate(() => !!document.querySelector("[role=dialog][aria-label='Right sidebar']"))
+for (const [side, x0, x1] of [["left", 18, 300], ...(right ? [["right", 372, 90]] : [])]) {
+  await swipe(x0, 600, x1, 604); await idle()
+  check(`a sideways drag from the terminal's edge low on the screen opens the ${side} sidebar`, (await until(drawer, 3000)) === side, await drawer())
+  await page.keyboard.press("Escape"); await until(async () => !(await drawer()), 3000); await idle()
+}
 
 await page.locator("[data-term]").tap()
 await page.keyboard.type("exit"); await page.keyboard.press("Enter")

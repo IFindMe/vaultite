@@ -70,6 +70,19 @@ const below = await under(6, 740)
 check("below a short page the edge is the page's background, kept from the browser sideways (WebKit's touch-action)", below.page && below.pans.startsWith("pan-y"), below)
 check("a sideways drag from the edge there opens the sidebar", await edgeOpens(6, 740, 300))
 check("so does one 20px in, where the panes' swipe leaves off", await edgeOpens(20, 420, 310))
+check("so does one from the bottom bar's row, which leaves its edges to the sidebars", await edgeOpens(18, 815, 300))
+
+const settle = async (moves) => {
+  await touch("touchStart", moves[0][0], 420)
+  // oxlint-disable-next-line vaultite/no-sleep -- a finger's speed is its moves' spacing in time
+  for (const [x, ms] of moves.slice(1)) { await touch("touchMove", x, 421); await wait(ms) }
+  await touch("touchEnd"); await ui.idle()
+  const opened = await until(drawer, 1500)
+  if (opened) { await page.keyboard.press("Escape"); await until(async () => !(await drawer()), 3000); await ui.idle() }
+  return !!opened
+}
+check("a quick flick a fifth of the way opens the sidebar", await settle([[4, 0], [20, 16], [40, 16], [70, 0]]))
+check("a fast drag that stops short and lifts after a pause stays shut", !(await settle([[4, 0], [40, 16], [80, 16], [100, 250]])))
 
 const link = await at(".cm-wikilink", "Lighthouse walk")
 await hold(link)

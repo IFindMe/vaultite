@@ -2,7 +2,7 @@ import { moves } from "@/core/animation"
 import { spring } from "@/core/motion"
 import { getPrefs } from "@/core/prefs"
 
-const FLICK = 0.3
+export const FLICK = 0.3
 
 export const band = (over: number, w: number) => Math.sign(over) * (1 - 1 / ((Math.abs(over) * 0.55) / w + 1)) * w
 export const within = (x: number, lo: number, hi: number, w: number) => (x < lo ? lo + band(x - lo, w) : x > hi ? hi + band(x - hi, w) : x)

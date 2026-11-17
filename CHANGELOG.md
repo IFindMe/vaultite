@@ -17,8 +17,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   screen too), a terminal or anything else carries on undisturbed, the page keeps its place, and the header, sidebar,
   sheets and page keep clear of the notch; notes keep a reading width, while terminals, chats and graphs use the whole
   screen.
-- Phone: the sidebars open from anywhere along the screen's edges again (over a task's checkbox, below a short page),
-  slide in at once with their panels already drawn, and no longer scroll sideways, so swiping a row in them works.
+- Phone: the sidebars open from anywhere along the screen's edges again (over a task's checkbox, below a short page, a
+  terminal, a chat's message box, the bottom bar's row), a drag the page would have scrolled away no longer drops them,
+  a drag ends by its speed as the finger lifts (a pause before lifting settles by where it is), they slide in at once
+  with their panels already drawn, and no longer scroll sideways, so swiping a row in them works.
 - Phone: the header is clear at a page's top and gets its frosted glass and a hairline once the page scrolls under it,
   as iOS's do; a sheet's bar floats like the app's, so the tab list's + sits exactly on the bar's + and Done where the
   menu is; the tab list's top row lines up with the header and stays as the tabs scroll; the bar's buttons are tinted.
