@@ -11,6 +11,7 @@ import { newVt } from "../plugins/core/terminal/vt/load.ts"
 import { KITTY_STORAGE, LAYOUT, wasiImports } from "../plugins/core/terminal/vt/vt.ts"
 import { Screen } from "../plugins/core/terminal/vt/screen.ts"
 import { keptScale, KittyFeed, readPicture, REPLAY_MAX, withPictures } from "../plugins/core/terminal/termd/kitty.ts"
+import { htmlWithPictures } from "../plugins/core/terminal/termd/capture.ts"
 import { decodePng } from "../plugins/core/terminal/termd/png.ts"
 import { about, minisignOk } from "./ghostty_update.ts"
 import { inkFrames, seq, streaming } from "./perf/vtcorpus.ts"
@@ -321,6 +322,17 @@ await section("kitty graphics", async () => {
       && fresh.text(null) === t.text(null), [want, got, fresh.text(null), t.text(null)])
     fresh.dispose()
   }
+  const c = newVt({ cols: 40, rows: 10, scrollback: 100 })
+  c.write(`before\r\n${fed}${place}\r\nafter`)
+  const page = htmlWithPictures(c, 100), img = /<img [^>]*src="data:image\/png;base64,([^"]+)"[^>]*data-cols="6" data-rows="2" data-up="0"/.exec(page)
+  const shown = img && decodePng(Buffer.from(img[1], "base64"), 1 << 20)
+  check("an html capture draws a picture as an image, its pixels and its cells", !!shown && Buffer.from(shown.data).equals(px.data) && page.split("<img").length === 2 && !page.includes("&#1109742;"),
+    page.replace(/base64,[^"]+/g, "…"))
+  check("… and a text capture says where it was", c.text(null) === "before\n[picture]\nafter", JSON.stringify(c.text(null)))
+  c.write("\r\n".repeat(8))
+  const cut = htmlWithPictures(c, 0)
+  check("… cut off at the top: drawn from the row still shown, its first ones above", /data-rows="2" data-up="1"/.test(cut) && cut.split("<img").length === 2, cut.replace(/base64,[^"]+/g, "…"))
+  c.dispose()
   s2.dispose()
   // History: a picture placed, then scrolled into history, comes back on its line.
   const h = newVt({ cols: 30, rows: 5, scrollback: 100 })

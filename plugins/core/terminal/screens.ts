@@ -2,7 +2,8 @@ import { useEffect, useSyncExternalStore, type CSSProperties } from "react"
 import { get, op } from "@vaultite"
 
 export type Screen = { lines: Run[][]; cols: number }
-export type Run = { text: string; style?: CSSProperties }
+export type Run = { text: string; style?: CSSProperties; picture?: Drawing }
+export type Drawing = { src: string; cols: number; rows: number; rowsCutOffAbove: number }
 type Captured = { text?: string; cols?: number }
 
 const EVERY = 2500, AT_ONCE = 2, AFTER_FAILING = 30_000, LINES = 40, KEPT = 30
@@ -19,25 +20,41 @@ export const paletteBeyondTheme: Record<string, string> = {}
 
 const STYLES = { color: "color", "background-color": "backgroundColor", "font-weight": "fontWeight", "font-style": "fontStyle", opacity: "opacity", "text-decoration-line": "textDecorationLine" } as const
 
-function runOf(text: string, el: Element | null): Run {
-  if (!(el instanceof HTMLElement)) return { text }
+const KITTY_PLACEHOLDER_CELL = /\u{10EEEE}\p{M}*/gu
+
+function styleOf(el: Element | null): CSSProperties | undefined {
+  if (!(el instanceof HTMLElement)) return undefined
   const style: CSSProperties = {}
   for (const [css, key] of Object.entries(STYLES)) { const v = el.style.getPropertyValue(css); if (v) style[key] = v }
-  return { text, style }
+  return style
+}
+
+function drawingOf(n: Node): Drawing | null {
+  const img = n instanceof Element ? n.querySelector("img[data-cols]") : null
+  if (!(img instanceof HTMLImageElement) || !img.src.startsWith("data:image/")) return null
+  const num = (k: string) => Math.max(0, Number(img.dataset[k]) || 0)
+  return { src: img.src, cols: num("cols"), rows: num("rows"), rowsCutOffAbove: num("up") }
+}
+
+function* runsOf(node: Node): Generator<Run | null> {
+  const el = node instanceof Element ? node : null, style = styleOf(el)
+  for (const part of el ? el.childNodes : [node]) {
+    const picture = drawingOf(part)
+    if (picture) { yield { text: "", picture }; continue }
+    for (const [i, text] of (part.textContent ?? "").replace(KITTY_PLACEHOLDER_CELL, " ").split("\n").entries()) {
+      if (i) yield null
+      if (text) yield style ? { text, style } : { text }
+    }
+  }
 }
 
 export function parseScreen(html: string, cols: number): Screen {
   for (const [, n, c] of html.matchAll(/--vt-palette-(\d+):\s*(#[0-9a-fA-F]{3,8})/g)) if (Number(n) >= 16) paletteBeyondTheme[`--vt-palette-${n}`] = c
   const doc = new DOMParser().parseFromString(html.replace(/<style>[\s\S]*?<\/style>/g, ""), "text/html")
   const lines: Run[][] = [[]]
-  for (const node of doc.body.firstElementChild?.childNodes ?? []) {
-    const el = node instanceof Element ? node : null
-    for (const [i, part] of (node.textContent ?? "").split("\n").entries()) {
-      if (i) lines.push([])
-      if (part) lines[lines.length - 1].push(runOf(part, el))
-    }
-  }
-  while (lines.length > 1 && !lines[lines.length - 1].some((r) => r.text.trim())) lines.pop()
+  for (const node of doc.body.firstElementChild?.childNodes ?? []) for (const r of runsOf(node)) if (r) lines[lines.length - 1].push(r); else lines.push([])
+  const blank = (l: Run[]) => !l.some((r) => r.picture || r.text.trim())
+  while (lines.length > 1 && blank(lines[lines.length - 1])) lines.pop()
   return { lines: lines.slice(-LINES), cols }
 }
 

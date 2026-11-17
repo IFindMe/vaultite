@@ -96,3 +96,18 @@ function unfilter(filter: number, line: Buffer, prev: Buffer, bpp: number) {
     default: return false
   }
 }
+
+function chunk(kind: string, body: Buffer) {
+  const head = Buffer.alloc(8), tail = Buffer.alloc(4)
+  head.writeUInt32BE(body.length, 0); head.write(kind, 4, "latin1")
+  tail.writeUInt32BE(zlib.crc32(body, zlib.crc32(kind)), 0)
+  return Buffer.concat([head, body, tail])
+}
+
+export function encodePng(p: Pixels): Buffer {
+  const row = p.width * p.channels, raw = Buffer.alloc((row + 1) * p.height)
+  for (let y = 0; y < p.height; y++) p.data.copy(raw, y * (row + 1) + 1, y * row, (y + 1) * row)
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(p.width, 0); ihdr.writeUInt32BE(p.height, 4); ihdr[8] = 8; ihdr[9] = p.channels === 4 ? 6 : 2
+  return Buffer.concat([SIGNATURE, chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(raw, { level: 6 })), chunk("IEND", Buffer.alloc(0))])
+}

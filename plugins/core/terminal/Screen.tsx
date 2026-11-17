@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react"
 import { Captioned, HoverCard, onLook, placeBesideColumn, type HoverShown } from "@vaultite"
-import { paletteBeyondTheme, useScreen } from "./screens"
+import { paletteBeyondTheme, useScreen, type Drawing, type Run } from "./screens"
 import { codeFont, theme } from "./theme"
 
 const FONT = 13, LEAST_SCALE = 0.5
@@ -17,6 +17,15 @@ function charWidth() {
   c.font = `${FONT}px ${codeFont()}`
   return (ch = c.measureText("0".repeat(20)).width / 20)
 }
+
+function Picture({ d, cw }: { d: Drawing; cw: number }) {
+  return (
+    <span className="relative inline-block h-lh w-0 align-top">
+      <img alt="" src={d.src} className="absolute left-0 max-w-none object-contain" style={{ top: `calc(${-d.rowsCutOffAbove} * 1lh)`, width: d.cols * cw, height: `calc(${d.rows} * 1lh)` }} />
+    </span>
+  )
+}
+const RunOf = ({ r, cw }: { r: Run; cw: number }) => (r.picture ? <Picture d={r.picture} cw={cw} /> : <span style={r.style}>{r.text}</span>)
 
 export function TerminalPicture({ id }: { id: string }) {
   const screen = useScreen(id)
@@ -40,7 +49,7 @@ export function TerminalPicture({ id }: { id: string }) {
         <div className="absolute top-0 left-0 flex origin-top-left flex-col justify-end font-mono whitespace-pre"
           style={{ width: wide, height: size.h / k, transform: `scale(${k})`, fontSize: FONT, lineHeight: 1.3, paddingInline: cw }}>
           <div className="min-h-full py-1">
-            {screen.lines.map((l, i) => <div key={i} style={LINE}>{l.map((r, j) => <span key={j} style={r.style}>{r.text}</span>)}</div>)}
+            {screen.lines.map((l, i) => <div key={i} style={LINE}>{l.map((r, j) => <RunOf key={j} r={r} cw={cw} />)}</div>)}
           </div>
         </div>
       )}

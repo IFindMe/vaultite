@@ -1,5 +1,6 @@
 import { parentPort, workerData } from "node:worker_threads"
 import { Vt } from "../vt/vt.ts"
+import { htmlWithPictures } from "./capture.ts"
 import { withPictures } from "./kitty.ts"
 import type { CaptureFormat } from "./protocol.ts"
 
@@ -32,7 +33,7 @@ function answer(m: In): unknown {
       const above = Math.min(t.length, m.lines === null ? t.length : Math.max(0, m.lines - t.rows))
       const head = { cols: t.cols, rows: t.rows, cursor: t.cursor, alternate: t.alternate, input: t.inputLine() }
       if (m.format === "vt") return { ...head, text: t.serialize(above) }
-      if (m.format === "html") return { ...head, text: t.html(above) }
+      if (m.format === "html") return { ...head, text: htmlWithPictures(t, above) }
       return { ...head, text: t.text(m.lines) }
     }
     case "snapshot": return withPictures(t)

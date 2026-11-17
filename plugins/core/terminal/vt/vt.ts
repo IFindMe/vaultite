@@ -46,6 +46,19 @@ export function wasiImports(module: WebAssembly.Module, memory: () => WebAssembl
 }
 
 /** The module's types, by C name (ghostty_type_json: enums' values), read once per module. */
+/** Kitty's placeholder (U+10EEEE) and its row and column marks: a cell of a picture, as text a "[picture]" line. */
+const PICTURE_CELL = /\u{10EEEE}\p{M}*/gu
+export function withoutPictureCells(lines: string[]) {
+  const out: string[] = []
+  let inPicture = false
+  for (const l of lines) {
+    if (!l.includes("\u{10EEEE}")) { out.push(l); inPicture = false; continue }
+    const rest = l.replace(PICTURE_CELL, " ")
+    if (rest.trim()) { out.push(rest.trimEnd()); inPicture = false } else if (!inPicture) { out.push(`${l.slice(0, l.indexOf("\u{10EEEE}"))}[picture]`); inPicture = true }
+  }
+  return out
+}
+
 const typesOf = new WeakMap<WebAssembly.Module, Record<string, TypeInfo>>()
 
 /** A tiny module re-exporting JS functions as WebAssembly ones, so they fit a function table: each signature is
@@ -294,7 +307,7 @@ export class Vt {
 
   text(lines: number | null) {
     const from = lines === null ? 0 : Math.max(0, this.length - Math.max(lines, this.rows) * 2)
-    const out = this.format("PLAIN", from, { unwrap: true, trim: true }).split("\n")
+    const out = withoutPictureCells(this.format("PLAIN", from, { unwrap: true, trim: true }).split("\n"))
     while (out.length && !out[out.length - 1].trim()) out.pop()
     return (lines === null ? out : out.slice(-lines)).join("\n")
   }

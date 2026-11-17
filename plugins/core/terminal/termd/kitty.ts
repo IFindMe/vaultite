@@ -179,7 +179,7 @@ function sendable(p: Picture) {
   return { ...s, scale: s.width / p.width, format: out * 8 }
 }
 
-function shrink(src: Uint8Array, width: number, height: number, ch: number, out: number, k: number) {
+export function shrink(src: Uint8Array, width: number, height: number, ch: number, out: number, k: number) {
   const w = Math.max(1, Math.floor(width / k)), h = Math.max(1, Math.floor(height / k))
   const data = Buffer.alloc(w * h * out), sum = new Float64Array(4)
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
