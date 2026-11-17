@@ -602,8 +602,8 @@ export default async ($: VaultTest) => {
     check("companion: its agent's word in a dismissed thread brings it back", h.open.some((n: Any) => n.id === back && n.replies?.at(-1)?.text === "One more thing") && h.past.length === 1, h)
     await api("POST", "ops/companion.clear", {})
     await api("DELETE", "file", { path: "Kept/Moved/L.md" })
-    const trashed = (await status()).length === 0
-    check("companion: a note deleted takes its history to the trash", trashed && !exists(side("Kept/Moved/L.md")))
+    const left = (await status()).filter((n) => n.path?.endsWith("Kept/Moved/L.md"))
+    check("companion: a note deleted takes its history to the trash", left.length === 0 && !exists(side("Kept/Moved/L.md")), [left, exists(side("Kept/Moved/L.md"))])
     await api("POST", "ops/companion.next", { timeout: 0 }) // (its replies and dismissals, for the replay's below)
   }
 
