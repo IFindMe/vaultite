@@ -9,7 +9,15 @@ export default async ($: VaultTest) => {
   // manifest's ops (commands), an event hook and a startup command, their environment, log and checks.
   {
     const { eventsOf } = await import("../../../core/events.ts")
-    const { hookProblems } = await import("../../../core/hooks.ts")
+    const { hookProblems, runtimeOf } = await import("../../../core/hooks.ts")
+    {
+      const env: Record<string, string> = {}, node = runtimeOf("node", ["-p", "1 + 1"], env, true), vauRun = runtimeOf("vau", ["version"], env, true)
+      const { execFileSync } = await import("node:child_process"), { vauEntry } = await import("../../../core/appentry.ts")
+      const out = execFileSync(node.prog, node.args, { env: { ...env, PATH: "/nowhere" }, encoding: "utf8" }).trim()
+      check("hooks: in the desktop app, node and vau in commands are its own runtime as Node, with no node on PATH",
+        node.prog === process.execPath && out === "2" && env.ELECTRON_RUN_AS_NODE === "1" && vauRun.prog === process.execPath && vauRun.args[0] === vauEntry() && vauRun.args[1] === "version" &&
+        runtimeOf("python3", ["x.py"], {}, true).prog === "python3", { node, vauRun, out, env })
+    }
     const WC = ".vaultite/plugins/wordcount"
     fs.cpSync(path.join(TOOLS, "fixtures", "wordcount"), path.join(VAULT, WC), { recursive: true })
     // (two more ops, for the tests: the environment, and a command that fails)

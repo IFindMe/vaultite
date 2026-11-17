@@ -18,8 +18,15 @@ export type Run = { t: string; what: string; command: string[]; exit: number | n
 const OP_TIMEOUT = 60, HOOK_TIMEOUT = 120, MAX_TIMEOUT = 600
 const PER_MINUTE = 30, KEEP = 50, MAX_OUT = 4 << 20
 
-// The server's own Node, for `node` and `vau` (#!/usr/bin/env node) in commands: launchd's PATH has no Homebrew.
+// Plain Node's, for what commands start themselves (#!/usr/bin/env node): launchd's PATH has no Homebrew.
 const NODE_DIR = /^node(\.exe)?$/i.test(path.basename(process.execPath)) ? path.dirname(process.execPath) : ""
+
+/** `node` and `vau` in a command are this runtime, as Node in the desktop app: its PATH has no node, nor a shell for a .cmd. */
+export function runtimeOf(prog: string, args: string[], env: Record<string, string>, electron = Boolean(process.versions.electron)) {
+  if (prog !== "node" && prog !== "vau") return { prog, args }
+  if (electron) env.ELECTRON_RUN_AS_NODE = "1"
+  return { prog: process.execPath, args: prog === "vau" ? [vauEntry(), ...args] : args }
+}
 
 function commandProblems(c: unknown, dir: string, where: string): string[] {
   if (!Array.isArray(c) || !c.length || !c.every((x) => typeof x === "string" && x.length && !x.includes("\0"))) {
@@ -149,14 +156,7 @@ export class Hooks {
       PYTHONDONTWRITEBYTECODE: "1",
       PATH: [bin, NODE_DIR, process.env.PATH].filter(Boolean).join(path.delimiter), ...o.env,
     })
-    let prog = command[0].includes("/") && !path.isAbsolute(command[0]) ? path.resolve(p.dir, command[0]) : command[0]
-    let args = command.slice(1)
-    // (on Windows `node` and `vau` are this Node: a .cmd can't run without a shell, and the desktop app has no node.exe)
-    if (process.platform === "win32" && (prog === "node" || prog === "vau")) {
-      if (prog === "vau") args = [vauEntry(), ...args]
-      prog = process.execPath
-      if (process.versions.electron) env.ELECTRON_RUN_AS_NODE = "1"
-    }
+    const { prog, args } = runtimeOf(command[0].includes("/") && !path.isAbsolute(command[0]) ? path.resolve(p.dir, command[0]) : command[0], command.slice(1), env)
     return new Promise<{ exit: number | null; stdout: string; stderr: string; error?: string; timedOut: boolean }>((resolve) => {
       let stdout = "", stderr = "", timedOut = false, error: string | undefined, ended = false
       let timer: ReturnType<typeof setTimeout> | undefined
