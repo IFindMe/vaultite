@@ -182,7 +182,7 @@ onUiAction((m) => {
     const b = m.button
     return void notice(m.text, { kind: m.kind === "error" ? "error" : undefined, action: b ? { label: b.label, run: () => openAsked(b.open) } : undefined })
   }
-  if (m.action === "open" && m.path) return openAsked(m.path, m.split, !!m.newTab, !!m.background, m.container, m.in)
+  if (m.action === "open" && m.path) { const path = m.path; return import("@/core/openable").then((o) => o.openChecked({ ...m, path }, openAsked)) }
 })
 
 /** Open a plugin's view, shown once: a pane that has it shows it (no two terminal panes fighting over its size), else a

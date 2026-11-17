@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- The companion looks things up (`vau which`: pages, hidden sidebar panels, settings, commands, operations, and the
+  vault's folders and notes by name) before saying one isn't there or can't be done, then tries it. Opening a view that doesn't exist names the closest real ones instead of an empty tab, a sidebar panel opens
+  by its key, and an open that lands on an empty page or a placeholder says so.
 - The icon picker is a grid of every Lucide icon and every emoji, found by name (`ninja`), the one selected named below
   it, with buttons to jump to a group and the arrow keys and Tab to move; a colon (`:heart`) finds emoji only, and
   Settings' Emoji in the icon picker leaves them out.

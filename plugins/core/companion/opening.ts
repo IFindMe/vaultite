@@ -41,6 +41,7 @@ function shows(p: Pane, path: string) {
     : x.startsWith("view:") ? p.to === x : p.to === `file:${x}` || p.to === `file:${x}.md` || p.to === `view:folder/${x}`
 }
 const Answered = z.object({ pane: z.string().nullable(), to: z.string() })
+const Blank = z.object({ blank: z.string().optional() }).catch({})
 const SEEN_MS = 4000
 type Before = { focused?: string; tos: Map<string, string> }
 function showsOpened(x: Pane, a: z.infer<typeof Answered>, before: Before) {
@@ -90,8 +91,10 @@ plugin.around("tabs.focus", async (call, next) => {
   if (name && tab) { wroteAt(name, { ui: `tab:${tab}`, pointed: Date.now() }); await new Promise((done) => setTimeout(done, LAND_MS)) }
   return next()
 })
-type Opened = { path: string; pane?: string | null; shows?: string; sheet?: true; fresh?: "made" | "there"; unshown?: string; browser?: boolean; in?: string; title?: string; near?: Parameters<typeof nearText>[0] }
-export const openText = (r: Opened) => (r.browser ? `Opened ${r.path} in ${r.in}, a new tab there in front of them.`
+type Opened = { path: string; pane?: string | null; shows?: string; blank?: string; sheet?: true; fresh?: "made" | "there"; unshown?: string; browser?: boolean; in?: string; title?: string; near?: Parameters<typeof nearText>[0] }
+const blankOpened = (r: Opened & { blank: string }) => `Opened ${r.path}${r.pane ? ` (pane ${r.pane})` : ""}, but it shows ${r.blank}: it isn't what they asked for, so never say it is. Find the page that shows it (vau which <words>) and open that, or tell them you couldn't.`
+export const openText = (r: Opened) => (r.blank ? blankOpened({ ...r, blank: r.blank }) : shownText(r))
+const shownText = (r: Opened) => (r.browser ? `Opened ${r.path} in ${r.in}, a new tab there in front of them.`
   : "in" in r ? `Opened ${r.path} on their Mac${r.in ? `: ${r.in}${r.title ? `, "${r.title}"` : ""} is in front` : ""}.${nearText(r.near ?? [], "In it now (point, ring or act by id)")}`
   : r.unshown ? `${r.fresh === "made" ? "Made" : "Found"} ${r.path}, but their window couldn't show it (${r.unshown}): it has only its heading: write it all the same with edit (append, a section at a time), it's saved, and say where it is in a few words.`
   : !r.pane && !r.sheet ? `Asked their window to open ${r.path}, but no pane of it shows it yet: don't say it's open or point at it; look (companion look) and say what's there.`
@@ -168,6 +171,7 @@ time), each typed in as they watch: it holds nothing else.
       const seen = await openSeen(name, path, () => ctx.op("ui.open", how))
       out.pane = seen.pane ?? null
       if (seen.title) out.shows = seen.title
+      out.blank = Blank.parse(seen.result).blank
       if (seen.sheet) out.sheet = true
     } catch (e) {
       if (!fresh) throw e

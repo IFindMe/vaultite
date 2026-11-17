@@ -354,7 +354,7 @@ function Missing({ path, pane }: { path: string; pane: boolean }) {
     <article className={cn("file-view", pane && "mx-auto max-w-(--line-width) pb-24", !bar && "py-10")} data-path={path}>
       {bar && <PathBar path={path} settle={async () => {}} locked />}
       <h1 className={TITLE}>{stem(path)}</h1>
-      <p className="mt-2 text-[15px] text-muted-foreground">This file isn't in the vault any more. It may have been renamed or deleted.</p>
+      <p data-placeholder className="mt-2 text-[15px] text-muted-foreground">This file isn't in the vault any more. It may have been renamed or deleted.</p>
     </article>
   )
 }

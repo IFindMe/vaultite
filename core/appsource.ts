@@ -13,14 +13,17 @@ export type CommandDef = z.infer<typeof CommandDef>
 
 /** `sort`: its default place; `hidden`: out of the default setup; `dockable`: by a phone. */
 const PanelDef = z.object({ key: z.string(), title: z.string(), heading: z.string().optional(), sort: z.number(), plugin: z.string(), hidden: z.boolean(),
-  side: z.literal("right").optional(), names: z.array(z.string()), dockable: z.literal(true).optional() })
+  side: z.literal("right").optional(), names: z.array(z.string()), dockable: z.literal(true).optional(), view: z.string().optional() })
 export type PanelDef = z.infer<typeof PanelDef>
+
+const ViewDef = z.object({ name: z.string(), title: z.string(), plugin: z.string() })
+export type ViewDef = z.infer<typeof ViewDef>
 
 const SectionDef = z.object({ key: z.string(), title: z.string(), sort: z.number(), plugin: z.string(), hidden: z.boolean(), only: z.enum(["phone", "desktop"]).optional() })
 export type SectionDef = z.infer<typeof SectionDef>
 
 const Snapshot = z.object({ commands: z.array(CommandDef), panels: z.record(z.string(), z.array(PanelDef)), sections: z.record(z.string(), z.array(SectionDef)).optional(),
-  icons: z.array(z.string()).optional() })
+  icons: z.array(z.string()).optional(), views: z.record(z.string(), z.array(ViewDef)).optional() })
 type Snapshot = z.infer<typeof Snapshot>
 
 const SNAPSHOT = path.join(ROOT, "electron", "cli.json")
@@ -45,6 +48,7 @@ export function sourceSnapshot(): Snapshot {
     commands: scanCommands([...walkSrc(path.join(ROOT, "web", "src")), ...plugins.map((p) => path.join(p.dir, "index.tsx"))]),
     panels: Object.fromEntries(plugins.map((p) => [p.id, panelsOf(p)]).filter(([, ps]) => ps.length)),
     sections: Object.fromEntries(plugins.map((p) => [p.id, sectionsOf(p)]).filter(([, ps]) => ps.length)),
+    views: Object.fromEntries(plugins.map((p) => [p.id, viewsOf(p)]).filter(([, vs]) => vs.length)),
     icons: appIcons(plugins),
   }
 }
@@ -130,7 +134,8 @@ export function panelsOf(p: PluginDir): PanelDef[] {
   return found.map(([name, body]) => {
     const heading = /\bheading\s*:\s*["'`]([^"'`]+)["'`]/.exec(body)?.[1]
     const names = /\bnames\s*:\s*\[([^\]]*)\]/.exec(body)?.[1] ?? ""
-    return {
+    const view = /\bview\s*:\s*["'`]([\w-]+)["'`]/.exec(body)?.[1]
+    const def: PanelDef = {
       key: `${p.id}:${name}`, plugin: p.id,
       title: /\btitle\s*:\s*["'`]([^"'`]+)["'`]/.exec(body)?.[1] ?? name,
       ...(heading ? { heading } : {}),
@@ -140,6 +145,19 @@ export function panelsOf(p: PluginDir): PanelDef[] {
       names: [...names.matchAll(/["'`]([^"'`]+)["'`]/g)].map((x) => x[1]),
       ...(/\bdockable\s*:\s*true\b/.test(body) ? { dockable: true as const } : {}),
     }
+    if (view) def.view = view
+    return def
+  })
+}
+
+const STRING = /"((?:[^"\\]|\\.)+)"|'((?:[^'\\]|\\.)+)'|`([^`$]+)`/g
+export function viewsOf(p: PluginDir): ViewDef[] {
+  const found = declared(p, "views")
+  if (!found) return p.tier !== "vault" && !hasSource() ? snapshot()?.views?.[p.id] ?? [] : []
+  return found.map(([name, body]) => {
+    const at = /\btitle\s*:\s*/.exec(body)
+    const said = at ? [...valueAt(body, at.index + at[0].length).matchAll(STRING)].flatMap((m) => { const t = m[1] ?? m[2] ?? m[3]; return /[a-z]{2}/i.test(t) ? [t] : [] }) : []
+    return { name, plugin: p.id, title: said.at(-1) ?? name.replace(/-/g, " ") }
   })
 }
 

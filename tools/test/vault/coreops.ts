@@ -225,4 +225,21 @@ export default async ($: VaultTest) => {
     check("query: a cut cell ends in … and says how to get it whole; a page says the next offset", q1.includes(`${"y".repeat(200)}…`) && q1.includes("read its file") &&
       q2.startsWith("Rows 1-10 of 26 files; more: offset 10."), [q1.slice(-300), q2.slice(0, 80)])
   }
+  await whichChecks($)
+}
+
+async function whichChecks({ check, write, vault, vars: { vau } }: VaultTest) {
+  const which = async (words: string) => { const cr = await vau("which", words, "--json"); return cr.code === 0 ? JSON.parse(cr.out) : [] }
+  const logins = await which("the page with my logins and containers"), keys = await which("passkeys"), dark = await which("dark mode")
+  check("vau which: a page by its words, its hidden sidebar panel and how to open it", logins[0]?.kind === "page" && logins[0].title === "Sites" &&
+    logins[0].panel?.key === "web-viewer:web-pages" && logins[0].how === "vau open view:web-pages", logins.slice(0, 2))
+  check("vau which: another page by one word of its title", keys[0]?.how === "vau open view:agent-passkeys", keys.slice(0, 2))
+  check("vau which: a word is never a longer one it only starts (mode isn't model)", !dark.some((f: { title: string }) => /model/i.test(f.title)), dark)
+  write("Personal/Lighthouse/Plan.md", "# Plan\n")
+  await vault.synced()
+  const folder = await which("the lighthouse folder"), pin = await which("pin a folder")
+  check("vau which: a vault folder by its name, with how to open it", folder[0]?.kind === "folder" && folder[0].how === 'vau open "Personal/Lighthouse"', folder.slice(0, 2))
+  check("vau which: what the app can do is found too (pinning a folder is vau pin)", pin.slice(0, 3).some((f: { how: string }) => f.how === "vau pin"), pin.slice(0, 4))
+  const none = await vau("which", "zzqx flurble")
+  check("vau which: nothing found says so, and where else settings are", none.out.includes("Nothing in the app matches") && none.out.includes("vau settings show"), none)
 }

@@ -185,6 +185,7 @@ function connect() {
         const done: UiDoneMessage = { type: "ui-done", rid: m.rid, ran: v !== false }
         if (v && v.notices?.length) done.notices = v.notices
         if (v && v.to) { done.pane = v.pane ?? null; done.to = v.to }
+        if (v && v.blank) done.blank = v.blank
         s.send(JSON.stringify(done))
       }, (e) => {
         console.error(e)

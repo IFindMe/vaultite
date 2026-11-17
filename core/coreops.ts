@@ -19,6 +19,7 @@ import { panelOps } from "./coreops/panels.ts"
 import { pluginList, pluginOps } from "./coreops/plugins.ts"
 import { Commands, noWindow, Picked, Ran } from "./coreops/common.ts"
 import { settingShowOp } from "./coreops/settingshow.ts"
+import { whichOps } from "./coreops/which.ts"
 import { settingsOps } from "./coreops/settings.ts"
 import { keptOps } from "./coreops/kept.ts"
 import { typeOps } from "./coreops/types.ts"
@@ -33,8 +34,11 @@ import { allowPath } from "./outside.ts"
 
 export function coreOps(app: App): Op[] {
   return [...contextOps(app), ...fileOps(app), ...anchorOps(app), ...typeOps(app), ...propTypeOps(app), ...uploadOps(app), ...pluginOps(app), ...aiOps(app), ...installOps(app), ...bundleOps(app), ...panelOps(app), ...newTabOps(app), ...pageOps(app), ...settingsOps(app), ...paletteOps(app), ...keptOps(app), ...itemOps(app),
-    ...docsOps(app), ...uiOps(app), settingShowOp(), ...secretOps(), ...permissionOps(app), ...devOps(), ...versionOps(), ...updateOps(), ...opsOps(app)]
+    ...docsOps(app), ...whichOps(app), ...uiOps(app), settingShowOp(), ...secretOps(), ...permissionOps(app), ...devOps(), ...versionOps(), ...updateOps(), ...opsOps(app)]
 }
+
+const Shown = z.looseObject({ blank: z.string().optional() }).nullable().catch(null)
+const blankText = (blank: string) => ` But its pane shows ${blank}: it isn't what was asked for (vau which <words> finds the page that shows it).`
 
 function opsOps(app: App): Op[] {
   return [defineOp({
@@ -144,9 +148,9 @@ A pane or container nobody has is an error that lists the ones there are.
     run: async ({ path, split, newTab, in: into, container }, ctx) => {
       const why = typeof path === "string" && path.startsWith("view:terminal/") ? await ctx.refusal?.("the terminal") : ""
       if (why) throw new OpError(why, 403)
-      return ctx.ui({ action: "open", path: outsideOr(path), split: split ?? null, newTab: !!newTab, ...(into ? { in: into } : {}), ...(container ? { container } : {}) }).catch(noWindow)
+      return Shown.parse(await ctx.ui({ action: "open", path: outsideOr(path), split: split ?? null, newTab: !!newTab, ...(into ? { in: into } : {}), ...(container ? { container } : {}) }).catch(noWindow))
     },
-    text: (_r, p) => `Opened ${p.path}${p.in ? ` as a new tab in the pane "${p.in}"` : ""}${p.split ? ` in a split ${p.split}` : ""}${p.container ? ` in the container ${p.container}` : ""}.`,
+    text: (r, p) => `Opened ${p.path}${p.in ? ` as a new tab in the pane "${p.in}"` : ""}${p.split ? ` in a split ${p.split}` : ""}${p.container ? ` in the container ${p.container}` : ""}.${r?.blank ? blankText(r.blank) : ""}`,
     did: ({ path, split }) => ({ action: "ui", text: `Opened ${path} in the app${split ? ` (split ${split})` : ""}`, paths: path && !path.startsWith("view:") ? [path] : [] }),
   }), defineOp({
     id: "ui.command",

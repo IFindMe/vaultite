@@ -57,8 +57,15 @@ try {
   ;[code, out] = vau("open", "Dashboards/Today.md", "--new-tab")
   check("--new-tab adds a tab", code === 0 && await until(async () => (await tabs(a)) === before + 1), [out, before, await tabs(a)])
 
-  ;[code, out] = vau("open", "view:nothing-here/1")
-  check("a view opens (a blank one when its plugin has none)", code === 0 && await until(async () => (await hash(a)).includes("view/nothing-here/1")), [out, await hash(a)])
+  const was = await hash(a)
+  ;[code, out] = vau("open", "view:passkeys")
+  check("a view nothing draws is refused with the closest real ones, and no tab opens", code !== 0 && out.includes('no view is called "passkeys"') &&
+    out.includes("view:agent-passkeys") && (await hash(a)) === was, [out, await hash(a)])
+  ;[code, out] = vau("open", "token-count:context")
+  check("a sidebar panel by its key opens as its page, hidden from the sidebars or not", code === 0 &&
+    await until(async () => (await hash(a)).includes("view/agent-context")), [out, await hash(a)])
+  ;[code, out] = vau("open", "view:mind-map")
+  check("an open whose page is only a placeholder says so", code === 0 && out.includes("shows a placeholder") && out.includes("isn't what was asked for"), out)
 
   const side = () => a.evaluate(() => JSON.parse(localStorage.getItem("vaultite.prefs") ?? "{}").sidebar ?? true)
   const open = await side()

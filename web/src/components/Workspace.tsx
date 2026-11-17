@@ -359,7 +359,7 @@ const PlaceContent = memo(function PlaceContent({ pane, to, view, file, full, fo
   else if (to.startsWith("view:")) {
     const v = viewBody(p.store, pane, to, view, focused)
     body = v.drawn && full ? <div className="absolute inset-0">{v.drawn}</div>
-      : padded(false, <ViewBar right={v.bar?.right}>{v.bar?.title ?? v.title}</ViewBar>, v.drawn ? <HeldView to={to} view={view}>{v.drawn}</HeldView> : <p className="mt-6 text-[15px] text-muted-foreground">{v.note}</p>)
+      : padded(false, <ViewBar right={v.bar?.right}>{v.bar?.title ?? v.title}</ViewBar>, v.drawn ? <HeldView to={to} view={view}>{v.drawn}</HeldView> : <p data-placeholder className="mt-6 text-[15px] text-muted-foreground">{v.note}</p>)
   } else if (to === "new") body = startPage ? padded(true, null, <FileView store={p.store} path={startPage} pane />) : padded(false, <ViewBar>New tab</ViewBar>, <NewTab store={p.store} />)
   else {
     const page = p.page(to)

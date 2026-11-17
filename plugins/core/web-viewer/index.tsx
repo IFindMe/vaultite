@@ -287,7 +287,7 @@ export default definePlugin({
   files: { types: ["bookmarks"], icon: Bookmark },
   ...switcherSearch(openPage),
   sidebar: {
-    "web-pages": { title: "Sites", names: ["logins", "cookies", "signed in"], heading: false, needsHeading: true, sort: 34, hidden: true, view: "web-pages",
+    "web-pages": { title: "Sites", names: ["logins", "cookies", "signed in", "containers"], heading: false, needsHeading: true, sort: 34, hidden: true, view: "web-pages",
       menu: sitesPanelMenu, render: (ctx) => <SitesPanel open={ctx.open} openPage={openPage} newTab={askAddress} /> },
   },
   webLink: (url, { newTab, front, out, container, fromApp }) => {

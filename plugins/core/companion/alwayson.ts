@@ -14,7 +14,7 @@ import { chat, onChat } from "./chat.ts"
 import { lane, nowNote } from "./lane.ts"
 import { startChat, handOverChat } from "./chatturns.ts"
 
-export const ALLOW = ["vau companion", "vau docs", "vau read", "vau search", "vau render", "vau links", "vau context", "vau tasks", "vau dataview", "vau remember", "vau dictation add", "vau watches", "vau tabs", "vau browser", "vau limits", "vau voice off", "vau voice on", "vau voice always"]
+export const ALLOW = ["vau companion", "vau docs", "vau which", "vau read", "vau search", "vau render", "vau links", "vau context", "vau tasks", "vau dataview", "vau remember", "vau dictation add", "vau watches", "vau tabs", "vau browser", "vau limits", "vau voice off", "vau voice on", "vau voice always"]
 export const sessionFile = (name?: string | null) => `${plugin.localDir()}/${name && !isMain(name) ? `session-${key(name)}` : "session"}.json`
 const SessionIn = z.object({ id: z.string(), name: z.string(), t: z.number(), model: z.string().optional(), effort: z.string().optional(), handed: z.number().optional(),
   runs: z.string().optional() })

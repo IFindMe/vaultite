@@ -12,7 +12,7 @@ export function TargetView({ store, to, close, setTarget }: { store: Store; to: 
   const file = tabPath(to)
   if (file) return drawFileView(store, file)
   const view = to.startsWith("view:") ? viewFor(to, disabled) : null
-  if (!view?.on) return <p className="mt-6 text-[15px] text-muted-foreground">{view ? `${offText(view.plugin, disabled)}.` : "Nothing draws this."}</p>
+  if (!view?.on) return <p data-placeholder className="mt-6 text-[15px] text-muted-foreground">{view ? `${offText(view.plugin, disabled)}.` : "Nothing draws this."}</p>
   const name = to.slice(5).split("/")[0]
   const ctx = { store, arg: view.arg, focused: true, close, setArg: (arg: string) => setTarget(`view:${name}${arg ? `/${arg}` : ""}`) }
   const drawn = <Drawn draw={() => view.def.render(ctx)} />

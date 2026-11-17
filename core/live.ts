@@ -17,8 +17,8 @@ const QUIET = 20, GAP = 100, PING = 25_000, RECENT = 500, UI_ANSWER_MS = 3000, A
 /** Seconds each ask may wait for its window's answer. */
 const ASKS = new Map([["commands", 120], ["dev", 120], ["choose", 600], ["secret", 600], ["tabs", 30], ["setting", 30]])
 const isAsk = (action: string) => ASKS.has(action) || /^[a-z0-9-]+:[a-z0-9-]+$/.test(action)
-const Opened = z.object({ pane: z.string().nullable().catch(null), to: z.string() })
-type Driven = { ran: boolean; notices?: { text: string; kind?: string }[]; pane?: string | null; to?: string }
+const Opened = z.object({ pane: z.string().nullable().catch(null), to: z.string(), blank: z.string().optional().catch(undefined) })
+type Driven = { ran: boolean; notices?: { text: string; kind?: string }[]; pane?: string | null; to?: string; blank?: string }
 type Answer = { ran?: boolean; result?: unknown; error?: unknown; notices?: unknown[]; pane?: unknown; to?: unknown }
 
 export function ignored(rel: string) {
@@ -323,7 +323,7 @@ export class Live {
       const done: typeof out & Driven = { ...out, ran: true }
       if (notices.length) done.notices = notices
       const opened = Opened.safeParse(a).data
-      if (opened) { done.pane = opened.pane; done.to = opened.to }
+      if (opened) Object.assign(done, opened)
       return done
     } finally {
       if (rid) this.answers.delete(rid)
