@@ -20,7 +20,7 @@ import { argOf, containerById, containers, destination, keepOutside, keptOutside
 import { fallbackFor, fallsBack, guessedFor, openWebTab, useDraft } from "./drafts"
 import { markTyped } from "./history"
 import { pickElement, ShieldsButton } from "./shields"
-import { SiteInfoButton } from "./Permissions"
+import { SiteInfoButton } from "./SiteInfo"
 import { LoginButton } from "./LoginFill"
 import { Start } from "./Start"
 import { openBookmark, StarButton, starOf } from "./Star"

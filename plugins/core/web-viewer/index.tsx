@@ -6,7 +6,7 @@ import { addContainer, argOf, chosenFor, colorOf, destination, keepOutside, open
 import { iconCame, siteIcon, spinnerIcon } from "./icons"
 import { framedSite } from "./framed"
 import { painted } from "./layers"
-import { PermissionsSettings } from "./Permissions"
+import { PermissionsSection } from "./PermissionsSection"
 import { manageContainers, SitesPanel, sitesPanelMenu, SitesSettings, SitesView } from "./Sites"
 import { extensionPageName, extensionsChanged, hasExtensions, popupChanged, setExtensionsOpener } from "./extstate"
 import { liveTitle } from "./livetitles"
@@ -360,7 +360,7 @@ export default definePlugin({
     { id: "web:import-chrome", name: "Import from Chrome…", desktop: true, when: () => browsersHere().some((s) => s.browser === "chrome"), run: () => void askImport("chrome"), icon: Download },
   ],
   ambient: { playing: { title: "Web pages playing", sort: 55, render: () => <Playing /> }, downloads: { title: "Downloads", sort: 56, render: () => <DownloadsChip /> } },
-  settingsPanel: () => <><SitesSettings /><PermissionsSettings /><PasswordsSetting /></>,
+  settingsPanel: () => <><SitesSettings /><PermissionsSection /><PasswordsSetting /></>,
   settingsSearch: [{ key: "sites", label: "Sites and logins", description: "the sites signed in to in each container's and workspace's logins: sign out, clear trackers" },
     { key: "permissions", label: "Site permissions", description: "what each site may use (camera, microphone, location, notifications), in each container: allow, block or ask" },
     { key: "passwords", label: "Passwords", description: "your KeePass file (KeePassXC's, Strongbox's), its passwords listed, edited and filled in pages" }],
