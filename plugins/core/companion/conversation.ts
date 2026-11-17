@@ -120,7 +120,13 @@ export function talkSoFar(xs: Exchange[], now: number, budget = 6000, whole = 8)
 }
 
 const SONIOX_PER_S = 0.12 / 3600
-export type Spent = { service: string; uses: number; seconds?: number; cost?: number }
+export type Spent = { service: string; uses: number; seconds?: number; cost?: number; fellBack?: number; lastFallbackWhy?: string }
+const Fallback = z.object({ ev: z.literal("voice-fallback"), from: z.string(), why: z.string().optional().catch(undefined) })
+function fellBack(add: (service: string, f: (x: Spent) => void) => void, l: PressLine) {
+  const f = Fallback.safeParse(l).data
+  if (!f || f.from === "mac") return
+  add(f.from, (x) => { x.fellBack = (x.fellBack ?? 0) + 1; if (f.why) x.lastFallbackWhy = f.why })
+}
 export function spent(presses: PressLine[]): Spent[] {
   const by = new Map<string, Spent>(), add = (service: string, f: (x: Spent) => void) => { const x = by.get(service) ?? { service, uses: 0 }; f(x); by.set(service, x) }
   const engine = new Map<string, string>(), began = new Map<string, number>()
@@ -134,6 +140,7 @@ export function spent(presses: PressLine[]): Spent[] {
     const cost = l.cost
     if (typeof cost === "number" && cost > 0) add("openai", (x) => { x.uses++; x.cost = (x.cost ?? 0) + cost })
     if (l.ev === "sound" && typeof l.by === "string") add(l.by, (x) => { x.uses++ })
+    fellBack(add, l)
   }
   return [...by.values()]
 }

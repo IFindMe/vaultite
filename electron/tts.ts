@@ -1,6 +1,7 @@
 // Cloud voices for the companion (voicelogic.ts' `Cloud`): ElevenLabs' and Soniox's real-time TTS. Another provider
 // (Cartesia) is another function here giving the same `Cloud`, picked by `cloudVoice`.
 import WebSocket from "ws"
+import { z } from "zod"
 import { type Cloud, type Made, RATE, type Timed } from "./voicelogic.ts"
 
 /** How a cloud voice is reached: its provider's socket and key (the server's, never logged), the voice and its speed. */
@@ -14,6 +15,27 @@ export type CloudVoice = Cloud & {
 
 export function cloudVoice(c: CloudConfig): CloudVoice {
   return c.provider === "elevenlabs" ? elevenlabs(c) : soniox(c)
+}
+
+function closedWhy(code: number, reason: Buffer, error: string) {
+  const said = String(reason ?? "").trim()
+  return `the socket closed${code && code !== 1000 && code !== 1005 ? ` (${code}${said ? `: ${said}` : ""})` : ""}${error ? `: ${error}` : ""}`
+}
+
+const ElevenError = z.object({ detail: z.looseObject({ status: z.string().optional(), code: z.string().optional(), message: z.string().optional() }).optional().catch(undefined) })
+function elevenWhy(status: number, d: z.infer<typeof ElevenError>["detail"]) {
+  const what = /quota|credit/i.test(`${d?.status ?? d?.code} ${d?.message}`) ? "out of credits" : status === 401 || status === 403 ? "its key was refused"
+    : status === 429 ? "too many requests" : `it answered ${status}`
+  return d?.message ? `${what} (${d.message})` : what
+}
+/** ElevenLabs' socket ends a piece silently when its credits ran out: its HTTP API says why (null: it works now). */
+export async function failedWhy(c: CloudConfig): Promise<string | null> {
+  if (c.provider !== "elevenlabs") return null
+  try {
+    const r = await fetch(`${c.url.replace(/^ws/, "http").replace(/\/$/, "")}/v1/text-to-speech/${encodeURIComponent(c.voice)}?output_format=pcm_16000`, { method: "POST", signal: AbortSignal.timeout(5000),
+      headers: { "xi-api-key": c.key, "Content-Type": "application/json" }, body: JSON.stringify({ text: ".", model_id: c.model }) })
+    return r.ok ? null : elevenWhy(r.status, ElevenError.safeParse(await r.json().catch(() => null)).data?.detail)
+  } catch { return null }
 }
 
 const KEEP_MS = 20_000, IDLE_MS = 90_000
@@ -32,14 +54,15 @@ function soniox(c: CloudConfig): CloudVoice {
     if (ws && ws.readyState <= WebSocket.OPEN) return ws
     const s = new WebSocket(c.url, { headers: { Authorization: `Bearer ${c.key}` }, handshakeTimeout: 4000 })
     ws = s
+    let why = ""
     s.on("open", () => { for (const m of queued.splice(0)) s.send(m) })
     s.on("message", (d) => heard(String(d)))
-    s.on("error", () => {})
-    s.on("close", () => {
+    s.on("error", (e) => { why ||= e.message })
+    s.on("close", (code, reason) => {
       if (ws !== s) return
       ws = null; queued.length = 0
       if (keep) { clearInterval(keep); keep = null }
-      for (const [id, x] of streams) { streams.delete(id); x.to.fail("the socket closed") }
+      for (const [id, x] of streams) { streams.delete(id); x.to.fail(closedWhy(code, reason, why)) }
     })
     keep ??= setInterval(() => { if (!streams.size) send({ keep_alive: true }) }, KEEP_MS)
     keep.unref?.()
@@ -60,7 +83,7 @@ function soniox(c: CloudConfig): CloudVoice {
     try { m = JSON.parse(d) } catch { return }
     const x = m.stream_id ? streams.get(m.stream_id) : undefined
     if (m.error_code || m.error_type) {
-      const why = `${m.error_type ?? "error"} ${m.error_code ?? ""}`.trim()
+      const why = [`${m.error_type ?? "error"} ${m.error_code ?? ""}`.trim(), m.error_message].filter(Boolean).join(": ")
       // (one with no stream is the connection's: every stream fails)
       for (const [id, s] of m.stream_id ? (x ? [[m.stream_id, x] as const] : []) : [...streams]) { streams.delete(id); s.to.fail(why) }
       if (!streams.size) rest()
@@ -114,13 +137,14 @@ function elevenlabs(c: CloudConfig): CloudVoice {
     if (ws && ws.readyState <= WebSocket.OPEN) return ws
     const s = new WebSocket(url(), { headers: { "xi-api-key": c.key }, handshakeTimeout: 4000 })
     ws = s
+    let why = ""
     s.on("open", () => { for (const m of queued.splice(0)) s.send(m) })
     s.on("message", (d) => heard(String(d)))
-    s.on("error", () => {})
-    s.on("close", () => {
+    s.on("error", (e) => { why ||= e.message })
+    s.on("close", (code, reason) => {
       if (ws !== s) return
       ws = null; queued.length = 0
-      for (const [id, x] of streams) { drop(id, x); x.to.fail("the socket closed") }
+      for (const [id, x] of streams) { drop(id, x); x.to.fail(closedWhy(code, reason, why)) }
     })
     return s
   }
@@ -153,7 +177,8 @@ function elevenlabs(c: CloudConfig): CloudVoice {
     try { m = JSON.parse(d) } catch { return }
     const x = m.contextId ? streams.get(m.contextId) : undefined
     if (m.error) {
-      for (const [id, s] of m.contextId ? (x ? [[m.contextId, x] as const] : []) : [...streams]) { drop(id, s); s.to.fail(String(m.error)) }
+      const why = [String(m.error), m.message].filter(Boolean).join(": ")
+      for (const [id, s] of m.contextId ? (x ? [[m.contextId, x] as const] : []) : [...streams]) { drop(id, s); s.to.fail(why) }
       return
     }
     if (!x) return

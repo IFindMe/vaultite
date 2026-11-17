@@ -78,11 +78,18 @@ export const speaker = companionVoice({
   ...(QUIET ? { record: (m: Played) => void spoken.push(m) } : {}),
 })
 const VOICES: Record<string, string> = { elevenlabs: "ElevenLabs", soniox: "Soniox", mac: "this Mac" }
+function logVoiceFallback(message: string) {
+  const port = host?.home()?.port
+  if (!port) return
+  const body = JSON.stringify({ device: "desktop", errors: [{ kind: "voice", t: Date.now(), message, stack: "", build: "" }] })
+  void fetch(`http://127.0.0.1:${port}/api/errors`, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {})
+}
 /** Its voice failing, told once a run: a cloud voice that didn't speak (not one merely slow), or none making a sound,
  *  whose answer then shows in its box by the pointer. */
 function voiceTrouble(e: Parameters<NonNullable<Parameters<typeof companionVoice>[0]["told"]>>[0]) {
+  if (e.t === "fallback") logVoiceFallback(`The companion's voice fell back from ${VOICES[e.from] ?? e.from}'s to ${VOICES[e.to] ?? e.to}'s: ${e.why}`)
   if (e.t === "fallback" && !e.slow) notice(`voice-fallback-${e.from}`, `${VOICES[e.from] ?? e.from}'s voice didn't speak`,
-    `${e.why[0].toUpperCase()}${e.why.slice(1)}: maybe its credits ran out or its key was refused. ${VOICES[e.to] ?? e.to}'s voice speaks meanwhile.`)
+    `${e.why[0].toUpperCase()}${e.why.slice(1)}${/credits|refused/.test(e.why) ? "" : ": maybe its credits ran out or its key was refused"}. ${VOICES[e.to] ?? e.to}'s voice speaks meanwhile.`)
   if (e.t !== "silent") return
   const why = e.why ? `${e.why[0].toUpperCase()}${e.why.slice(1)}` : `${VOICES[e.by] ?? e.by}'s voice made no sound`
   notice("voice-silent", "The companion can't speak", `${why.replace(/^this/, "This")}, so its answer shows in its box by your pointer. vau companion status says what its voice runs on.`)

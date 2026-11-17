@@ -3,7 +3,7 @@
 import { app } from "electron"
 import { spawn, type ChildProcess } from "node:child_process"
 import path from "node:path"
-import { cloudVoice, type CloudConfig, type CloudVoice } from "./tts.ts"
+import { cloudVoice, type CloudConfig, type CloudVoice, failedWhy } from "./tts.ts"
 import { voice, type Voice } from "./voicelogic.ts"
 import type { Heard } from "../core/desktop/screenmarks.ts"
 import { voiceSwift } from "./swiftbuild.ts"
@@ -154,11 +154,14 @@ export function companionVoice(o: {
       keys = { at: Date.now() - 50_000, port, k: keys?.port === port ? keys.k : {} }
     }
   }
+  function configOf(p: Provider): CloudConfig | null {
+    const k = keys?.k, pr = o.prefs()
+    return p === "elevenlabs" ? (k?.elevenlabs ? { provider: p, url: k.elevenlabs.url, key: k.elevenlabs.key, model: pr.eleven.model || "eleven_flash_v2_5", voice: pr.eleven.voice || "nPczCjzI2devNBz1zQrb", speed: pr.speed } : null)
+      : k?.soniox ? { provider: p, url: k.soniox.url, key: k.soniox.key, model: k.soniox.model, voice: as || pr.name || "Adrian", speed: pr.speed } : null
+  }
   /** Each provider's cloud voice, by what it's set to (one kept while that stays). */
   function cloudOf(p: Provider): CloudVoice | null {
-    const k = keys?.k, pr = o.prefs()
-    const c: CloudConfig | null = p === "elevenlabs" ? (k?.elevenlabs ? { provider: p, url: k.elevenlabs.url, key: k.elevenlabs.key, model: pr.eleven.model || "eleven_flash_v2_5", voice: pr.eleven.voice || "nPczCjzI2devNBz1zQrb", speed: pr.speed } : null)
-      : k?.soniox ? { provider: p, url: k.soniox.url, key: k.soniox.key, model: k.soniox.model, voice: as || pr.name || "Adrian", speed: pr.speed } : null
+    const c = configOf(p)
     if (!c) return null
     const config = JSON.stringify(c)
     let v = clouds.get(config)
@@ -177,14 +180,28 @@ export function companionVoice(o: {
     const order: Provider[] = only ? [only] : p === "soniox" ? ["soniox", "elevenlabs"] : ["elevenlabs", "soniox"]
     return order.filter((x) => !!keys?.k[x])
   }
-  const cloudsNow = () => chain().map(cloudOf).filter((x): x is CloudVoice => !!x)
-  /** Whose voice is at `tier` of the chain: a provider's, else this Mac's. */
-  const whose = (tier: number) => chain().filter((p) => !!cloudOf(p))[tier] ?? "mac"
+  const voicesNow = () => chain().flatMap((p) => { const cloud = cloudOf(p), config = configOf(p); return cloud && config ? [{ p, cloud, config }] : [] })
+  let answerVoices: ReturnType<typeof voicesNow> = []
+  const cloudsNow = () => (answerVoices = voicesNow()).map((x) => x.cloud)
+  const whose = (tier: number) => answerVoices[tier]?.p ?? "mac"
+  const providerSaid = new Map<Provider, { at: number; why: string | null }>()
+  async function providerReason(tier: number, why: string, slow?: true): Promise<string> {
+    const x = answerVoices[tier]
+    if (!x || slow) return why
+    const last = providerSaid.get(x.p)
+    const better = last && Date.now() - last.at < 60_000 ? last.why : await failedWhy(x.config)
+    if (!last || Date.now() - last.at >= 60_000) providerSaid.set(x.p, { at: Date.now(), why: better })
+    return better ? `${why}: ${better}` : why
+  }
 
   const v: Voice = voice({
     clouds: cloudsNow,
     heard: (h) => o.heard?.(h),
-    told: (e) => { if (e.t === "fallback") o.told?.({ t: "fallback", why: e.why, from: whose(e.to - 1), to: whose(e.to), ...(e.slow ? { slow: e.slow } : {}) }) },
+    told: (e) => {
+      if (e.t !== "fallback") return
+      const from = whose(e.to - 1), to = whose(e.to)
+      void providerReason(e.to - 1, e.why, e.slow).then((why) => o.told?.({ t: "fallback", why, from, to, ...(e.slow ? { slow: e.slow } : {}) }))
+    },
     hints: o.hints,
     out: {
       pcm: (n, pcm) => out(() => { const p = pn(`v${n}`); playing.add(p); worded.add(p); send({ cmd: "pcm", n: p, data: pcm.toString("base64") }) }),
@@ -217,7 +234,7 @@ export function companionVoice(o: {
     /** Ready before the answer (its Talk key pressed): the key asked for, the cloud's socket and the helper up. */
     warm() {
       if (o.prefs().mode === "off") return
-      void fetchKeys().then(() => cloudsNow()[0]?.warm())
+      void fetchKeys().then(() => voicesNow()[0]?.cloud.warm())
       if (!o.record) void start()
     },
     /** A new answer to `asked` (the ask's words): what was speaking stops (`after`: the realtime voice's words go on);

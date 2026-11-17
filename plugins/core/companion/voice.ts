@@ -33,17 +33,22 @@ const VOICE_NAMES: Record<string, string> = { soniox: "Soniox", elevenlabs: "Ele
 export const voiceHereText = (v: ReturnType<typeof voiceHere>) =>
   `Voice here: hears with ${v.hears === "soniox" ? "Soniox" : "this Mac's recognizer"}${v.mic ? ` through ${v.mic}` : ""}; ${v.speaks.length ? `speaks with ${v.speaks.map((p) => VOICE_NAMES[p]).join(", then ")}` : "never speaks (voice off)"}; realtime ${v.realtime === "on" ? `on (OpenAI ${v.model})` : v.realtime === "no key" ? "off: no OpenAI key" : "off"}.`
 
-export async function elevenUsage(plugin: Plugin): Promise<{ used: number; limit: number; resets?: number } | null> {
+export type ElevenUsage = { used: number; limit: number; resets?: number } | { unread: string }
+export async function elevenUsage(plugin: Plugin): Promise<ElevenUsage | null> {
   const key = keyOf(allKeys(plugin).companion?.elevenlabs)
   if (!key) return null
   try {
     const r = await fetch(`${ELEVEN_API()}/v1/user/subscription`, { headers: { "xi-api-key": key }, signal: AbortSignal.timeout(5000) })
-    if (!r.ok) return null
+    if (!r.ok) {
+      const missing = ElevenError.safeParse(await r.json().catch(() => null)).data?.detail?.status === "missing_permissions"
+      return { unread: missing ? "its key may not read the subscription (give it User: read in ElevenLabs' API keys)" : `ElevenLabs answered ${r.status}` }
+    }
     const j = Subscription.safeParse(await r.json()).data
     return j && typeof j.character_count === "number" && typeof j.character_limit === "number"
-      ? { used: j.character_count, limit: j.character_limit, ...(j.next_character_count_reset_unix ? { resets: j.next_character_count_reset_unix * 1000 } : {}) } : null
-  } catch { return null }
+      ? { used: j.character_count, limit: j.character_limit, ...(j.next_character_count_reset_unix ? { resets: j.next_character_count_reset_unix * 1000 } : {}) } : { unread: "ElevenLabs didn't say" }
+  } catch (e) { return { unread: `ElevenLabs didn't answer (${messageOf(e)})` } }
 }
+const ElevenError = z.object({ detail: z.looseObject({ status: z.string().optional() }).optional().catch(undefined) })
 
 export function voiceOps(plugin: Plugin, changed: () => void) {
   const all = () => allKeys(plugin)

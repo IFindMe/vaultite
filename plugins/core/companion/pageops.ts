@@ -116,15 +116,20 @@ plugin.op({
   text: (r) => [r.wav ? "Its audio is kept." : "No audio kept.", r.png ? "Its picture is kept." : "No picture kept."].join(" "),
 })
 
-type UsageRow = { service: string; today: Spent; week: Spent; left?: { used: number; limit: number; resets?: number; unit: string }; billing?: string }
+type UsageRow = { service: string; today: Spent; week: Spent; left?: { used: number; limit: number; resets?: number; unit: string }; unread?: string; billing?: string }
+const usageLine = (x: UsageRow) => [`${x.service}: today ${x.today.uses}${x.today.cost ? ` ($${x.today.cost.toFixed(3)})` : ""}, this week ${x.week.uses}${x.week.cost ? ` ($${x.week.cost.toFixed(3)})` : ""}`,
+  ...(x.week.fellBack ? [`its voice failed ${x.today.fellBack ?? 0} time${x.today.fellBack === 1 ? "" : "s"} today, ${x.week.fellBack} this week, last: ${x.week.lastFallbackWhy ?? "no reason given"}`] : []),
+  ...(x.left ? [`${x.left.limit - x.left.used} of ${x.left.limit} ${x.left.unit} left`] : x.unread ? [`its balance unread: ${x.unread}`] : []),
+  ...(x.billing && (x.week.fellBack || x.unread) ? [`balance at ${x.billing}`] : [])].join("; ")
 const BILLING: Record<string, string> = { openai: "https://platform.openai.com/settings/organization/billing/overview", soniox: "https://console.soniox.com", elevenlabs: "https://elevenlabs.io/app/subscription" }
 plugin.op({
   id: "companion.usage",
   cli: "companion usage",
-  summary: "What the companion's services used today and this week (counted by Vaultite from its presses), and what's left where the provider says.",
-  help: `Per service: its uses, seconds heard and cost today and over the last 7 days; ElevenLabs' characters left this
-month from its API (with this machine's key); for the others, where to see the balance. The Claude plans' limits are
-Claude Code's (vau claude-code limits).
+  summary: "What the companion's services used today and this week (counted by Vaultite from its presses), each voice's failures and why (out of credits, a refused key), and what's left where the provider says: did I run out of credits? this.",
+  help: `Per service: its uses, seconds heard and cost today and over the last 7 days; how often its voice failed an answer
+over to the next (a worse one, at last this Mac's) and the last reason; ElevenLabs' characters left this month from
+its API (with this machine's key); for the others, where to see the balance. The Claude plans' limits are Claude
+Code's (vau claude-code limits).
 
   vau companion usage`,
   kind: "read",
@@ -132,12 +137,12 @@ Claude Code's (vau claude-code limits).
     const days = Array.from({ length: 7 }, (_, i) => localDate(Date.now() - i * 86_400_000))
     const got = await Promise.all(days.map((day) => plugin.desktop("talk:presses", { day }).catch(() => [])))
     const lines = got.map((x) => Presses.parse(x))
-    const today = spent(lines[0]), week = spent(lines.flat()), eleven = await elevenUsage(plugin)
+    const today = spent(lines[0]), week = spent([...lines].reverse().flat()), eleven = await elevenUsage(plugin)
     const services = [...new Set([...week.map((x) => x.service), ...(eleven ? ["elevenlabs"] : [])])]
     return { services: services.map((service) => ({ service, today: today.find((x) => x.service === service) ?? { service, uses: 0 }, week: week.find((x) => x.service === service) ?? { service, uses: 0 },
-      ...(service === "elevenlabs" && eleven ? { left: { ...eleven, unit: "characters" } } : {}), ...(BILLING[service] ? { billing: BILLING[service] } : {}) })) }
+      ...(service === "elevenlabs" && eleven ? "unread" in eleven ? { unread: eleven.unread } : { left: { ...eleven, unit: "characters" } } : {}), ...(BILLING[service] ? { billing: BILLING[service] } : {}) })) }
   },
-  text: (r) => (r.services.length ? r.services.map((x: UsageRow) => `${x.service}: today ${x.today.uses}${x.today.cost ? ` ($${x.today.cost.toFixed(3)})` : ""}, this week ${x.week.uses}${x.week.cost ? ` ($${x.week.cost.toFixed(3)})` : ""}${x.left ? `; ${x.left.limit - x.left.used} of ${x.left.limit} ${x.left.unit} left` : ""}`).join("\n") : "Nothing used this week."),
+  text: (r) => (r.services.length ? r.services.map(usageLine).join("\n") : "Nothing used this week."),
 })
 
 plugin.op({

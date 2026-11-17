@@ -172,6 +172,7 @@ export default async ($: VaultTest) => {
     check("voice: a cloud voice that ends a piece with no audio (out of credits) hands its words to the next voice, told so (not as slow)",
       out.some((e) => e[0] === "say" && e[2] === "Out of credits.") && told.some((e) => e.t === "fallback" && e.why === "it made no audio" && !e.slow), { out, told })
   }
+  await keepsItsVoices($, voice)
   {
     const { v, out, made } = rig()
     v.start()
@@ -306,6 +307,9 @@ export default async ($: VaultTest) => {
     wss.close(); server.close()
   }
 
+  await failuresSayWhy($)
+  await fallbacksCounted($)
+
   // ---------- ElevenLabs' key: this machine's, checked by a word said, never in the vault
   {
     const { api, vau } = { api: $.api, vau: $.vars.vau as (...a: string[]) => Promise<{ code: number; out: string; err: string }> }
@@ -313,6 +317,7 @@ export default async ($: VaultTest) => {
     const asked: string[] = []
     const rest = http.createServer((req, res) => {
       asked.push(`${req.method} ${req.url}`)
+      if (req.url === "/v1/user/subscription") { res.writeHead(401, { "Content-Type": "application/json" }); return void res.end(JSON.stringify({ detail: { status: "missing_permissions", message: "missing user_read" } })) }
       res.statusCode = req.headers["xi-api-key"] === "eleven-good-key-123" ? 200 : 401
       res.end()
     })
@@ -333,6 +338,8 @@ export default async ($: VaultTest) => {
         k.elevenlabs?.key === "eleven-good-key-123" && /^wss:\/\//.test(k.elevenlabs.url), { r, asked })
       const inVault = (() => { try { return execFileSync("grep", ["-rl", "eleven-good-key-123", $.VAULT], { encoding: "utf8" }) } catch { return "" } })()
       check("voice key: nowhere in the vault", !inVault, inVault)
+      const usage = await vau("companion", "usage")
+      check("usage: ElevenLabs' balance its key may not read says so, and how to let it", usage.code === 0 && /elevenlabs: .*its balance unread: its key may not read the subscription/.test(usage.out), usage)
       r = await vau("voice", "key", "--provider", "elevenlabs", "--remove")
       check("voice key --remove: gone", r.code === 0 && !(await keys()).elevenlabs && !JSON.parse(fs.readFileSync(config, "utf8")).companion?.elevenlabs, r)
     } finally { rest.close(); delete process.env.VAULTITE_ELEVENLABS_API; $.vars.stdinText = "" }
@@ -395,4 +402,73 @@ export default async ($: VaultTest) => {
     for (let i = 44 + 48_000; i < data.length - 48_000; i += 2) peak = Math.max(peak, Math.abs(data.readInt16LE(i)))
     check("voice player: what it played is the tone and the words said after it, not silence", secs > 2 && secs < 10 && peak > 300 && lines.some((l) => l.type === "stopped"), { secs, peak })
   }
+}
+
+async function keepsItsVoices({ check, sleep }: VaultTest, voice: typeof import("../../../electron/voicelogic.ts").voice) {
+  type Ev = [string, ...unknown[]]
+  const pcm = (s: number) => Buffer.alloc(Math.round(s * 48_000))
+  const made: string[] = [], out: Ev[] = []
+  const cloud = (name: string) => ({ make: (p: Any, to: Any) => { made.push(`${name}:${p.text}`); setTimeout(() => { to.audio(pcm(0.1)); to.end() }, 5); return () => {} } })
+  const a = cloud("a"), b = cloud("b")
+  let now = [a, b], asked = 0
+  const w = voice({ clouds: () => { asked++; return now }, hints: () => ["en"], ahead: 1,
+    out: { pcm: (n, x) => out.push(["pcm", n, x.length]), say: (n, t) => out.push(["say", n, t]), end: (n) => out.push(["end", n]), stop: () => out.push(["stop"]) } })
+  w.start()
+  w.text("s1", "First part. Second")
+  now = [b]
+  w.text("s1", "First part. Second part. ")
+  w.end()
+  await sleep(60)
+  const first = [...made]
+  w.start(); w.text("s2", "Next answer. "); w.end()
+  await sleep(30)
+  check("voice: an answer keeps the voices it began with (asked once), its settings changing as it's said; the next answer takes the new ones",
+    first.join() === "a:First part.,a:Second part." && made.at(-1) === "b:Next answer." && asked === 2 && !out.some((e) => e[0] === "say"), { made, asked, out })
+}
+
+async function failuresSayWhy({ check, sleep }: VaultTest) {
+  const until = async (done: () => boolean, ms = 30_000) => { for (const end = Date.now() + ms; !done() && Date.now() < end;) await sleep(20) }
+  const { cloudVoice, failedWhy } = await import("../../../electron/tts.ts")
+  const said = new Map([
+    ["spent-key", { status: 401, detail: { type: "invalid_request", code: "quota_exceeded", status: "quota_exceeded", message: "This request exceeds your quota of 10000. You have 0 credits remaining." } }],
+    ["bad-key", { status: 401, detail: { status: "invalid_api_key", message: "Invalid API key" } }],
+  ])
+  const server = http.createServer((req, res) => {
+    const s = said.get(String(req.headers["xi-api-key"]))
+    res.writeHead(s?.status ?? 200, { "Content-Type": "application/json" }); res.end(JSON.stringify(s ? { detail: s.detail } : {}))
+  })
+  const wss = new WebSocketServer({ server, verifyClient: (i: Any) => !/refused/.test(String(i.req.headers.authorization)) })
+  wss.on("connection", (ws) => ws.on("message", (d) => {
+    const m = JSON.parse(String(d))
+    if (m.flush) ws.send(JSON.stringify({ audio: null, isFinal: true, contextId: m.context_id }))
+    if (m.text_end) ws.send(JSON.stringify({ stream_id: m.stream_id, error_type: "insufficient_balance", error_code: 402, error_message: "Your organization has no credits left." }))
+  }))
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done))
+  const url = `ws://127.0.0.1:${portOf(server)}`
+  const eleven = (key: string) => ({ provider: "elevenlabs" as const, url, key, model: "eleven_flash_v2_5", voice: "nPczCjzI2devNBz1zQrb" })
+  const spent = await failedWhy(eleven("spent-key")), bad = await failedWhy(eleven("bad-key")), fine = await failedWhy(eleven("good-key"))
+  check("tts: ElevenLabs out of credits (its socket silent about it) is named by its API: out of credits, its words; a refused key; none when it works",
+    (spent ?? "").startsWith("out of credits (This request exceeds your quota") && bad === "its key was refused (Invalid API key)" && fine === null, { spent, bad, fine })
+  const fail = async (c: Any) => {
+    const v = cloudVoice(c), got: string[] = []
+    v.make({ n: 1, text: "Hello.", language: "en" }, { audio: () => got.push("audio"), end: () => got.push("end"), fail: (w: string) => got.push(`fail ${w}`) })
+    await until(() => got.length > 0, 5000)
+    v.close()
+    return got.join()
+  }
+  const soniox = await fail({ provider: "soniox", url, key: "s-key", model: "tts-rt-v2", voice: "Adrian" })
+  const refused = await fail({ provider: "soniox", url, key: "refused", model: "tts-rt-v2", voice: "Adrian" })
+  check("tts: Soniox's error says its type, code and message", soniox === "fail insufficient_balance 402: Your organization has no credits left.", soniox)
+  check("tts: a socket refused at its handshake fails its piece with the status it gave", /^fail the socket closed.*401/.test(refused), refused)
+  wss.close(); server.close()
+}
+
+async function fallbacksCounted({ check }: VaultTest) {
+  const { spent } = await import("../../../plugins/core/companion/conversation.ts")
+  const l = (ev: string, x: Any) => ({ t: 1, press: "p1", kind: "talk", ev, ...x })
+  const s = spent([l("sound", { by: "soniox" }), l("voice-fallback", { from: "elevenlabs", to: "soniox", why: "it made no audio" }),
+    l("voice-fallback", { from: "elevenlabs", to: "soniox", why: "it made no audio: out of credits" }), l("voice-fallback", { from: "mac", to: "mac", why: "closed" })])
+  const e = s.find((x) => x.service === "elevenlabs")
+  check("usage: each voice's failures counted with its last reason (from the press log), this Mac's never", e?.fellBack === 2 && e.lastFallbackWhy === "it made no audio: out of credits" &&
+    e.uses === 0 && !s.some((x) => x.service === "mac"), s)
 }

@@ -9,6 +9,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Version history replaces Review: a file's history shows who wrote each version (you, an agent by name, another app
   or device) and what it changed, marked in the note, with Restore this version and Undo, on the Mac and the iPhone; a
   file an agent changed says so at its top. Nothing waits to be kept or reverted any more (`history.restore` for agents).
+- Companion: switching to another vault's window while an answer is said no longer cuts it over to this Mac's voice,
+  and a voice that fails (out of credits, a refused key) is logged with its provider and why, which `vau companion
+  usage` reports per voice.
 - iPhone: Find in note at the top of a note's More menu, as ⌘F on a Mac.
 - Companion: after opening something it points at and names the pane that really shows it (a new tab, or a pane
   that moved on), and when no pane shows it yet it says so instead of saying it opened.

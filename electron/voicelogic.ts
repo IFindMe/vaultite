@@ -27,7 +27,7 @@ type Slot = { p: Piece; say: string; state: "wait" | "making" | "made" | "done";
 
 export type VoiceOptions = {
   out: Out
-  /** The cloud voices now, the first tried first (none: this Mac's). */
+  /** The cloud voices, the first tried first (none: this Mac's): asked once an answer, kept till its end. */
   clouds: () => Cloud[]
   /** The languages the user speaks (two letters), the first the likeliest. */
   hints: () => string[]
@@ -49,7 +49,9 @@ export function voice(o: VoiceOptions) {
   const ahead = o.ahead ?? 3, firstMs = o.firstMs ?? 2500, stallMs = o.stallMs ?? 3000
   /** `tier`: the cloud voice this answer is at (past the last: this Mac's). */
   let slots: Slot[] = [], head = 0, tier = 0, language: string | null = null, asked = "", n = 0, on = false
-  const local = () => tier >= o.clouds().length
+  let answerClouds: Cloud[] | null = null
+  const clouds = () => (answerClouds ??= o.clouds())
+  const local = () => tier >= clouds().length
   let says = new Map<string, ReturnType<typeof chunker>>()
 
   function add(text: string, say: string) {
@@ -79,7 +81,7 @@ export function voice(o: VoiceOptions) {
   }
 
   function make(s: Slot) {
-    const cloud = o.clouds()[tier]
+    const cloud = clouds()[tier]
     if (!cloud) return
     s.state = "making"
     const t0 = Date.now()
@@ -106,7 +108,7 @@ export function voice(o: VoiceOptions) {
    *  (what's played of it stays: the next says the rest, from the next word). */
   function fail(s: Slot, why: string, slow = false) {
     if (!slots.includes(s)) return
-    const failed = o.clouds()[tier]
+    const failed = clouds()[tier]
     tier++
     o.told?.({ t: "fallback", n: s.p.n, why, from: s.sent, to: tier, ...(slow ? { slow } : {}) })
     for (const x of slots) if (x.state === "making") {
@@ -178,7 +180,7 @@ export function voice(o: VoiceOptions) {
 
   return {
     /** A new answer to an ask in `asked` words, or in `lang` when that's known: what was speaking stops. */
-    start(words = "", lang?: string) { silence(); asked = words; language = lang || null; tier = 0; on = true },
+    start(words = "", lang?: string) { silence(); asked = words; language = lang || null; tier = 0; answerClouds = null; on = true },
     /** Say `id`'s text so far (its whole text each time). */
     text(id: string, whole: string) {
       if (!on) return

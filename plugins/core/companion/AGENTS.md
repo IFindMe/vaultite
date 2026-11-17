@@ -19,7 +19,8 @@ what its voice runs on here.
   fraction of a cent); its socket is open only while they speak. No key: this Mac's recognizer, free.
 - Speaking: ElevenLabs with its key (Flash: about $0.04 per 1,000 characters past the free plan's 20,000 a month; a
   spoken answer is 100 to 200), else Soniox's voice (about a third of that), else this Mac's, free. A voice that fails or
-  runs out hands on to the next.
+  runs out hands on to the next, logged with its provider and why (`vau errors`); "did I run out of credits?", "why did
+  you sound like that?": `vau companion usage` (each voice's failures and their last reason, ElevenLabs' balance).
 - The realtime voice, only with an OpenAI key: gpt-realtime-2.1-mini bills audio tokens, about a third of a cent for small
   talk it answers, a sixth for the few words before a screen answer (the answer itself is the speaking voice's)
   (the press log, userData/talk, has each turn's cost); an account with no credits pauses it.
