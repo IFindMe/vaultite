@@ -49,7 +49,9 @@ hand, or by an older app) is taken in and leaves the file.
   other workspaces' too, and the switcher marks a workspace where a page plays sound.
 
 **Moving tabs** between workspaces: `POST /api/workspaces/move` with `{"from": 1, "to": 2, "tab": "<tab id>"}` (a tab,
-all its panes), `{"to": 2, "pane": "<pane id>"}` or `{"to": 2, "path": "Notes/Idea.md"}` (a pane, out of its split), or
+all its panes), `{"to": 2, "pane": "<pane id>"}` or `{"to": 2, "path": "Notes/Idea.md"}` (a pane, out of its split),
+`{"to": 2, "group": "<tab group id>"}` (a tab group whole: its tabs, name, colour and fold; dragged onto a number too), or
 `{"to": 2, "open": ["Notes/Idea.md"]}` (opens files there). From a terminal: `vau workspace tabs`, `vau workspace move
-<file|tab or pane id> <n> [--from <m>] [--whole]`, `vau workspace open <file> <n>`, `vau workspace close`. What moves
-leaves as closing would and lands at the end of the target's tabs; nothing ends, a terminal keeps its shell.
+<file|tab, pane or group id> <n> [--from <m>] [--whole]`, `vau workspace open <file> <n>`, `vau workspace close`. What
+moves leaves as closing would and lands at the end of the target's tabs (`at`: an index there instead; `into`: with
+`tab`, the group it joins there); nothing ends, a terminal keeps its shell.

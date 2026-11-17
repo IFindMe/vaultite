@@ -104,19 +104,36 @@ export default async ($: VaultTest) => {
     check("workspaces move tab: a split tab goes whole (its panes, focus, name), out of its group, at the target's end, the target's tab still shown",
       st === 200 && desc(w[1].layout) === "y*,[a|b]" && moved.focus === "b" && moved.name === "Pair" && !("group" in moved) &&
       desc(w[0].layout) === "c*" && !w[0].layout.groups, [st, body, w])
-    // Undo's move back (`at`, `group`): to its index there, in its group again when a neighbour still is.
     writeWs(({ workspaces: [
       { layout: L([T("a", "file:Notes/A.md"), { ...T("b", "file:Notes/B.md"), group: "g" }, { ...T("c", "file:Notes/C.md"), group: "g" }, T("d", "file:Notes/D.md")], "ta", { groups: [{ id: "g", name: "G", color: "blue" }] }) },
       { layout: L([T("y", "file:Notes/Y.md")]) },
     ] }))
     await api("POST", "workspaces/move", { from: 1, to: 2, tab: "tb" })
-    ;[st] = await api("POST", "workspaces/move", { from: 2, to: 1, tab: "tb", at: 1, group: "g" })
+    ;[st] = await api("POST", "workspaces/move", { from: 2, to: 1, tab: "tb", at: 1, into: "g" })
     w = wsNow().workspaces
     check("workspaces move back (Undo): at its index, in its group", st === 200 && desc(w[0].layout) === "a*,b,c,d" && w[0].layout.tabs[1].group === "g" && desc(w[1].layout) === "y*", [st, w])
     await api("POST", "workspaces/move", { from: 1, to: 2, tab: "td" })
     ;[st] = await api("POST", "workspaces/move", { from: 2, to: 1, tab: "td", at: 9 })
     w = wsNow().workspaces
     check("workspaces move back: an index past the end is the end, out of the group beside it", st === 200 && desc(w[0].layout) === "a*,b,c,d" && !("group" in w[0].layout.tabs[3]), [st, w])
+    const G = (id: string) => ({ id, name: "Grp", color: "teal", collapsed: true })
+    writeWs(({ workspaces: [
+      { layout: L([T("a", "file:Notes/A.md"), { ...T("b", "file:Notes/B.md"), group: "g" }, { ...T("c", "file:Notes/C.md"), group: "g" }, T("d", "file:Notes/D.md")], "ta", { groups: [G("g")] }) },
+      { layout: L([{ ...T("y", "file:Notes/Y.md"), group: "g" }, { ...T("x", "file:Notes/C.md"), group: "g" }], "ty", { groups: [{ id: "g", name: "Other", color: "red" }] }) },
+    ] }))
+    ;[st] = await api("POST", "workspaces/move", { to: 2, group: "g" })
+    check("workspaces move a group: one id in two workspaces asks which", st === 409, st)
+    ;[st, body] = await api("POST", "workspaces/move", { from: 1, to: 2, group: "g" })
+    w = wsNow().workspaces
+    const went = w[1].layout.groups?.find((g: Any) => g.id === body.group)
+    check("workspaces move a group: its tabs leave, in order, as the group they were (a new id beside one taken), what's open there stays",
+      st === 200 && desc(w[0].layout) === "a*,d" && !w[0].layout.groups && desc(w[1].layout) === "y*,x,b" && body.group !== "g" &&
+      went?.name === "Grp" && went.collapsed === true && w[1].layout.tabs[2].group === body.group && body.tabs.length === 1, [st, body, w])
+    ;[st] = await api("POST", "workspaces/move", { from: 2, to: 1, group: body.group, at: 1 })
+    w = wsNow().workspaces
+    check("workspaces move a group back (Undo): at its index", st === 200 && desc(w[0].layout) === "a*,b,d" && w[0].layout.tabs[1].group && desc(w[1].layout) === "y*,x", [st, w])
+    ;[st] = await api("POST", "workspaces/move", { to: 2, group: "nope" })
+    check("workspaces move a group: one that's nowhere is a 404", st === 404, st)
     writeWs(({ workspaces: [
       { layout: L([T("c", "view:terminal/abc")]) },
       { name: "Two", layout: L([T("y", "file:Notes/X.md"), S("x", [P("a", "file:Notes/A.md"), P("b", "file:Notes/B.md")], "b", { name: "Pair" })]) },

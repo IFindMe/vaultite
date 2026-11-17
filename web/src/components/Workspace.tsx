@@ -4,7 +4,7 @@ import { confirmDialog } from "@/components/ConfirmDialog"
 import type { ViewDef } from "@/core/define"
 import { useHeldHeight } from "@/core/heights"
 import { barsHidden, closePane, paneById, quietly, replaceTabTarget, setArchivable, setCloseGuard, setFocusedPane, setOpenElsewhere, setOpener, setOwnHistory, setPageTest, setPathView, setTabCloser, setTabKeeper, setWorkspaceOf, useTabList } from "@/core/workspace"
-import { dropAt, dropOn, PANES, springOver, type Drop } from "@/core/drop"
+import { dropAt, dropOn, foldedGroupAt, intoFolded, PANES, springGroup, springOver, type Drop } from "@/core/drop"
 import { evenOut, placeFloat, resize, type Zone } from "@/core/splits"
 import { paneBoxes, paneGap, usePaneMotion } from "@/core/panemotion"
 import { setGroupNamer, setPaneLabeler } from "@/core/tabgroups"
@@ -99,6 +99,7 @@ function keepPanes(k: Kept, l: TabList, shown: string): Kept {
 function springAt(item: DragItem, x: number, y: number) {
   const t = springTabAt(item, x, y)
   springOver(t, item, x, y)
+  springGroup(t ? null : foldedGroupAt(item, x, y), item, x, y)
   return t
 }
 
@@ -114,7 +115,7 @@ export function Workspace(props: Props) {
   usePaneMotion(box, tab.id, drawn, tab.focus, [props.left, props.right ?? "0px"])
   const lifted = useDrag((d) => d?.item.pane ?? null)
   useDropTarget<Drop>(PANES, (item, x, y, el) => dropAt(item, x, y, el, springAt(item, x, y)), dropOn,
-    { stay: (d) => d.kind === "list" && !!d.home, end: () => springOver(null, null) })
+    { stay: (d) => d.kind === "list" && !!d.home, into: (d) => intoFolded(l, d), end: () => { springOver(null, null); springGroup(null, null) } })
   const [was, setKept] = useState<Kept>({ slots: [], recent: [] })
   const kept = keepPanes(was, l, tab.id)
   if (kept !== was) setKept(kept)

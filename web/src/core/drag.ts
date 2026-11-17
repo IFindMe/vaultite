@@ -59,7 +59,7 @@ export type DragItem = {
    *  draws it, this one only where it would land. */
   elsewhere?: boolean
 }
-type Answer = { data: unknown; hint?: string; weak?: boolean; stay?: boolean; drop: (item: DragItem) => void }
+type Answer = { data: unknown; hint?: string; weak?: boolean; stay?: boolean; into?: boolean; drop: (item: DragItem) => void }
 type Hit = Answer & { target: string }
 export type DropId<H> = string & { readonly hit?: H }
 export const hitOn = <H,>(hit: Hit | null | undefined, id: DropId<H>): H | null => (hit?.target === id ? hit.data as H : null)
@@ -96,7 +96,7 @@ if (typeof window !== "undefined") {
 }
 
 export type DropTarget<H> = {
-  at: (item: DragItem, x: number, y: number, el: Element | null) => { data: H; hint?: string; weak?: boolean; stay?: boolean } | null
+  at: (item: DragItem, x: number, y: number, el: Element | null) => { data: H; hint?: string; weak?: boolean; stay?: boolean; into?: boolean } | null
   drop: (item: DragItem, data: H) => void
   end?: () => void
 }
@@ -112,17 +112,17 @@ export function addDropTarget<H>(id: DropId<H>, t: DropTarget<H>) {
   return () => { if (targets.get(id) === target) targets.delete(id) }
 }
 
-/** Take drops while mounted. `at` answers what a drop at (x, y) would do (`hint`: a word on the item, like "Unpin";
- *  `weak`: taken only when no other target answers; `stay`: where it is already, a Hit's); `drop` does it. */
+/** Take drops while mounted. `at` answers what a drop at (x, y) would do (`hint`: a word on the item, like "Unpin"; `weak`: taken
+ *  only when no other answers; `stay`: where it is already; `into`: into what's under it, which the ghost steps off); `drop` does it. */
 export function useDropTarget<H>(id: DropId<H>, at: (item: DragItem, x: number, y: number, el: Element | null) => H | null,
-  drop: (item: DragItem, hit: H) => void, opts: { hint?: (hit: H) => string | undefined; weak?: (hit: H) => boolean; stay?: (hit: H) => boolean; end?: () => void } = {}) {
+  drop: (item: DragItem, hit: H) => void, opts: { hint?: (hit: H) => string | undefined; weak?: (hit: H) => boolean; stay?: (hit: H) => boolean; into?: (hit: H) => boolean; end?: () => void } = {}) {
   const ref = useRef({ at, drop, opts })
   useEffect(() => { ref.current = { at, drop, opts } })
   useEffect(() => {
     targets.set(id, {
       at: (item, x, y, el) => {
         const h = ref.current.at(item, x, y, el)
-        return h === null ? null : { data: h, hint: ref.current.opts.hint?.(h), weak: ref.current.opts.weak?.(h), stay: ref.current.opts.stay?.(h), drop: (it) => ref.current.drop(it, h) }
+        return h === null ? null : { data: h, hint: ref.current.opts.hint?.(h), weak: ref.current.opts.weak?.(h), stay: ref.current.opts.stay?.(h), into: ref.current.opts.into?.(h), drop: (it) => ref.current.drop(it, h) }
       },
       end: () => ref.current.opts.end?.(),
     })

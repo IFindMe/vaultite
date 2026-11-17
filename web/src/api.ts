@@ -82,11 +82,12 @@ export { setUiMarks, useUiMarks, type UiMark } from "@/core/uimarks"
 export { dragTab, paneMenuOf, placeMenuOf, springTabAt, TABS, tabLabel, tabMenuOf, tabsMenu, useTabLabels, viewInfo, type TabInfo } from "@/components/Tabs"
 // Tab groups (named, coloured runs of tabs): their menu, names and folding, and drops on the tabs drawn as a list (the
 // Tabs panel), which join or leave them as the tab bar's do; a dragged pane or tab held on a row opens it (springOver).
-export { groupMenu, groupName, GroupLabel, PaneControls } from "@/components/Tabs"
+export { groupMenu, PaneControls } from "@/components/Tabs"
+export { groupName, GroupLabel } from "@/components/GroupLabel"
 export { foldGroup, openInGroup } from "@/core/tabgroups"
 export { foldGroupMoving, foldSplitMoving, useListsIn, useGrowIn, useReflow, useGroupIn, useShrinkOut } from "@/core/tabfold"
 export { useGroupLines } from "@/core/tabline"
-export { canDropAt as canDropTab, dropOn as dropTab, groupsAsDrawn, listDrop as tabListDrop, previewIn as tabPreview, previewOrder as tabPreviewOrder, slotBeside as tabSlotBeside, slotIn as tabSlot, springOver, springing, type Drop as TabDrop } from "@/core/drop"
+export { canDropAt as canDropTab, chipCount as tabChipCount, dropOn as dropTab, groupsAsDrawn, intoFolded as tabIntoFolded, listDrop as tabListDrop, previewIn as tabPreview, previewOrder as tabPreviewOrder, slotBeside as tabSlotBeside, slotIn as tabSlot, springOver, springing, type Drop as TabDrop } from "@/core/drop"
 export { INCOMING, reorder, slotAt, useRewrap, useSlide } from "@/core/slide"
 // Selecting several rows of a list (⌘- and ⇧-click, ⇧↑↓, ⌘A; a phone's Select): one way for every list.
 export { clearSelection, rowMenu, selectClick, selectedAttr, selectedIn, selectionFor, selectItem, startSelecting, useSelectable, useSelected, useSelectedKeys, useSelecting, type Selectable } from "@/core/select"

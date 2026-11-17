@@ -1,10 +1,11 @@
-import { laidOut, rehit, type DragItem, type DropId } from "@/core/drag"
+import { laidOut, onDragEnd, rehit, type DragItem, type DropId } from "@/core/drag"
 import { isSplit, outsideGroups, panesOf, runOf, type TabList } from "../../../core/layout.ts"
 import {
   canOpenAt, canOpenAtIndex, canPaneIntoPane, canPlaceAmong, canPlaceTab, canTabIntoPane, openAllAt, openAllAtIndex, openAmong, openAt, openAtIndex, paneIntoPane, paneToTab, placeAmong, placeTab, placeTabs,
   tabIntoPane, tabShowing, type Zone,
 } from "@/core/splits"
-import { canMoveGroup, moveGroupTo } from "@/core/tabgroups"
+import { canMoveGroup, groupById, moveGroupTo } from "@/core/tabgroups"
+import { foldGroupMoving } from "@/core/tabfold"
 import { here, paneById, paneTab, selectTab, tabById } from "@/core/workspace"
 import { INCOMING } from "@/core/slide"
 
@@ -102,6 +103,20 @@ export function slotBeside(l: TabList, item: DragItem, tab: string) {
   return { index: above ? i : i + 1, group: l.tabs[i]?.group ?? null }
 }
 
+export const intoFolded = (l: TabList, d: Drop | null) => d?.kind === "list" && !d.home && !!d.group && !!l.groups?.find((g) => g.id === d.group)?.collapsed
+
+export function chipCount(l: TabList, item: DragItem | null | undefined, preview: Preview | null, g: string) {
+  const target = !!item && preview?.into === g
+  return { target, n: target ? countInto(l, item, g) : l.tabs.filter((t) => t.group === g).length }
+}
+
+function countInto(l: TabList, item: DragItem, g: string) {
+  const own = new Set(l.tabs.filter((t) => t.group === g).map((t) => t.id))
+  const alone = item.pane ? lonePane(item.pane) : null
+  const coming = alone ? [alone.id] : item.tabs ?? (item.tab ? [item.tab] : item.pane ? [item.pane] : item.tos ?? (item.to ? [item.to] : []))
+  return own.size + coming.filter((id) => !own.has(id)).length
+}
+
 export type Preview = { tabs: { id: string; group?: string }[]; into?: string }
 export function previewIn(l: TabList, item: DragItem, d: Drop | null): Preview | null {
   if (!d || d.kind !== "list") return null
@@ -184,3 +199,39 @@ export function springOver(tab: string | null, item: DragItem | null, x = 0, y =
 export const springing = () => (spring?.lit ? spring.tab : null)
 let sprung: { tab: string; item: DragItem } | null = null
 export const sprangOpen = (item: DragItem, tab: string) => sprung?.item === item && sprung.tab === tab
+
+const GROUP_SPRING_MS = 1000
+type GroupSpring = { group: string; x: number; y: number; timer: number }
+let groupSpring: GroupSpring | null = null
+const sprungGroups = new Map<string, number>()
+const tabsIn = (g: string) => here().tabs.filter((t) => t.group === g).length
+
+export function foldedGroupAt(item: DragItem, x: number, y: number): string | null {
+  if (item.group || !(item.tab || item.pane || item.to)) return null
+  const e = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-group-row][aria-expanded=false], [data-group-chip][aria-expanded=false]")
+  if (!e) return null
+  const r = laidOut(e), chip = e.dataset.groupChip
+  const at = chip ? (x - r.left) / r.width : (y - r.top) / r.height
+  return at > 0.25 && at < 0.75 ? chip ?? e.dataset.groupRow ?? null : null
+}
+
+export function springGroup(group: string | null, item: DragItem | null, x = 0, y = 0) {
+  if (groupSpring?.group === group && Math.hypot(x - groupSpring.x, y - groupSpring.y) <= STILL_PX) return
+  if (groupSpring) clearTimeout(groupSpring.timer)
+  groupSpring = null
+  if (!group || !item) return
+  groupSpring = { group, x, y, timer: window.setTimeout(() => {
+    groupSpring = null
+    if (!groupById(group)?.collapsed) return
+    sprungGroups.set(group, tabsIn(group))
+    foldGroupMoving(group)
+    requestAnimationFrame(() => requestAnimationFrame(rehit))
+  }, GROUP_SPRING_MS) }
+}
+if (typeof window !== "undefined") onDragEnd(() => {
+  springGroup(null, null)
+  if (!sprungGroups.size) return
+  const had = new Map(sprungGroups)
+  sprungGroups.clear()
+  setTimeout(() => { for (const [g, n] of had) if (tabsIn(g) <= n && !groupById(g)?.collapsed) foldGroupMoving(g) })
+})

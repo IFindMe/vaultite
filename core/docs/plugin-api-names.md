@@ -728,9 +728,11 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `TabButton`: A button on a tab while the pointer is over it (the tab bar's and the Tabs panel's), before its Close: what's done with what it shows (an inbox item's Settle).
 - `tabButtons(to, disabled?)`: The buttons a tab showing `to` has on hover (`tabButtons`), from the plugins that are on, in their order.
 - `TabCard({ shown, chip, tab, info, inSidebar })`
+- `tabChipCount(l, item, preview, g)`
 - `TabDrop`: Where something dragged would land: a place in the list of tabs (`group` it joins, null none; `home`: where it is already), a pane's edge or middle, or before the `index`th of a split pane's own…
 - `TabGroup`: A tab group, as browsers have them: a named, coloured run of tabs side by side (those whose `group` is its id), folded to its name while `collapsed`.
 - `TabInfo`: `iconClassName`: a status on the icon (a view's `iconClass`: a Claude Code session working or waiting).
+- `tabIntoFolded(l, d)`
 - `tabLabel(t, store)`: The same outside a render (what the quick switcher finds).
 - `TabLayout`: A workspace: the main window's tabs, and its pop-outs'.
 - `TabList`: A window's tabs, in order, their groups (in the order their tabs are) and the one on screen.

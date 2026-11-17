@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react"
 import { AppWindow, Archive, ChevronDown, Ellipsis, Layers2, ListCollapse, ListTree, MonitorSmartphone, Pin, Plus, X } from "lucide-react"
 import {
   activePane, Badged, beforeStart, edgeScroller, canDropTab, closePane, closeTab, cn, coarse, colorVar, commandItems, definePlugin, DEVICE, dragTab, dropTab, fmtAgo, foldGroupMoving, foldSplitMoving, groupMenu, groupName, GroupLabel,
-  groupsAsDrawn, HeadingButton, IconAction, isPopout, menuFor, openNewTab, isViewOpen, notifyError, openView, paneById, paneMenuOf, panesOf, placeMenuOf, placesIn, placesOf, reorder, rightClickBelow, useArchivedTabs, useMenuShowing, pastEnd, put, rowMenu, RowKeys, selectClick,
+  groupsAsDrawn, HeadingButton, tabChipCount, tabIntoFolded, IconAction, isPopout, menuFor, openNewTab, isViewOpen, notifyError, openView, paneById, paneMenuOf, panesOf, placeMenuOf, placesIn, placesOf, reorder, rightClickBelow, useArchivedTabs, useMenuShowing, pastEnd, put, rowMenu, RowKeys, selectClick,
   selectedAttr, selectPane, selectTab, SidebarHeading, SidebarRow, springing, springTabAt, startDrag, tabButtons, tabListDrop, tabMenuOf, tabPreview, tabPreviewOrder, TABS, tabSlot, tabSlotBeside, tabsMenu, useDrag, useDropHit,
   useDropTarget, useGroupIn, useGroupLines, useGrowIn, useListsIn, useReflow, useShrinkOut, useSelectable, useSelected, useSlide, useTabLabels, useTabList, useUiMarks,
   INCOMING, laidOut, TabCard, useHoverCard,
@@ -239,7 +239,7 @@ function GroupRow({ g, n, target }: { g: TabGroup; n: number; target: boolean })
     <div ref={box} data-slide={`group:${g.id}`} data-ui={`group:${g.id}`} data-line-head={g.id} style={{ ["--line" as string]: colorVar(g.color) }}
       onPointerDown={(e) => startDrag(e, { from: "group", group: g.id, label: groupName(g) })} className={cn("relative", item?.group === g.id && "opacity-50")}
       onContextMenu={menuFor(() => groupMenu(g.id, "panel"))}>
-      <SidebarRow data-group-row={g.id} aria-expanded={!g.collapsed} open tip={null} more onClick={() => foldGroupMoving(g.id)}
+      <SidebarRow data-group-row={g.id} data-target={target || undefined} aria-expanded={!g.collapsed} open tip={null} more onClick={() => foldGroupMoving(g.id)}
         label={<span className="flex"><GroupLabel g={g} n={n} target={target} /></span>}>
         <Marks id={`group:${g.id}`} />
         <ChevronDown aria-hidden className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-[rotate,opacity] duration-200 group-hover/row:opacity-100 group-aria-[expanded=false]/row:-rotate-90" strokeWidth={2.25} />
@@ -284,7 +284,7 @@ function TabRows({ store }: { store: Store }) {
     const slots = [...root.querySelectorAll<HTMLElement>("[data-open-tab], [data-group-row]")].map((e) => ({ el: e, tab: e.dataset.openTab, group: e.dataset.groupRow }))
     const at = held ? tabSlotBeside(l, item, held) : tabSlot(l, slots, y, "y")
     return tabListDrop(item, { kind: "list", index: at.index, group: item.group ? null : at.group })
-  }, (item, d) => dropTab(item, d), { stay: (d) => d.kind === "list" && !!d.home, end: edge.stop })
+  }, (item, d) => dropTab(item, d), { stay: (d) => d.kind === "list" && !!d.home, into: (d) => tabIntoFolded(l, d), end: edge.stop })
   const hit = useDropHit<TabDrop>(target)
   const item = useDrag((d) => d?.item)
   const preview = item ? tabPreview(l, item, hit) : null
@@ -303,9 +303,7 @@ function TabRows({ store }: { store: Store }) {
     <div ref={list} className="relative flex flex-col gap-px" data-keylist data-open-tabs data-select-list={TABS}>
       {l.tabs.flatMap((t, i) => {
         const g = t.group ? l.groups?.find((x) => x.id === t.group) : undefined
-        const head = g && l.tabs[i - 1]?.group !== g.id
-          ? <GroupRow key={`group:${g.id}`} g={g} n={shown.filter((x) => x.group === g.id).length} target={preview?.into === g.id} />
-          : null
+        const head = g && l.tabs[i - 1]?.group !== g.id ? <GroupRow key={`group:${g.id}`} g={g} {...tabChipCount(l, item, preview, g.id)} /> : null
         const row = g?.collapsed ? null : <Row key={t.id} t={t} l={l} info={info} only={only(t)} line={lineOf(t.id)} hit={hit} />
         return [head, row].filter(Boolean)
       })}

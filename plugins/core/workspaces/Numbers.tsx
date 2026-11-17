@@ -217,7 +217,8 @@ function useSwipes() {
   }, [])
 }
 
-function sent(item: DragItem): Sent | null {
+const sent = (item: DragItem): Sent | null => (item.group ? { group: item.group } : sentOne(item))
+function sentOne(item: DragItem): Sent | null {
   if (item.pane) return { pane: item.pane }
   if (item.tab) return item.to && item.to !== "new" ? { tab: item.tab } : null
   if (item.paths && (item.from === "tree" || item.from === "pin")) {
@@ -237,7 +238,8 @@ function useSendDrop() {
     if (!what || !n || n === litNow()) return null
     return { n, what }
   }, (_item, h) => void sendTo(h.n, h.what), {
-    hint: ({ n, what }) => ("open" in what ? `Open in ${named(n)}` : "pane" in what ? `Move pane to ${named(n)}` : `Move to ${named(n)}`),
+    hint: ({ n, what }) => ("open" in what ? `Open in ${named(n)}` : "pane" in what ? `Move pane to ${named(n)}` : "group" in what ? `Move group to ${named(n)}` : `Move to ${named(n)}`),
+    into: () => true,
   })
   return useDropHit<{ n: number }>(id)?.n ?? null
 }

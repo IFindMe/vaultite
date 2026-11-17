@@ -266,11 +266,26 @@ function syncTabs() {
   apply(want, true)
 }
 
-export type Sent = { tab: string } | { pane: string } | { open: string[] }
+export type Sent = { tab: string } | { pane: string } | { group: string } | { open: string[] }
 let moving = false
 
-function without(l: TabLayout, what: { tab: string } | { pane: string }): TabLayout | null {
+function without(l: TabLayout, what: Exclude<Sent, { open: string[] }>): TabLayout | null {
+  if ("group" in what) return withoutTabs(l, new Set(l.tabs.filter((t) => t.group === what.group).map((t) => t.id)))
   return "tab" in what ? withoutTabs(l, new Set([what.tab])) : withoutPanes(l, new Set([what.pane]))
+}
+type Moved = { tabs: { id: string }[]; group?: string; workspaces: unknown[] }
+function undoOf(what: Sent, r: Moved): Sent | null {
+  if ("open" in what || !r.tabs.length) return null
+  return "group" in what && r.group ? { group: r.group } : { tab: r.tabs[0].id }
+}
+function placeOf(what: Sent, before: TabLayout) {
+  const i = before.tabs.findIndex((t) => ("tab" in what ? t.id === what.tab : "group" in what ? t.group === what.group : "pane" in what && placesOfTab(t).some((p) => p.id === what.pane)))
+  if (i < 0) return {}
+  return "tab" in what ? { at: i, into: before.tabs[i].group } : { at: "group" in what ? i : i + 1 }
+}
+function movedText(what: Sent, n: number, r: Moved) {
+  if (!r.tabs.length) return `Already open in ${named(n)}`
+  return "open" in what ? `Opened in ${named(n)}` : "group" in what ? `Moved the group to ${named(n)}` : `Moved to ${named(n)}`
 }
 
 export async function sendTo(n: number, what: Sent) {
@@ -284,17 +299,14 @@ export async function sendTo(n: number, what: Sent) {
   if (gone) apply(gone, true, true)
   await writing
   try {
-    const r = await post<{ tabs: { id: string }[]; workspaces: unknown[] }>(at("workspaces/move"), { ...("open" in what ? {} : { from }), to: n, ...what })
+    const r = await post<Moved>(at("workspaces/move"), { ...("open" in what ? {} : { from }), to: n, ...what })
     local = unusedIfBlank(r.workspaces)
     const l = local[from - 1]?.layout ?? null
     mine.add(layoutKey(l))
     apply(l, true)
     emit()
-    const back: Sent | null = "open" in what || !r.tabs.length ? null : { tab: r.tabs[0].id }
-    const i = before.tabs.findIndex((t) => ("tab" in what ? t.id === what.tab : "pane" in what && placesOfTab(t).some((p) => p.id === what.pane)))
-    const place = i < 0 ? {} : "tab" in what ? { at: i, group: before.tabs[i].group } : { at: i + 1 }
-    notify(r.tabs.length ? ("open" in what ? `Opened in ${named(n)}` : `Moved to ${named(n)}`) : `Already open in ${named(n)}`,
-      back ? { action: { label: "Undo", run: () => void bringBack(n, from, back, place) } } : undefined)
+    const back = undoOf(what, r)
+    notify(movedText(what, n, r), back ? { action: { label: "Undo", run: () => void bringBack(n, from, back, placeOf(what, before)) } } : undefined)
   } catch (e) {
     if (gone) apply(before, true)
     notifyError(e, "open" in what ? "Couldn't open it there" : "Couldn't move it")
@@ -302,7 +314,7 @@ export async function sendTo(n: number, what: Sent) {
     moving = false
   }
 }
-async function bringBack(n: number, to: number, what: Sent, place: { at?: number; group?: string }) {
+async function bringBack(n: number, to: number, what: Sent, place: { at?: number; into?: string }) {
   if (timer) saveTabs()
   await writing
   moving = true

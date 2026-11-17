@@ -15,14 +15,14 @@ import { canFloat, canJoin, canPaneToTab, canTabIntoPane, canZoom, dockPane, flo
 import { hasMainWindow, moveToMain } from "@/core/windows"
 import { floatGhost } from "@/core/desktop"
 import { focusedPane, isBlankTab, layout, panesOf, paneWith, placesIn, placesOf, shownTab, tabWith, vaultPath, type Group, type Pane, type Rect, type Tab } from "../../../core/layout.ts"
-import { COLOR_NAMES, colorVar } from "../../../core/colors.ts"
+import { colorVar } from "../../../core/colors.ts"
 import { openNewTab } from "@/core/launcher"
 import { addToGroup, allGroups, closeGroup, colorGroup, groupById, leaveGroup, makeGroup, newTabInGroup, renameGroup, ungroup } from "@/core/tabgroups"
 import { foldGroupMoving, useGrowIn, useGroupIn, useReflow, useShrinkOut } from "@/core/tabfold"
 import { stir, useGroupLines } from "@/core/tabline"
 import { canRenameTab, renameTab } from "@/core/tabnames"
 import { dotIcon } from "@/components/ColorDot"
-import { PANES, previewIn, previewOrder, groupsAsDrawn, sprangOpen, springing, type Drop } from "@/core/drop"
+import { chipCount, PANES, previewIn, previewOrder, groupsAsDrawn, sprangOpen, springing, type Drop } from "@/core/drop"
 import { INCOMING, reorder, useSlide } from "@/core/slide"
 import { usePane, usePaneHasTopBar } from "@/core/pane"
 import { useUiMarks } from "@/core/uimarks"
@@ -37,6 +37,9 @@ import { TabCard } from "@/components/TabCard"
 import { useHoverCard } from "@/core/hovercard"
 import type { TabMark } from "@/core/define"
 import { cn } from "@/lib/utils"
+import { groupName, GroupLabel } from "@/components/GroupLabel"
+import { GhostRow } from "@/components/GhostRow"
+import { stepAside, useSink } from "@/core/dragaside"
 import { rowMenu, selectClick, selectedAttr, selectionFor, useSelectable, useSelected } from "@/core/select"
 import { closestOf, elementOf } from "@/core/dom"
 import type { IconType } from "@/core/icons"
@@ -163,8 +166,6 @@ function barMenu(): MenuItem[] {
 /** The tabs' selection (core/select.ts): by tab id, the bar's, the Tabs panel's and the phone's cards alike. */
 export const TABS = "tabs"
 
-/** What a tab group is called: its name, or its colour's ("Blue group"). */
-export const groupName = (g: Group) => g.name || `${COLOR_NAMES[g.color]} group`
 
 export function groupItems(ids: string[]): MenuItem[] {
   const tabs = here().tabs.filter((t) => ids.includes(t.id))
@@ -233,20 +234,6 @@ function GroupMarks({ id }: { id: string }) {
   ))}</>
 }
 
-/** A tab group's name in a solid chip of its colour (the tab bar's, the Tabs panel's), its text white or dark by it; no
- *  name, a small square. Folded, its count `n` shows: drawn always, to open out as the click folds it (index.css). */
-export function GroupLabel({ g, n, target, className }: { g: Group; n?: number; target?: boolean; className?: string }) {
-  const c = colorVar(g.color), name = n !== undefined && g.collapsed ? `${groupName(g)}, ${n} ${n === 1 ? "tab" : "tabs"}` : groupName(g)
-  return (
-    <span data-group-name data-bare={g.name ? undefined : ""} {...(g.name ? {} : { role: "img", "aria-label": name })}
-      className={cn("on-tint inline-flex max-w-full shrink-0 items-center justify-center text-[12px] leading-none font-semibold transition-[background-color,color,box-shadow] duration-(--motion)",
-        g.name && "h-5 rounded-control px-1.5", className)}
-      style={{ "--tint": c, background: c, ...(target ? { boxShadow: `0 0 0 2px var(--background), 0 0 0 4px ${c}` } : {}) }}>
-      {g.name && <span className="min-w-0 truncate">{g.name}</span>}
-      {n !== undefined && <span data-group-count aria-hidden={!g.collapsed || undefined}><span><span className={cn("block font-medium tabular-nums opacity-80", g.name && "pl-1")}>{n}</span></span></span>}
-    </span>
-  )
-}
 
 /** What tabs selected together can do: close them (or the others), pin them, group them, move them to a window. */
 export function tabsMenu(ids: string[], phone = false): MenuItem[] {
@@ -378,6 +365,9 @@ function tabDrawn(id: string, near?: DOMRect) {
   return all.sort((a, b) => far(a) - far(b))[0] ?? null
 }
 
+
+
+
 const Sketch = () => (
   <div className="space-y-1.5 p-2"><div className="h-1.5 w-3/4 rounded-full bg-foreground/[0.08]" /><div className="h-1.5 w-11/12 rounded-full bg-foreground/[0.08]" /><div className="h-1.5 w-1/2 rounded-full bg-foreground/[0.08]" /></div>
 )
@@ -385,19 +375,22 @@ const Sketch = () => (
 export function DragGhost({ info }: { info: (t: Tab | Pane) => TabInfo }) {
   const live = useDragItem()
   const [back, setBack] = useState<{ item: DragItem } | null>(null)
-  const item = live ?? back?.item ?? null
+  const card = useRef<HTMLDivElement>(null)
+  const last = useRef<{ over: Drop["kind"] | null; split: boolean; into: boolean }>({ over: null, split: false, into: false })
+  const sunk = useSink(card, last)
+  const item = live ?? back?.item ?? sunk
   const hint = useDrag((d) => d?.hit?.hint), hit = useDrag((d) => !!d?.hit), finger = useDrag((d) => !!d?.finger)
+  const into = useDrag((d) => !!d?.hit?.into) || !!sunk
   const over = useDrag((d) => hitOn(d?.hit, PANES)?.kind ?? null), overPanes = !!over
   const zone = useDrag((d) => { const h = hitOn(d?.hit, PANES); return h?.kind === "pane" ? h.zone : null })
   const { fileIcons } = usePrefs()
-  const el = useRef<HTMLDivElement>(null), card = useRef<HTMLDivElement>(null), shot = useRef<HTMLDivElement>(null)
+  const el = useRef<HTMLDivElement>(null), shot = useRef<HTMLDivElement>(null)
   const held = useRef({ x: 0, y: 0 })
   const look = useMemo(() => lookOf(item, getDrag()), [item]), lookRef = useRef(look)
   useEffect(() => { lookRef.current = look }, [look])
   const shape = finger || back ? null : look.kind === "tab" ? (!hit || zone ? "card" : null) : look.kind === "pill" && zone && zone !== "center" ? "page" : null
   const size = shape === "card" ? { w: TAB_CARD.w, h: 28 + (look.thumb ?? 0) } : shape === "page" ? PAGE : null
-  const last = useRef<{ over: Drop["kind"] | null; split: boolean }>({ over: null, split: false })
-  useEffect(() => { if (live) last.current = { over, split: !!zone && zone !== "center" } }, [live, over, zone])
+  useEffect(() => { if (live) last.current = { over, split: !!zone && zone !== "center", into } }, [live, over, zone, into])
   const sheet = item ? [...document.querySelectorAll<HTMLElement>("dialog[open]")].pop() ?? null : null
   useLayoutEffect(() => {
     const g = el.current
@@ -489,6 +482,7 @@ export function DragGhost({ info }: { info: (t: Tab | Pane) => TabInfo }) {
     return () => a.cancel()
   }, [back, look])
   if (!item || item.elsewhere || (item.drawn && !(item.to && overPanes))) return null
+  const aside = stepAside(look.kind, look.grab, into && !finger)
   const dragged = item.tab ? tabById(item.tab) : undefined, pane = item.pane ? paneById(item.pane) : undefined
   const i: TabInfo = item.paths || item.tabs ? { label: item.label ?? "", icon: item.tabs ? Layers : Files }
     : item.folder ? { label: item.path!.split("/").pop()!, icon: Folder }
@@ -507,20 +501,16 @@ export function DragGhost({ info }: { info: (t: Tab | Pane) => TabInfo }) {
     <div ref={el} aria-hidden data-drag-ghost data-drag-look={look.kind} data-drag-shape={shape ?? undefined}
       className={cn("pointer-events-none fixed top-0 left-0 transition-opacity duration-(--motion-fast) will-change-transform", finger ? "z-[70]" : "z-50", !hit && (!back || look.kind === "pill") && "opacity-60")}>
       {look.kind === "pane" ? (
-        <div ref={card} className="relative overflow-hidden rounded-[10px] bg-background shadow-2xl ring-[0.5px] ring-border" style={{ width: look.w, height: look.h }}>
+        <div ref={card} className="relative overflow-hidden rounded-[10px] bg-background shadow-2xl ring-[0.5px] ring-border" style={{ width: look.w, height: look.h, ...aside }}>
           <div ref={shot} className="absolute top-0 left-0 origin-top-left" style={{ width: look.from!.width, height: look.from!.height, transform: `scale(${look.k})` }} />
           <span className="sr-only">{i.label}</span>
           {hint && <span className="absolute inset-x-2 bottom-2 mx-auto w-fit max-w-full truncate rounded-[6px] bg-card px-2 py-1 text-[12px] font-medium shadow-md ring-[0.5px] ring-border">{hint}</span>}
         </div>
       ) : (
-        <div ref={card} data-drag-card className={cn("flex max-w-[260px] flex-col overflow-hidden bg-card shadow-lg ring-[0.5px] ring-border",
+        <div ref={card} data-drag-card data-stacked={item.group} className={cn("flex max-w-[260px] flex-col overflow-hidden bg-card shadow-lg ring-[0.5px] ring-border",
           finger ? "h-10 rounded-[10px] text-[15px]" : "h-7 rounded-[6px] text-[13px]", size && "rounded-[10px] shadow-xl")}
-          style={{ width: size?.w ?? (look.kind === "tab" ? look.w : undefined), height: size?.h, scale: look.kind === "tab" && !size && !back ? "1.03" : undefined }}>
-          <div className={cn("flex shrink-0 items-center gap-1.5", finger ? "h-10 px-3" : "h-7 px-2")}>
-            {fileIcons && <i.icon className={cn(finger ? "size-[18px] shrink-0" : "size-3.5 shrink-0", !i.tint && "text-muted-foreground", i.iconClassName)} strokeWidth={2.25} style={i.tint ? { color: i.tint } : undefined} />}
-            <span className="min-w-0 truncate font-medium">{i.label}</span>
-            {hint && <span className="shrink-0 text-muted-foreground">{hint}</span>}
-          </div>
+          style={{ width: size?.w ?? (look.kind === "tab" ? look.w : undefined), height: size?.h, scale: look.kind === "tab" && !size && !back ? "1.03" : undefined, ...aside }}>
+          <GhostRow i={i} group={item.group} hint={hint} finger={finger} icons={fileIcons} />
           <div aria-hidden className="relative flex-1 overflow-hidden border-t-[0.5px] border-border bg-background">
             {look.minis?.length ? look.minis.map((m) => (
               <div key={m.pane.id} data-mini={m.pane.id} className={cn("absolute overflow-hidden bg-background", m.pane.float ? "rounded-[4px] shadow-md ring-[0.5px] ring-border" : "ring-[0.5px] ring-border")}
@@ -828,7 +818,7 @@ export function TabStrip({ info }: { info: (t: Tab | Pane) => TabInfo }) {
         {tabs.flatMap((t, i) => {
           const g = t.group && t.group !== tabs[i - 1]?.group ? l.groups?.find((x) => x.id === t.group) : undefined
           const own = t.group ? l.groups?.find((x) => x.id === t.group) : undefined
-          const chip = g && <GroupChip key={`group:${g.id}`} g={g} n={tabs.filter((x) => x.group === g.id).length} target={preview?.into === g.id} />
+          const chip = g && <GroupChip key={`group:${g.id}`} g={g} {...chipCount(l, item, preview, g.id)} />
           if (own?.collapsed) return chip ? [chip] : []
           const it = <TabChip key={t.id} tab={t} hole={!!preview} info={info} active={t.id === active} icons={fileIcons}
             only={tabs.length === 1 && isBlankTab(t)} menu={() => tabMenu(t)} width={held?.width} settling={settling} close={(e) => closeHeld(t, e)}

@@ -567,6 +567,15 @@ html:not([data-dragging]) [data-group-chip]:hover > [data-group-name] { box-shad
 :is([data-group-chip], [data-group-row])[aria-expanded=false] :is([data-group-name][data-bare]) { height: calc(var(--spacing) * 5); padding-inline: calc(var(--spacing) * 1.5); border-radius: var(--radius-control); }
 :is([data-group-chip], [data-group-row])[aria-expanded=false] [data-group-count] { grid-template-columns: 1fr; opacity: 1; }
 [data-group-line][data-folded] { opacity: 0; }
+/* A folded group something dragged would go into: its chip lifts in a ring of its colour, its count already counting it
+   (the new number pops in), and its row in the Tabs panel takes a wash of its colour. */
+[data-group-name][data-target] { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--tint); scale: 1.06; transition-timing-function: var(--spring); }
+[data-group-name][data-target] [data-group-count] span span { animation: count-pop var(--motion-spring) var(--spring) both; }
+@keyframes count-pop { from { translate: 0 -40%; opacity: 0; } }
+[data-group-row][data-target] { background: color-mix(in srgb, var(--line) 16%, transparent); }
+[data-group-row][data-target] [data-group-name] { box-shadow: none; }
+/* A tab group in hand: its card on another, a stack of its tabs. */
+[data-drag-card][data-stacked] { box-shadow: 0 0 0 0.5px var(--border), 3px 3px 0 -0.5px var(--card), 3px 3px 0 0 var(--border), 0 10px 15px -3px rgb(0 0 0 / 0.1); }
 [data-group-moving] :is([data-group-name][data-bare], [data-group-count]) {
   transition: height var(--motion) var(--ease-out), padding var(--motion) var(--ease-out), border-radius var(--motion) var(--ease-out),
     grid-template-columns var(--motion) var(--ease-out), opacity var(--motion) var(--ease-out), background-color var(--motion) var(--ease-out);

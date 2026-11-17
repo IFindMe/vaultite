@@ -48,10 +48,10 @@ export function useSlide(box: RefObject<HTMLElement | null>, order: string[] | n
       return
     }
     place(root, key.split("\n"), axis)
-    let width = root.clientWidth
+    let size = `${root.clientWidth}x${root.clientHeight}`
     const ro = new ResizeObserver(() => {
-      if (root.clientWidth === width) return
-      width = root.clientWidth
+      if (`${root.clientWidth}x${root.clientHeight}` === size) return
+      size = `${root.clientWidth}x${root.clientHeight}`
       place(root, key.split("\n"), axis)
       rehit()
     })

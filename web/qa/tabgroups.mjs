@@ -155,10 +155,9 @@ try {
   await page.click("[data-group-chip]:has-text('Lighthouse work')"); await ui.idle()
   check("a click on the chip folds the group to it, with its count", (await bar()).includes("<Lighthouse work2>") && !(await bar()).includes(" ME"), await bar())
   await page.screenshot({ path: `${OUT}bar-folded.png`, clip: { x: 0, y: 0, width: 1280, height: 120 } })
-  // A tab dropped on a folded group's chip goes into it, which stays folded.
   const lw = await page.locator("[data-group-chip]", { hasText: "Lighthouse work" }).boundingBox()
   release = await hold(tab("Garden planner"), lw.x + lw.width / 2, lw.y + lw.height / 2)
-  const lit = await page.$eval("[data-group-chip] > span", (e) => !!e.style.boxShadow)
+  const lit = await page.$eval("[data-group-chip] [data-group-name]", (e) => e.hasAttribute("data-target"))
   await release()
   check("a tab dropped on a folded group's chip goes into it, which stays folded", lit && (await bar()).includes("<Lighthouse work3>") && !(await bar()).includes("Garden planner"), [lit, await bar()])
   await page.click("[data-group-chip]:has-text('Lighthouse work')"); await ui.idle()

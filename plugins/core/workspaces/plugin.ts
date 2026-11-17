@@ -3,7 +3,7 @@ import path from "node:path"
 import { z } from "zod"
 import { fileTree, HTTPError, type OpCtx, OpError, type Param, pathAsSaid, pinProblem, placePin, Plugin, readSidebars, relocatedPin, repinList, sameSidebars } from "../../../core/plugins.ts"
 import { ConfigError, type Item } from "../../../core/vault.ts"
-import { allPanes, blankList, clean, mapPlaces, newGroupId, newPaneId, newTabId, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Group, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
+import { allPanes, blankList, clean, mapPlaces, newGroupId, newPaneId, newTabId, outsideGroups, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Group, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
 import { blankLayout, isBlank } from "./blank.ts"
 import { moved, numberNow, type Moves } from "./order.ts"
 
@@ -281,15 +281,17 @@ type Found = { tab: Tab; pane?: Pane }
 plugin.route("POST", "workspaces/move", (req) => {
   const body = req.body
   const to = slotIn(req, String(body.to ?? ""))
-  const id = str(body.tab), pid = str(body.pane), file = str(body.path)
+  const id = str(body.tab), pid = str(body.pane), file = str(body.path), gid = str(body.group)
   const open = (Array.isArray(body.open) ? body.open : [body.open]).filter((x): x is string => typeof x === "string" && !!x)
-  if ([id, pid, file, open.length ? "open" : null].filter(Boolean).length !== 1) {
-    throw new HTTPError(400, "say what, one of: `tab` (a tab's id: all its panes), `pane` (a pane's id: out of its split), `path` (the file a pane shows) or `open` (files to open there)")
+  if ([id, pid, file, gid, open.length ? "open" : null].filter(Boolean).length !== 1) {
+    throw new HTTPError(400, "say what, one of: `tab` (a tab's id: all its panes), `pane` (a pane's id: out of its split), `group` (a tab group's id: all its tabs), `path` (the file a pane shows) or `open` (files to open there)")
   }
   readable()
   const list = slots()
   while (list.length <= to) list.push(null)
   const dest = list[to] ?? {}
+  const at = typeof body.at === "number" && Number.isInteger(body.at) ? body.at : undefined
+  if (gid) return moveGroup(list, to, gid, fromIn(req), at)
 
   if (open.length) {
     const l = layoutOf(dest)
@@ -318,9 +320,8 @@ plugin.route("POST", "workspaces/move", (req) => {
     }
     return null
   }
-  let from: number
-  if (body.from !== undefined && body.from !== null) {
-    from = slotIn(req, String(body.from))
+  let from = fromIn(req)
+  if (from !== null) {
     if (!has(from)) throw new HTTPError(404, `${what} isn't open in workspace ${from + 1}`)
   } else {
     const where = list.map((_, i) => i).filter((i) => has(i))
@@ -341,14 +342,51 @@ plugin.route("POST", "workspaces/move", (req) => {
     save(list)
     return { from: from + 1, to: to + 1, tabs: [], workspaces: shown() }
   }
-  const at = typeof body.at === "number" && Number.isInteger(body.at) ? body.at : undefined
-  const put = withTabs(dl, [coming], at, str(body.group) ?? undefined)
+  const put = withTabs(dl, [coming], at, str(body.into) ?? undefined)
   list[to] = { ...dest, layout: put.layout }
   save(list)
   const tabs = put.tabs.map(local)
   return { from: from + 1, to: to + 1, tabs, tab: tabs[0], workspaces: shown() }
 })
 const local = (t: Tab): Tab => ({ ...t, root: mapPlaces(t.root, (p) => ({ ...p, to: localPlace(p.to) })) })
+
+const fromIn = (req: Req & { body: Item }) => (req.body.from === undefined || req.body.from === null ? null : slotIn(req, String(req.body.from)))
+const groupIn = (d: Item | null, gid: string) => layoutOf(d)?.groups?.find((g) => g.id === gid) ?? null
+function groupFrom(list: (Item | null)[], gid: string, from: number | null) {
+  if (from !== null) {
+    if (!groupIn(list[from], gid)) throw new HTTPError(404, `tab group ${gid} isn't in workspace ${from + 1}`)
+    return from
+  }
+  const where = list.flatMap((d, i) => (groupIn(d, gid) ? [i] : []))
+  if (!where.length) throw new HTTPError(404, `tab group ${gid} isn't in any workspace`)
+  if (where.length > 1) throw new HTTPError(409, `tab group ${gid} is in workspaces ${where.map((i) => i + 1).join(" and ")}: say which with \`from\``)
+  return where[0]
+}
+
+function moveGroup(list: (Item | null)[], to: number, gid: string, fromArg: number | null, at: number | undefined) {
+  const from = groupFrom(list, gid, fromArg)
+  if (from === to) throw new HTTPError(400, `tab group ${gid} is already in workspace ${to + 1}`)
+  const fl = layoutOf(list[from])!, g = groupIn(list[from], gid)!, tabs = fl.tabs.filter((t) => t.group === gid)
+  list[from] = { ...list[from]!, layout: without(fl, new Set(tabs.map((t) => t.id))) }
+  const dest = list[to] ?? {}, dl = layoutOf(dest)
+  const there = new Set(dl ? allPanes(dl).map((p) => localPlace(p.to)) : [])
+  const coming = tabs.flatMap((t) => {
+    const going = placesIn(t).filter((p) => p.to !== "new" && there.has(localPlace(p.to)))
+    const left = going.length ? tabWithout(t, new Set(going.map((p) => p.id))) : t
+    return left ? [left] : []
+  })
+  if (!coming.length) { save(list); return { from: from + 1, to: to + 1, tabs: [], workspaces: shown() } }
+  const blank = nothing(dl), base = blank ? [] : dl!.tabs
+  const id = !blank && dl!.groups?.some((x) => x.id === gid) ? newGroupId() : gid
+  const fresh = freshIds(blank ? null : dl, coming).map((t) => ({ ...t, group: id }))
+  const i = outsideGroups(base, at === undefined ? base.length : Math.max(0, Math.min(base.length, at)))
+  const group: Group = { ...g, id }
+  list[to] = { ...dest, layout: blank ? { tabs: fresh, active: fresh[0].id, groups: [group] }
+    : { ...dl!, tabs: [...base.slice(0, i), ...fresh, ...base.slice(i)], groups: [...(dl!.groups ?? []), group] } }
+  save(list)
+  const moved = fresh.map(local)
+  return { from: from + 1, to: to + 1, group: id, tabs: moved, tab: moved[0], workspaces: shown() }
+}
 
 plugin.route("POST", "workspaces/take", (req) => {
   const w = clean(req.body.tabs)
@@ -471,11 +509,12 @@ tabs: each workspace's tabs in order (or workspace <n>'s): each tab's id and its
 pane's id and what it shows (a file's path, or view:terminal/<id>, new for a blank pane), a tab group's tabs under it
 (vau tabs group changes them); * marks a split tab's focused pane.
 
-move: moves a tab, or a pane out of its split, to workspace <n> (POST /api/workspaces/move), like dragging it onto
-that number in the sidebar's header: it leaves its workspace (a workspace's only tab leaves a blank one) and goes at
-the end of <n>'s tabs as a tab (its panes with it). Name it by a tab's or pane's id (from vau workspace tabs) or by the
-file a pane shows (a path or a name, like vau open: that pane, alone if it's in a split; --whole: its whole tab); if
-it's open in several workspaces, say which with --from <m>. Every open window on either workspace follows at once;
+move: moves a tab, or a pane out of its split, or a whole tab group, to workspace <n> (POST /api/workspaces/move), like
+dragging it onto that number in the sidebar's header: it leaves its workspace (a workspace's only tab leaves a blank one)
+and goes at the end of <n>'s tabs as a tab (its panes with it), a group as itself (its tabs in order, its name, colour
+and fold). Name it by a tab's, pane's or tab group's id (from vau workspace tabs) or by the file a pane shows (a path or
+a name, like vau open: that pane, alone if it's in a split; --whole: its whole tab); if it's open in several
+workspaces, say which with --from <m>. Every open window on either workspace follows at once;
 nobody is switched, and nothing is closed (a terminal's shell keeps running).
 
 open: opens a file in workspace <n> (a new tab at the end of its tabs, not shown there; nothing if it's already open
@@ -521,7 +560,25 @@ plugin.op({
 
 const listed = async (ctx: OpCtx) => ({ workspaces: shown(), window: await windowOn(ctx) })
 const TabRef = z.looseObject({ id: z.string() })
-const Moved = z.looseObject({ from: z.number().optional(), to: z.number(), tabs: z.array(TabRef), tab: TabRef.optional() })
+async function tabMoved(ctx: OpCtx, what: string, to: number, from: number | undefined, whole: boolean | undefined) {
+  const panes = allPanesIn()
+  const ids = new Set([...panes.map((p) => p.id), ...panes.map((p) => p.tab)])
+  const { id, target } = await tabNamed(ctx, what, ids)
+  const shows = target && (target.startsWith("view:") || target === "new" ? target : `file:${target}`)
+  const found = panes.filter((p) => (id ? p.id === id || p.tab === id : p.to === shows) && (!from || p.workspace === from))
+  if (!found.length) throw new OpError(`${id ? id : target} isn't open${from ? ` in workspace ${from}` : " in any workspace"} (vau workspace tabs lists them)`, 404)
+  const where = [...new Set(found.map((p) => p.workspace))]
+  if (where.length > 1 && !from) throw new OpError(`${id ?? target} is open in workspaces ${where.join(" and ")}: say which with \`from\``, 409)
+  const p = found[0], at = from ?? p.workspace
+  const byTab = id === p.tab || whole || p.alone
+  const r = Moved.parse(await ctx.api("POST", "workspaces/move", { from: at, to, ...(byTab ? { tab: p.tab } : { pane: p.id }) }))
+  return { ...r, moved: byTab ? `tab ${p.tab}` : `pane ${p.id}`, ...(r.tab?.id && r.tab.id !== p.tab ? { as: r.tab.id } : {}) }
+}
+async function groupMoved(ctx: OpCtx, group: string, to: number, from?: number) {
+  const r = Moved.parse(await ctx.api("POST", "workspaces/move", { from: from ?? null, to, group }))
+  return { ...r, moved: `tab group ${group}`, as: r.group === group ? undefined : r.group }
+}
+const Moved = z.looseObject({ from: z.number().optional(), to: z.number(), tabs: z.array(TabRef), tab: TabRef.optional(), group: z.string().optional() })
 const Closed = z.looseObject({ closed: z.array(z.looseObject({ workspace: z.number(), id: z.string(), to: z.string() })) })
 
 function listText(r: { workspaces: (Item | null)[]; window: number | null }) {
@@ -605,27 +662,17 @@ plugin.op({
   help: HELP,
   kind: "write",
   params: {
-    tab: { type: "string", required: true, description: "the tab or pane: its id (vau workspace tabs), or the file or view a pane shows (a path or a name)" },
+    tab: { type: "string", required: true, description: "the tab, pane or tab group: its id (vau workspace tabs), or the file or view a pane shows (a path or a name)" },
     to: N("the workspace to move it to"),
     from: FROM,
     whole: { type: "boolean", description: "named by a pane in a split: move its whole tab" },
   },
   args: ["tab", "to"],
   run: async ({ tab: what, to, from, whole }, ctx) => {
-    const panes = allPanesIn()
-    const ids = new Set([...panes.map((p) => p.id), ...panes.map((p) => p.tab)])
-    const { id, target } = await tabNamed(ctx, what, ids)
-    const shows = target && (target.startsWith("view:") || target === "new" ? target : `file:${target}`)
-    const found = panes.filter((p) => (id ? p.id === id || p.tab === id : p.to === shows) && (!from || p.workspace === from))
-    if (!found.length) throw new OpError(`${id ? id : target} isn't open${from ? ` in workspace ${from}` : " in any workspace"} (vau workspace tabs lists them)`, 404)
-    const where = [...new Set(found.map((p) => p.workspace))]
-    if (where.length > 1 && !from) throw new OpError(`${id ?? target} is open in workspaces ${where.join(" and ")}: say which with \`from\``, 409)
-    const p = found[0], at = from ?? p.workspace
-    const byTab = id === p.tab || whole || p.alone
-    const r = Moved.parse(await ctx.api("POST", "workspaces/move", { from: at, to, ...(byTab ? { tab: p.tab } : { pane: p.id }) }))
-    return { ...r, moved: byTab ? `tab ${p.tab}` : `pane ${p.id}`, ...(r.tab?.id && r.tab.id !== p.tab ? { as: r.tab.id } : {}) }
+    const n = Number(to), m = from ? Number(from) : undefined
+    return shown().some((d) => groupIn(d, what)) ? groupMoved(ctx, what, n, m) : tabMoved(ctx, what, n, m, whole)
   },
-  text: (r) => `Moved ${r.moved} from workspace ${r.from} to workspace ${r.to}${r.as ? ` (tab ${r.as} there)` : ""}.`,
+  text: (r) => `Moved ${r.moved} from workspace ${r.from} to workspace ${r.to}${r.as ? ` (${r.moved.startsWith("tab group") ? "group" : "tab"} ${r.as} there)` : ""}.`,
 })
 
 plugin.op({

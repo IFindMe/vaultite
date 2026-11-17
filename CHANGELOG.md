@@ -6,6 +6,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Tab groups: drag one onto a workspace in the switcher to move it there whole (its tabs, name, colour and fold, with
+  Undo; `vau workspace move <group id> <n>`). A tab held over a folded group lights its row and counts itself in, its
+  card stepping aside so the group shows; held a moment, the group opens to drop among its tabs, and folds again if
+  nothing went in. A dragged group looks like its chip on a stack of its tabs.
 - Workspaces: drag one in the switcher (or Move up and Move down in its menu) to reorder them; its number and ⌃ key
   follow, on every computer. A workspace's colour tints its row in the switcher and its card in All tabs.
 - Terminals: a session's hover preview shows the pictures it shows (a screenshot an agent read) instead of a block
