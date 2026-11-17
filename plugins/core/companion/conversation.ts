@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { parseJson } from "../../../core/agents.ts"
 import type { Act, Moment } from "./types.ts"
+import type { Drawing } from "../../../core/desktop/screenmarks.ts"
+import { titleOf } from "./drawings.ts"
 
 export type PressLine = { t: number; press: string; kind: string; ev: string; ms?: number; [k: string]: unknown }
 export type Exchange = {
@@ -11,7 +13,10 @@ export type Exchange = {
   press?: { id: string; steps: PressLine[]; cost?: number }
   shot?: string
   edit?: { added: number; removed: number }
+  drawings?: KeptDrawing[]
 }
+export type KeptDrawing = { id: string; title: string; marks: number }
+type DrawnRow = { t: number; drawing: Drawing }
 
 const DOES: Record<string, string> = { look: "pointed", draw: "drew", highlight: "highlighted", act: "acted", open: "opened", handoff: "handed off",
   edit: "wrote", comment: "commented", suggest: "suggested", propose: "proposed", follow: "followed", see: "looked at a pane", clear: "cleared" }
@@ -53,7 +58,7 @@ const answeredOnly = (xs: Exchange[], asks: (Moment | Heard | Reacted)[]) => xs.
   return "edit" in m && m.edit ? [{ ...e, edit: m.edit }] : [e]
 })
 
-export function exchanges(ms: Moment[], allActs: Act[], presses: PressLine[], name: string, o?: { reactions?: boolean }): Exchange[] {
+export function exchanges(ms: Moment[], allActs: Act[], presses: PressLine[], name: string, o?: { reactions?: boolean; drawn?: DrawnRow[] }): Exchange[] {
   const mine = (as: string) => as === name || as.startsWith(`${name} (`)
   const acts = allActs.filter((a) => mine(a.as))
   const talked = acts.filter((a) => a.op === "talked" && a.text).flatMap((a) => { const x = parseJson(a.text, Talked); return x ? [{ t: a.t, heard: String(x.heard ?? ""), said: String(x.said ?? "") }] : [] })
@@ -67,14 +72,15 @@ export function exchanges(ms: Moment[], allActs: Act[], presses: PressLine[], na
   for (const l of presses) byPress.set(l.press, [...(byPress.get(l.press) ?? []), l])
   const sent = [...byPress.values()].flatMap((steps) => { const end = steps.find((s) => s.ev === "end" && s.outcome === "sent"); return end ? [{ end, steps }] : [] })
   const used = new Set<string>()
-  return answeredOnly(asks.map((m, i) => {
+  return answeredOnly(asks.map((m, i): Exchange => {
     const until = asks[i + 1]?.t ?? Infinity, all = acts.filter((a) => a.t >= m.t && a.t < until)
     const cut = all.findLastIndex((a) => a.op === "withdrawn"), mine = cut >= 0 ? all.slice(cut + 1) : all
     const handed = all.find((a) => a.op === "handed" || a.op === "sent"), word = mine.find((a) => a.op === "word" || a.op === "say"), done = all.filter((a) => a.op === "done" || a.op === "next").at(-1)
     const win = "talked" in m ? 15_000 : 3000, p = m.summoned ? sent.find((x) => !used.has(x.end.press) && x.end.t <= m.t && m.t - x.end.t < win) : undefined
     if (p) used.add(p.end.press)
     const results = mine.filter((a) => a.op === "result" && a.text).map((a) => a.text!)
-    return {
+    const drawings = keptDrawings(mine, o?.drawn ?? [], until)
+    const e: Exchange = {
       t: m.t, seq: m.seq, kind: m.kind, text: m.text ?? "", summoned: !!m.summoned, voice: !!m.voice,
       where: m.title ? `${m.title}${m.app ? ` (${m.app})` : ""}` : "path" in m && m.path ? `${m.path.replace(/\.md$/, "")}${m.line ? `, line ${m.line}` : ""}` : "",
       said: "talked" in m ? [m.talked ?? ""] : mine.filter((a) => a.op === "say" && a.text).map((a) => a.text!),
@@ -84,7 +90,17 @@ export function exchanges(ms: Moment[], allActs: Act[], presses: PressLine[], na
       ...(p ? { press: { id: p.end.press, steps: p.steps, ...(costOf(p.steps) ? { cost: costOf(p.steps) } : {}) } } : {}),
       ...(m.shot ? { shot: m.shot } : {}),
     }
+    if (drawings.length) e.drawings = drawings
+    return e
   }), asks)
+}
+
+function keptDrawings(acts: Act[], drawn: DrawnRow[], until: number): KeptDrawing[] {
+  const ids = [...new Set(acts.flatMap((a) => (a.op === "draw" && a.drawing ? [a.drawing] : [])))]
+  return ids.flatMap((id) => {
+    const d = drawn.findLast((r) => r.drawing.id === id && r.t < until)?.drawing
+    return d ? [{ id, title: titleOf(d), marks: d.marks.length }] : []
+  })
 }
 
 const ago = (now: number, t: number) => { const m = Math.round((now - t) / 60_000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago` }

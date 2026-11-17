@@ -16,4 +16,14 @@ export default async ($: VaultTest) => {
     page[1]?.kind === "edit" && page[1].text === "ship on friday\nwith Alice" && page[1].said[0] === "Friday is a holiday." && page[1].where === "Notes/Plan, line 3", page[1])
   $.check("companion: without reactions (its prompt's talk), edits aren't exchanges",
     exchanges([edit(1, now, "x")], [{ t: now + 10, as: "Claude", op: "say", text: "hi" }], [], "Claude").length === 0)
+  const drawing = (id: string, title: string, n: number) => ({ id, agent: "Claude", tint: "orange", t: now, marks: Array.from({ length: n }, () => ({ type: "paper" as const, title, w: 200, h: 100, items: [] })) })
+  const drew = exchanges([ask(1, now - 600_000, "sketch the flow"), ask(2, now - 300_000, "and in words?")], [
+    { t: now - 599_000, as: "Claude", op: "draw", text: "a paper on the screen", drawing: "d1" }, { t: now - 598_000, as: "Claude", op: "say", text: "Here." },
+    { t: now - 590_000, as: "Claude", op: "draw", drawing: "d1" },
+    { t: now - 299_000, as: "Claude", op: "say", text: "Sign in, then home." },
+  ], [], "Claude", { drawn: [{ t: now - 599_000, drawing: drawing("d1", "Sign in", 1) }, { t: now - 590_000, drawing: drawing("d1", "Sign in", 2) }] })
+  $.check("companion: an answer keeps its drawing as it left it, playable again from the chat",
+    drew[0]?.drawings?.length === 1 && drew[0].drawings[0].id === "d1" && drew[0].drawings[0].title === "Sign in" && drew[0].drawings[0].marks === 2, drew[0])
+  $.check("companion: a follow-up that only talks keeps its words in the chat, with no drawing of its own",
+    drew[1]?.said[0] === "Sign in, then home." && !drew[1].drawings, drew[1])
 }

@@ -8,8 +8,8 @@ import { inSummoned } from "./summoned.ts"
 import { keepShown, type Shown as ShownMark } from "./shown.ts"
 import { TINTS, setting, mode, agentSetting, howOf, ownName, nameOf, profiles, inAccount, harnesses } from "./settings.ts"
 import { plugin } from "./self.ts"
-import type { Moment, Agent, KeptAgent, Note } from "./types.ts"
-import { ActRow, MomentRow } from "./rows.ts"
+import type { Act, Moment, Agent, KeptAgent, Note } from "./types.ts"
+import { ActRow, DrawnRow, MomentRow } from "./rows.ts"
 import { KEPT, save, anchorLine } from "./comments.ts"
 import { screens } from "./windows.ts"
 import { SCREEN_NEWS, riding } from "./screensocket.ts"
@@ -44,14 +44,17 @@ export const SAID = 10
 export const timers = new Map<string, ReturnType<typeof setTimeout>>()
 export const log = plugin.dayLog("moments", MomentRow)
 export const acts = plugin.dayLog("actions", ActRow)
+export const drawnLog = plugin.dayLog("drawings", DrawnRow)
 export const BOOKKEEPING = new Set(["next", "handed", "sent", "done", "again", "result", "withdrawn", "talked", "shown"])
 export const showedAt = new Map<string, number>(), passedAt = new Map<string, number>()
 const SHOWING = new Set(["look", "draw", "highlight", "act"])
-export const did = (as: string, op: string, seqs?: number[], text?: string) => {
+export const did = (as: string, op: string, seqs?: number[], text?: string, drawing?: string) => {
   const t = Date.now(), quick = inSummoned.getStore() === true
   if (SHOWING.has(op)) showedAt.set(key(as), t)
   else if (op === "pass") passedAt.set(key(as), t)
-  acts.append(t, [{ t, as: quick ? lane().as(as) : as, op, ...(seqs ? { seqs } : {}), ...(text ? { text: text.slice(0, 2000) } : {}) }])
+  const row: Act = { t, as: quick ? lane().as(as) : as, op, ...(seqs ? { seqs } : {}), ...(text ? { text: text.slice(0, 2000) } : {}) }
+  if (drawing) row.drawing = drawing
+  acts.append(t, [row])
   if (BOOKKEEPING.has(op)) return
   if (quick) { life.delete(key(as)); lane().acted(op) }
   else acted(as)

@@ -190,7 +190,18 @@ export function screenDrawings(plugin: Plugin, o: {
     const body = drawingText({ ...now, marks: pruned(now.marks) })
     return body && `Still on their screen, your layer${now.hidden ? " (hidden now)" : ""}${now.kept ? ` (kept in ${now.kept})` : ""}: change it in place by id with draw actions (add, move, change, delete erases it), and only when the ask is about it; new marks replace it, clear takes it down.${now.marks.some((m) => m.type === "video" && !m.gone) ? " A video here is played, paused, heard or muted there (change: paused, sound), never opened again in a player; one they may mean besides (a player pane, another card): say which you changed." : ""}\n${body}`
   }
-  return { draw, edit, settle, changed, moved, recaption, clear, dismiss, media, toggle, keep, text, messages, byId, layer: (agent: string) => layers.get(agent) ?? null, all: () => [...layers.values()] }
+  function again(d: Drawing) {
+    if (!o.displays(d.agent)) throw new OpError("it can't be drawn again here: no screen to draw on (the Mac's menu-bar helper isn't connected)", 409)
+    const copy: Drawing = { ...asLeft(d), id: `d${Date.now().toString(36)}${++n}`, t: Date.now(), tint: o.tint(d.agent) }
+    up(copy)
+    return copy
+  }
+  return { draw, edit, settle, again, changed, moved, recaption, clear, dismiss, media, toggle, keep, text, messages, byId, layer: (agent: string) => layers.get(agent) ?? null, all: () => [...layers.values()] }
+}
+
+export function asLeft(d: Drawing): Drawing {
+  const { spoken: _s, waits: _w, hidden: _h, kept: _k, past: _p, ...rest } = d
+  return { ...rest, marks: d.marks.filter((m) => !m.gone) }
 }
 
 export function titleOf(d: Drawing) {

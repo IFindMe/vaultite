@@ -10,7 +10,7 @@ import "./control.ts"
 import { plugin } from "./self.ts"
 import type { Moment, Act } from "./types.ts"
 import { str, ownName } from "./settings.ts"
-import { log, acts, BOOKKEEPING } from "./state.ts"
+import { log, acts, BOOKKEEPING, drawnLog } from "./state.ts"
 import { cut } from "./edits.ts"
 import { AS } from "./args.ts"
 import { jobs } from "./wiring.ts"
@@ -87,7 +87,7 @@ recognizer, the key's up and down, its end), as the menu-bar helper logged them 
   run: async (p) => {
     const day = str(p.day) || localDate(Date.now())
     const presses = Presses.parse(await plugin.desktop("talk:presses", { day }).catch(() => []))
-    return { day, exchanges: exchanges(log.read(day), acts.read(day), presses, ownName(), { reactions: true }), spent: spent(presses), jobs: jobs.cards().map((j) => ({ ...j, at: j.started, ...(j.ended ? { ended: j.ended } : {}) })) }
+    return { day, exchanges: exchanges(log.read(day), acts.read(day), presses, ownName(), { reactions: true, drawn: drawnLog.read(day) }), spent: spent(presses), jobs: jobs.cards().map((j) => ({ ...j, at: j.started, ...(j.ended ? { ended: j.ended } : {}) })) }
   },
   text: (r) => [`${r.day}: ${r.exchanges.length} ${r.exchanges.length === 1 ? "exchange" : "exchanges"}.`, ...r.exchanges.map((e: Exchange) => `${new Date(e.t).toTimeString().slice(0, 5)} ${didWord(e)}${e.where ? ` (${e.where})` : ""}: ${e.text.replace(/\s+/g, " ").slice(0, 160)}${e.said.length ? `\n  -> ${e.said.join(" ").replace(/\s+/g, " ").slice(0, 200)}` : ""}`),
     ...(r.spent.length ? [`Used: ${r.spent.map((x: Spent) => `${x.service} ${x.uses}${x.seconds ? `, ${Math.round(x.seconds)} s` : ""}${x.cost ? `, $${x.cost.toFixed(3)}` : ""}`).join("; ")}`] : [])].join("\n"),

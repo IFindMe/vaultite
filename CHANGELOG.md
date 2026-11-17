@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Companion: what it draws on the screen for an answer stays with that answer in the chat (Conversations and the
+  Companion page), with a Play button that draws it on the screen again, beat by beat, instead of being gone once it fades.
 - iPhone: a terminal's key row stays right above the keyboard, and the page no longer pans when you start typing or drag
   the terminal.
 - Updates: a checkout set right after diverging updates at its next look, without waiting for a newer commit.

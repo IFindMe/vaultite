@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react"
-import { AudioLines, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, CircleDashed, Clock, CircleDot, CirclePause, CircleStop, Columns2, CornerDownRight, ExternalLink, Image, Mic, Pencil, Rows2, SquareArrowOutUpRight, X } from "lucide-react"
+import { AudioLines, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, CircleDashed, Clock, CircleDot, CirclePause, CircleStop, Columns2, CornerDownRight, ExternalLink, Image, Mic, Pencil, Play, Rows2, SquareArrowOutUpRight, X } from "lucide-react"
 import { addDays, Button, cn, Empty, HeadingButton, fmtLongDay, fmtStamp, isDesktop, Loading, menuFor, type MenuItem, notifyError, op, openInSplit, openTab, Panel, today, useTick } from "@vaultite"
-import type { Exchange, PressLine, Spent } from "./conversation"
+import type { Exchange, KeptDrawing, PressLine, Spent } from "./conversation"
 import { getState, subscribe } from "./live"
 
 export type JobCard = { id: string; title: string; state: string; link: string | null; at: number; result?: string; where?: string; why?: string; now?: string; ended?: number }
@@ -97,9 +97,33 @@ export function Turn({ e, compact }: { e: Exchange; compact?: boolean }) {
             </button>
           )}
         </div>
+        <Drawings e={e} />
         {open && <Details e={e} />}
       </div>
     </div>
+  )
+}
+
+const dayOf = (t: number) => { const d = new Date(t), two = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}` }
+function Drawings({ e, compact }: { e: Exchange; compact?: boolean }) {
+  if (!e.drawings?.length) return null
+  return (
+    <div className={cn("flex flex-wrap gap-1.5", compact ? "mt-0.5" : "mt-1.5")} data-companion-drawings>
+      {e.drawings.map((d) => <DrawingChip key={d.id} d={d} day={dayOf(e.t)} compact={compact} />)}
+    </div>
+  )
+}
+function DrawingChip({ d, day, compact }: { d: KeptDrawing; day: string; compact?: boolean }) {
+  const [busy, setBusy] = useState(false)
+  const play = () => { setBusy(true); op("companion.redraw", { id: d.id, day }).catch((err) => notifyError(err, "Couldn't draw it again")).finally(() => setBusy(false)) }
+  return (
+    <button type="button" onClick={play} disabled={busy} data-companion-drawing={d.id} data-tip="Draw it on the screen again"
+      className={cn("flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-foreground/[0.03] pr-2.5 pl-2 text-muted-foreground transition-colors hover:bg-foreground/[0.07] hover:text-foreground disabled:cursor-default disabled:opacity-60",
+        compact ? "h-6 text-[12px]" : "h-7 text-[13px]")}>
+      <Play className="size-3 shrink-0 fill-current" strokeWidth={2.25} />
+      <span className="min-w-0 truncate font-medium text-foreground">{d.title}</span>
+      <span className="shrink-0 tabular-nums">{d.marks} {d.marks === 1 ? "mark" : "marks"}</span>
+    </button>
   )
 }
 
@@ -159,6 +183,7 @@ function CompactTurn({ e, did, waiting }: { e: Exchange; did: string[]; waiting:
         {e.said.length ? <div data-companion-own className={cn("whitespace-pre-wrap select-text", words)}>{e.said.join("\n\n")}</div>
           : <div className={cn("text-muted-foreground", words, waiting && "animate-pulse")}>{waiting ? "Thinking…" : acts ? acts.charAt(0).toUpperCase() + acts.slice(1) : "Silence"}</div>}
         {e.said.length > 0 && acts && <div className={ASIDE} data-tip={acts} data-turn-did><span className="truncate">{acts.charAt(0).toUpperCase() + acts.slice(1)}</span></div>}
+        <Drawings e={e} compact />
       </div>
     </div>
   )

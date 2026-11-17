@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { NearIn } from "./takeover.ts"
 import { GOING_TYPES, JOB_EVENTS } from "./joblife.ts"
+import { DRAWING } from "../../../core/desktop/drawingwire.ts"
 
 const s = z.string().optional(), n = z.number().optional(), b = z.boolean().optional()
 export const RectRow = z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
@@ -19,6 +20,7 @@ export const MomentRow = z.object({
   closeUp: z.object({ shot: z.string(), at: RectRow, scale: z.number(), mark: z.enum(["ring", "pointer"]).optional() }).optional(),
   displays: z.array(RectRow).optional(), pane: s, ui: s, row: n, el: s, chrome: s, what: s, url: s,
 })
-export const ActRow = z.object({ t: z.number(), as: z.string(), op: z.string(), seqs: z.array(z.number()).optional(), text: s })
+export const ActRow = z.object({ t: z.number(), as: z.string(), op: z.string(), seqs: z.array(z.number()).optional(), text: s, drawing: s })
+export const DrawnRow = z.object({ t: z.number(), drawing: DRAWING })
 export const JobLogRow = z.object({ t: z.number(), job: z.string(), from: z.string(), to: z.string(),
   ev: z.union([z.enum(JOB_EVENTS), z.literal("untold"), z.templateLiteral(["going ", z.enum(GOING_TYPES)])]) })

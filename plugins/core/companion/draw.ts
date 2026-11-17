@@ -1,13 +1,14 @@
 import { z } from "zod"
-import { type OpCtx, OpError, readFile } from "../../../core/plugins.ts"
-import { isAnswer, type Mark, type Rect as ScreenRect, rectOf, spots, VOCABULARY } from "../../../core/desktop/screenmarks.ts"
+import { localDate, type OpCtx, OpError, readFile } from "../../../core/plugins.ts"
+import { type Drawing, isAnswer, type Mark, type Rect as ScreenRect, rectOf, spots, VOCABULARY } from "../../../core/desktop/screenmarks.ts"
 import type { Shown as ShownMark } from "./shown.ts"
 import "./opening.ts"
 import { plugin } from "./self.ts"
 import { EDIT_WAIT, str } from "./settings.ts"
-import { notes, did, showed, key, agentOf, setAgent, writingAt, dropNote } from "./state.ts"
+import { notes, did, showed, key, agentOf, setAgent, writingAt, dropNote, drawnLog } from "./state.ts"
 import { type Draw, drawer } from "./comments.ts"
 import { screenDrawing } from "./windows.ts"
+import { asLeft } from "./drawings.ts"
 import { editorFor, inTurn, askWindow, streams, toolUse, saidUndrawn } from "./edits.ts"
 import { AS, PATH, target, who } from "./args.ts"
 import { askOf } from "./wiring.ts"
@@ -100,13 +101,16 @@ async function drawOnScreen(p: OnScreen & { marks: unknown[] }, ctx: OpCtx) {
   })
   const landed = added.map((m) => ({ t: Date.now(), what: `your ${m.type}`, ...landing(m, d.places) }))
   showed(name, landed)
-  did(name, "draw", undefined, `${landed.map((x) => `${/^[aeiou]/.test(x.what.slice(5)) ? "an" : "a"} ${x.what.slice(5)}${x.at ? ` at ${Math.round(x.at.x)},${Math.round(x.at.y)}` : ""}`).join(", ")} on the screen`)
+  keepDrawn(d)
+  did(name, "draw", undefined, `${landed.map((x) => `${/^[aeiou]/.test(x.what.slice(5)) ? "an" : "a"} ${x.what.slice(5)}${x.at ? ` at ${Math.round(x.at.x)},${Math.round(x.at.y)}` : ""}`).join(", ")} on the screen`, d.id)
   const r = spots(d.marks).map((s) => rectOf(s, d.places)).find(Boolean)
   const at = r ? { sx: Math.round(r.x + r.w / 2), sy: Math.round(r.y + r.h / 2) } : {}
   if (str(p.say)) await ctx.op("companion.say", { text: str(p.say), ...at, ...(d.marks.some(isAnswer) ? { ask: true } : {}), ...(p.as ? { as: p.as } : {}) })
   else if (r) setAgent(name, at)
   return { screen: d.id, marks: p.marks.length - unshown.length, ...(unshown.length ? { unshown } : {}) }
 }
+
+const keepDrawn = (d: Drawing) => { const t = Date.now(); drawnLog.append(t, [{ t, drawing: asLeft(d) }]) }
 
 function landing(m: Mark, places: Record<string, ScreenRect> = {}): Pick<ShownMark, "at" | "on"> {
   const s = spots([m])[0], r = s && rectOf(s, places)
@@ -115,8 +119,9 @@ function landing(m: Mark, places: Record<string, ScreenRect> = {}): Pick<ShownMa
 
 async function editOnScreen(p: OnScreen & { actions?: unknown }, ctx: OpCtx) {
   const name = who(p)
-  did(name, "draw")
-  const { drawing: d, touched } = await screenDrawing.edit(name, p.actions, str(p.say) || undefined)
+  const { drawing: d, touched } = await screenDrawing.edit(name, p.actions, str(p.say) || undefined).catch((e) => { did(name, "draw"); throw e })
+  keepDrawn(d)
+  did(name, "draw", undefined, undefined, d.id)
   if (str(p.say)) await ctx.op("companion.say", { text: str(p.say), ...(p.as ? { as: p.as } : {}) })
   return { screen: d.id, changed: touched }
 }
@@ -132,6 +137,29 @@ plugin.op({
   run: async (p, ctx) => ({ path: await screenDrawing.keep(ctx, { id: str(p.id) || undefined, path: str(p.path) || undefined, all: p.all === true, places: Places.parse(p.places) }) }),
   text: (r) => `Kept ${r.path}.`,
   did: () => ({ action: "create", text: "Kept the companion's drawing", paths: [] }),
+})
+
+plugin.op({
+  id: "companion.redraw",
+  cli: "companion redraw",
+  summary: "Draw one of its past answers' drawings on the screen again, as that answer left it (the chat's Play on a drawing).",
+  help: `Each answer's drawings are kept by id with it (companion conversation lists them under each exchange). Its
+marks come back where they were drawn, beat by beat, on its layer, in place of what's up there now.
+
+  vau companion redraw --id d1k2m3n4 --day 2026-11-16`,
+  kind: "write",
+  lock: false,
+  params: { id: { type: "string", description: "the drawing's id (companion conversation)" }, day: { type: "string", description: "the day it was drawn (YYYY-MM-DD); default: today, then the day before" } },
+  run: async (p) => {
+    const id = str(p.id)
+    if (!id) throw new OpError("id: the drawing (companion conversation lists each answer's)")
+    const days = p.day ? [str(p.day)] : [localDate(Date.now()), localDate(Date.now() - 86_400_000)]
+    const d = days.map((day) => drawnLog.read(day).findLast((r) => r.drawing.id === id)?.drawing).find(Boolean)
+    if (!d) throw new OpError(`no kept drawing ${id}${p.day ? ` on ${str(p.day)}` : " today or yesterday"}`, 404)
+    return { screen: screenDrawing.again(d).id, from: id }
+  },
+  text: (r) => `Drew ${r.from} again (${r.screen}).`,
+  did: () => ({ action: "ui", text: "Drew a past answer's drawing again", paths: [] }),
 })
 
 plugin.op({
