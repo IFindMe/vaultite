@@ -494,6 +494,8 @@ export function DragGhost({ info }: { info: (t: Tab | Pane) => TabInfo }) {
     : item.panel && !(item.to && overPanes) ? { label: item.label ?? item.panel, icon: PanelTop }
     : pane ? info(pane)
     : item.group ? { label: item.label ?? "", icon: dotIcon(colorVar(groupById(item.group)?.color ?? "gray")) }
+    : item.away?.group ? { label: item.label ?? "", icon: dotIcon(colorVar(item.away.color ?? "gray")) }
+    : item.away?.to ? info({ id: "", to: item.away.to })
     : dragged ? info(dragged)
     : item.from === "row" && !item.to ? { label: item.label ?? item.path?.split("/").pop()?.replace(/\.md$/i, "") ?? "", icon: FileText }
     : info({ id: "", to: item.to ?? "new" })

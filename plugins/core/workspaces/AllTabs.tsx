@@ -1,12 +1,13 @@
-import { useRef, useState } from "react"
+import { useRef, useState, type PointerEvent } from "react"
 import { Pin, X } from "lucide-react"
 import {
-  closeTab, cn, colorVar, Empty, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow,
+  closeTab, cn, colorVar, dragTab, Empty, groupName, INCOMING, startDrag, tabPreviewOrder, useSlide, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow,
   tabMenuOf, useGroupIn, useGroupLines, useGrowIn, useShrinkOut, useTabLabels, useTabLayout, type MenuItem, type Pane, type Store, type Tab, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
 import { TabGroupRow } from "@plugins/tabs/grouprow"
 import { Mark } from "./Mark"
 import { tintWash } from "./tint"
+import { previewOf, useAllDrops, type AllDrop } from "./alldrops"
 import { closeIn, foldIn } from "./elsewhere"
 import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, showTab, SLOTS, slots, useVersion } from "./state"
 
@@ -56,8 +57,10 @@ export default function AllTabs({ store }: { store: Store }) {
     else setFolded((s) => { const next = new Set(s); if (!next.delete(g.id)) next.add(g.id); return next })
   }
   const isFolded = (at: Where, g: TabGroup) => !query && (at.thisWindow || at.otherWorkspace ? !!g.collapsed : !!g.collapsed !== folded.has(g.id))
+  const shownList = (n: number) => shownOf(n, whereOf(here, n, 0), isFolded)
+  const hit = useAllDrops(shownList)
   return (
-    <div data-all-tabs className="mx-auto max-w-[1100px] pb-10">
+    <div data-all-tabs data-own-drops className="mx-auto max-w-[1100px] pb-10">
       <PageHeader title="All tabs" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
         <FilterField value={q} onChange={setQ} placeholder="Filter tabs" className="max-w-64 basis-48" />
       </PageHeader>
@@ -74,8 +77,8 @@ export default function AllTabs({ store }: { store: Store }) {
               {d.lists.map((s, w) => (!s.tabs.length ? null : (
                 <div key={w}>
                   {w > 0 && <h3 className="px-1.5 pt-2 pb-1 text-[12px] font-medium text-muted-foreground">Pop-out window {w}</h3>}
-                  <TabRows s={s} w={w} at={{ n: d.n, thisWindow: d.n === here && w === 0 && !isPopout(), otherWorkspace: d.n !== here }} info={info}
-                    folded={isFolded} fold={fold} moves={moves} />
+                  <TabRows s={s} w={w} at={whereOf(here, d.n, w)} info={info} folded={isFolded} fold={fold} moves={moves}
+                    hit={!query && w === 0 && hit?.n === d.n ? hit : null} shown={() => shownList(d.n)} />
                 </div>
               )))}
             </section>,
@@ -86,25 +89,37 @@ export default function AllTabs({ store }: { store: Store }) {
   )
 }
 
-function TabRows({ s, w, at, info, folded, fold, moves }: { s: Shown; w: number; at: Where; info: Info; folded: (at: Where, g: TabGroup) => boolean
+const whereOf = (here: number, n: number, w: number): Where => ({ n, thisWindow: n === here && w === 0 && !isPopout(), otherWorkspace: n !== here })
+function shownOf(n: number, at: Where, folded: (at: Where, g: TabGroup) => boolean): TabList {
+  const l = listsOf(n)[0] ?? { tabs: [], active: "" }
+  return { ...l, groups: l.groups?.map((g) => ({ ...g, collapsed: folded(at, g) })) }
+}
+
+function TabRows({ s, w, at, info, folded, fold, moves, hit, shown }: { s: Shown; w: number; at: Where; info: Info; folded: (at: Where, g: TabGroup) => boolean
   fold: (at: Where, g: TabGroup) => void
-  moves: (n: number, t: Tab) => MenuItem[] }) {
+  moves: (n: number, t: Tab) => MenuItem[]
+  hit: AllDrop | null
+  shown: () => TabList }) {
   const root = useRef<HTMLDivElement>(null)
   useGroupLines(root, "y")
+  const l = hit && !hit.home ? shown() : null, preview = l && hit ? previewOf(l, hit) : null
+  useSlide(root, l && preview ? tabPreviewOrder(l, preview) : null, "y")
+  const incoming = !!preview?.tabs.some((t) => t.id === INCOMING)
   const row = (t: Tab, line?: string) => <Row key={t.id} t={t} at={at} info={info} active={!at.thisWindow && t.id === s.l.active} line={line} moves={moves(at.n, t)} />
   return (
-    <div ref={root} data-all-tabs-window={w} className="relative flex flex-col gap-px">
+    <div ref={root} data-all-tabs-window={w} className="relative flex flex-col gap-px" style={incoming ? { paddingBottom: 29 } : undefined}>
       {runsOf(s).map((r) => {
         const g = r.group
         if (!g) return r.tabs.map((t) => row(t))
         const shut = folded(at, g)
         return (
-          <div key={`${g.id}-${r.tabs[0].id}`} data-all-tabs-group={g.id} className="flex flex-col gap-px">
+          <div key={`${g.id}-${r.tabs[0].id}`} data-all-tabs-group={g.id} className="contents">
             <GroupHead g={{ ...g, collapsed: shut }} n={r.tabs.length} at={at} onFold={() => fold(at, g)} />
             {!shut && r.tabs.map((t) => row(t, g.id))}
           </div>
         )
       })}
+      {incoming && <div aria-hidden data-slide={INCOMING} className="pointer-events-none absolute inset-x-0 top-0 h-7 rounded-[5px] bg-foreground/[0.06]" />}
     </div>
   )
 }
@@ -112,8 +127,12 @@ function TabRows({ s, w, at, info, folded, fold, moves }: { s: Shown; w: number;
 function GroupHead({ g, n, at, onFold }: { g: TabGroup; n: number; at: Where; onFold: () => void }) {
   const box = useRef<HTMLDivElement>(null)
   useGroupIn(box, g.id)
+  const drag = (e: PointerEvent<HTMLElement>) => {
+    if (at.thisWindow) startDrag(e, { from: "group", group: g.id, label: groupName(g) })
+    else if (at.otherWorkspace) startDrag(e, { from: "group", label: groupName(g), away: { workspace: at.n, group: g.id, color: g.color } })
+  }
   return (
-    <div ref={box} data-line-head={g.id} style={{ "--line": colorVar(g.color) }} onContextMenu={at.thisWindow ? menuFor(() => groupMenu(g.id, "panel")) : undefined}>
+    <div ref={box} data-slide={`group:${g.id}`} onPointerDown={drag} data-line-head={g.id} style={{ "--line": colorVar(g.color) }} onContextMenu={at.thisWindow ? menuFor(() => groupMenu(g.id, "panel")) : undefined}>
       <TabGroupRow g={g} n={n} onFold={onFold} more={at.thisWindow} />
     </div>
   )
@@ -135,8 +154,12 @@ function Row({ t, at, info, active, line, moves }: { t: Tab; at: Where; info: In
   const after = (items: MenuItem[]) => items.map((it, k) => (k ? it : { ...it, sep: true }))
   const menu = (): MenuItem[] => at.thisWindow ? [...tabMenuOf(t.id), ...after(moves)]
     : [...moves, ...(closes ? after([{ label: "Close tab", icon: X, run: close }]) : [])]
+  const drag = (e: PointerEvent<HTMLElement>) => {
+    if (at.thisWindow) dragTab(e, t)
+    else if (at.otherWorkspace) startDrag(e, { from: "tab", label: i.label, away: { workspace: at.n, tab: t.id, to: focusedPane(t).to } })
+  }
   return (
-    <div ref={box} data-slide={t.id} data-in-group={at.thisWindow ? t.group : undefined} data-line-of={line} onContextMenu={menuFor(menu)}>
+    <div ref={box} data-slide={t.id} onPointerDown={drag} data-in-group={at.thisWindow ? t.group : undefined} data-line-of={line} onContextMenu={menuFor(menu)}>
       <SidebarRow data-all-tabs-tab={t.id} data-all-tabs-split={split ? "" : undefined} icon={split ? undefined : i.icon} iconClassName={i.iconClassName} tint={i.tint}
         badge={split ? undefined : i.badge} mark={split ? undefined : i.mark} label={split ? <SplitCells ps={ps} info={info} /> : i.label} labelClassName={split ? "[mask-image:none]" : undefined}
         tip={split ? ps.map((p) => info(p).label).join(" | ") : undefined} open active={active} more className={cn(line && "ml-3.5")}

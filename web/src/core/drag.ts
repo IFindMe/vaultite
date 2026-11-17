@@ -46,6 +46,7 @@ export type DragItem = {
   /** A browser container, by id, reordered in the Sites tab (web-viewer/Sites.tsx). */
   container?: string
   workspace?: number
+  away?: { workspace: number; tab?: string; group?: string; to?: string; color?: string }
   /** A bookmark, by address, moved along the Browser's bookmarks bar or into one of its folders (web-viewer/BookmarksBar.tsx). */
   bookmark?: string
   /** A site's login in Sites (web-viewer/Sites.tsx), by its set of logins (a profile) and site: moved to another set,

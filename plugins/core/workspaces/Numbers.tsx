@@ -5,7 +5,7 @@ import { Mark as Look } from "./Mark"
 import { tintWash } from "./tint"
 import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, panesClosed, pluginOn, reorder as reorderKeys, sidebarsChanged, slotAt, startDrag, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, useSlide, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
 import {
-  cycle, emit, getRenaming, label, leaving, lit as litNow, lookOf, markOf, named, othersOnly, patch, reorder, showAllTabs, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
+  cycle, emit, getRenaming, moveAt, label, leaving, lit as litNow, lookOf, markOf, named, othersOnly, patch, reorder, showAllTabs, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
   SLOTS, switchTo, sync, tookTabs, used, useVersion, type Sent,
 } from "./state"
 import { moved } from "./order"
@@ -217,7 +217,11 @@ function useSwipes() {
   }, [])
 }
 
-const sent = (item: DragItem): Sent | null => (item.group ? { group: item.group } : sentOne(item))
+const sent = (item: DragItem): Sent | null => {
+  const a = item.away
+  if (a) return a.group ? { group: a.group } : a.tab ? { tab: a.tab } : null
+  return item.group ? { group: item.group } : sentOne(item)
+}
 function sentOne(item: DragItem): Sent | null {
   if (item.pane) return { pane: item.pane }
   if (item.tab) return item.to && item.to !== "new" ? { tab: item.tab } : null
@@ -234,10 +238,10 @@ function useSendDrop() {
   const id = `workspaces:${useId()}`
   useDropTarget<{ n: number; what: Sent }>(id, (item, _x, _y, el) => {
     const n = Number(el?.closest<HTMLElement>("[data-workspace]")?.dataset.workspace)
-    const what = sent(item)
-    if (!what || !n || n === litNow()) return null
+    const what = sent(item), from = item.away?.workspace ?? litNow()
+    if (!what || !n || n === from) return null
     return { n, what }
-  }, (_item, h) => void sendTo(h.n, h.what), {
+  }, (item, h) => void (item.away && !("open" in h.what) ? moveAt(item.away.workspace, h.n, h.what, {}) : sendTo(h.n, h.what)), {
     hint: ({ n, what }) => ("open" in what ? `Open in ${named(n)}` : "pane" in what ? `Move pane to ${named(n)}` : "group" in what ? `Move group to ${named(n)}` : `Move to ${named(n)}`),
     into: () => true,
   })

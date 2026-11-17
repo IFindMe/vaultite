@@ -267,6 +267,7 @@ function syncTabs() {
 }
 
 export type Sent = { tab: string } | { pane: string } | { group: string } | { open: string[] }
+export type Place = { at?: number; into?: string }
 let moving = false
 
 function without(l: TabLayout, what: Exclude<Sent, { open: string[] }>): TabLayout | null {
@@ -288,7 +289,7 @@ function movedText(what: Sent, n: number, r: Moved) {
   return "open" in what ? `Opened in ${named(n)}` : "group" in what ? `Moved the group to ${named(n)}` : `Moved to ${named(n)}`
 }
 
-export async function sendTo(n: number, what: Sent) {
+export async function sendTo(n: number, what: Sent, place?: Place) {
   if (!slots() || moving) return
   const from = current()
   if (!from || from === n) return
@@ -299,7 +300,7 @@ export async function sendTo(n: number, what: Sent) {
   if (gone) apply(gone, true, true)
   await writing
   try {
-    const r = await post<Moved>(at("workspaces/move"), { ...("open" in what ? {} : { from }), to: n, ...what })
+    const r = await post<Moved>(at("workspaces/move"), { ...("open" in what ? {} : { from }), to: n, ...what, ...place })
     local = unusedIfBlank(r.workspaces)
     const l = local[from - 1]?.layout ?? null
     mine.add(layoutKey(l))
@@ -314,7 +315,7 @@ export async function sendTo(n: number, what: Sent) {
     moving = false
   }
 }
-async function bringBack(n: number, to: number, what: Sent, place: { at?: number; into?: string }) {
+async function bringBack(n: number, to: number, what: Sent, place: Place) {
   if (timer) saveTabs()
   await writing
   moving = true
@@ -329,6 +330,9 @@ async function bringBack(n: number, to: number, what: Sent, place: { at?: number
     moving = false
   }
 }
+
+export const moveAt = (from: number, to: number, what: Exclude<Sent, { open: string[] }>, place: Place) =>
+  (from === current() ? sendTo(to, what, place) : bringBack(from, to, what, place))
 
 export const moveTab = (id: string, n: number) => sendTo(n, { tab: id })
 export const moveBetween = (from: number, to: number, id: string) => (from === current() ? sendTo(to, { tab: id }) : bringBack(from, to, { tab: id }, {}))

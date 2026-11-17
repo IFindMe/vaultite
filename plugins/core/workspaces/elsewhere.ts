@@ -18,3 +18,16 @@ export function closeIn(n: number, id: string) {
   const after = JSON.stringify(slots()?.[n - 1]?.layout)
   notify(`Closed in ${named(n)}`, { action: { label: "Undo", run: () => { if (JSON.stringify(slots()?.[n - 1]?.layout) === after) patch(n, { layout: before }) } } })
 }
+
+export function reorderIn(n: number, order: { id: string; group?: string }[]) {
+  const l = layoutOf(n)
+  if (!l) return
+  const byId = new Map(l.tabs.map((t) => [t.id, t]))
+  const tabs = order.flatMap(({ id, group }) => {
+    const t = byId.get(id)
+    if (!t) return []
+    const { group: _, ...rest } = t
+    return [group ? { ...rest, group } : rest]
+  })
+  if (tabs.length === l.tabs.length) patch(n, { layout: { ...l, tabs } })
+}
