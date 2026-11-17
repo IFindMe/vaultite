@@ -1,5 +1,5 @@
 import type { VaultTest } from "./harness.ts"
-import { type Effect, type EffectKind, handed, NOT_SHOWN, owes, start, step, type Turn, type TurnEvent, type TurnState, withdrawing } from "../../../plugins/core/companion/talkturn.ts"
+import { type Effect, type EffectKind, handed, NOT_SHOWN, owes, passable, start, step, type Turn, type TurnEvent, type TurnState, withdrawing } from "../../../plugins/core/companion/talkturn.ts"
 import fc from "fast-check"
 
 type Ask = { id: number; tour?: boolean }
@@ -8,7 +8,7 @@ type Moves = {
   ask: { tour: boolean }; press: { cold: boolean }; busy: {}; end: { error: boolean; words: boolean; tags: boolean }; gone: {}
   acted: { op: string }; answered: { error: boolean; ends: boolean }; drew: { stale: boolean; ok: boolean }
   write: { tag: boolean }; queue: { ok: boolean }; make: { ok: boolean }; start: { ok: boolean; busy: boolean }; send: { i: number; ok: boolean }
-  escape: {}; withdraw: {}; drop: { i: number }; stop: {}; toggle: {}; due: {}
+  escape: { press: boolean }; withdraw: {}; drop: { i: number }; stop: {}; toggle: {}; due: {}
 }
 export type Move<K extends keyof Moves = keyof Moves> = { [P in K]: { t: P } & Moves[P] }[K]
 type MoveRunners = { [K in keyof Moves]: (m: Move<K>) => void }
@@ -123,7 +123,7 @@ export function world(moves: Move[]) {
       go({ type: "started", news: m.busy ? { type: "busy" } : { type: "ended", error: "", words: null, acting: queue.length > 0 } })
     },
     send: (m) => { if (!sends.length) return; const [round] = sends.splice(m.i % sends.length, 1); if (!m.ok) go({ type: "send-failed", round, why: "socket closed" }) },
-    escape: () => go({ type: "escaped" }),
+    escape: (m) => go({ type: "escaped", press: m.press }),
     withdraw: () => go({ type: "withdrawn" }),
     drop: (m) => { if (asks.length) go({ type: "dropped", ask: asks[m.i % asks.length] }) },
     stop: () => { kept = false; go({ type: "stopped" }) },
@@ -175,7 +175,7 @@ const MOVE: fc.Arbitrary<Move> = fc.oneof(
   { arbitrary: fc.record({ t: fc.constant("make" as const), ok: fc.constantFrom(true, true, true, true, false) }), weight: 3 },
   { arbitrary: fc.record({ t: fc.constant("start" as const), ok: fc.boolean(), busy: fc.boolean() }), weight: 3 },
   { arbitrary: fc.record({ t: fc.constant("send" as const), i: fc.nat(3), ok: fc.boolean() }), weight: 3 },
-  fc.constant({ t: "escape" as const }), fc.constant({ t: "withdraw" as const }), fc.record({ t: fc.constant("drop" as const), i: fc.nat(9) }),
+  fc.record({ t: fc.constant("escape" as const), press: fc.boolean() }), fc.constant({ t: "withdraw" as const }), fc.record({ t: fc.constant("drop" as const), i: fc.nat(9) }),
   fc.constant({ t: "stop" as const }), fc.constant({ t: "toggle" as const }), fc.constant({ t: "due" as const }),
 )
 export function counterexample(runs: number) {
@@ -198,7 +198,16 @@ const REPLAYS: [string, Move[], (w: ReturnType<typeof world>) => boolean][] = [
     (w) => w.fate.get(w.asks[0]) === "withdrawn" && !w.says.length && w.effects.includes("interrupt")],
   ["a tour's step dropped alone stops its turn; with their own ask it isn't (0e3f4770)",
     [{ t: "ask", tour: true }, { t: "make", ok: true }, { t: "start", ok: true, busy: true }, { t: "drop", i: 0 }], (w) => w.fate.get(w.asks[0]) === "withdrawn"],
-  ["Esc stops its turn: nothing more said for it", [...busyStart, { t: "escape" }, { t: "end", error: false, words: false, tags: false }], (w) => !w.says.length],
+  ["Esc stops its turn: nothing more said for it, even its last words", [...busyStart, { t: "escape", press: false }, { t: "end", error: false, words: true, tags: false }, { t: "ask", tour: false }],
+    (w) => w.says.length === 1 && w.fate.get(w.asks[0]) === "cut" && w.tries.get(w.asks[0]) === 1],
+  ["a new press stops a turn before its answer: that ask goes again with the press's ask, answered in one turn",
+    [...busyStart, { t: "escape", press: true }, { t: "end", error: false, words: false, tags: false }, { t: "ask", tour: false }],
+    (w) => w.fate.get(w.asks[0]) === "answered" && w.fate.get(w.asks[1]) === "answered" && w.tries.get(w.asks[0]) === 2 && [...w.answeredIn.get(w.asks[0])!].join() === [...w.answeredIn.get(w.asks[1])!].join()],
+  ["a new press after its answer began stops it for good", [...busyStart, { t: "acted", op: "say" }, { t: "escape", press: true }, { t: "ask", tour: false }],
+    (w) => w.tries.get(w.asks[0]) === 1],
+  ["a press-stopped ask that comes back and is lost is told, never tried a third time",
+    [...busyStart, { t: "escape", press: true }, { t: "end", error: false, words: false, tags: false }, { t: "ask", tour: false }, { t: "busy" }, { t: "gone" }],
+    (w) => w.tries.get(w.asks[0]) === 2 && w.lines.get(w.asks[0]) === LOST],
   ["turned off with an ask waiting: it's told so", [...busyStart, { t: "ask", tour: false }, { t: "toggle" }, { t: "end", error: false, words: true, tags: false }],
     (w) => w.lines.get(w.asks[1]) === OFF],
   ["words on their way are its answer: never said whole too, nor told they didn't show", [...busyStart, { t: "write", tag: true }, { t: "end", error: false, words: true, tags: true }],
@@ -227,6 +236,8 @@ export default async ($: VaultTest) => {
     check("talkturn: it owes an answer from the ask till it's passed or its turn is over, a fresh session's too",
       runs.join("|") === "false,true,true,true,false|false,true,false,false|false,true,true,true,false", runs)
   }
+  check("talkturn: a closing word may pass with no reply; a longer ask may not", passable(["thanks, all right"]) && passable([""]) &&
+    !passable(["can you help me sign in here? actually maybe let me do it myself, it's fine"]))
   const found = counterexample(3000)
   check("talkturn machine: whatever happens around it, every ask is answered, passed, told it failed or taken back, none twice; a lost one is tried once more", !found, found)
 }

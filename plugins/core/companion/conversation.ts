@@ -19,12 +19,12 @@ export type KeptDrawing = { id: string; title: string; marks: number }
 type DrawnRow = { t: number; drawing: Drawing }
 
 const DOES: Record<string, string> = { look: "pointed", draw: "drew", highlight: "highlighted", act: "acted", open: "opened", handoff: "handed off",
-  edit: "wrote", comment: "commented", suggest: "suggested", propose: "proposed", follow: "followed", see: "looked at a pane", clear: "cleared" }
-const NOT_SHOWN = new Set(["next", "handed", "sent", "done", "again", "word", "say", "pass", "stopped", "result", "withdrawn", "talked"])
+  edit: "wrote", comment: "commented", pass: "let it pass", stopped: "stopped", suggest: "suggested", propose: "proposed", follow: "followed", see: "looked at a pane", clear: "cleared" }
+const NOT_SHOWN = new Set(["next", "handed", "sent", "done", "again", "word", "say", "result", "withdrawn", "talked"])
 const ASKS = new Set(["ask", "point", "reply"])
 const REACTS = new Set(["edit", "accept", "reject", "dismiss"])
 const ANSWERING_MS = 120_000
-const WHERE = new Set(["look", "draw"])
+const WHERE = new Set(["look", "draw", "stopped"]), WHY = new Set(["pass"])
 const Shown = z.object({ title: z.unknown().optional(), job: z.unknown().optional() })
 const Talked = z.object({ heard: z.unknown().optional(), said: z.unknown().optional() })
 type Heard = { t: number; seq: number; kind: string; text: string; summoned: boolean; voice: true; talked?: string; app?: undefined; title?: undefined; shot?: undefined }
@@ -84,7 +84,7 @@ export function exchanges(ms: Moment[], allActs: Act[], presses: PressLine[], na
       t: m.t, seq: m.seq, kind: m.kind, text: m.text ?? "", summoned: !!m.summoned, voice: !!m.voice,
       where: m.title ? `${m.title}${m.app ? ` (${m.app})` : ""}` : "path" in m && m.path ? `${m.path.replace(/\.md$/, "")}${m.line ? `, line ${m.line}` : ""}` : "",
       said: "talked" in m ? [m.talked ?? ""] : mine.filter((a) => a.op === "say" && a.text).map((a) => a.text!),
-      did: [...new Set(mine.filter((a) => !NOT_SHOWN.has(a.op)).map((a) => `${DOES[a.op] ?? a.op}${WHERE.has(a.op) && a.text ? ` ${a.text}` : ""}`))],
+      did: [...new Set(mine.filter((a) => !NOT_SHOWN.has(a.op)).map((a) => `${DOES[a.op] ?? a.op}${WHERE.has(a.op) && a.text ? ` ${a.text}` : WHY.has(a.op) && a.text ? `: ${a.text}` : ""}`))],
       ...(results.length ? { results } : {}),
       ...(handed && word ? { word: Math.max(0, (word.t - m.t) / 1000) } : {}), ...(done ? { total: (done.t - m.t) / 1000 } : {}),
       ...(p ? { press: { id: p.end.press, steps: p.steps, ...(costOf(p.steps) ? { cost: costOf(p.steps) } : {}) } } : {}),

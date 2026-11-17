@@ -100,6 +100,18 @@ export const SCENARIOS = {
     r.lane.warm(); await r.settle(); r.ask(1); await r.settle(); r.busy()
     r.log.push(`result:${JSON.stringify(await r.run("end"))}`); r.log.push(`result:${JSON.stringify(await r.run("pass"))}`)
   }, "start:warm | did:handed[1] | text:1 | send:s1 | did:sent | agent:thinking | result:{\"content\":[{\"type\":\"text\",\"text\":\"Opened the page.\"},{\"type\":\"text\",\"text\":\"They've heard nothing from you on this ask yet: tell them in a few words what you did, then stop.\"}]} | did:pass | result:{\"endsTurn\":true,\"content\":[{\"type\":\"text\",\"text\":\"Passed.\"}]} | stop:s1"],
+  "a long ask can't be let pass: it's told to answer in a line, and ending silent anyway says it got nowhere": [async (r) => {
+    r.lane.warm(); await r.settle(); r.ask(1, { text: "could you look at why the calendar sync keeps failing, or no, never mind, I'll check it later myself" }); await r.settle(); r.busy()
+    r.log.push(`result:${JSON.stringify(await r.run("pass"))}`); r.idle(""); await r.settle()
+  }, "start:warm | did:handed[1] | text:1 | send:s1 | did:sent | agent:thinking | result:{\"isError\":true,\"content\":[{\"type\":\"text\",\"text\":\"Not passed: they said too much to hear nothing back. Say one short line instead (what you'll do, or that you'll leave it to them), then end your turn.\"}]} | did:say I didn't get to an answer on that one. Ask me again? | say:I didn't get to an answer on that one. Ask me again? | agent:watching | did:done | stop:s1"],
+  "a closing word is let pass with no reply": [async (r) => {
+    r.lane.warm(); await r.settle(); r.ask(1, { text: "okay, thanks" }); await r.settle(); r.busy()
+    await r.run("pass"); r.idle(""); await r.settle()
+  }, "start:warm | did:handed[1] | text:1 | send:s1 | did:sent | agent:thinking | did:pass | agent:watching+seen | did:done | stop:s1"],
+  "a new press stops a turn before its answer: its ask goes again with the next one": [async (r) => {
+    r.lane.warm(); await r.settle(); r.ask(1); await r.settle(); r.busy(); r.log.push(`stopped:${await r.lane.interrupt("press")}`); r.idle(""); await r.settle()
+    r.ask(2); await r.settle(); r.busy(); r.words("u2", "Got both.", "done"); r.words("", "", "done"); await r.settle(); r.idle("Got both."); await r.settle()
+  }, "start:warm | did:handed[1] | text:1 | send:s1 | did:sent | agent:thinking | interrupt:s1 | stopped:true | agent:watching+seen | did:done | did:handed[1,2] | text:1,2 | send:s1 | did:sent | agent:thinking | said:Got both. | did:say | agent:watching | did:done | stop:s1"],
   "a tool ending the turn after its words ends it": [async (r) => {
     r.lane.warm(); await r.settle(); r.ask(1); await r.settle(); r.busy(); r.words("u1", "[point a1] Sure.", "done"); await r.settle()
     r.log.push(`result:${JSON.stringify(await r.run("end"))}`)

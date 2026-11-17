@@ -11,7 +11,7 @@ export type Phase<A> =
   | { kind: "starting"; handed: boolean }
   | { kind: "unwanted" }
 
-export type TurnState<A> = { phase: Phase<A>; waiting: Waiting<A>[]; turn: Turn<A>; round: number }
+export type TurnState<A> = { phase: Phase<A>; waiting: Waiting<A>[]; cutByPress: Waiting<A>[]; turn: Turn<A>; round: number }
 
 type Events<A, T> = {
   asked: { ask: A }
@@ -30,7 +30,7 @@ type Events<A, T> = {
   wrote: { said: boolean }
   drew: { n: number; ok: boolean }
   answered: { text: string; error: boolean; ends: boolean }
-  escaped: {}
+  escaped: { press?: boolean }
   withdrawn: {}
   dropped: { ask: A }
   stopped: {}
@@ -66,7 +66,11 @@ const LOST = "I lost my session there, ask me again?", OFF = "My session's off r
 
 const blank = <A>(n: number, asks: A[] = [], again = false): Turn<A> =>
   ({ n, asks, again, acted: false, said: false, shown: false, missed: false, did: "", wrote: false, passed: false, cut: null })
-export const start = <A>(): TurnState<A> => ({ phase: { kind: "idle" }, waiting: [], turn: blank(0), round: 0 })
+export const start = <A>(): TurnState<A> => ({ phase: { kind: "idle" }, waiting: [], cutByPress: [], turn: blank(0), round: 0 })
+
+export const CLOSING_WORDS_MAX = 12
+export const passable = (texts: string[]) => texts.join(" ").split(/\s+/).filter(Boolean).length <= CLOSING_WORDS_MAX
+export const NOT_PASSED = "Not passed: they said too much to hear nothing back. Say one short line instead (what you'll do, or that you'll leave it to them), then end your turn."
 
 export const handed = (s: TurnState<unknown>) => s.phase.kind === "turn" || (s.phase.kind === "starting" && s.phase.handed)
 export const turning = (s: TurnState<unknown>) => handed(s) || s.phase.kind === "busy"
@@ -82,7 +86,7 @@ export function quietly(did: string) {
   return x && x.length <= 200 ? x : "I didn't get to an answer on that one. Ask me again?"
 }
 
-type Ask = { tour?: boolean }
+type Ask = { tour?: boolean; t?: number }
 type Out<A, T> = { to: TurnState<A>; do: Effect<A, T>[] }
 type Handlers = { [K in EventKind]: <A extends Ask, T>(s: TurnState<A>, e: TurnEvent<A, T, K>, w: World) => Out<A, T> }
 
@@ -102,6 +106,10 @@ const give = <A>(x: TurnState<A>, ms: Waiting<A>[]): TurnState<A> =>
 const handedOf = <A>(x: TurnState<A>): Waiting<A>[] => x.turn.asks.map((ask) => ({ ask, again: x.turn.again }))
 const ended = <A, T>(x: TurnState<A>): Out<A, T> =>
   go(idle(x), { do: "watching", seen: !(x.turn.acted && (x.turn.said || !x.turn.shown)) }, { do: "done" })
+
+const CARRY_MS = 3 * 60_000
+const carried = <A extends Ask>(ws: Waiting<A>[], ask: A) =>
+  (ask.tour ? [] : ws.filter((x) => x.ask.t === undefined || ask.t === undefined || ask.t - x.ask.t < CARRY_MS))
 
 function next<A, T>(x: TurnState<A>, w: World): Out<A, T> {
   if (x.phase.kind !== "idle") return go(x)
@@ -132,7 +140,7 @@ function lost<A, T>(x: TurnState<A>, to: TurnState<A>, why: string, w: World): O
 }
 
 function answer<A, T>(out: Out<A, T>, t: Turn<A>, n: TurnEvent<A, T, "ended">): Out<A, T> {
-  const words = !t.acted && !t.wrote && t.cut !== "withdrawn" ? n.words : null
+  const words = !t.acted && !t.wrote && !t.cut ? n.words : null
   let o = out
   if (words?.tags.length) o = plus(o, { do: "tags", tags: words.tags, said: words.said })
   if (words?.said) o = chain(o, (y) => say(y, words.said))
@@ -172,7 +180,7 @@ function answered<A, T>(s: TurnState<A>, e: TurnEvent<A, T, "answered">): Out<A,
 
 const ON: Handlers = {
   free: (s, _e, w) => next(s, w),
-  asked: (s, e, w) => next({ ...s, waiting: [...s.waiting, { ask: e.ask, again: false }] }, w),
+  asked: (s, e, w) => next({ ...s, cutByPress: [], waiting: [...carried(s.cutByPress, e.ask), ...s.waiting, { ask: e.ask, again: false }] }, w),
   pressed: (s, e, w) => (s.phase.kind !== "idle" || !w.on() || !e.cold ? go(s) : go({ ...s, phase: { kind: "starting", handed: false } }, { do: "begin", asks: [] })),
   made: (s) => {
     if (s.phase.kind === "unwanted") return pump(go(idle(s)))
@@ -199,7 +207,11 @@ const ON: Handlers = {
   wrote: (s, e) => go({ ...s, turn: { ...s.turn, wrote: true, acted: s.turn.acted || e.said, said: s.turn.said || e.said } }),
   drew,
   answered,
-  escaped: (s) => (turning(s) ? go(cut(s, s.turn.cut ?? "stopped")) : go(s)),
+  escaped: (s, e) => {
+    if (!turning(s)) return go({ ...s, cutByPress: [] })
+    const owed = !!e.press && handed(s) && unanswered(s.turn)
+    return go({ ...cut(s, s.turn.cut ?? "stopped"), cutByPress: owed ? handedOf(s).map((x) => ({ ...x, again: true })) : [] })
+  },
   withdrawn: (s) => {
     if (s.waiting.length) return go({ ...s, waiting: s.waiting.slice(0, -1) })
     return handed(s) ? go(cut(s, "withdrawn"), { do: "interrupt" }) : go(s)
@@ -209,7 +221,7 @@ const ON: Handlers = {
     if (i >= 0) return go({ ...s, waiting: s.waiting.filter((_, k) => k !== i) })
     return drops(s, e.ask) ? go(cut(s, "withdrawn"), { do: "interrupt" }) : go(s)
   },
-  stopped: (s) => go(between(s) ? { ...s, waiting: [], phase: { kind: "unwanted" } } : unhand({ ...s, waiting: [] })),
+  stopped: (s) => go(between(s) ? { ...s, waiting: [], cutByPress: [], phase: { kind: "unwanted" } } : unhand({ ...s, waiting: [], cutByPress: [] })),
 }
 
 const LATE = new Set<EventKind>(["acted", "wrote", "drew", "answered"])

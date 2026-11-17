@@ -35,7 +35,7 @@ export const drawnIs = (d: Drawing | null) => { drawn = d }
 export const lastAskIs = (x: typeof lastAsk) => { lastAsk = x }
 export const frontedIs = (x: typeof fronted) => { fronted = x }
 
-export function pressed() { hushedBefore = takeoverOffering() ? hushed : null; stopVoice(); live.say({ t: "interrupt" }); speaker.warm(); voiceFront.warm(); lastAsk = null }
+export function pressed() { hushedBefore = takeoverOffering() ? hushed : null; stopVoice(); live.say({ t: "interrupt", press: true }); speaker.warm(); voiceFront.warm(); lastAsk = null }
 /** One line of the helper's own, said aloud as the voice setting says (an ask by voice: auto says it) and shown: in the
  *  dictation pill, or only on its card (`card`). */
 export function sayHere(text: string, card = false) {

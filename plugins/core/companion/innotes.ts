@@ -81,7 +81,7 @@ plugin.op({
   args: ["reason"],
   run: async (p) => {
     const name = who(p), why = cut(str(p.reason).trim().replace(/[.\s]+$/, ""), 40)
-    did(name, "pass")
+    did(name, "pass", undefined, why)
     asking.delete(key(name))
     setAgent(name, { seen: true, ...(why ? { why } : {}) })
     return { why }

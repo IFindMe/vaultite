@@ -6,7 +6,7 @@ import type { Chat, ChatHow, ChatState as State, ChatTool } from "./chat.ts"
 import type { Moment } from "./types.ts"
 import { readableText } from "./reach.ts"
 import { beatOf, markOf, parseTags, placeOf, type Tag } from "./tags.ts"
-import { drops, type Effect, type EffectKind, handed, label, type News, owes, start, step, turning, type TurnEvent, withdrawing } from "./talkturn.ts"
+import { drops, type Effect, type EffectKind, handed, label, type News, NOT_PASSED, owes, passable, start, step, turning, type TurnEvent, withdrawing } from "./talkturn.ts"
 import { logger } from "../../../core/plugins.ts"
 
 const log = logger("companion")
@@ -132,7 +132,9 @@ export function summonedLane(o: {
   }
 
   const tools = (ts: Tool[]) => ts.map((t) => ({ ...inPixels(t),
-    run: (args: unknown, use?: string) => { const of = talk.turn.n; return marksShown(t.name).then((no) => no ?? inSummoned.run(true, () => t.run(onScreen(t.name, args), use)).then((r) => (t.name === "draw" ? drew(r, of) : r)).then(unsaid).then(told)) },
+    run: (args: unknown, use?: string) => {
+      if (t.name === "pass" && !passable(talk.turn.asks.map((m) => m.text ?? ""))) return Promise.resolve({ isError: true, content: [{ type: "text", text: NOT_PASSED }] })
+      const of = talk.turn.n; return marksShown(t.name).then((no) => no ?? inSummoned.run(true, () => t.run(onScreen(t.name, args), use)).then((r) => (t.name === "draw" ? drew(r, of) : r)).then(unsaid).then(told)) },
     ...(t.stream ? { stream: (use: string, json: string, end?: "done" | "stop") => inSummoned.run(true, () => t.stream!(use, json, end)) } : {}) }))
   const options = (model: string, effort: string) => { const x = o.options(model, effort); return { ...x, tools: tools(x.tools ?? []), onText: gated } }
 
@@ -261,7 +263,7 @@ export function summonedLane(o: {
     moves: () => [...moves],
     last: () => talk.turn.asks,
     as: (name: string) => `${name} (summoned)`,
-    async interrupt() { const was = turning(talk); go({ type: "escaped" }); return !!(was && kept && await o.chat()?.interrupt(kept.id).catch(() => false)) },
+    async interrupt(by: "press" | "esc" = "esc") { const was = turning(talk); go({ type: "escaped", press: by === "press" }); return !!(was && kept && await o.chat()?.interrupt(kept.id).catch(() => false)) },
     withdraw() { const ms = withdrawing(talk); go({ type: "withdrawn" }); return ms },
     drop(m: Moment) { const ok = drops(talk, m); go({ type: "dropped", ask: m }); return ok },
     async stop() {

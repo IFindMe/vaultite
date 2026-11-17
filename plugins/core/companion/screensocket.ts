@@ -116,7 +116,7 @@ export function screenSocket(ws: WebSocket, req: IncomingMessage) {
     if (m.t === "hide" && typeof m.id === "string") return void hide(m.id)
     if (m.t === "home" && typeof m.agent === "string") return void comeBack(m.agent)
     if (m.t === "summoning") return void lane().warm()
-    if (m.t === "interrupt") return void (takeover.offering(ws) || bargeIn())
+    if (m.t === "interrupt") return void (takeover.offering(ws) || bargeIn(m.press === true))
     if (m.t === "riding") return void ride(ws, str(m.agent).slice(0, 80))
     if (m.t === "job-seen" && Array.isArray(m.ids)) return void jobs.seen(m.ids.filter((x): x is string => typeof x === "string").slice(0, 30))
     if (m.t === "saw" && Array.isArray(m.ids)) return void saw(m.ids.filter((x): x is string => typeof x === "string").slice(0, 100))
@@ -132,11 +132,11 @@ export function screenSocket(ws: WebSocket, req: IncomingMessage) {
   })
   ws.on("close", () => { screens.delete(ws); realtimePaused.delete(ws); mics.delete(ws); calls.delete(ws); takeover.closed(ws); ride(ws, "") })
 }
-function bargeIn() {
+function bargeIn(press: boolean) {
   if (!lane().busy()) return
   const name = ownName()
   stopStreams(name)
-  void lane().interrupt().then((ok) => { if (ok) did(name, "stopped") }, () => {})
+  void lane().interrupt(press ? "press" : "esc").then((ok) => { if (ok) did(name, "stopped", undefined, press ? "by a new press" : undefined) }, () => {})
 }
 const ridingBy = new Map<WebSocket, string>()
 export const riding = () => [...ridingBy.values()].find(Boolean) ?? ""
