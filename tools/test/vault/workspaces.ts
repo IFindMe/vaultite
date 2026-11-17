@@ -184,9 +184,11 @@ export default async ($: VaultTest) => {
     check("vau workspace tabs <n> --json: {workspace, name, tabs: [{id, panes: [{id, to, path}]}], groups, windows}", tj?.workspace === 3 && tj.name === "Workspace 3" &&
       tj.tabs[0].id === "tw" && JSON.stringify(tj.tabs[0].panes[1]) === JSON.stringify({ id: "w2", to: "file:Notes/C.md", path: "Notes/C.md" }) && tj.tabs[0].panes[0].focused &&
       Array.isArray(tj.groups) && tj.windows === 0, cm)
+    write("Attachments/Qa shots/a.md", "# A\n")
     cm = await vau("workspace", "move", "Notes/A.md", "4")
-    check("vau workspace move: a file open in several workspaces needs --from", cm.code === 1 && cm.err.includes("--from"), cm)
+    check("vau workspace move: a file open in several workspaces needs --from (the path a pane shows, not a file named like it)", cm.code === 1 && cm.err.includes("--from"), cm)
     cm = await vau("workspace", "move", "Notes/A.md", "4", "--from", "2")
+    fs.rmSync(path.join(VAULT, "Attachments/Qa shots"), { recursive: true, force: true })
     check("vau workspace move --from", cm.code === 0 && tos(wsNow().workspaces[3].layout) === "file:Notes/A.md" && !tos(wsNow().workspaces[1].layout).includes("Notes/A.md"), [cm, wsNow()])
     cm = await vau("workspace", "move", "Notes/C.md", "5")
     w = wsNow().workspaces

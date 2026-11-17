@@ -555,6 +555,7 @@ Closing a terminal's pane doesn't end its session (vau terminal end does both).
 
 async function tabNamed(ctx: OpCtx, what: string, ids: Set<string>) {
   if (ids.has(what)) return { id: what, target: null }
+  if (allPanesIn().some((p) => p.to === `file:${what}`)) return { id: null, target: what }
   const target = what.startsWith("view:") || what === "new" ? what : pathAsSaid(await fileTree(ctx), what)
   return { id: null, target }
 }
