@@ -113,7 +113,7 @@ await section("autosave", async () => {
     ed.type("a\nx\n")
     srv.text = "a\nagent\n"
     void ed.saver.check() // (heard while a save is pending: it waits for it)
-    ed.type("a\n") // (typed away again: nothing left to save)
+    ed.type("a\n")
     await ed.saver.save()
     await ticks()
     check("autosave: a change heard while a save was pending is merged in even when there was nothing to save", ed.text === "a\nagent\n", ed.text)
@@ -373,7 +373,7 @@ await section("autosave", async () => {
     void ed.saver.save()
     await ticks()
     room.held = new Promise<void>((r) => { answer = r })
-    room.peers(1) // (someone came as it saved)
+    room.peers(1)
     await ticks()
     srv.gate = null
     saved()
@@ -413,6 +413,30 @@ await section("autosave", async () => {
     co.state.connected = true
   }
   {
+    const leftBehindItsRename = open()
+    const { ed, v, close } = await together("a\n")
+    room.peers(1)
+    await ticks()
+    v.type("a\nmine\n")
+    await ticks()
+    room.write()
+    room.other("a\nmine\nagent's news\n")
+    await ticks()
+    room.peers(0)
+    await ticks()
+    await leftBehindItsRename.saver.settle()
+    await ed.saver.settle()
+    await ticks()
+    check("cotype: the session handed back, an editor that wasn't in it saves nothing over what it never saw, and shows it",
+      srv.text === "a\nmine\nagent's news\n" && leftBehindItsRename.text === srv.text, { disk: srv.text, behind: leftBehindItsRename.text })
+    leftBehindItsRename.type(`${leftBehindItsRename.text}later\n`)
+    await leftBehindItsRename.saver.save()
+    await ticks()
+    check("...and its next typing is saved on top of it", srv.text === "a\nmine\nagent's news\nlater\n", srv.text)
+    leftBehindItsRename.close()
+    close()
+  }
+  {
     // On another machine's rooms: it goes (typed on here alone, saved on this machine), and comes back.
     const { ed, v, close } = await together("a\n")
     fake.wrote = undefined
@@ -433,7 +457,7 @@ await section("autosave", async () => {
     const here = srv.text
     room.remote = true
     room.others = 1
-    to({ t: "y-state", path: P, u: toBase64(Y.encodeStateAsUpdate(room.doc)), others: 1, remote: true }) // (back)
+    to({ t: "y-state", path: P, u: toBase64(Y.encodeStateAsUpdate(room.doc)), others: 1, remote: true })
     await ticks()
     room.write()
     check("cotype: another machine's rooms gone and back, what was typed here meanwhile is saved here, then reaches it once",

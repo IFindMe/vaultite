@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Notes: a phone back from another app no longer saves an older copy of a note over newer text (an agent's, another
+  device's): an editor left behind a rename, or one that wasn't typing together, reads and merges what changed first,
+  and every editor reads the note again when the app comes back.
 - The companion looks things up (`vau which`: pages, hidden sidebar panels, settings, commands, operations, and the
   vault's folders and notes by name) before saying one isn't there or can't be done, then tries it. Opening a view that doesn't exist names the closest real ones instead of an empty tab, a sidebar panel opens
   by its key, and an open that lands on an empty page or a placeholder says so.

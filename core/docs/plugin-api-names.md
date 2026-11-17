@@ -350,7 +350,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `isWindows`: A Windows computer.
 - `joinText(before, text)`: `text` said after `before` (what precedes where it goes): a space between words, none before punctuation or at a line's start.
 - `keepAnchored(grid, selector)`: Keep `cards` (the elements `grid` is made of, `selector`) anchored while `grid` is on the page.
-- `keepLive(path)`: A live session takes `path`'s saving (joining it): `live` once typed in, `handBack` on `base` (the text the server has then; none: what its editors last saved).
+- `keepLive(path)`: A live session takes `path`'s saving (joining it): `live` once typed in, `handBack` on `base` (the server's text then; none: unknown) and `shown` (its editors' text then).
 - `keptLive(path)`: Whether a live session keeps `path` now (joining it or typed in): its editors' autosave stands down.
 - `KeyBar({ label, keys, hide, scroll, className })`: The row above the keyboard.
 - `keyboardBusy(mine?)`: Whether the keyboard is someone else's (an overlay, or a field outside `mine`), so a view focusing itself (a terminal reconnecting) must leave it.

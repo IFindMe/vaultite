@@ -72,6 +72,7 @@ function bind(r: Room) {
 
 function unbind(r: Room, how: "alone" | "dropped" | "going" | "again" = "alone") {
   const base = !r.bound || how === "going" || r.remote ? null : how === "dropped" ? r.synced : r.text.toString()
+  const shown = r.bound ? r.text.toString() : null
   if (r.bound) {
     r.bound = false
     for (const v of r.views) if (v.dom.isConnected) v.dispatch({ effects: slot.reconfigure([]) })
@@ -83,14 +84,14 @@ function unbind(r: Room, how: "alone" | "dropped" | "going" | "again" = "alone")
     }
     tellPeople(r)
   } else if (how !== "again" && r.hold) r.settled = null
-  if (how !== "again") handBack(r, base, how === "going")
+  if (how !== "again") handBack(r, base, shown, how === "going")
 }
 
-function handBack(r: Room, base: string | null, later = false) {
+function handBack(r: Room, base: string | null, shown: string | null, later = false) {
   const hold = r.hold
   r.hold = null
-  if (later) setTimeout(() => hold?.handBack(base), 2000)
-  else hold?.handBack(base)
+  if (later) setTimeout(() => hold?.handBack(base, shown), 2000)
+  else hold?.handBack(base, shown)
 }
 
 function away(r: Room) {
@@ -144,7 +145,7 @@ function heard(m: Record<string, unknown>) {
     r.alone = m.alone === true
     if ((r.others > 0 || r.remote) && !r.alone && r.settled !== null) bind(r)
     else {
-      handBack(r, was)
+      handBack(r, was, was)
       if ((r.others > 0 || r.remote) && !r.alone) void together(r)
     }
   } else if (m.t === "y-peers") {

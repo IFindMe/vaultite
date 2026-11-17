@@ -391,14 +391,18 @@ export function makeAutosave(path: string, initial: string, options: Options) {
       go({ type: "mount" })
       const leave = () => flush(inflight?.text ?? s.disk, false)
       const back = () => go({ type: "retry" })
-      const shown = () => { if (document.visibilityState === "visible") back() }
+      const shown = () => { if (document.visibilityState === "visible") { back(); s.check() } }
       addEventListener("pagehide", leave)
       addEventListener("online", back)
+      addEventListener("vaultite:back", shown)
       document.addEventListener("visibilitychange", shown)
       const unback = onReconnect(back)
-      const unhand = onHandBack((p, base) => {
+      const unhand = onHandBack((p, base, shown) => {
         if (p !== where()) return
-        if (base !== null && base !== s.disk) { s.disk = base; mtime = 0; unconfirmed = [] }
+        if (base !== null && base !== s.disk) {
+          if (now() !== shown) return void go({ type: "check" })
+          s.disk = base; mtime = 0; unconfirmed = []
+        }
         go({ type: "rebase" })
       })
       const untrack = trackUnsaved(() => !o.current.readOnly && !typedLive(where()) && !following && (phase.kind === "pending" || phase.kind === "saving" || status.kind !== "ok" || now() !== s.disk), where)
@@ -409,6 +413,7 @@ export function makeAutosave(path: string, initial: string, options: Options) {
         unhand()
         removeEventListener("pagehide", leave)
         removeEventListener("online", back)
+        removeEventListener("vaultite:back", shown)
         document.removeEventListener("visibilitychange", shown)
         if (drafting) { clearTimeout(drafting); drafting = null }
         go({ type: "close" })

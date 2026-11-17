@@ -46,8 +46,9 @@ async function make(p: Record<string, string>, mod: boolean) {
   const path = /\.\w+$/.test(target) ? target : `${target}.md`
   const was = fileFor(path)
   if (was && (p.append !== undefined || p.overwrite !== undefined)) {
-    const old = p.append !== undefined ? (await get<{ text: string }>(`file?path=${encodeURIComponent(was)}`)).text : ""
-    await put("file", { path: was, text: old ? `${old.replace(/\n?$/, "\n")}${text}` : text })
+    const appending = p.append !== undefined
+    const old = appending ? (await get<{ text: string }>(`file?path=${encodeURIComponent(was)}`)).text : ""
+    await put("file", { path: was, text: old ? `${old.replace(/\n?$/, "\n")}${text}` : text, base: appending ? old : undefined })
   } else if (!was) await post("file", { path, text })
   if (p.silent === undefined) openAt(was ?? path, "", { newTab: mod })
 }
