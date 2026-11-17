@@ -37,10 +37,12 @@ const rows = (n) => card(n).locator("[data-all-tabs-tab]").allInnerTexts().then(
 try {
   vau("plugin", "off", "workspaces")
   clearWorkspaces(B)
-  const names = ["Reading list", "Trip ideas", "Standup", "Budget 2027", "Sprint review", "Release notes"]
+  const names = ["Reading list", "Trip ideas", "Standup", "Budget 2027", "Sprint review", "Release notes", "Roadmap", "Retro"]
   for (const n of names) await api("POST", "file", { path: `${DIR}/${n}.md`, text: `# ${n}\n\n${n} text.\n` })
   await api("PUT", "workspaces/1", { name: "Personal", layout: { active: "a1", tabs: [T("a1", "Reading list"), T("a2", "Trip ideas")] } })
-  await api("PUT", "workspaces/2", { name: "Work", layout: { active: "b1", tabs: [T("b1", "Budget 2027"), T("b2", "Sprint review")] } })
+  const split = { id: "b3", root: { id: "sb3", dir: "row", sizes: [1, 1], kids: [{ id: "pb3a", to: F("Roadmap") }, { id: "pb3b", to: F("Retro") }] }, focus: "pb3a" }
+  await api("PUT", "workspaces/2", { name: "Work", layout: { active: "b1", groups: [{ id: "g1", name: "Lighthouse", color: "blue" }],
+    tabs: [{ ...T("b1", "Budget 2027"), group: "g1" }, { ...T("b2", "Sprint review"), group: "g1" }, split] } })
   await api("PUT", "workspaces/3", { name: "Vaultite", layout: { active: "c1", tabs: [T("c1", "Release notes")] } })
 
   const seedOffTheApp = async (l) => { await page.goto(`${B}api/workspaces`); await page.evaluate((l) => { localStorage.clear(); localStorage.setItem("vaultite.tabs", JSON.stringify(l)) }, l) }
@@ -62,7 +64,7 @@ try {
   check("on: nothing of this device's out of sight", own.every((to) => tosOf(took).includes(to)), [own, tosOf(took)])
   check("on: the group shows in the tab bar", !!(await until(() => page.locator("[data-tab-strip]", { hasText: group?.name ?? "From " }).count(), 4000)), await strip())
   check("on: Personal saved them", !!(await until(() => tosOf(workspaces(B)[0]?.layout).join() === tosOf(took).join(), 6000)), tosOf(workspaces(B)[0]?.layout))
-  check("on: Work and Vaultite untouched", tosOf(workspaces(B)[1]?.layout).join() === [F("Budget 2027"), F("Sprint review")].join() && tosOf(workspaces(B)[2]?.layout).join() === F("Release notes"),
+  check("on: Work and Vaultite untouched", tosOf(workspaces(B)[1]?.layout).join() === [F("Budget 2027"), F("Sprint review"), F("Roadmap"), F("Retro")].join() && tosOf(workspaces(B)[2]?.layout).join() === F("Release notes"),
     workspaces(B).map((w) => tosOf(w?.layout)))
   await page.screenshot({ path: `${OUT}on-toast.png` })
 
@@ -70,10 +72,22 @@ try {
   await page.waitForSelector("[data-all-tabs]")
   const cards = await page.$$eval("[data-all-tabs-workspace]", (els) => els.map((e) => e.getAttribute("data-all-tabs-workspace")))
   check("All tabs: a card for each workspace in use", cards.join() === "1,2,3", cards)
-  check("All tabs: each with its tabs", (await rows(2)).join() === "Budget 2027,Sprint review" && (await rows(3)).join() === "Release notes" && (await rows(1)).includes("Standup"),
+  check("All tabs: each with its tabs", (await rows(2)).join() === "Budget 2027,Sprint review,Roadmap\nRetro" && (await rows(3)).join() === "Release notes" && (await rows(1)).includes("Standup"),
     [await rows(1), await rows(2), await rows(3)])
+  const grouped = card(2).locator("[data-all-tabs-group='g1']")
+  check("All tabs: a tab group heads its tabs, as the tabs panel draws them", (await grouped.locator("[data-group-name]").innerText()).trim() === "Lighthouse"
+    && (await grouped.locator("[data-all-tabs-tab]").allInnerTexts()).join() === "Budget 2027,Sprint review", await card(2).innerText())
+  const halves = await card(2).locator("[data-all-tabs-split] [data-all-tabs-pane]").allInnerTexts()
+  check("All tabs: a split tab is one row with its panes side by side, outside the group", halves.join() === "Roadmap,Retro" && !(await grouped.locator("[data-all-tabs-split]").count()), halves)
+  await page.locator("[data-all-tabs] input").fill("lighthouse"); await ui.idle()
+  check("All tabs: filtering by a group's name keeps its tabs", (await rows(2)).join() === "Budget 2027,Sprint review" && !(await card(3).count()), await rows(2))
+  await page.locator("[data-all-tabs] input").fill(""); await ui.idle()
   check("All tabs: the workspaces' names", (await card(2).innerText()).includes("Work") && (await card(3).innerText()).includes("Vaultite"), await card(2).innerText())
   await page.screenshot({ path: `${OUT}all-tabs.png` })
+  await card(2).locator("[data-all-tabs-pane]", { hasText: "Retro" }).click(); await ui.idle()
+  const focusedPane = () => page.$eval("#main-scroll", (e) => e.getAttribute("data-tab-body")).catch(() => null)
+  check("All tabs: a split's pane goes to its workspace, its tab and that pane", !!(await until(async () => (await lit()) === "2" && (await focusedPane()) === "pb3b", 6000)), [await lit(), await focusedPane()])
+  await page.keyboard.press(workspaceKey(0)); await page.waitForSelector("[data-all-tabs]"); await ui.idle()
   await card(2).locator("[data-all-tabs-tab]", { hasText: "Sprint review" }).click(); await ui.idle()
   check("All tabs: a click goes to its workspace and shows the tab", !!(await until(async () => (await lit()) === "2" && (await active()) === "Sprint review", 6000)), [await lit(), await active()])
 

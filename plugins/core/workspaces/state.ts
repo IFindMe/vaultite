@@ -3,7 +3,7 @@ import { Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Setting
 import {
   cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
   replaceHash, sameSidebars, isPhoneDevice, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
-  allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type WorkspaceHost, type WorkspaceInfo,
+  allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type TabList, type WorkspaceHost, type WorkspaceInfo,
 } from "@vaultite"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
 import { markIcon } from "./Mark"
@@ -342,10 +342,11 @@ async function takeIn(own: TabLayout) {
 export const ALL_TABS = "all-tabs"
 export const showAllTabs = () => openView(ALL_TABS, { newTab: !isViewOpen(ALL_TABS) })
 
-export function tabsOf(n: number): Tab[] {
+export function listsOf(n: number): TabList[] {
   const l = n === current() ? getTabLayout() : clean(slots()?.[n - 1]?.layout)
-  return l ? [l, ...(l.windows ?? [])].flatMap((x) => x.tabs) : []
+  return l ? [l, ...(l.windows ?? [])] : []
 }
+export function tabsOf(n: number): Tab[] { return listsOf(n).flatMap((x) => x.tabs) }
 export function showTab(n: number, id: string) {
   switchTo(n)
   selectTab(id)

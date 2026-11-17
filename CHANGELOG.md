@@ -8,7 +8,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 - Workspaces: turning them on never hides a tab: the tabs on screen go into the workspace, as a group named after the
   device when it has tabs of its own; turning them off keeps the current workspace's tabs. All tabs (⌃0, atop the
-  switcher) shows every workspace's, tab search finds them, a speaker marks the workspace playing sound, and a web page
+  switcher) shows every workspace's in the tabs panel's order, with their tab groups and split tabs (a click on a pane
+  opens it), tab search finds them, a speaker marks the workspace playing sound, and a web page
   whose tab is in no workspace closes. A workspace's settings say where its web pages and terminals open. Workspaces
   are the computers': a phone keeps its own tabs.
 - Browser: logins come only from containers; each workspace's own logins from before become a container named after
