@@ -8,12 +8,12 @@ import {
 import type { LucideIcon, LucideProps } from "lucide-react"
 import { askSites, elsewhere, keep, listed, type MachineSets } from "./accounts"
 import { SiteIcon, siteIcon } from "./icons"
-import { colorOf, containersOf, moveContainer, setSiteRule, useContainers, type Container } from "./containers"
+import { colorOf, containersOf, moveContainer, profileIn, setSiteRule, sitesTitle, sitesTo, useContainers, type Container } from "./containers"
 import { agentsSay, canLockNow, containerItems, newContainer, useCanLock } from "./ContainerButton"
 import { allLogins, allLoginsOn, andList, isIn, loginsOf, loginsOn, moveLogin, nameOf, NEUTRAL, ownLogins, refreshElsewhere, setOrder, signingOut, sitesIn, sitesOf, type Logins } from "./loginsets"
 import { settings } from "./state"
 
-export const manageContainers = () => openView("web-pages", { newTab: !isViewOpen("view:web-pages") })
+export const manageContainers = () => openView("sites", { newTab: !isViewOpen(sitesTo(null)) })
 
 const PICKED = "web-viewer:sites-in"
 const pickedNow = () => scopedState<string | null>(PICKED, null)
@@ -400,9 +400,9 @@ function useContainerDrop(box: React.RefObject<HTMLDivElement | null>) {
   return useDropHit<Reorder>(DROP)?.order ?? null
 }
 
-export function SitesView({ openPage }: { openPage: Open }) {
-  const all = useAllLogins()
-  const containers = useContainers()
+export function SitesView({ openPage, focus = "", setFocus }: { openPage: Open; focus?: string; setFocus?: (container: string) => void }) {
+  const containers = useContainers(), one = containers.find((x) => x.id === focus)
+  const all = useAllLogins().filter((l) => !one || l.container === one.id)
   const [q, setQ] = useState("")
   const box = useRef<HTMLDivElement>(null)
   useSlide(box, useContainerDrop(box), "y")
@@ -410,15 +410,15 @@ export function SitesView({ openPage }: { openPage: Open }) {
   const machines = useMachines()
   if (!webPages?.sites) return <div className="mx-auto max-w-[640px] px-4 pt-2 pb-10"><SitesPanel open openPage={openPage} /></div>
   return (
-    <div className="mx-auto max-w-[640px] px-4 pt-2 pb-10" data-web-sites-view>
-      <PageHeader title="Sites" subtitle="Who you're signed in as, container by container: drag a login to move it">
-        <Button size="small" onClick={() => newContainer()} data-web-new-container="">New container</Button>
+    <div className="mx-auto max-w-[640px] px-4 pt-2 pb-10" data-web-sites-view={one?.id ?? ""}>
+      <PageHeader title={sitesTitle(focus)} subtitle={one ? `Who you're signed in as in ${one.name}, here and on your other machines` : "Who you're signed in as, container by container: drag a login to move it"}>
+        {one && setFocus ? <Button size="small" onClick={() => setFocus("")} data-web-all-containers="">All containers</Button> : <Button size="small" onClick={() => newContainer()} data-web-new-container="">New container</Button>}
       </PageHeader>
-      <FilterField value={q} onChange={setQ} placeholder="Filter sites and accounts" />
+      <FilterField value={q} onChange={setQ} placeholder={one ? `Filter ${one.name}'s sites and accounts` : "Filter sites and accounts"} />
       <div ref={box} data-size-up="" data-web-logins-list="" className="relative mt-2 flex flex-col gap-3">
         {all.map((l) => <LoginsSection key={l.prof} l={l} c={containers.find((x) => x.id === l.container)} openPage={openPage} filter={q} />)}
       </div>
-      {machines.map((m) => <MachineLogins key={m.machine} m={m} openPage={openPage} filter={q} />)}
+      {machines.filter((m) => !one || m.sets[profileIn(one.id)]).map((m) => <MachineLogins key={m.machine} m={m} only={one?.id} openPage={openPage} filter={q} />)}
     </div>
   )
 }
@@ -435,9 +435,9 @@ function useMachines() {
   return (machines ?? []).filter((m) => Object.keys(m.sets).length)
 }
 
-function MachineLogins({ m, openPage, filter }: { m: MachineSets; openPage: Open; filter: string }) {
+function MachineLogins({ m, only, openPage, filter }: { m: MachineSets; only?: string; openPage: Open; filter: string }) {
   const containers = useContainers()
-  const sets = allLoginsOn({ id: m.machine, label: m.label }).filter((l) => m.sets[l.prof])
+  const sets = allLoginsOn({ id: m.machine, label: m.label }).filter((l) => m.sets[l.prof] && (!only || l.container === only))
   return (
     <Section title={`On ${m.label}`} className="mt-6">
       <div data-size-up="" data-web-machine-logins={m.machine} className="flex flex-col gap-3">

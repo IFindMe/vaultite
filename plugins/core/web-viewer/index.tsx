@@ -2,7 +2,7 @@ import { lazy, memo, Suspense, useEffect } from "react"
 import { Bookmark, Bot, Box, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Code, CopyPlus, Download, Eraser, FileCode2, ExternalLink, Globe, Hand, History, KeyRound, Lock, MonitorPlay, MousePointer2, MousePointerSquareDashed, Paintbrush, PanelTopClose, PencilLine, Play, Printer, Puzzle, RectangleEllipsis, RotateCw, Scissors, Search, Volume2, VolumeX } from "lucide-react"
 import { choose, closePane, closeView, definePlugin, detailPath, setFocusedPane, getStore, getTabLayout, isMac, isViewOpen, isWindows, modifiedSteps, newTabId, notify, notifyError, openDetail, openInSplit, openTab, openView, openWebLink, allPanes, focusedPane, shownTab, post, runCommandById, runShortcut, typingIn, saveAttachments, selectPane, systemNotify, selectedText, trace, useCommandList, useEnabled, webPageActions, webPages, type Choice, type WebEvent } from "@vaultite"
 import { hostOf, searchUrl, siteName } from "./address"
-import { addContainer, argOf, chosenFor, colorOf, destination, keepOutside, openBehind, useContainers, containerById, containerOfProfile, containers, profileIn, splitArg, viewSource } from "./containers"
+import { addContainer, argOf, chosenFor, colorOf, destination, keepOutside, openBehind, useContainers, containerById, containerOfProfile, containers, profileIn, sitesColor, sitesTitle, splitArg, viewSource } from "./containers"
 import { iconCame, siteIcon, spinnerIcon } from "./icons"
 import { framedSite } from "./framed"
 import { painted } from "./layers"
@@ -275,7 +275,7 @@ export default definePlugin({
     "web-live": { icon: MonitorPlay, title: (arg) => (arg ? liveTitle(arg) || "Browser tab" : "Browser tabs"), argState: true, full: true,
       onScreen: (arg) => { const p = agentPage(Number(arg.split("@")[0])); return !!p && onScreen.get().has(p.id) },
       render: ({ arg, setArg }) => <Suspense fallback={null}><LiveView arg={arg} setArg={setArg} /></Suspense> },
-    "web-pages": { icon: Globe, title: () => "Sites", render: () => <SitesView openPage={openPage} /> },
+    sites: { icon: Globe, title: sitesTitle, iconTint: sitesColor, tabColor: sitesColor, argState: true, render: ({ arg, setArg }) => <SitesView openPage={openPage} focus={arg} setFocus={setArg} /> },
     "web-extensions": { icon: Puzzle, title: () => "Extensions", render: () => <Suspense fallback={null}><ExtensionsView openPage={openPage} /></Suspense> },
     "web-history": { icon: History, title: () => "History", render: () => <Suspense fallback={null}><HistoryView openPage={(url) => openPage(url)} onImport={() => void askImport()} /></Suspense> },
   },
@@ -287,7 +287,7 @@ export default definePlugin({
   files: { types: ["bookmarks"], icon: Bookmark },
   ...switcherSearch(openPage),
   sidebar: {
-    "web-pages": { title: "Sites", names: ["logins", "cookies", "signed in", "containers"], heading: false, needsHeading: true, sort: 34, hidden: true, view: "web-pages",
+    "web-pages": { title: "Sites", names: ["logins", "cookies", "signed in", "containers"], heading: false, needsHeading: true, sort: 34, hidden: true, view: "sites",
       menu: sitesPanelMenu, render: (ctx) => <SitesPanel open={ctx.open} openPage={openPage} newTab={askAddress} /> },
   },
   webLink: (url, { newTab, front, out, container, fromApp }) => {

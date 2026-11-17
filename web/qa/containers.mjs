@@ -149,7 +149,7 @@ check("switching web tabs: the window is never see-through with no page there", 
   { bad, shown: shownLog.length, near: bad.map((g) => ({ cut: cutLog.filter((c) => c.t > g.from - 100 && c.t < g.to + 50).map((c) => [c.t - g.from, c.cut, c.what]), shown: shownLog.filter((c) => c.t > g.from - 100 && c.t < g.to + 50).map((c) => [c.t - g.from, c.n, c.v, c.url]) })) })
 
 await setting({ containers: [{ id: "personal", name: "Personal", color: "blue" }, { id: "work", name: "Work", color: "orange", sites: ["127.0.0.1"] }, { id: "shop", name: "Shopping", color: "pink" }] })
-await open("view:web-pages")
+await open("view:sites")
 check("Sites: Work's always-open site is pinned", await until(async () => (await win.locator("[data-web-logins-section=work] [data-web-site='127.0.0.1'] [data-web-always]").count()) === 1, 15000),
   await win.locator("[data-web-sites-view]").innerText().catch(() => ""))
 await open(`view:web/${SITE}/whoami?rule`)
@@ -190,6 +190,16 @@ fs.rmSync(notePath)
 
 await open(`view:web/@shop/${SITE}/whoami?shop`)
 await until(async () => (await visible())?.partition === "persist:web-c-shop", 15000)
+const pill = await win.locator("[data-web-page] [data-web-container=shop]:visible").boundingBox(), body = await win.locator("[data-pane-body]:visible", { has: win.locator("[data-web-container=shop]") }).boundingBox()
+await win.mouse.move(pill.x + 20, pill.y + 10); await win.mouse.down(); await win.mouse.move(pill.x + 40, pill.y + 40, { steps: 4 }); await win.mouse.move(body.x + body.width - 30, body.y + body.height / 2, { steps: 12 })
+check("the container pill dragged to a pane's right edge: Sites in Shopping follows the pointer, the half it would take shown", await until(async () => /Sites in Shopping/.test(await win.locator("[data-drag-ghost]").innerText().catch(() => "")) && (await win.locator("[data-drag-shape=page]").count()) === 1, 3000), null)
+await shot("container-drag"); await win.mouse.up()
+const heads = () => win.locator("[data-web-logins-heading]:visible").evaluateAll((l) => l.map((e) => e.dataset.webLoginsHeading))
+check("… dropped: Shopping's sites alone, beside its page", await until(async () => (await heads()).join() === "shop" && (await win.locator("[data-web-sites-view=shop]:visible").count()) === 1, 10000) && (await win.locator("[data-web-page]:visible").count()) === 1, await heads())
+await shot("container-sites"); await win.locator("[data-web-all-containers]:visible").click()
+check("… All containers: every container's logins there", await until(async () => (await heads()).length >= 4, 10000), await heads())
+await win.locator("[data-place-close]:visible[aria-label='Close Sites']").click()
+await until(async () => !(await win.locator("[data-web-sites-view]:visible").count()), 5000)
 await win.locator("[data-web-page] [data-web-container=shop]:visible").click()
 await win.locator("[role^=menuitem]", { hasText: /^Manage containers/ }).click()
 check("Manage containers: the Sites tab, every container in it", await until(async () => (await win.locator("[data-web-logins-heading]:visible").count()) >= 4, 10000),

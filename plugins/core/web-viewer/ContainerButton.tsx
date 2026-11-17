@@ -1,12 +1,12 @@
-import { useEffect, useState, type MouseEvent } from "react"
-import { ArrowDown, ArrowUp, Bot, Box, Fingerprint, KeyRound, Pencil, Pin, PinOff, Plus, Settings2, Trash2 } from "lucide-react"
-import { askText, choose, colorItems, confirmDialog, dotIcon, menuBelow, notify, notifyError, plural, replaceMenu, webPages, type MenuItem, type WebSite } from "@vaultite"
+import { useEffect, useState, type MouseEvent, type PointerEvent } from "react"
+import { ArrowDown, ArrowUp, Bot, Box, Fingerprint, Globe, KeyRound, Pencil, Pin, PinOff, Plus, Settings2, Trash2 } from "lucide-react"
+import { askText, choose, colorItems, confirmDialog, dotIcon, isViewOpen, menuBelow, notify, notifyError, openView, plural, replaceMenu, startDrag, webPages, type MenuItem, type WebSite } from "@vaultite"
 import { accountIn, askSites, keep, listed } from "./accounts"
 import { allLogins, andList, isIn, loginsOf, moveLogin, sitesOf } from "./loginsets"
 import { siteOf } from "./address"
 import { passwordsForAgents } from "./agentlogins"
 import {
-  addContainer, colorOf, containerById, containers, moveContainer, profileIn, removeContainer, ruleFor, setSiteRule, updateContainer,
+  addContainer, colorOf, containerById, containers, moveContainer, profileIn, removeContainer, ruleFor, setSiteRule, sitesTitle, sitesTo, updateContainer,
   type Container,
 } from "./containers"
 
@@ -103,11 +103,15 @@ export function containerMenu(container: string | null, url: string, pick: (id: 
       run: () => void setSiteRule(site, rule === here.id ? null : here.id) }] : []),
     ...(site && !here && rule ? [{ label: `Stop opening ${site} in ${containerById(rule)?.name ?? rule}`, icon: PinOff, sep: true, run: () => void setSiteRule(site, null) }] : []),
     { label: "New container…", icon: Plus, sep: true, run: () => newContainer((c) => pick(c.id)) },
+    ...(here ? [{ label: sitesTitle(here.id), icon: Globe, run: () => showSites(here.id) }] : []),
     { label: "Manage containers…", icon: Settings2, run: manage },
   ]
 }
 
 let asking: Promise<void> | null = null
+
+const showSites = (id: string) => openView(sitesTo(id), { newTab: !isViewOpen(sitesTo(id)) })
+const dragSites = (e: PointerEvent<HTMLElement>, c: Container | null) => startDrag(e, { from: "container", to: sitesTo(c?.id ?? null), label: sitesTitle(c?.id ?? "") })
 
 export function ContainerButton({ container, url, why, pick, manage }: { container: string | null; url: string; why: string; pick: (id: string | null) => void; manage: () => void }) {
   const c = containerById(container)
@@ -119,14 +123,14 @@ export function ContainerButton({ container, url, why, pick, manage }: { contain
   }
   if (!c) {
     return (
-      <button type="button" onClick={open} onPointerEnter={ask} onFocus={ask} aria-label="Container" aria-haspopup="menu" data-tip={why || "Open in a container"} data-web-container=""
+      <button type="button" onClick={open} onPointerDown={(e) => dragSites(e, null)} onPointerEnter={ask} onFocus={ask} aria-label="Container" aria-haspopup="menu" data-tip={why || "Open in a container"} data-web-container=""
         className="ml-0.5 grid size-6 shrink-0 cursor-pointer place-items-center rounded-[5px] text-tertiary hover:bg-foreground/[0.07] hover:text-foreground">
         <Box className="size-3.5" strokeWidth={2} />
       </button>
     )
   }
   return (
-    <button type="button" onClick={open} onPointerEnter={ask} onFocus={ask} aria-label={`Container: ${c.name}`} aria-haspopup="menu" data-web-container={c.id}
+    <button type="button" onClick={open} onPointerDown={(e) => dragSites(e, c)} onPointerEnter={ask} onFocus={ask} aria-label={`Container: ${c.name}`} aria-haspopup="menu" data-web-container={c.id}
       data-tip={why || undefined} data-web-container-why={why || undefined}
       className="ml-0.5 flex h-5.5 max-w-[120px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 text-[12px] font-medium hover:brightness-110 @max-md/bar:px-[7px]"
       style={{ color: colorOf(c), background: `color-mix(in srgb, ${colorOf(c)} 14%, transparent)` }}>

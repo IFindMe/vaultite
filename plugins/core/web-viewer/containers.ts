@@ -31,6 +31,9 @@ export const containersOf = (s: Settings) => clean(s.containers) ?? DEFAULTS
 export const containers = () => containersOf(settings.get())
 export const useContainers = () => containersOf(settings.use())
 export const containerById = (id: string | null | undefined) => (id ? containers().find((c) => c.id === id) ?? null : null)
+export const sitesTo = (container: string | null) => (container ? `view:sites/${container}` : "view:sites")
+export const sitesTitle = (container: string) => { const c = containerById(container); return c ? `Sites in ${c.name}` : "Sites" }
+export const sitesColor = (container: string) => { const c = containerById(container); return c ? colorOf(c) : undefined }
 
 export function splitArg(arg: string): { container: string | null; url: string } {
   const m = /^@([a-z0-9]{1,24})\/(.*)$/s.exec(arg)

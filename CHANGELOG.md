@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Browser: drag a page's container from its address bar onto a pane, its edge or the tabs to see that container's
+  sites and logins there. The Sites page opens as `view:sites`.
 - Notes: a phone back from another app no longer saves an older copy of a note over newer text (an agent's, another
   device's): an editor left behind a rename, or one that wasn't typing together, reads and merges what changed first,
   and every editor reads the note again when the app comes back.

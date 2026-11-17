@@ -13,6 +13,8 @@ the vault. On the web and phones a web tab links out instead.
   `container:` property (an id, or a name in any case) for every link followed from it, else its site's rule, else the
   workspace's `container`, else the default logins (one set, shared by every workspace). What a page
   opens stays in its container.
+- Sites: `view:sites`, who's signed in to what in each container (sign out, move a login, the containers' options);
+  `view:sites/<container id>` that container's alone. Dragging a page's container out of its address bar opens it.
 - Agents: `vau browser ...` and the MCP tools `browser_open`, `browser_tabs`, `browser_snapshot`, `browser_act`,
   `browser_run`, `browser_navigate`, `browser_read`, `browser_wait`, `browser_screenshot`, `browser_pdf`,
   `browser_evaluate`, `browser_download`, `browser_ask_user`, `browser_login`, `browser_code`, `browser_close`, `browser_sites`. Read
