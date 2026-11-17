@@ -22,19 +22,38 @@ export function useTypedYet(on: boolean) {
 
 const SETTLE_MS = 160
 
+type Area = { top: number; height: number; keyboard: boolean; moving: boolean }
+const same = (a: Area | null, b: Area) => !!a && a.top === b.top && a.height === b.height && a.keyboard === b.keyboard && a.moving === b.moving
+
 /** The part of the window the user sees (above the on-screen keyboard), followed while `on`. */
 export function useVisibleArea(on: boolean) {
-  const [area, setArea] = useState<{ top: number; height: number; keyboard: boolean; moving: boolean } | null>(null)
+  const [area, setArea] = useState<Area | null>(null)
   useLayoutEffect(() => {
     const vv = visualViewport
     if (!on || !vv) return
-    let still = 0
-    const at = (moving: boolean) => setArea({ top: vv.offsetTop, height: vv.height, keyboard: keyboardUp(), moving })
+    let still = 0, later: number[] = [], seen = { top: Number.NaN, height: Number.NaN }
+    const at = (moving: boolean) => {
+      seen = { top: vv.offsetTop, height: vv.height }
+      const n = { ...seen, keyboard: keyboardUp(), moving }
+      setArea((a) => (same(a, n) ? a : n))
+    }
     const read = () => { at(true); clearTimeout(still); still = window.setTimeout(() => at(false), SETTLE_MS) }
+    const lookAgainAsIosMayEndItsSlideUntold = () => {
+      for (const t of later) clearTimeout(t)
+      later = [400, 1000].map((ms) => window.setTimeout(() => { if (vv.offsetTop !== seen.top || vv.height !== seen.height) read() }, ms))
+    }
+    const moved = () => { read(); lookAgainAsIosMayEndItsSlideUntold() }
     at(false)
-    vv.addEventListener("resize", read)
-    vv.addEventListener("scroll", read)
-    return () => { clearTimeout(still); vv.removeEventListener("resize", read); vv.removeEventListener("scroll", read) }
+    lookAgainAsIosMayEndItsSlideUntold()
+    vv.addEventListener("resize", moved)
+    vv.addEventListener("scroll", moved)
+    document.addEventListener("focusin", lookAgainAsIosMayEndItsSlideUntold)
+    document.addEventListener("focusout", lookAgainAsIosMayEndItsSlideUntold)
+    return () => {
+      clearTimeout(still); for (const t of later) clearTimeout(t)
+      vv.removeEventListener("resize", moved); vv.removeEventListener("scroll", moved)
+      document.removeEventListener("focusin", lookAgainAsIosMayEndItsSlideUntold); document.removeEventListener("focusout", lookAgainAsIosMayEndItsSlideUntold)
+    }
   }, [on])
   return on ? area : null
 }

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ClipboardPaste, Copy, TextSelect } from "lucide-react"
-import { cn, isMac, isWindows, KeyBar, keyboardBusy, keyboardUp, keyHint, keysText, onResized, openMenu, openPermissions, resizing, textSize, usePane, useTextSize, useTextSizeWheel, useVisibleArea } from "@vaultite"
+import { cn, isMac, isWindows, KeyBar, keyboardBusy, keyboardUp, keyHint, keysText, onResized, openMenu, openPermissions, resizing, textSize, usePageLock, usePane, useTextSize, useTextSizeWheel, useVisibleArea } from "@vaultite"
 import { countText, FindField, FindTools, floatingBar, floatingSpot, MAX } from "@plugins/find/tools"
 import { copy, pasteClipboard } from "./clipboard"
 import { dictationInput } from "./dictation"
@@ -182,9 +182,13 @@ export default function TerminalView({ id, focused, close }: { id: string; focus
     l?.claim(); touch(id)
   }, [focused, id, restarts, touchUi])
 
-  // Safari scrolls the page to show what has the focus: when the keyboard goes, the page goes back.
+  // Safari scrolls the page to what has the focus: the input waits at the top until the keys are up, the page goes back.
   const full = phone && typing && !!area
   useLayoutEffect(() => (full ? () => scrollTo(0, pageAt.current) : undefined), [full])
+  usePageLock(full)
+  const [placed, setPlaced] = useState(false)
+  const nowPlaced = full && (placed || (area.keyboard && !area.moving))
+  if (nowPlaced !== placed) setPlaced(nowPlaced)
   const held = useHeldGrid(host, live, phone, full, area)
 
   const view = useRef<HTMLDivElement>(null)
@@ -211,7 +215,8 @@ export default function TerminalView({ id, focused, close }: { id: string; focus
       )}
       <div className={cn("relative isolate min-h-0 flex-1 pl-3 pr-1 pt-2 pb-1", held > 0 && "overflow-hidden")}>
         {/* iOS zooms the page in on a focused field under 16px. */}
-        <div ref={host} data-terminal={id} data-own-keys={phone || undefined} data-terminal-held={held > 0 || undefined} style={held ? { height: held } : undefined} className={cn("w-full overflow-hidden", !held && "h-full", touchUi && "select-none [-webkit-touch-callout:none] [&_[data-term-input]]:!text-[16px]")} />
+        <div ref={host} data-terminal={id} data-own-keys={phone || undefined} data-terminal-held={held > 0 || undefined} style={held ? { height: held } : undefined} className={cn("w-full overflow-hidden", !held && "h-full", touchUi && "select-none [-webkit-touch-callout:none] [&_[data-term-input]]:!text-[16px]",
+          phone && !placed && "[&_[data-term-input]]:!top-0 [&_[data-term-input]]:!left-0")} />
         {finding > 0 && live.current && <FindBar l={live.current} ask={finding} close={closeFind} />}
         {up && (
           <button type="button" aria-label="Scroll to the end" data-tip="Scroll to the end" data-terminal-end

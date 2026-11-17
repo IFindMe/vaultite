@@ -1,4 +1,4 @@
-// A phone's terminal holds still under its keyboard and through a dropped connection: node web/qa/termphone.mjs <base url> (runs a shell: throwaway server only). Paths: plugins/core/terminal/held.ts, plugins/core/terminal/live.ts
+// A phone's terminal holds still under its keyboard and through a dropped connection: node web/qa/termphone.mjs <base url> (runs a shell: throwaway server only). Paths: plugins/core/terminal/held.ts, plugins/core/terminal/live.ts, plugins/core/terminal/Terminal.tsx, web/src/core/keyboard.ts
 import { app } from "./lib/app.mjs"
 import { PROMPT, fingers, qa, terminalText, until } from "./lib/qa.mjs"
 const { args: [B], browser, check, watch, done } = await qa(import.meta.url)
@@ -9,7 +9,7 @@ const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, is
 await ctx.addInitScript((kb) => {
   const vv = window.visualViewport, h = Object.getOwnPropertyDescriptor(VisualViewport.prototype, "height").get
   Object.defineProperty(vv, "height", { get: () => h.call(vv) - (window.__kb ? kb : 0) })
-  window.__keyboard = (on) => { window.__kb = on; vv.dispatchEvent(new Event("resize")) }
+  window.__keyboard = (on, quiet) => { window.__kb = on; if (!quiet) vv.dispatchEvent(new Event("resize")) }
   window.__resizes = 0; window.__sockets = []
   const send = WebSocket.prototype.send
   WebSocket.prototype.send = function (d) {
@@ -25,7 +25,24 @@ await until(async () => PROMPT.test(await terminalText(page)), 15000)
 await idle()
 
 const resizes = () => page.evaluate(() => window.__resizes)
-const keyboard = async (on) => { await page.evaluate((on) => window.__keyboard(on), on); await idle() }
+const keyboard = async (on, quiet = false) => { await page.evaluate(([on, quiet]) => window.__keyboard(on, quiet), [on, quiet]); await idle() }
+const keysOverKeyboard = () => page.evaluate(() => {
+  const keys = document.querySelector("[aria-label='Terminal keys']")?.getBoundingClientRect(), vv = window.visualViewport
+  return { keys: keys ? Math.round(keys.bottom) : null, keyboard: Math.round(vv.offsetTop + vv.height), up: !!window.__kb }
+})
+const inputAt = () => page.evaluate(() => {
+  const el = document.querySelector("[data-terminal]"), ta = el.querySelector("[data-term-input]")
+  return { input: Math.round(ta.getBoundingClientRect().top), top: Math.round(el.getBoundingClientRect().top) }
+})
+const panHeld = () => page.evaluate(() => {
+  const at = document.querySelector("[data-term-screen]"), r = at.getBoundingClientRect(), x = r.left + 40, y = r.top + 40
+  const touch = (dy) => new Touch({ identifier: 1, target: at, clientX: x, clientY: y + dy })
+  const fire = (type, dy) => { const e = new TouchEvent(type, { touches: type === "touchend" ? [] : [touch(dy)], changedTouches: [touch(dy)], bubbles: true, cancelable: true }); at.dispatchEvent(e); return e.defaultPrevented }
+  fire("touchstart", 0)
+  const held = fire("touchmove", 5)
+  fire("touchcancel", 5)
+  return held
+})
 const cursorInSight = () => page.evaluate(() => {
   const el = document.querySelector("[data-terminal]"), c = el.terminalCell(), keys = document.querySelector("[data-key-bar]")?.getBoundingClientRect()
   const ta = el.querySelector("[data-term-input]").getBoundingClientRect()
@@ -34,7 +51,12 @@ const cursorInSight = () => page.evaluate(() => {
 
 await page.locator("[data-term]").tap()
 await page.locator("[data-terminal-held]").waitFor({ timeout: 3000 })
+const early = await inputAt()
+check("before the keys are up, the input waits at the terminal's top, where iOS needn't pan to it", Math.abs(early.input - early.top) <= 1, early)
 await keyboard(true)
+const over = await keysOverKeyboard()
+check("the key row sits right above the keyboard", over.keys !== null && Math.abs(over.keys - over.keyboard) <= 1, over)
+check("a drag in the terminal with the keyboard up doesn't move the page", await panHeld())
 const before = await resizes()
 for (let i = 0; i < 3; i++) { await keyboard(false); await keyboard(true) }
 check("the keyboard coming and going sends the shell no new size", (await resizes()) === before, { before, after: await resizes() })
@@ -44,6 +66,10 @@ await until(async () => /^300$/m.test(await terminalText(page)), 5000)
 await idle()
 const at = await cursorInSight()
 check("the cursor is above the keys", at.keys !== null && at.bottom <= at.keys + 1 && at.top >= 0, at)
+
+await page.evaluate(() => { window.__keyboard(false); setTimeout(() => window.__keyboard(true, true), 300) })
+const late = await until(async () => { const o = await keysOverKeyboard(); return o.up && o.keys !== null && Math.abs(o.keys - o.keyboard) <= 1 && o }, 2500)
+check("a keyboard that slid up with no last event still gets the key row over it", !!late, await keysOverKeyboard())
 
 await page.locator("[aria-label='Hide keyboard']").dispatchEvent("pointerup")
 await keyboard(false)

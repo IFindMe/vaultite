@@ -821,6 +821,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `useOpenedFiles(store, n)`: The files opened lately in this workspace that are still there (not archived), newest first, at most `n`.
 - `useOutline(path)`: A file's headings (from its editor when it's on screen, else from the file), the one at the top of the screen, and going to one.
 - `useOverConnect()`: overConnect(), as a hook.
+- `usePageLock(on?)`
 - `usePane()`
 - `usePaneTopBar(ref, title?)`: A view's top bar (ViewBar, the Browser's): without a pane tab bar its pane's title row (Tabs.tsx; not with `title` false, one sliding over the view), clear of what's fixed over the window's…
 - `usePatched(path, version?)`: useLive for an answer the server keeps frozen (the graph), asked again on `version` and its plugin's changes as a patch of the one it has (?patch=<v>, core/app.ts patched): only what changed…

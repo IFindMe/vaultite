@@ -272,6 +272,7 @@ export { coarse, haptic, type Haptic } from "@/core/haptics"
 // Phones: keys above the on-screen keyboard, and the part of the window it leaves.
 export { KeyBar } from "@/components/KeyBar"
 export { keyboardUp, useGiveKeys, useVisibleArea, type BarKey, type FieldKeys } from "@/core/keyboard"
+export { usePageLock } from "@/core/pagelock"
 export { FilesPanel, LoadingSidebarRows, PanelFold, panelMenu, RowKeys, SidebarHeading, SidebarRow, SidebarSearch, SidebarTile } from "@/components/Sidebar"
 export { ActionButtons, AddButton } from "@/components/NewTab"
 // The core's pages that panels open as tabs: the file tree (view:files), a folder's page and the search page.
