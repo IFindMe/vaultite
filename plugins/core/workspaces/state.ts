@@ -1,8 +1,9 @@
+import { z } from "zod"
 import { Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
   cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
-  replaceHash, sameSidebars, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
-  allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type TabLayout, type WorkspaceHost, type WorkspaceInfo,
+  replaceHash, sameSidebars, isPhoneDevice, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
+  allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type WorkspaceHost, type WorkspaceInfo,
 } from "@vaultite"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
 import { markIcon } from "./Mark"
@@ -36,6 +37,7 @@ let seen: unknown = undefined
 let seenDef = ""
 let local: Slots | null = null
 export function slots(): Slots | null {
+  if (isPhoneDevice()) return null
   const w = getStore()?.workspaces
   const d = JSON.stringify(savedSidebars())
   if (w !== seen || d !== seenDef) {
@@ -144,6 +146,8 @@ export const host: WorkspaceHost = {
   },
   get: getState,
   set: setState,
+  tabs: tabsOf,
+  show: showTab,
   pinned: pinnedHere,
   pin: pinHere,
 }
@@ -157,7 +161,7 @@ function clear(n: number) {
 
 const VISIT = new Set(["back", "fwd", "from"])
 const strip = (l: TabLayout): TabLayout => JSON.parse(JSON.stringify(l, (k, v) => (VISIT.has(k) ? undefined : v)))
-const shape = (l: TabLayout | null | undefined) =>
+const layoutKey = (l: TabLayout | null | undefined) =>
   !l || blankLayout(l) ? "" : JSON.stringify(l, (k, v) => (VISIT.has(k) || k === "active" || k === "focus" || k === "zoom" || k === "seen" ? undefined : v))
 const kept = new Map<number, TabLayout>()
 const mine = new Set<string>()
@@ -170,10 +174,10 @@ export function saveTabs() {
   if (!n) return
   const saved = slots()?.[n - 1]?.layout, there = clean(saved)
   const l = strip(there ? withMyTabs(there) : getTabLayout())
-  if (shape(l) === shape(saved) && !tabsSeenSince(saved)) return
-  mine.add(shape(l))
+  if (layoutKey(l) === layoutKey(saved) && !tabsSeenSince(saved)) return
+  mine.add(layoutKey(l))
   if (mine.size > 20) mine.delete(mine.values().next().value!)
-  patch(n, { layout: shape(l) ? l : null })
+  patch(n, { layout: layoutKey(l) ? l : null })
 }
 let applying = false
 function apply(l: TabLayout | null, merge = false, kept = false) {
@@ -184,10 +188,11 @@ export const saveTabsSoon = () => { if (applying) return; clearTimeout(timer); t
 
 let synced = false
 let carry = false
-export function tookTabs() { synced = false; mine.clear(); carry = document.hasFocus() }
+let taking: TabLayout | null = null
+export function tookTabs(own: TabLayout) { synced = false; mine.clear(); carry = document.hasFocus(); taking = own }
 const UNSAVED = "vaultite.workspaces.unsaved"
 export function leaving() {
-  if (!savePending() || shape(strip(getTabLayout())) === shape(slots()?.[current() - 1]?.layout)) return
+  if (!savePending() || layoutKey(strip(getTabLayout())) === layoutKey(slots()?.[current() - 1]?.layout)) return
   try { sessionStorage.setItem(UNSAVED, String(current())) } catch { /* private mode */ }
   saveTabs()
 }
@@ -201,6 +206,12 @@ function arrive() {
 }
 
 export function sync() {
+  if (!taking || !slots()) { syncTabs(); return }
+  const own = taking
+  taking = null; synced = true
+  void takeIn(own)
+}
+function syncTabs() {
   const list = slots()
   if (!list) return
   if (!picked()) {
@@ -209,7 +220,7 @@ export function sync() {
     current_.set(first || 1)
     if (!first || startedFresh) {
       const l = strip(getTabLayout())
-      if (shape(l)) patch(first || 1, { layout: l })
+      if (layoutKey(l)) patch(first || 1, { layout: l })
       emit(); sidebarsChanged()
       return
     }
@@ -227,15 +238,15 @@ export function sync() {
     carry = false
     if (unsaved || startedFresh || (took && !list[n - 1])) { saveTabs(); arrive(); return }
     const want = list[n - 1]?.layout ?? null
-    if (shape(want) !== shape(strip(getTabLayout()))) apply(want, true)
+    if (layoutKey(want) !== layoutKey(strip(getTabLayout()))) apply(want, true)
     else mergeTabsSeen(want)
     arrive()
     return
   }
   if (timer) return
   const want = list[n - 1]?.layout ?? null
-  const there = shape(want)
-  if (there === shape(strip(getTabLayout()))) { mergeTabsSeen(want); return }
+  const there = layoutKey(want)
+  if (there === layoutKey(strip(getTabLayout()))) { mergeTabsSeen(want); return }
   if (mine.has(there)) return
   mine.clear()
   apply(want, true)
@@ -262,7 +273,7 @@ export async function sendTo(n: number, what: Sent) {
     const r = await post<{ tabs: { id: string }[]; workspaces: unknown[] }>("workspaces/move", { ...("open" in what ? {} : { from }), to: n, ...what })
     local = unusedIfBlank(r.workspaces)
     const l = local[from - 1]?.layout ?? null
-    mine.add(shape(l))
+    mine.add(layoutKey(l))
     apply(l, true)
     emit()
     const back: Sent | null = "open" in what || !r.tabs.length ? null : { tab: r.tabs[0].id }
@@ -284,7 +295,7 @@ async function bringBack(n: number, to: number, what: Sent, place: { at?: number
   try {
     const r = await post<{ workspaces: unknown[] }>("workspaces/move", { from: n, to, ...what, ...place })
     local = unusedIfBlank(r.workspaces)
-    if (current() === to) { const l = local[to - 1]?.layout ?? null; mine.add(shape(l)); apply(l, true) }
+    if (current() === to) { const l = local[to - 1]?.layout ?? null; mine.add(layoutKey(l)); apply(l, true) }
     emit()
   } catch (e) {
     notifyError(e, "Couldn't move it back")
@@ -294,6 +305,59 @@ async function bringBack(n: number, to: number, what: Sent, place: { at?: number
 }
 
 export const moveTab = (id: string, n: number) => sendTo(n, { tab: id })
+export const moveBetween = (from: number, to: number, id: string) => (from === current() ? sendTo(to, { tab: id }) : bringBack(from, to, { tab: id }, {}))
+
+const Devices = z.object({ devices: z.array(z.object({ id: z.string(), name: z.string(), label: z.string().optional() })) })
+async function deviceName(): Promise<string | null> {
+  try { const d = Devices.parse(await get("tabs/devices")).devices.find((x) => x.id === DEVICE); return d ? d.label || d.name : null } catch { return null }
+}
+
+async function takeIn(own: TabLayout) {
+  const n = picked() || 1
+  current_.set(n)
+  emit(); sidebarsChanged()
+  const had = !blankLayout(slots()?.[n - 1]?.layout)
+  moving = true
+  try {
+    await writing
+    const name = await deviceName()
+    const r = await post<{ tabs: Tab[]; workspaces: unknown[] }>("workspaces/take", { to: n, tabs: strip(own), name: name && `From ${name}` })
+    local = unusedIfBlank(r.workspaces)
+    const l = local[n - 1]?.layout ?? null
+    mine.add(layoutKey(l))
+    apply(l, true, true)
+    emit(); sidebarsChanged()
+    if (had && r.tabs.length) {
+      notify(`${plural(r.tabs.length, "tab")} from this device ${r.tabs.length === 1 ? "is" : "are"} in ${named(n)}${name ? `, in the group "From ${name}"` : ""}`,
+        { action: { label: "Show all tabs", run: showAllTabs } })
+    }
+  } catch (e) {
+    notifyError(e, "Couldn't put this device's tabs in a workspace")
+  } finally {
+    moving = false
+  }
+  arrive()
+}
+
+export const ALL_TABS = "all-tabs"
+export const showAllTabs = () => openView(ALL_TABS, { newTab: !isViewOpen(ALL_TABS) })
+
+export function tabsOf(n: number): Tab[] {
+  const l = n === current() ? getTabLayout() : clean(slots()?.[n - 1]?.layout)
+  return l ? [l, ...(l.windows ?? [])].flatMap((x) => x.tabs) : []
+}
+export function showTab(n: number, id: string) {
+  switchTo(n)
+  selectTab(id)
+}
+export function markOf(n: number) {
+  for (const p of tabsOf(n).flatMap(placesOfTab)) { const m = p.to.startsWith("view:") ? viewInfo(p.to, undefined, p.id).mark : undefined; if (m) return m }
+  return null
+}
+export function othersOnly() {
+  const here = new Set(allPanes(getTabLayout()).map((p) => p.id)), n = current()
+  return SLOTS.filter((m) => m !== n).flatMap(tabsOf).flatMap(placesOfTab).filter((p) => !here.has(p.id))
+}
 
 export function currentTab(): string | null {
   const t = shownTab(getTabLayout())
@@ -309,7 +373,7 @@ export function switchTo(n: number) {
   current_.set(n)
   emit(); sidebarsChanged()
   const k = kept.get(n)
-  apply(k && shape(k) === shape(d?.layout) ? k : d?.layout ?? null, false, true)
+  apply(k && layoutKey(k) === layoutKey(d?.layout) ? k : d?.layout ?? null, false, true)
 }
 
 export const used = () => SLOTS.filter((n) => slots()?.[n - 1])
@@ -374,7 +438,7 @@ export function remove(n: number) {
   notify(`Deleted ${was.name || `workspace ${n}`}`, { action: { label: "Undo", run: () => {
     if (slots()?.[n - 1]) return
     patch(n, { ...was })
-    if (n === current() && !shape(strip(getTabLayout()))) { apply(was.layout ?? null); sidebarsChanged() }
+    if (n === current() && !layoutKey(strip(getTabLayout()))) { apply(was.layout ?? null); sidebarsChanged() }
   } } })
 }
 

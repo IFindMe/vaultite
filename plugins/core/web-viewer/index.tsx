@@ -14,7 +14,7 @@ import { EDIT_DETAIL, ENTRY_DETAIL, entryTitle, NEW_DETAIL, PasswordsSetting } f
 import { askImport, browsersHere, findBrowsers } from "./importer"
 import "./types"
 import { openBookmark, starOf } from "./Star"
-import { focusedPage, focusedPageId, keptTitles, linksInViewer, loadingIn, onScreen, pageOfTab, pageTookKeyboard, passkeyAsks, profile, setPageFlags, stateCame, setPlayer, setSounds, settings, settingsRead, shown, soundOf, titleOf, typedIn } from "./state"
+import { focusedPage, focusedPageId, keptTitles, linksInViewer, loadingIn, onScreen, pageOfTab, pageTookKeyboard, passkeyAsks, setPageFlags, stateCame, setPlayer, setSounds, settings, settingsRead, shown, soundOf, titleOf, typedIn } from "./state"
 import { agentPage, agentPageOfTab, agentPages, openAsTab, pauseAgents, setAgentPages, working, type AgentPage } from "./agentpages"
 import { AgentsCard, agentsCardShown, showAgentsCard } from "./AgentsCard"
 import { pickElement, useHiddenParts, watchShields } from "./shields"
@@ -31,6 +31,7 @@ import { fillLoginIn, watchLogins } from "./LoginFill"
 import { hasLoginForm } from "./loginforms"
 import { useSecretKeeper } from "./secretkeeper"
 import { engine } from "./engine"
+import { moveWorkspaceLogins } from "./workspacemove"
 
 const WebPage = lazy(() => import("./WebPage"))
 // oxlint-disable-next-line react/only-export-components -- a lazy view's loader, like the ones below; fast refresh is dev-only
@@ -115,9 +116,9 @@ function pageNotified(m: Extract<WebEvent, { type: "notify" | "session" }>) {
     && (m.type === "session" ? page.url() === m.url : page === shown.get(m.id))
   if (looking) return
   const container = containerOfProfile(m.profile)
-  const here = m.profile === profile() || !!containerById(container)
+  const here = m.profile === profileIn(null) || !!containerById(container)
   const title = m.title || m.site
-  const body = [m.title ? m.body : "", here ? "" : `In workspace ${m.profile || "1"}`].filter(Boolean).join(" · ")
+  const body = m.title ? m.body : ""
   const link = here ? `view:web/${argOf(m.url, container)}` : undefined
   const open = () => { if (link) openView(link, { newTab: !isViewOpen(link) }) }
   const event = m.type === "session"
@@ -142,6 +143,7 @@ function Background() {
   useLookBackground()
   useSecretKeeper()
   useEffect(() => { if (webPages?.engine) void findBrowsers() }, [])
+  useEffect(() => { if (webPages?.move) void moveWorkspaceLogins() }, [])
   useEffect(() => { void webPages?.titles?.().then(keptTitles, () => {}) }, [])
   const commands = useCommandList()
   useEffect(() => { void webPages?.keys(modifiedSteps()) }, [commands])
@@ -361,7 +363,7 @@ export default definePlugin({
   ],
   ambient: { playing: { title: "Web pages playing", sort: 55, render: () => <Playing /> }, downloads: { title: "Downloads", sort: 56, render: () => <DownloadsChip /> } },
   settingsPanel: () => <><SitesSettings /><PermissionsSection /><PasswordsSetting /></>,
-  settingsSearch: [{ key: "sites", label: "Sites and logins", description: "the sites signed in to in each container's and workspace's logins: sign out, clear trackers" },
+  settingsSearch: [{ key: "sites", label: "Sites and logins", description: "the sites signed in to in the default logins and each container's: sign out, clear trackers" },
     { key: "permissions", label: "Site permissions", description: "what each site may use (camera, microphone, location, notifications), in each container: allow, block or ask" },
     { key: "passwords", label: "Passwords", description: "your KeePass file (KeePassXC's, Strongbox's), its passwords listed, edited and filled in pages" }],
   background: Background,

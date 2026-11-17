@@ -3,11 +3,11 @@ import { ArrowRight, Search, Star, X } from "lucide-react"
 import { closePane, cn, getTabLayout, isMac, openMenu, allPanes, selectPane, useStore, webPages, type MenuItem, type WebPageInfo } from "@vaultite"
 import { addressOf, guessedHttps, hostOf, searchUrl } from "./address"
 import { matchBookmarks, type Bookmark } from "./bookmarks"
-import { argOf, colorOf, containerById, containerOfProfile } from "./containers"
+import { argOf, colorOf, containerById, containerOfProfile, profileIn } from "./containers"
 import type { Draft } from "./drafts"
 import { removeVisits, searchHistory, useHistoryChanged, type Found } from "./history"
 import { SiteIcon } from "./icons"
-import { profile, settings } from "./state"
+import { settings } from "./state"
 
 export type Place = "here" | "front" | "back"
 export type Go = (url: string, how: "typed" | "bookmark", place: Place, guessed?: boolean) => void
@@ -28,7 +28,7 @@ const placeOf = (e: { altKey: boolean; metaKey: boolean; ctrlKey: boolean }): Pl
 type OpenTab = WebPageInfo & { arg: string; tab: string; container: string | null }
 async function openTabs(): Promise<OpenTab[]> {
   const list = await webPages?.list?.().catch(() => []) ?? []
-  const mine = profile(), here = new Set(allPanes(getTabLayout()).map((p) => p.id))
+  const mine = profileIn(null), here = new Set(allPanes(getTabLayout()).map((p) => p.id))
   return list.flatMap((p) => {
     const c = containerOfProfile(p.profile)
     return /^https?:/i.test(p.url) && p.tab && here.has(p.tab) && (c || p.profile === mine) ? [{ ...p, arg: argOf(p.url, c), tab: p.tab, container: c }] : []

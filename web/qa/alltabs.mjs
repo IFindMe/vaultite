@@ -1,0 +1,136 @@
+// All tabs, tab search across workspaces, and Workspaces turned on over a device's tabs and off again, losing none.
+//   node web/qa/alltabs.mjs <base url> <vault path> [out dir]
+import { execFileSync } from "node:child_process"
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import path from "node:path"
+import { apiAt, qa, until, workspaceKey } from "./lib/qa.mjs"
+import { app } from "./lib/app.mjs"
+import { clearWorkspaces, workspaces } from "./lib/wsfiles.mjs"
+// Paths: plugins/core/workspaces/AllTabs.tsx, plugins/core/workspaces/Numbers.tsx, plugins/core/workspaces/state.ts, web/src/components/TabSearch.tsx, web/src/core/scope.ts
+const { args: [B, VAULT, OUT = "/tmp/alltabs-shots/"], browser, check, watch, noErrors, done } = await qa(import.meta.url)
+mkdirSync(OUT, { recursive: true })
+
+const api = apiAt(B)
+const vau = (...a) => execFileSync(process.execPath, [path.resolve(import.meta.dirname, "../../bin/vau"), "--url", B, ...a],
+  { encoding: "utf8", env: { ...process.env, VAULTITE_URL: B, VAULTITE_VAULT: VAULT } })
+const pluginsFile = path.join(VAULT, ".vaultite/plugins.json")
+const pluginsBefore = (() => { try { return readFileSync(pluginsFile, "utf8") } catch { return null } })()
+
+const DIR = "Qa all"
+const F = (name) => `file:${DIR}/${name}.md`
+const T = (id, name) => ({ id, root: { id: `p${id}`, to: F(name) }, focus: `p${id}` })
+const placesOf = (n) => (n?.kids ? n.kids.flatMap(placesOf) : n?.to ? [n.to] : [])
+const tosOf = (l) => (l?.tabs ?? []).flatMap((t) => placesOf(t.root))
+
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+// A device of its own, as a person's browser is (webdriver hides it, devicetabs.mjs): the "From <device>" group's name.
+await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }))
+const page = watch(await ctx.newPage(), { console: true, ignore: /favicon|Failed to load resource|WebSocket/ }), ui = app(page)
+const SWITCHER = "aside [data-workspace-switcher]"
+const lit = () => page.$eval(SWITCHER, (e) => e.getAttribute("data-workspace-switcher")).catch(() => null)
+const mine = () => page.evaluate(() => JSON.parse(localStorage.getItem("vaultite.tabs") ?? "null"))
+const strip = () => page.$$eval("[data-tab-strip] [role=tab]", (els) => els.map((t) => t.innerText.trim()))
+const active = () => page.$eval("[data-tab-strip] [role=tab][aria-selected=true]", (e) => e.innerText.trim()).catch(() => null)
+const card = (n) => page.locator(`[data-all-tabs-workspace='${n}']`)
+const rows = (n) => card(n).locator("[data-all-tabs-tab]").allInnerTexts().then((t) => t.map((x) => x.trim()))
+
+try {
+  vau("plugin", "off", "workspaces")
+  clearWorkspaces(B)
+  const names = ["Reading list", "Trip ideas", "Standup", "Budget 2027", "Sprint review", "Release notes"]
+  for (const n of names) await api("POST", "file", { path: `${DIR}/${n}.md`, text: `# ${n}\n\n${n} text.\n` })
+  await api("PUT", "workspaces/1", { name: "Personal", layout: { active: "a1", tabs: [T("a1", "Reading list"), T("a2", "Trip ideas")] } })
+  await api("PUT", "workspaces/2", { name: "Work", layout: { active: "b1", tabs: [T("b1", "Budget 2027"), T("b2", "Sprint review")] } })
+  await api("PUT", "workspaces/3", { name: "Vaultite", layout: { active: "c1", tabs: [T("c1", "Release notes")] } })
+
+  const seedOffTheApp = async (l) => { await page.goto(`${B}api/workspaces`); await page.evaluate((l) => { localStorage.clear(); localStorage.setItem("vaultite.tabs", JSON.stringify(l)) }, l) }
+  await seedOffTheApp({ active: "d1", tabs: [T("d1", "Standup"), T("d2", "Reading list")] })
+  await page.goto(B); await page.waitForSelector("[data-tab-strip]"); await ui.saved()
+  const own = tosOf(await mine())
+  check("off: this device's own tabs", own.join() === [F("Standup"), F("Reading list")].join(), own)
+
+  await ui.sees(".vaultite/plugins.json", () => vau("plugin", "on", "workspaces"))
+  await page.waitForSelector(SWITCHER)
+  const toast = await ui.toast.wait(/from this device/).catch(() => null)
+  const said = toast ? (await toast.innerText()).trim() : ""
+  check("on: a toast says where this device's tab went, and its group", /^1 tab from this device is in Personal, in the group "From .+"/.test(said) && /Show all tabs/.test(said), [said, await ui.toast()])
+  await until(async () => tosOf(await mine()).includes(F("Standup")), 8000); await ui.saved()
+  const took = await mine()
+  check("on: Personal's tabs first, then Standup (Reading list isn't added twice)", tosOf(took).join() === [F("Reading list"), F("Trip ideas"), F("Standup")].join(), tosOf(took))
+  const group = took.groups?.find((g) => g.id === took.tabs.find((t) => placesOf(t.root).includes(F("Standup")))?.group)
+  check("on: Standup in a group named after this device", /^From .+/.test(group?.name ?? ""), took.groups)
+  check("on: nothing of this device's out of sight", own.every((to) => tosOf(took).includes(to)), [own, tosOf(took)])
+  check("on: the group shows in the tab bar", !!(await until(() => page.locator("[data-tab-strip]", { hasText: group?.name ?? "From " }).count(), 4000)), await strip())
+  check("on: Personal saved them", !!(await until(() => tosOf(workspaces(B)[0]?.layout).join() === tosOf(took).join(), 6000)), tosOf(workspaces(B)[0]?.layout))
+  check("on: Work and Vaultite untouched", tosOf(workspaces(B)[1]?.layout).join() === [F("Budget 2027"), F("Sprint review")].join() && tosOf(workspaces(B)[2]?.layout).join() === F("Release notes"),
+    workspaces(B).map((w) => tosOf(w?.layout)))
+  await page.screenshot({ path: `${OUT}on-toast.png` })
+
+  await page.keyboard.press(workspaceKey(0)); await ui.idle()
+  await page.waitForSelector("[data-all-tabs]")
+  const cards = await page.$$eval("[data-all-tabs-workspace]", (els) => els.map((e) => e.getAttribute("data-all-tabs-workspace")))
+  check("All tabs: a card for each workspace in use", cards.join() === "1,2,3", cards)
+  check("All tabs: each with its tabs", (await rows(2)).join() === "Budget 2027,Sprint review" && (await rows(3)).join() === "Release notes" && (await rows(1)).includes("Standup"),
+    [await rows(1), await rows(2), await rows(3)])
+  check("All tabs: the workspaces' names", (await card(2).innerText()).includes("Work") && (await card(3).innerText()).includes("Vaultite"), await card(2).innerText())
+  await page.screenshot({ path: `${OUT}all-tabs.png` })
+  await card(2).locator("[data-all-tabs-tab]", { hasText: "Sprint review" }).click(); await ui.idle()
+  check("All tabs: a click goes to its workspace and shows the tab", !!(await until(async () => (await lit()) === "2" && (await active()) === "Sprint review", 6000)), [await lit(), await active()])
+
+  await page.click(SWITCHER); await page.waitForSelector("[data-workspace-list]")
+  const first = await page.$eval("[data-workspace-list] button", (e) => (e.hasAttribute("data-workspace-all") ? e.innerText.trim() : null))
+  check("switcher: All tabs is its first row", !!first?.startsWith("All tabs"), first)
+  await page.click("[data-workspace-list] [data-workspace-all]"); await page.waitForSelector("[data-all-tabs]"); await ui.idle()
+  check("switcher's All tabs: the page, the list closed", (await page.locator("[data-all-tabs]").count()) === 1 && !(await page.locator("[data-workspace-list]").count()))
+  await ui.menu.context(card(3).locator("[data-all-tabs-tab]", { hasText: "Release notes" }))
+  const items = await ui.menu.items()
+  check("All tabs: a row's menu moves it to each other workspace", items.join() === "Move to Personal,Move to Work", items)
+  await ui.menu.pick("Move to Personal")
+  check("Move to Personal: in Personal's card, out of Vaultite's", !!(await until(async () => (await rows(1)).includes("Release notes") && !(await rows(3)).includes("Release notes"), 6000)), [await rows(1), await rows(3)])
+  check("Move to Personal: saved there", !!(await until(() => tosOf(workspaces(B)[0]?.layout).includes(F("Release notes")) && !tosOf(workspaces(B)[2]?.layout).includes(F("Release notes")), 6000)),
+    workspaces(B).map((w) => tosOf(w?.layout)))
+  check("Move: this workspace stays on screen", (await lit()) === "2", await lit())
+
+  await page.keyboard.press("ControlOrMeta+Shift+a"); await page.waitForSelector("[role=dialog] input:focus")
+  await page.keyboard.type("Trip ideas"); await ui.idle()
+  const other = page.getByRole("group", { name: "In other workspaces" })
+  const hit = other.locator("[role=option]", { hasText: "Trip ideas" })
+  check("tab search: Personal's tab under In other workspaces, named by its workspace", (await hit.count()) === 1 && (await hit.innerText()).includes("Personal"), await page.locator("[role=dialog]").innerText().catch(() => ""))
+  await page.screenshot({ path: `${OUT}tab-search.png` })
+  await hit.click(); await ui.idle()
+  check("tab search: picking it goes to Personal and shows the tab", !!(await until(async () => (await lit()) === "1" && (await active()) === "Trip ideas", 6000)), [await lit(), await active()])
+  await page.keyboard.press("ControlOrMeta+Shift+a"); await page.waitForSelector("[role=dialog] input:focus"); await ui.idle()
+  check("tab search, no query: no other workspace's tab without a mark", !(await other.count()), await page.locator("[role=dialog]").innerText())
+  await page.keyboard.press("Escape"); await ui.idle()
+
+  const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true })
+  const P = watch(await pctx.newPage(), { console: true, ignore: /favicon|Failed to load resource|WebSocket/ }), pUi = app(P)
+  await ui.saved()
+  const saved = JSON.stringify(workspaces(B).map((w) => w && { ...w, state: undefined }))
+  await P.goto(`${B}#file/${encodeURIComponent(`${DIR}/Budget 2027.md`)}`)
+  await P.waitForSelector("[data-tabs-button]"); await pUi.saved()
+  const count = Number((await P.locator("[data-tabs-button]").innerText()).trim())
+  check("phone: its own one tab, none of a workspace's", count === 1, count)
+  check("phone: no switcher, its tabs held by no workspace", !(await P.locator("[data-workspace-switcher]").count()) && (await P.evaluate(() => localStorage.getItem("vaultite.tabs.held"))) === null)
+  check("phone: the workspaces as they were", JSON.stringify(workspaces(B).map((w) => w && { ...w, state: undefined })) === saved)
+  await pctx.close()
+
+  await ui.saved()
+  const before = await strip()
+  await ui.sees(".vaultite/plugins.json", () => vau("plugin", "off", "workspaces"))
+  check("off: no switcher", !!(await until(async () => !(await page.$(SWITCHER)), 6000)))
+  await ui.saved()
+  check("off: Personal's tabs stay on screen", JSON.stringify(await strip()) === JSON.stringify(before), [await strip(), before])
+  check("off: this device's again, not held", (await page.evaluate(() => localStorage.getItem("vaultite.tabs.held"))) === null && tosOf(await mine()).includes(F("Release notes")), tosOf(await mine()))
+  await page.goto("about:blank"); await page.goto(B); await page.waitForSelector("[data-tab-strip]"); await ui.idle()
+  check("off, reloaded: still those tabs", JSON.stringify(await strip()) === JSON.stringify(before), [await strip(), before])
+  noErrors()
+} catch (e) {
+  check(String(e), false)
+} finally {
+  await browser.close()
+  await api("DELETE", `file?path=${encodeURIComponent(DIR)}`).catch(() => {})
+  clearWorkspaces(B)
+  if (pluginsBefore === null) rmSync(pluginsFile, { force: true }); else writeFileSync(pluginsFile, pluginsBefore)
+}
+await done()

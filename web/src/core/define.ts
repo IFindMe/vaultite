@@ -11,6 +11,7 @@ import type { LinkClick } from "@/core/links"
 import type { Side, Sidebars } from "../../../core/sidebars.ts"
 import type { BlockDecls, SettingDecls } from "../../../core/blocks.ts"
 import type { Color } from "../../../core/colors.ts"
+import type { Tab } from "../../../core/layout.ts"
 import type { TextSizeKind } from "@/core/textsize"
 import type { GridCard, GridEdit } from "@/editor/livePreview"
 import type { EditorSettings } from "@/core/editorPrefs"
@@ -552,6 +553,10 @@ export type WorkspaceHost = {
   get: (key: string) => unknown
   /** Keep a value in the current workspace (undefined or null: remove it). */
   set: (key: string, value: unknown) => void
+  /** Workspace n's tabs (the current one's as on screen), its pop-out windows' after its own. */
+  tabs: (n: number) => Tab[]
+  /** Go to workspace n and show its tab `id`. */
+  show: (n: number, id: string) => void
   /** The current workspace's pinned pages (vault paths, in order), or null while it has no list of its own: it then
    *  shows the vault's (.vaultite/pages.json, the default new workspaces start with). */
   pinned: () => string[] | null

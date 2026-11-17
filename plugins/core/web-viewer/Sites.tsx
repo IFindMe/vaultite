@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useId, useRef, useState } from "react"
 import { ArrowRightLeft, Bot, ChevronDown, ChevronRight, ChevronsUpDown, Copy, Ellipsis, EyeOff, Fingerprint, Globe, LogOut, Pin, Plus, Settings2 } from "lucide-react"
 import {
   edgeScroller, Button, confirmDialog, dotIcon, FilterField, fmtAgo, Group, HeadingButton, isViewOpen, Loading, LoadingSidebarRows, menuBelow, menuFor, openView, PageHeader, plural, rehit, reorder, scopedState, Section,
-  SettingRow, SidebarHeading, SidebarRow, slotAt, startDrag, useDrag, useDropHit, useDropTarget, useKeptCount, useScopedState, useSlide, useWorkspaceVersion, webPages,
+  SettingRow, SidebarHeading, SidebarRow, slotAt, startDrag, useDrag, useDropHit, useDropTarget, useKeptCount, useScopedState, useSlide, webPages,
   type MenuItem, type SidebarCtx, type WebSite,
 } from "@vaultite"
 import type { LucideIcon, LucideProps } from "lucide-react"
@@ -20,14 +20,7 @@ const pickedNow = () => scopedState<string | null>(PICKED, null)
 
 type Open = (url: string, container?: string | null) => void
 
-function useOwnLogins(): Logins {
-  useWorkspaceVersion()
-  settings.use()
-  return ownLogins()
-}
 function useAllLogins(): Logins[] {
-  useWorkspaceVersion()
-  settings.use()
   useContainers()
   return allLogins()
 }
@@ -280,7 +273,7 @@ const containersNow = () => containersOf(settings.get())
 
 export function SitesPanel({ open, openPage, newTab }: Pick<SidebarCtx, "open"> & { openPage: Open; newTab?: (container: string | null) => void }) {
   const [pickedId, pick] = useScopedState<string | null>(PICKED, null)
-  const own = useOwnLogins()
+  const own = ownLogins()
   const containers = useContainers()
   const can = useCanLock()
   const inside = containers.find((c) => c.id === pickedId)
@@ -433,7 +426,6 @@ export function SitesView({ openPage }: { openPage: Open }) {
 const ELSEWHERE_MS = 30_000
 
 function useMachines() {
-  useWorkspaceVersion()
   const machines = elsewhere.use()
   useEffect(() => {
     void refreshElsewhere()
@@ -457,7 +449,6 @@ function MachineLogins({ m, openPage, filter }: { m: MachineSets; openPage: Open
 
 export function SitesSettings() {
   const all = useAllLogins()
-  const workspaces = all.filter((l) => !l.container).length > 1
   return (
     <div data-setting="sites">
     <Section title="Sites and logins">
@@ -466,7 +457,7 @@ export function SitesSettings() {
           <Group>{all.map((l) => <SiteList key={l.prof} logins={l} look="settings" />)}</Group>
           <div className="mt-2"><Button size="small" onClick={() => newContainer()}>New container…</Button></div>
           <p className="mt-1.5 px-1 text-[13px] leading-[18px] text-muted-foreground">
-            Each container{workspaces ? " and each workspace" : ""} signs in to sites on its own. Sign out deletes a site's cookies and what it keeps in the browser there; right-click a container for its options.
+            Each container signs in to sites on its own. Sign out deletes a site's cookies and what it keeps in the browser there; right-click a container for its options.
           </p>
         </div>
       )}

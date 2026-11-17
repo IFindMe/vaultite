@@ -3,7 +3,7 @@ import path from "node:path"
 import { z } from "zod"
 import { fileTree, HTTPError, type OpCtx, OpError, type Param, pathAsSaid, pinProblem, placePin, Plugin, readSidebars, relocatedPin, repinList, sameSidebars } from "../../../core/plugins.ts"
 import { ConfigError, type Item } from "../../../core/vault.ts"
-import { allPanes, blankList, clean, mapPlaces, newPaneId, newTabId, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
+import { allPanes, blankList, clean, mapPlaces, newGroupId, newPaneId, newTabId, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Group, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
 import { blankLayout, isBlank } from "./blank.ts"
 
 export const plugin = new Plugin(import.meta.url)
@@ -331,6 +331,45 @@ plugin.route("POST", "workspaces/move", (req) => {
   return { from: from + 1, to: to + 1, tabs, tab: tabs[0], workspaces: shown() }
 })
 const local = (t: Tab): Tab => ({ ...t, root: mapPlaces(t.root, (p) => ({ ...p, to: localPlace(p.to) })) })
+
+plugin.route("POST", "workspaces/take", (req) => {
+  const w = clean(req.body.tabs)
+  if (!w) throw new HTTPError(400, "send `tabs`: a tab list ({tabs, groups, active})")
+  return take(slot(String(req.body.to ?? "")), w, str(req.body.name))
+})
+
+type Taken = { t: Tab; groups: Group[] }
+function take(i: number, w: Workspace, name: string | null) {
+  readable()
+  const list = slotList(), dest = list[i] ?? {}, l = layoutOf(dest)
+  const open = new Set(list.flatMap((d) => { const x = layoutOf(d); return x ? [x, ...(x.windows ?? [])].flatMap(allPanes).map((p) => localPlace(p.to)) : [] }))
+  const tabs: Taken[] = [w, ...(w.windows ?? [])].flatMap((x) => x.tabs.flatMap((t) =>
+    placesIn(t).some((p) => p.to !== "new" && !open.has(localPlace(p.to))) ? [{ t: { ...t, root: mapPlaces(t.root, (p) => ({ ...p, to: savedPlace(p.to) })) }, groups: x.groups ?? [] }] : []))
+  if (!tabs.length) return { to: i + 1, tabs: [], workspaces: shown() }
+  const layout = l && !nothing(l) ? appended(l, tabs, name) : asTaken(tabs, w.active)
+  list[i] = { ...dest, layout }
+  save(list)
+  return { to: i + 1, tabs: layout.tabs.slice(l && !nothing(l) ? l.tabs.length : 0).map(local), workspaces: shown() }
+}
+function asTaken(tabs: Taken[], active: string): Workspace {
+  const used = new Set(tabs.map(({ t }) => t.group)), groups = new Map(tabs.flatMap(({ groups }) => groups.flatMap((g): [string, Group][] => (used.has(g.id) ? [[g.id, g]] : []))))
+  const out: Workspace = { tabs: tabs.map(({ t }) => t), active: tabs.some(({ t }) => t.id === active) ? active : tabs[0].t.id }
+  if (groups.size) out.groups = [...groups.values()]
+  return out
+}
+function appended(l: Workspace, tabs: Taken[], name: string | null): Workspace {
+  const usedGroups = new Set((l.groups ?? []).map((g) => g.id)), renamed = new Map<string, string>(), groups: Group[] = []
+  for (const { t, groups: gs } of tabs) {
+    const g = gs.find((x) => x.id === t.group)
+    if (!g || renamed.has(g.id)) continue
+    const id = usedGroups.has(g.id) ? newGroupId() : g.id
+    renamed.set(g.id, id); usedGroups.add(id); groups.push({ ...g, id })
+  }
+  const loose: Group = { id: newGroupId(), name: name ?? "Earlier tabs", color: "blue" }
+  const grouped = freshIds(l, tabs.map(({ t }) => t)).map((t) => ({ ...t, group: (t.group && renamed.get(t.group)) || loose.id }))
+  if (grouped.some((t) => t.group === loose.id)) groups.unshift(loose)
+  return { ...l, tabs: [...l.tabs, ...grouped], groups: [...(l.groups ?? []), ...groups] }
+}
 
 plugin.route("POST", "workspaces/close", async (req) => {
   const body = req.body

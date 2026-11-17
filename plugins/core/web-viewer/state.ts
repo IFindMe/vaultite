@@ -1,4 +1,4 @@
-import { cell, currentWorkspace, notifyError, pluginSettings, viewsChanged, webPages, type WebPageState } from "@vaultite"
+import { cell, notifyError, pluginSettings, viewsChanged, webPages, type WebPageState } from "@vaultite"
 import type { Container } from "./containers"
 
 export type Settings = {
@@ -6,9 +6,8 @@ export type Settings = {
   /** `%s` is what was typed. */
   search?: string
   notifications?: boolean
-  logins?: "workspace" | "shared"
   containers?: Container[]
-  /** By profile ("c-work"; a workspace's: "", "2"). */
+  /** By profile ("c-work"; no container's: ""). */
   siteOrder?: Record<string, string[]>
   shields?: boolean
   /** Hosts ("example.com"). */
@@ -30,11 +29,6 @@ export type Settings = {
 export const settings = pluginSettings<Settings>("web-viewer")
 export const settingsRead = () => Promise.race([settings.ready(), new Promise<void>((done) => setTimeout(done, 3000))])
 export const linksInViewer = () => settings.get().openLinks !== "browser"
-
-export function profile(): string {
-  return profileFor(currentWorkspace()?.n ?? 1)
-}
-export const profileFor = (n: number) => (settings.get().logins === "shared" || n === 1 ? "" : String(n))
 
 const titles = new Map<string, string>()
 export const titleOf = (url: string) => titles.get(url)

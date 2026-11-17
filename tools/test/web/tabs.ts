@@ -872,17 +872,15 @@ ws.setArchiveAfter(0)
   check("stack: the place a pane shows onto its own pane's edge splits off there, its pane showing its next", own() === "x ^Done/k|b|a|q" && tabs() === "[[Done/k/b]|a|q]*,y" && focus() === "b", [own(), tabs()])
 }
 
-// ---- Workspaces holding the tabs (a layout turning it on and off): this device's own come back as they were ----
 const stub = g.localStorage
 g.localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) }
 put([T("a", undefined, { group: "g1" }), S("tb", row("s0", [b, col("s1", [c, d], [0.7, 0.3])], [0.25, 0.75]), "c", { group: "g1" }), T("e", undefined, { group: "g2" })], "tb",
   { groups: [{ id: "g1", name: "Trip", color: "teal" }, { id: "g2", name: "Later", color: "red", collapsed: true }] })
 const mine = JSON.stringify(ws.getWorkspace())
 const took = ws.tabsInWorkspace(true), again = ws.tabsInWorkspace(true)
+check("workspaces: turned on, it's handed the tabs on screen, once", same(took, JSON.parse(mine)) && again === null, [took, again])
 put([T("w")], "tw")
-check("workspaces: held, what's shown is saved apart; this device's own stay as they were", took && !again && mem.get("vaultite.tabs") === mine
-  && JSON.parse(mem.get("vaultite.tabs.workspace") ?? "{}").active === "tw", [took, again])
 ws.tabsInWorkspace(false)
-check("workspaces: let go, this device's tabs, groups, splits, sizes and focus come back exactly", same(ws.getWorkspace(), JSON.parse(mine)) && !mem.has("vaultite.tabs.workspace"),
-  [ws.getWorkspace(), mine])
+check("workspaces: turned off, the workspace's tabs stay on screen as this device's", ws.getWorkspace().active === "tw" && JSON.parse(mem.get("vaultite.tabs") ?? "{}").active === "tw",
+  ws.getWorkspace())
 g.localStorage = stub

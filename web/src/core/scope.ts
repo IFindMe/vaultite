@@ -1,11 +1,14 @@
 import { useSyncExternalStore } from "react"
 import type { WorkspaceHost, WorkspaceInfo } from "@/core/define"
+import type { Tab } from "../../../core/layout.ts"
 import { isEnabled, PLUGINS } from "@/core/plugins"
 import { devicePref, getPrefs, onPrefs } from "@/core/prefs"
+import { isPhoneDevice } from "@/core/platform"
 
 export type Scope = "workspace" | "device"
 
 function workspaceHost(): WorkspaceHost | null {
+  if (isPhoneDevice()) return null
   const off = getPrefs().disabled
   return PLUGINS.find((p) => p.workspace && isEnabled(p.id, off))?.workspace ?? null
 }
@@ -39,6 +42,13 @@ export function currentWorkspace(): WorkspaceInfo | null {
   return h.list().find((w) => w.n === n) ?? { n, label: `Workspace ${n}`, places: [] }
 }
 export const landingWorkspace = (): number | null => (workspaceHost() ? null : PLUGINS.find((p) => p.workspace)?.workspace?.picked() || null)
+export const otherWorkspacesTabs = (): { w: WorkspaceInfo; tabs: Tab[] }[] => {
+  const h = workspaceHost()
+  if (!h) return []
+  const n = h.current()
+  return h.list().filter((w) => w.n !== n).map((w) => ({ w, tabs: h.tabs(w.n) })).filter((x) => x.tabs.length)
+}
+export const showWorkspaceTab = (n: number, id: string) => workspaceHost()?.show(n, id)
 /** The workspaces in use, and the current one ([] without workspaces). */
 export const workspaceList = (): WorkspaceInfo[] => workspaceHost()?.list() ?? []
 

@@ -78,6 +78,21 @@ export default async ($: VaultTest) => {
     check("workspaces move: onto its own workspace is refused", st === 400, [st, body])
     ;[st, body] = await api("POST", "workspaces/move", { to: 7, tab: "tx" })
     check("workspaces move: only 1 to 5", st === 400, [st, body])
+    writeWs(({ workspaces: [{ name: "Main", layout: L([T("a", "file:Notes/A.md")]) }, { layout: L([T("q", "file:Notes/Q.md")]) }] }))
+    const own = L([T("a", "file:Notes/A.md"), T("d", "file:Notes/D.md"), T("e", "view:web/https://x.com/"), T("q", "file:Notes/Q.md"), T("n", "new")], "te")
+    ;[st, body] = await api("POST", "workspaces/take", { to: 1, tabs: own, name: "From Mac app" })
+    w = wsNow().workspaces
+    const g = w[0].layout.groups?.[0]
+    check("workspaces take: what's open in no workspace joins, at the end, in the device's group; the rest stays",
+      st === 200 && desc(w[0].layout) === "a*,d,e" && g?.name === "From Mac app" && w[0].layout.tabs.slice(1).every((t: Any) => t.group === g.id) &&
+      !w[0].layout.tabs[0].group && body.tabs.map((t: Any) => t.id).join() === "td,te" && desc(w[1].layout) === "q*", [st, body, w])
+    ;[st, body] = await api("POST", "workspaces/take", { to: 1, tabs: own, name: "From Mac app" })
+    check("workspaces take: again, nothing new: nothing changes", st === 200 && !body.tabs.length && desc(wsNow().workspaces[0].layout) === "a*,d,e", [st, body])
+    ;[st, body] = await api("POST", "workspaces/take", { to: 3, tabs: L([T("f", "file:Notes/F.md")], "tf", { groups: [{ id: "k", name: "Keep", color: "red" }] }) })
+    w = wsNow().workspaces
+    check("workspaces take: an unused workspace takes them as they are, no group added", st === 200 && desc(w[2].layout) === "f*" && !w[2].layout.groups, [st, w])
+    ;[st, body] = await api("POST", "workspaces/take", { to: 1, tabs: "nope" })
+    check("workspaces take: not a tab list is a 400", st === 400, [st, body])
     // A whole split tab: its panes, focus and name go with it, out of its tab group.
     writeWs(({ workspaces: [
       { layout: L([S("x", [P("a", "file:Notes/A.md"), P("b", "file:Notes/B.md")], "b", { name: "Pair", group: "g" }), T("c", "view:terminal/abc")], "tc", { groups: [{ id: "g", name: "G", color: "blue" }] }) },

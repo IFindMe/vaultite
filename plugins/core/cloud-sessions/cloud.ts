@@ -1,7 +1,7 @@
-import { askText, get, isViewOpen, notify, notifyError, op, openView, pluginSettings, removals, scopedState, subscribeScoped, webPages, workspaceList, workspaces,
+import { askText, get, isViewOpen, notify, notifyError, op, openView, pluginSettings, removals, scopedState, webPages,
   type CloudAccount, type CloudSession, type CloudState } from "@vaultite"
 import { argOf, containerById, containerOfProfile, containers, profileIn } from "@plugins/web-viewer/containers"
-import { profileFor, settings as browser, settingsRead } from "@plugins/web-viewer/state"
+import { settings as browser, settingsRead } from "@plugins/web-viewer/state"
 
 export type Settings = {
   read?: boolean
@@ -16,10 +16,7 @@ const put = (s: CloudState) => { now = s; listeners.forEach((f) => f()) }
 const stateOf = (x: Partial<CloudState> & { sessions: CloudSession[] }): CloudState =>
   ({ signedIn: x.signedIn ?? x.sessions.length > 0, accounts: x.accounts ?? [], sessions: x.sessions, base: x.base })
 
-function profiles() {
-  const ns = [1, ...workspaceList().map((w) => w.n)]
-  return [...new Set([...ns.map(profileFor), ...containers().map((c) => profileIn(c.id))])]
-}
+const profiles = () => [profileIn(null), ...containers().map((c) => profileIn(c.id))]
 
 let asked = ""
 function ask() {
@@ -41,7 +38,6 @@ export function subscribeCloud(fn: () => void) {
       ask()
       settings.onChange(ask)
       browser.onChange(ask)
-      subscribeScoped(ask)
     })
   }
   return () => { listeners.delete(fn) }
@@ -87,17 +83,9 @@ export const diffUrl = (c: CloudSession) => {
 
 
 export function openIn(url: string, among: string[], opts: { newTab?: boolean } = {}) {
-  const here = profileIn(null)
-  const container = among.map(containerOfProfile).find((c) => !!containerById(c))
-  let to: string
-  if (!among.length || among.includes(here)) to = `view:web/${url}`
-  else if (container) to = `view:web/${argOf(url, container)}`
-  else {
-    const n = workspaceList().find((w) => among.includes(profileFor(w.n)))?.n ?? (among.includes("") ? 1 : null)
-    if (n === null) { notify("Couldn't find the logins that session is in"); return }
-    workspaces()?.switchTo(n)
-    to = `view:web/${url}`
-  }
+  const container = !among.length || among.includes(profileIn(null)) ? null : among.map(containerOfProfile).find((c) => !!containerById(c))
+  if (container === undefined) { notify("Couldn't find the logins that session is in"); return }
+  const to = `view:web/${argOf(url, container)}`
   openView(to, { newTab: opts.newTab || !isViewOpen(to) })
 }
 

@@ -1,5 +1,5 @@
 import { COLORS, colorVar, currentWorkspace, isColor, openTab, webPages, type Color } from "@vaultite"
-import { settings, settingsRead, profile, type Settings } from "./state"
+import { settings, settingsRead, type Settings } from "./state.ts"
 import { linkChoice, ruleIn, whereIn, type Where } from "./where.ts"
 export type { Where } from "./where.ts"
 
@@ -39,9 +39,9 @@ export function splitArg(arg: string): { container: string | null; url: string }
 export const argOf = (url: string, container: string | null) => (container ? `@${container}/${url}` : url)
 export const viewSource = (url: string, container: string | null, from?: string) => { if (/^https?:\/\//i.test(url)) openTab(`view:web/${argOf(`view-source:${url}`, container)}`, { from }) }
 
-/** The logins (electron/web.ts's profile) of a page in `container`, or the workspace's in none. */
-export const profileIn = (container: string | null) => (container ? `c-${container}` : profile())
-/** The container a page's logins are, from its profile ("c-work"); null for a workspace's. */
+/** The logins (electron/web.ts's profile) of a page in `container`, or the default ones ("") in none. */
+export const profileIn = (container: string | null) => (container ? `c-${container}` : "")
+/** The container a page's logins are, from its profile ("c-work"); null for the default ones. */
 export const containerOfProfile = (prof: string) => (prof.startsWith("c-") ? prof.slice(2) : null)
 
 export const ruleFor = (url: string) => ruleIn(containers(), url)

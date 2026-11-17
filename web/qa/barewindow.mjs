@@ -163,7 +163,7 @@ try {
   check("reloaded, its bars stay hidden", again && await pop.evaluate(() => document.documentElement.hasAttribute("data-bars-hidden")), again)
   check("… the traffic lights too", await until(async () => (await lights()) === false, 3000))
   check("… kept with its tabs (the workspace's window)", await pop.evaluate(() => {
-    const id = new URLSearchParams(location.search).get("popout"), w = JSON.parse(localStorage.getItem("vaultite.tabs.workspace") ?? localStorage.getItem("vaultite.tabs") ?? "null")
+    const id = new URLSearchParams(location.search).get("popout"), w = JSON.parse(localStorage.getItem("vaultite.tabs") ?? "null")
     return w?.windows?.find((x) => x.id === id)?.barsHidden === true
   }))
 

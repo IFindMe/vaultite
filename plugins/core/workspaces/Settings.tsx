@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { COLOR_NAMES, colorVar, commandKeys, Group, menuBelow, namedIcon, notify, Section, SettingRow, setDefaultSidebars, useEnabled } from "@vaultite"
+import { chooseDefaultPlace, COLOR_NAMES, colorVar, commandKeys, Group, menuBelow, namedIcon, notify, Section, SettingRow, setDefaultSidebars, useDefaultPlace, useEnabled, useMachines } from "@vaultite"
 import { askIcon, containerItems, current, defaultSidebars, label, lookOf, patch, pinsForNew, slots, tintItems, useVersion } from "./state"
 
 const button = "h-7 shrink-0 cursor-pointer rounded-[6px] border-[0.5px] border-border bg-card px-2.5 text-[13px] hover:bg-foreground/[0.05]"
@@ -16,7 +16,7 @@ function Name({ n }: { n: number }) {
 }
 
 function Look({ n }: { n: number }) {
-  const { icon, tint } = lookOf(n), box = containerItems(n)
+  const { icon, tint } = lookOf(n)
   const Icon = icon ? namedIcon(icon) : null
   return (
     <>
@@ -33,12 +33,29 @@ function Look({ n }: { n: number }) {
           {tint && <span className="size-2.5 rounded-full" style={{ background: colorVar(tint) }} />}{tint ? COLOR_NAMES[tint] : "None"}
         </button>
       </SettingRow>
-      {!!box.items.length && (
-        <SettingRow label="Container" sub="Where its web pages open, unless their site has one" data-setting="container">
-          <button type="button" className={button} onClick={(e) => menuBelow(e, box.items)} data-workspace-container>{box.name ?? "None"}</button>
-        </SettingRow>
-      )}
     </>
+  )
+}
+
+function OpensIn({ n }: { n: number }) {
+  const box = containerItems(n), place = useDefaultPlace(), machines = useMachines(), terminals = useEnabled()("terminal")
+  const machine = place.machine ? machines?.find((m) => m.id === place.machine) : undefined
+  if (!box.items.length && !(terminals && machines && machines.length > 1)) return null
+  return (
+    <Section title="Opens in">
+      <Group>
+        {!!box.items.length && (
+          <SettingRow label="Web pages" sub="Their container, unless the note or the site picks one" data-setting="container">
+            <button type="button" className={button} onClick={(e) => menuBelow(e, box.items)} data-workspace-container>{box.name ?? "No container"}</button>
+          </SettingRow>
+        )}
+        {terminals && machines && machines.length > 1 && (
+          <SettingRow label="Terminals and agents" sub="The machine, and each agent's account" data-setting="place">
+            <button type="button" className={button} onClick={() => void chooseDefaultPlace()} data-workspace-place>{machine && !machine.self ? machine.label : "This machine"}</button>
+          </SettingRow>
+        )}
+      </Group>
+    </Section>
   )
 }
 
@@ -51,7 +68,7 @@ export function WorkspaceSettings() {
   const pins = Array.isArray(d?.pinned) ? d.pinned : null
   const own = d?.sidebars && !defaultSidebars(d.sidebars) ? d.sidebars : null
   return (
-    <div data-workspace-settings>
+    <div data-workspace-settings className="flex flex-col gap-6">
     <Section title={`This workspace: ${label(n)}`}>
       <Group>
         <SettingRow label="Name" sub="Shown in the sidebar's switcher" data-setting="name">
@@ -68,9 +85,10 @@ export function WorkspaceSettings() {
         </SettingRow>
       </Group>
       <p className="mt-1.5 px-1 text-[13px] leading-[18px] text-muted-foreground">
-        Kept in this workspace only, for every device on it. Switch workspaces in the sidebar's header{commandKeys("workspace:1") && `, or with ${commandKeys("workspace:1")} to ${commandKeys("workspace:5")}`}.
+        Kept in this workspace only, for every computer on it. Switch workspaces in the sidebar's header{commandKeys("workspace:1") && `, or with ${commandKeys("workspace:1")} to ${commandKeys("workspace:5")}`}.
       </p>
     </Section>
+    <OpensIn n={n} />
     </div>
   )
 }

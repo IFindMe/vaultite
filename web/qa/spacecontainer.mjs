@@ -1,6 +1,6 @@
 // A workspace's container in the desktop app (Electron, plugins/core/web-viewer/containers.ts destination): a page opened
 // in no container goes to its workspace's (Work), unless its site always opens in another (Personal) or it was opened in
-// one (explicit); without one, the workspace's own logins. WRITES the throwaway vault only (Workspaces on, a slot file).
+// one (explicit); without one, the default logins. WRITES the throwaway vault only (Workspaces on, a slot file).
 //   node web/qa/spacecontainer.mjs <vault copy>
 import { _electron } from "playwright-core"
 import fs from "node:fs"
@@ -60,7 +60,7 @@ try {
   await fetch(`${origin}/api/workspaces/1`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ container: null }) })
   await wait(1500)
   await open(`view:web/${SITE}/?none`)
-  check("without one, the workspace's own logins", await shownIn("?none", "persist:web"), await visible())
+  check("without one, the default logins", await shownIn("?none", "persist:web"), await visible())
 } finally {
   await app.close().catch(() => {})
   server.close()

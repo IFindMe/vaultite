@@ -1,7 +1,9 @@
-import { definePlugin, isMac, isPopout, vaultSidebars } from "@vaultite"
+import { LayoutGrid } from "lucide-react"
+import { definePlugin, isMac, isPhoneDevice, isPopout, vaultSidebars } from "@vaultite"
+import { AllTabs } from "./AllTabs"
 import { Background, Workspaces } from "./Numbers"
 import { WorkspaceSettings } from "./Settings"
-import { current, currentTab, cycle, host, lit, moveTab, openElsewhere, patch, slots, SLOTS, switchTo, used } from "./state"
+import { ALL_TABS, current, currentTab, cycle, host, lit, moveTab, openElsewhere, patch, showAllTabs, slots, SLOTS, switchTo, used } from "./state"
 
 export default definePlugin({
   sidebarSetup: {
@@ -19,13 +21,18 @@ export default definePlugin({
     { key: "icon", label: "Workspace icon", description: "shown for its number" },
     { key: "tint", label: "Workspace colour", description: "the sidebars take a little of it" },
     { key: "container", label: "Workspace container", description: "where its web pages open" },
+    { key: "place", label: "Where the workspace's terminals open", description: "a machine, each agent's account" },
     { key: "pins", label: "Workspace's pinned pages" },
     { key: "panels", label: "Workspace's panels", description: "the sidebars of this workspace" },
   ],
   header: { numbers: { render: (ctx) => <Workspaces {...ctx} /> } },
-  background: (ctx) => (isPopout() ? null : <Background {...ctx} />),
+  background: (ctx) => (isPopout() || isPhoneDevice() ? null : <Background {...ctx} />),
+  views: {
+    [ALL_TABS]: { icon: LayoutGrid, title: () => "All tabs", render: ({ store }) => <AllTabs store={store} /> },
+  },
   commands: [
     ...SLOTS.map((n) => ({ id: `workspace:${n}`, name: `Switch to workspace ${n}`, keys: [isMac ? `Ctrl+${n}` : `Alt+${n}`], run: () => switchTo(n) })),
+    { id: "workspace:all-tabs", name: "Show all tabs", keys: [isMac ? "Ctrl+0" : "Alt+0"], icon: LayoutGrid, run: showAllTabs },
     { id: "workspace:next", name: "Switch to next workspace", when: () => used().length > 1, run: () => cycle(1) },
     { id: "workspace:previous", name: "Switch to previous workspace", when: () => used().length > 1, run: () => cycle(-1) },
     ...SLOTS.map((n) => ({ id: `workspace:move-tab-${n}`, name: `Move current tab to workspace ${n}`, when: () => lit() !== n && !!currentTab(),

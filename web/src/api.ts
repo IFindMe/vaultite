@@ -60,7 +60,7 @@ export { slideFrom } from "@/core/animation"
 export { pickIcon } from "@/components/IconPicker"
 export { BrandIcon, GitHubIcon } from "@/core/icons"
 // The tabs and splits as a whole (Workspaces keeps one per workspace).
-export { getWorkspace as getTabLayout, onWorkspaceChange as onTabLayoutChange, replaceWorkspace as setTabLayout, mineInto as withMyTabs, tabsInWorkspace } from "@/core/workspace"
+export { getWorkspace as getTabLayout, onWorkspaceChange as onTabLayoutChange, replaceWorkspace as setTabLayout, mineInto as withMyTabs, panesClosed, tabsInWorkspace } from "@/core/workspace"
 export { type Workspace as TabLayout } from "../../core/layout.ts"
 export { startedFresh } from "@/core/workspace"
 // When each tab was last on screen, which archives unpinned ones unseen a while (Tabs' setting): Workspaces carries it.
@@ -298,7 +298,7 @@ export { setFocusedPane, isPopout } from "@/core/workspace"
 // A pop-out with its bars hidden (Hide window bars): only what it shows, a view's own bars too (the Browser's page bar).
 export { useBarsHidden } from "@/core/workspace"
 export { offeredCommand, onCommandsChanged, runCommandById, runCommandNamed } from "@/core/commands"
-export { isDesktop, onLayoutChange, useDesktop } from "@/core/platform"
+export { isDesktop, isPhoneDevice, onLayoutChange, useDesktop } from "@/core/platform"
 // Every command and its keys in effect (Vim's list of its keys).
 export { commandList, keysOf, useCommandList } from "@/core/commands"
 export { currentRow, focusSidebar, foldInList, inKeyList, leaveList, moveInList, openInList } from "@/core/keylist"

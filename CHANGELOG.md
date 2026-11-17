@@ -6,6 +6,13 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Workspaces: turning them on never hides a tab: the tabs on screen go into the workspace, as a group named after the
+  device when it has tabs of its own; turning them off keeps the current workspace's tabs. All tabs (⌃0, atop the
+  switcher) shows every workspace's, tab search finds them, a speaker marks the workspace playing sound, and a web page
+  whose tab is in no workspace closes. A workspace's settings say where its web pages and terminals open. Workspaces
+  are the computers': a phone keeps its own tabs.
+- Browser: logins come only from containers; each workspace's own logins from before become a container named after
+  it, once, on each Mac, so nobody is signed out.
 - Click a shortcut where it shows (the command palette, menus, the sidebar, a new tab, Hotkeys) to change it on the
   spot: press the new keys, Escape keeps the old ones; keys another command has ask Replace or Keep both, with Undo,
   Remove and Restore default.

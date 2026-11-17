@@ -1,10 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Check, ChevronDown } from "lucide-react"
+import { Check, ChevronDown, LayoutGrid } from "lucide-react"
 import { Mark as Look } from "./Mark"
-import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, sidebarsChanged, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
+import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, panesClosed, pluginOn, sidebarsChanged, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
 import {
-  cycle, emit, getRenaming, label, leaving, lit as litNow, lookOf, named, patch, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
+  cycle, emit, getRenaming, label, leaving, lit as litNow, lookOf, markOf, named, othersOnly, patch, showAllTabs, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
   SLOTS, switchTo, sync, tookTabs, used, useVersion, type Sent,
 } from "./state"
 
@@ -96,7 +96,14 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
         <div ref={box} role="dialog" aria-label="Workspaces" data-workspace-list onKeyDown={arrows}
           className="glass-strong fixed z-40 flex w-52 flex-col gap-px rounded-[10px] p-1 shadow-xl"
           style={at}>
-          <div className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-tertiary">Workspaces</div>
+          <button type="button" data-workspace-all onClick={() => { setOpen(false); showAllTabs() }}
+            className="flex h-7 cursor-pointer items-center gap-2 rounded-[5px] px-1.5 text-left text-[13px] outline-none hover:bg-foreground/[0.07] focus-visible:bg-foreground/[0.07]">
+            <LayoutGrid aria-hidden className="size-[18px] shrink-0 p-px text-muted-foreground" strokeWidth={2} />
+            <span className="min-w-0 flex-1 truncate">All tabs</span>
+            <span className="text-[11px] text-tertiary">{commandKeys("workspace:all-tabs")}</span>
+          </button>
+          <div className="mx-1 my-1 h-px bg-border" />
+          <div className="px-2 pt-0.5 pb-1.5 text-[11px] font-medium text-tertiary">Workspaces</div>
           {SLOTS.map((m) => {
             const on = m === lit, has = !!list[m - 1] || on
             if (renaming === m) return <Rename key={m} n={m} on={on} end={(enter) => ended(m, enter)} />
@@ -110,6 +117,7 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
                 <Mark n={m} look={cn("border", on ? "border-primary/60 bg-primary/10 font-semibold text-primary"
                   : has ? "border-border font-medium text-foreground" : "border-dashed border-border text-tertiary")} />
                 <span className={cn("min-w-0 flex-1 truncate", on ? "font-medium" : has ? "" : "text-tertiary")}>{has ? label(m) : "New workspace"}</span>
+                <Marked n={m} />
                 {on && <Check aria-hidden className="size-3.5 shrink-0 text-primary" strokeWidth={2.5} />}
                 <span className="text-[11px] text-tertiary">{commandKeys(`workspace:${m}`)}</span>
               </button>
@@ -120,6 +128,13 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
       )}
     </>
   )
+}
+
+function Marked({ n }: { n: number }) {
+  const m = markOf(n)
+  if (!m) return null
+  const Icon = m.icon
+  return <Icon aria-label={m.label} data-workspace-mark className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} style={m.tint ? { color: m.tint } : undefined} />
 }
 
 export function Background({ store }: { store: Store }) {
@@ -133,10 +148,15 @@ export function Background({ store }: { store: Store }) {
   }, [tint])
   useSwipes()
   useEffect(() => {
-    if (tabsInWorkspace(true)) tookTabs()
+    const own = tabsInWorkspace(true)
+    if (own) tookTabs(own)
     const off = onTabLayoutChange(saveTabsSoon), unsaved = trackSoon("tabs", savePending, true)
     addEventListener("pagehide", leaving)
-    return () => { off(); unsaved(); removeEventListener("pagehide", leaving); if (savePending()) saveTabs() }
+    return () => {
+      off(); unsaved(); removeEventListener("pagehide", leaving)
+      if (savePending()) saveTabs()
+      if (!pluginOn("workspaces")) panesClosed(othersOnly())
+    }
   }, [])
   useEffect(() => { sync(); emit(); sidebarsChanged() }, [w])
   return null

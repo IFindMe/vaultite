@@ -1,25 +1,16 @@
-import { confirmDialog, currentWorkspace, get, notify, notifyError, post, removals, webPages, workspaceList, type WebSite } from "@vaultite"
+import { confirmDialog, get, notify, notifyError, post, removals, webPages, type WebSite } from "@vaultite"
 import { askElsewhere, askSites, elsewhere, listed } from "./accounts"
 import { colorOf, containerById, containers, profileIn, setSiteRule, type Container } from "./containers"
-import { profile, profileFor, settings } from "./state"
+import { settings } from "./state"
 
 export type Logins = { prof: string; name: string; color: string; container: string | null; machine?: { id: string; label: string } }
 
 export const NEUTRAL = "color-mix(in srgb, var(--muted-foreground) 55%, transparent)"
 
-export function ownLogins(): Logins {
-  const ws = currentWorkspace()
-  return { prof: profile(), name: ws && settings.get().logins !== "shared" ? `Workspace ${ws.n}` : "Default", color: NEUTRAL, container: null }
-}
+export const ownLogins = (): Logins => ({ prof: profileIn(null), name: "Default", color: NEUTRAL, container: null })
 export const loginsOf = (c: Container): Logins => ({ prof: profileIn(c.id), name: c.name, color: colorOf(c), container: c.id })
 
-export function allLogins(): Logins[] {
-  const workspaces = settings.get().logins === "shared" ? [] : workspaceList()
-  return [
-    ...(workspaces.length > 1 ? workspaces.map((w): Logins => ({ prof: profileFor(w.n), name: `Workspace ${w.n}`, color: NEUTRAL, container: null })) : [ownLogins()]),
-    ...containers().map(loginsOf),
-  ]
-}
+export const allLogins = (): Logins[] => [ownLogins(), ...containers().map(loginsOf)]
 
 export const loginsOn = (m: { id: string; label: string }, l: Logins): Logins => ({ ...l, machine: m })
 export const nameOf = (l: Logins) => (l.machine ? `${l.machine.label} · ${l.name}` : l.name)

@@ -80,7 +80,7 @@ check("typing an address whose site opens in Work: the chip says Work, and why",
 await chip().click()
 check("its menu opens, what's typed kept", await until(() => win.locator("[role=menu]").count().then((n) => n > 0), 3000) && (await value()) === `${LOCAL}/who`, await value())
 const noneRow = await win.locator("[role=menu] [role^=menuitem]", { hasText: /^No container/ }).first().innerText()
-check("… \"No container\" says it's the workspace's logins when there are workspaces, or is plain", /^No container( \(workspace logins\))?/.test(noneRow), noneRow)
+check("… \"No container\" is plain: one set of logins for every workspace", noneRow.startsWith("No container") && !/workspace/i.test(noneRow), noneRow)
 await win.locator("[role^=menuitem]", { hasText: /^Personal/ }).click()
 check("choosing Personal: the chip says Personal, what's typed still there", await until(async () => (await chipIs()).id === "personal", 3000) && (await value()) === `${LOCAL}/who`, { chip: await chipIs(), value: await value() })
 check("… the keyboard back in the address", await until(typing, 3000), null)

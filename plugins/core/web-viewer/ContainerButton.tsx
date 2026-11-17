@@ -1,6 +1,6 @@
 import { useEffect, useState, type MouseEvent } from "react"
 import { ArrowDown, ArrowUp, Bot, Box, Fingerprint, KeyRound, Pencil, Pin, PinOff, Plus, Settings2, Trash2 } from "lucide-react"
-import { askText, choose, colorItems, confirmDialog, currentWorkspace, dotIcon, menuBelow, notify, notifyError, plural, replaceMenu, webPages, type MenuItem, type WebSite } from "@vaultite"
+import { askText, choose, colorItems, confirmDialog, dotIcon, menuBelow, notify, notifyError, plural, replaceMenu, webPages, type MenuItem, type WebSite } from "@vaultite"
 import { accountIn, askSites, keep, listed } from "./accounts"
 import { allLogins, andList, isIn, loginsOf, moveLogin, sitesOf } from "./loginsets"
 import { siteOf } from "./address"
@@ -97,7 +97,7 @@ export function containerMenu(container: string | null, url: string, pick: (id: 
   const who = (id: string | null) => (site && accountIn(profileIn(id), site)) || undefined
   return [
     { label: "Open in", caption: true, run: () => {} },
-    { label: currentWorkspace() ? "No container (workspace logins)" : "No container", icon: Box, checked: !here, hint: who(null), run: () => { if (here) pick(null) } },
+    { label: "No container", icon: Box, checked: !here, hint: who(null), run: () => { if (here) pick(null) } },
     ...list.map((c) => ({ label: c.name, icon: dotIcon(colorOf(c)), checked: c.id === here?.id, hint: who(c.id), run: () => { if (c.id !== here?.id) pick(c.id) } })),
     ...(site && here ? [{ label: `Always open ${site} here`, icon: Pin, checked: rule === here.id, sep: true,
       run: () => void setSiteRule(site, rule === here.id ? null : here.id) }] : []),

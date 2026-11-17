@@ -81,7 +81,7 @@ check("… a line in its colour along the tab's top", await until(async () => (a
 await open(`view:web/@personal/${SITE}/whoami?p`)
 check("Personal: other logins, not signed in", await until(async () => { const v = await visible(); return v?.partition === "persist:web-c-personal" && v.text === "who:nobody" }, 15000), await visible())
 await open(`view:web/${SITE}/whoami?none`)
-check("no container: the workspace's logins, not signed in", await until(async () => { const v = await visible(); return v?.partition === "persist:web" && v.text === "who:nobody" }, 15000), await visible())
+check("no container: the default logins, not signed in", await until(async () => { const v = await visible(); return v?.partition === "persist:web" && v.text === "who:nobody" }, 15000), await visible())
 check("… the bar offers containers", await win.locator("[data-web-page] [data-web-container='']:visible").count() === 1, null)
 
 await press()

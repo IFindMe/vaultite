@@ -220,3 +220,24 @@ import { plugin } from "./lib.ts"
     codeIn("Your verification code is K7Q2XP") === "K7Q2XP" && codeIn("Sign in to Lighthouse in 2026") === null
     && codeIn("Welcome to Lighthouse 482913") === null && codeIn("Your login code: 4821") === "4821")
 }
+
+{
+  const { planMoves } = await import("../../../plugins/core/web-viewer/workspacelogins.ts")
+  const colors = ["blue", "orange", "green", "red"]
+  const have = [{ id: "personal", name: "Personal", color: "blue" }, { id: "work", name: "Work", color: "orange" }]
+  const found = {
+    "": [{ site: "github.com" }],
+    "2": [{ site: "google.com", with: ["youtube.com"] }, { site: "doubleclick.net", other: true }],
+    "3": [{ site: "doubleclick.net", other: true }],
+    "4": [{ site: "lighthouse.app" }],
+  }
+  const moves = planMoves(found, new Map([[2, "Writing"], [4, "Work"]]), have, colors)
+  check("Browser: a workspace's logins with a site a page was opened in become a container named after it; trackers alone, or none, don't",
+    moves.map((m) => `${m.from}:${m.container.id}:${m.container.name}`).join() === "2:workspace2:Writing,4:workspace4:Workspace 4", moves)
+  check("… every login moved with the sites that share it, trackers left behind",
+    JSON.stringify(moves[0].logins) === '[["google.com","youtube.com"]]' && JSON.stringify(moves[1].logins) === '[["lighthouse.app"]]', moves)
+  check("… each its own colour after the containers there", moves.map((m) => m.container.color).join() === "green,red", moves)
+  const again = planMoves({ "3": [{ site: "x.com" }] }, new Map(), [...have, { id: "workspace3", name: "Workspace 3", color: "gray" }], colors)[0]?.container
+  check("… a name or id already a container's isn't taken twice", again?.id === "workspace3x2" && again.name === "Workspace 3 logins", again)
+  check("… nothing to move: no container", planMoves({ "2": [{ site: "x.com", other: true }] }, new Map(), have, colors).length === 0)
+}

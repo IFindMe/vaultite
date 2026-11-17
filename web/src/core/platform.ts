@@ -26,6 +26,7 @@ export const keysText = (s: string, mac = isMac) => mac ? s : s.replace(/([âŒƒâŒ
 const NARROW = "(max-width: 767.98px)", TOUCH = "(pointer: coarse)"
 const PHONE_SIDE = 600
 const canMatch = typeof matchMedia === "function"
+/** A phone: a touch screen with a short side under 600px, whatever its window is. */
 export const isPhoneDevice = () => canMatch && matchMedia(TOUCH).matches && Math.min(screen.width, screen.height) < PHONE_SIDE
 const phoneLayout = () => canMatch && (matchMedia(NARROW).matches || isPhoneDevice())
 /** The desktop's panes, not the phone's layout: a window as narrow as a phone's, or a phone either way up (its short side under 600px: an iPhone's is at most 440, an iPad mini's 744). */

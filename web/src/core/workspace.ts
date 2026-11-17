@@ -15,9 +15,12 @@ const POPOUT = new URLSearchParams(location.search).get("popout")
 export const isPopout = () => !!POPOUT
 export const popoutId = () => POPOUT
 const KEY = "vaultite.tabs"
-const HELD = "vaultite.tabs.workspace"
-let held = (() => { try { return localStorage.getItem(HELD) !== null } catch { return false } })()
-const tabKey = () => (held ? HELD : KEY)
+const OLDER_APPS_SET_ASIDE = "vaultite.tabs.workspace"
+const HELD = "vaultite.tabs.held"
+const has = (k: string) => { try { return localStorage.getItem(k) !== null } catch { return false } }
+let aside = has(OLDER_APPS_SET_ASIDE)
+let held = aside || has(HELD)
+const tabKey = () => (aside ? OLDER_APPS_SET_ASIDE : KEY)
 if (POPOUT) document.documentElement.dataset.popout = ""
 let barsOff = false
 const tabStore = () => localStorage
@@ -33,10 +36,10 @@ function older(t: Record<string, unknown>): unknown {
   if (Array.isArray(t.tabs) && t.tabs.some((x) => x && typeof x === "object" && !("root" in x))) return migrate({ root: { id: "g0", tabs: t.tabs, active: t.active } })
   return t
 }
+const stored = (key: string): Workspace | null => { const t: unknown = JSON.parse(tabStore().getItem(key) ?? "null"); return isObj(t) ? clean(older(t)) : null }
 function load(): Workspace {
   try {
-    const t: unknown = JSON.parse(tabStore().getItem(tabKey()) ?? "null")
-    let w = isObj(t) ? clean(older(t)) : null
+    let w = stored(tabKey())
     if (POPOUT && !w?.windows?.some((x) => x.id === POPOUT)) {
       const handed = clean(JSON.parse(sessionStorage.getItem(`vaultite.popout.${POPOUT}`) ?? "null"))
       if (handed) w = { ...(w ?? blankList()), windows: [...(w?.windows ?? []), { id: POPOUT, tabs: handed.tabs, ...(handed.groups ? { groups: handed.groups } : {}), active: handed.active }] }
@@ -165,16 +168,24 @@ export function replaceWorkspace(next: unknown, opts: { merge?: boolean; kept?: 
   showActiveUnder()
 }
 
-/** Workspaces takes the tabs (`on`: what's shown and saved from now is a workspace's) or lets go of them: this device's
- *  own come back as they were left, so turning it on and off (a layout and back) loses nothing. True: it changed. */
-export function tabsInWorkspace(on: boolean): boolean {
-  if (on === held) return false
-  if (on) { held = true; save(); return true }
-  let own: Workspace | null = null
-  try { tabStore().removeItem(HELD); const t = JSON.parse(tabStore().getItem(KEY) ?? "null"); own = t ? clean(older(t)) : null } catch { /* private mode */ }
-  held = false
-  replaceWorkspace(own ?? blankList())
-  return true
+/** Workspaces takes the tabs (`on`) or lets go of them. Taking answers this device's own, for a workspace to take in
+ *  (null: it held them already); letting go keeps the tabs on screen, now this device's. */
+export function tabsInWorkspace(on: boolean): Workspace | null {
+  const own = (): Workspace | null => { try { return stored(KEY) } catch { return null } }
+  const mark = (k: string, v: string | null) => { try { if (v === null) tabStore().removeItem(k); else tabStore().setItem(k, v) } catch { /* private mode */ } }
+  if (aside) {
+    const hidden = own()
+    aside = false
+    mark(OLDER_APPS_SET_ASIDE, null)
+    if (!on) { held = false; replaceWorkspace(hidden ?? blankList()); return null }
+    mark(HELD, "1")
+    save()
+    return hidden
+  }
+  if (on === held) return null
+  held = on
+  mark(HELD, on ? "1" : null)
+  return on ? state : null
 }
 
 export function fillFirstTab(to: string) {
@@ -635,6 +646,8 @@ function lastOf(going: Pane[]) {
   const left = new Set(allPanes(state).concat((state.windows ?? []).flatMap(allPanes)).filter((p) => !ids.has(p.id)).map((p) => p.to))
   return [...new Set(going.map((p) => p.to))].filter((to) => to.startsWith("view:") && !left.has(to) && !elsewhere(to))
 }
+/** Panes leaving every tab list for good (Workspaces turned off): their web pages end, their terminals go on. */
+export function panesClosed(panes: Pane[]) { for (const p of panes) if (p.to.startsWith("view:")) onClosed?.(p.to, p.id, false, false) }
 function heard(going: Pane[]) {
   const last = new Set(lastOf(going))
   going.forEach((p, i) => { if (p.to.startsWith("view:")) onClosed?.(p.to, p.id, last.has(p.to) && !going.slice(i + 1).some((x) => x.to === p.to), false) })
@@ -742,6 +755,7 @@ function rememberTaken(was: TabList, next: TabList) {
     else tabs.push(tabWithout(t, new Set(placesIn(t).filter((p) => !lost(p)).map((p) => p.id)))!)
   }
   if (tabs.length || panes.length) remember(tabs, panes, { from: was, ending: false })
+  panesClosed([...tabs.flatMap(placesIn), ...panes])
 }
 const isOpen = (id: string) => !!tabById(id) || !!paneById(id)
 const idOf = (r: Closed) => ("pane" in r ? `t${r.pane.id}` : r.tabs[0].tab.id)

@@ -125,7 +125,7 @@ export function actionsChanged() {
 export const forgetActions = (ext: string) => { for (const s of sessionsOf()) actions.get(s)?.delete(ext) }
 let profiles = new Map<Session, string>()
 const sessionsOf = () => [...profiles.keys()]
-/** The sessions extensions are in, and each one's profile (a workspace's logins, a container's "c-<id>"). */
+/** The sessions extensions are in, and each one's profile (the default logins "", a container's "c-<id>"). */
 export const setSessions = (map: Map<Session, string>) => { profiles = map }
 export const profileOf = (s: Session) => profiles.get(s) ?? ""
 

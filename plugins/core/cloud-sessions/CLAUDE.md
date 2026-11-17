@@ -8,8 +8,8 @@
   unarchive (Undo) and rename are `POST /v1/sessions/<id>/archive`, `/unarchive` and `PATCH /v1/sessions/<id>`. Each
   organization with claude.ai's apps is read once, in the first profile that has it; one that turns it away (403: no
   Claude Code there) isn't listed. Pull requests come from GitHub through the user's `gh`, when it's installed.
-- A session opens in its account's logins: this workspace's when it has them, else a container's, else the workspace
-  that has them is switched to. A tab without a container has its workspace's logins, so never open one bare.
+- A session opens in its account's logins: the default ones when they have it, else its container's. A tab without a
+  container has the default logins, so never open a container's session bare.
 - claude.ai/code takes a prompt in `?q=`, waiting in its box: a session is never started without the user sending it.
 - Continue in a terminal is Claude Code's `claude-code.teleport` (its teleport.ts): shown only when an account here is
   signed in to the session's organization (`GET /api/claude-code/organizations`).

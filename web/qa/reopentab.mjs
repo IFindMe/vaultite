@@ -37,7 +37,7 @@ try {
   }
   await seed()
   const tabs = () => page.evaluate(() => {
-    const l = JSON.parse(localStorage.getItem("vaultite.tabs.workspace") ?? localStorage.getItem("vaultite.tabs"))
+    const l = JSON.parse(localStorage.getItem("vaultite.tabs"))
     return l
   }).then((l) => l.tabs.map((t) => desc(t.root) + (t.group ? `(${l.groups?.find((g) => g.id === t.group)?.name ?? "?"})` : "") + (t.id === l.active ? "*" : "")).join(","))
   const is = (want) => until(async () => (await tabs()) === want, 4000).then(() => true, () => false)
@@ -105,7 +105,7 @@ try {
   await page.mouse.move(0, 0)
 
   // A pop-out window closed: ⌘⇧T opens it again, with its tabs.
-  const windows = () => page.evaluate(() => (JSON.parse(localStorage.getItem("vaultite.tabs.workspace") ?? localStorage.getItem("vaultite.tabs")).windows ?? []).map((w) => w.tabs.length))
+  const windows = () => page.evaluate(() => (JSON.parse(localStorage.getItem("vaultite.tabs")).windows ?? []).map((w) => w.tabs.length))
   await page.click("[data-tab-strip] [data-tab-id='te']")
   const popped = ctx.waitForEvent("page")
   await command(page, "Move current tab to new window")

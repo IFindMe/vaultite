@@ -173,7 +173,7 @@ await win.locator("[data-cloud-view] [data-cloud=session_t]").first().click()
 check("a click opens it in its own logins (Work's)", await until(async () => (await all()).some((p) => p.url === `${SITE}/code/session_t` && p.visible && p.profile === "web-c-work"), 15000), await all())
 await list()
 await win.locator("[data-cloud-view] [data-cloud=session_b]").first().click()
-check("… and Alice's in the workspace's", await until(async () => (await all()).some((p) => p.url === `${SITE}/code/session_b` && p.visible && p.profile === "web"), 15000), await all())
+check("… and Alice's in the default logins", await until(async () => (await all()).some((p) => p.url === `${SITE}/code/session_b` && p.visible && p.profile === "web"), 15000), await all())
 
 // What the page shows of each: its section, branch, summary, pull request; the panel and the page follow the picker.
 await list()

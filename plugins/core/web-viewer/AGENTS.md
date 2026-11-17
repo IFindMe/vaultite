@@ -11,7 +11,7 @@ the vault. On the web and phones a web tab links out instead.
   container opens there. `lock`: its pages need Touch ID, locking again when the Mac locks, sleeps or idles 15 minutes.
   `agents`: `read` or `act`; unset, agents can't use its pages (nor tabs in no container). A link opens in: a note's
   `container:` property (an id, or a name in any case) for every link followed from it, else its site's rule, else the
-  workspace's `container`, else the workspace's own logins (`logins: shared`: one set for every page). What a page
+  workspace's `container`, else the default logins (one set, shared by every workspace). What a page
   opens stays in its container.
 - Agents: `vau browser ...` and the MCP tools `browser_open`, `browser_tabs`, `browser_snapshot`, `browser_act`,
   `browser_run`, `browser_navigate`, `browser_read`, `browser_wait`, `browser_screenshot`, `browser_pdf`,
@@ -80,8 +80,8 @@ the vault. On the web and phones a web tab links out instead.
   `@media (prefers-color-scheme: dark)`. `vau browser style [site]` (`--css`, `--remove`).
 - Dark pages: a page dark by its site or by its style shows as it is, each judged as it looks with its style; the rest
   get Chromium's auto dark mode. A style that darkens a canvas itself uses `--vault-paper-filter`.
-- Inbox events: a page's notifications (source: the site, kind `web`, linking to its tab). With claude.ai signed in to
-  a workspace's logins, Claude Code on the web's sessions: "Claude Code finished" (kind `done`) or "Claude Code needs
+- Inbox events: a page's notifications (source: the site, kind `web`, linking to its tab). With claude.ai signed in
+  (the default logins or a container), Claude Code on the web's sessions: "Claude Code finished" (kind `done`) or "Claude Code needs
   you" (`waiting`), `session` its address; the Terminals panel lists them under Cloud.
 - Extensions are per Mac, never in the vault. Managed ones are named only by the owner, in
   `/Library/Application Support/Vaultite/managed-extensions.json` (every app; sudo) or `managed-extensions.json` in one

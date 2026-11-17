@@ -1,7 +1,7 @@
 import { User } from "lucide-react"
 import { choose, notify, notifyError, op, openFile, plural } from "@vaultite"
 import { importBookmarks, importHistory, importSources, type ImportSource } from "./history"
-import { profile } from "./state"
+import { profileIn } from "./containers"
 
 let found: ImportSource[] = []
 export const browsersHere = () => found
@@ -29,7 +29,7 @@ async function run(s: ImportSource, dir: string) {
   const id = "web-import"
   notify(`Importing from ${s.name}…`, { id, duration: 60_000 })
   try {
-    const visits = p.history ? (await importHistory(s.browser, dir, profile())).added : 0
+    const visits = p.history ? (await importHistory(s.browser, dir, profileIn(null))).added : 0
     const marks = p.bookmarks ? await importBookmarks(s.browser, dir) : []
     const r = marks.length ? await op<{ path: string | null; added: number }>("bookmarks.add", { links: marks }) : null
     const what = [visits || !r?.added ? plural(visits, "visit") : "", r?.added ? plural(r.added, "bookmark") : ""].filter(Boolean).join(" and ")

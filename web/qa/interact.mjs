@@ -54,7 +54,7 @@ await cmd("Open links in a tab"); await cmd("Open links in right split")
 check("Open links in a tab, then in right split: one Links tab", (await count("Links")) === 1, await tabs())
 const fresh = async () => {
   const shape = (l) => JSON.stringify(l ?? null, (k, v) => (["back", "fwd", "from", "active", "focus"].includes(k) ? undefined : v))
-  const mine = () => page.evaluate(() => JSON.parse(localStorage.getItem("vaultite.tabs.workspace") ?? localStorage.getItem("vaultite.tabs") ?? "null")?.tabs)
+  const mine = () => page.evaluate(() => JSON.parse(localStorage.getItem("vaultite.tabs") ?? "null")?.tabs)
   await until(async () => shape((await api("GET", "workspaces")).workspaces?.[0]?.layout?.tabs) === shape(await mine()), 10000); await ui.idle()
   await page.goto(`${B}api/state`)
   await api("PUT", "workspaces/1", { layout: { root: { id: "g0", tabs: [{ id: "t1", to: `file:${DIR}/One.md` }], active: "t1" }, focus: "g0" }, state: { "files:open": [DIR] } })

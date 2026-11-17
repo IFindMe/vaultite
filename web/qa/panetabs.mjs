@@ -35,7 +35,7 @@ try {
   const hash = (f) => page.evaluate((h) => { location.hash = h }, `#file/${encodeURIComponent(f)}`)
   /** The window's tabs as kept: each tab's panes, each pane its places (files) in order, the shown one starred. */
   const state = () => page.evaluate(() => {
-    const w = JSON.parse(localStorage.getItem("vaultite.tabs.workspace") ?? localStorage.getItem("vaultite.tabs"))
+    const w = JSON.parse(localStorage.getItem("vaultite.tabs"))
     const leaves = (n) => (n.kids ? n.kids.flatMap(leaves) : [n])
     const name = (p) => p.to.replace(/^file:[^/]+\//, "").replace(/\.md$/, "")
     const places = (p) => { const s = p.stack ?? [], at = Math.min(p.stackAt ?? 0, s.length); return [...s.slice(0, at), p, ...s.slice(at)] }

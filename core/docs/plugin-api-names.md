@@ -344,6 +344,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `iso(d)`
 - `isOutside`
 - `isPage(path, store?)`: A page: a file a plugin draws as one (a dashboard).
+- `isPhoneDevice()`: A phone: a touch screen with a short side under 600px, whatever its window is.
 - `isPopout()`
 - `isViewOpen(to)`: Whether a view (`terminal/abc`) is open in a pane somewhere.
 - `isWindows`: A Windows computer.
@@ -505,6 +506,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `panelSide(key, s?)`: Which sidebar a panel is in (null: hidden).
 - `paneMenuOf(id)`: A pane's right-click menu, the one its bar has (a half of a split tab's row).
 - `PaneMotion`: A move of panes as it starts: the sections moving, and when they're all still.
+- `panesClosed(panes)`: Panes leaving every tab list for good (Workspaces turned off): their web pages end, their terminals go on.
 - `panesOf(t)`: A tab's panes (what each shows: placesIn has the places stacked under them too).
 - `panesShowing(...to)`: The panes showing any of these targets ("file:Inbox/A.md"), in every tab of this window.
 - `paneTab(id)`: The tab that has pane `id` (in this window).
@@ -739,7 +741,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `tabPreviewOrder(l, p)`: What the tabs show in that order (useSlide's keys): each tab group's name (`group:<id>`) before its tabs, which a folded one hides.
 - `TABS`: The tabs' selection (core/select.ts): by tab id, the bar's, the Tabs panel's and the phone's cards alike.
 - `TabsEvent`
-- `tabsInWorkspace(on)`: Workspaces takes the tabs (`on`: what's shown and saved from now is a workspace's) or lets go of them: this device's own come back as they were left, so turning it on and off (a layout and back)…
+- `tabsInWorkspace(on)`: Workspaces takes the tabs (`on`) or lets go of them.
 - `tabSlot(l, slots, pos, axis)`: Where `pos` along the tabs as drawn lands: before which tab (`index`), in which tab group.
 - `tabSlotBeside(l, item, tab)`: Where a tab or pane held on tab `tab`'s middle (springOver) lands: beside it, in its group, on the side it came from (after it, from elsewhere), so that row holds still under the pointer, not…
 - `tabsMenu(ids, phone?)`: What tabs selected together can do: close them (or the others), pin them, group them, move them to a window.

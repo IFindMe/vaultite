@@ -2,8 +2,8 @@
 Up to five workspaces, numbered 1 to 5 (like a tiling window manager's), each a desk: its tabs and splits, its
 sidebars' panels, its pinned pages, and what the app keeps for it (the file tree's open folders, files opened lately).
 The vault (files, settings, the default panels and pinned pages) and running terminals are shared; switching never
-changes them. Which one is current is each device's own (a new device is on the first in use, else 1); `vau context`
-says which the user's window is on. ⌃1 to ⌃5 switch (⌥1 to ⌥5 off a Mac), as does a two-finger swipe over a
+changes them. Workspaces are the computers': a phone keeps its own tabs, panels and pins. Which one is current is each
+computer's own (a new one is on 1); `vau context` says which the user's window is on. ⌃1 to ⌃5 switch (⌥1 to ⌥5 off a Mac), as does a two-finger swipe over a
 sidebar.
 
 What the user sets of each is its own file, `.vaultite/plugins/workspaces/<n>.json` (none: nothing set); what's open in
@@ -41,8 +41,12 @@ hand, or by an older app) is taken in and leaves the file.
   number is faint and it's never kept. To make a workspace, write tabs, panels, pins or a name; to delete one, set its
   slot to null (`DELETE /api/workspaces/<n>`).
 - Pins and tabs follow a file moved through the API. A terminal any workspace shows keeps running.
-- Turned on, a device's own tabs (without Workspaces) are set aside, not changed, and come back when it's turned off;
-  an unused workspace takes the tabs on screen of the window that turned it on.
+- Nothing goes out of sight. Turned on, a computer's tabs go into the workspace it opens on (its last, else 1): an unused
+  one takes them as they are, one with tabs gets those open in no workspace yet at its end, as a tab group named after
+  the device (`POST /api/workspaces/take {to, tabs, name}`). Turned off, the current workspace's tabs stay on screen;
+  the others' stay saved for next time, and their web pages close.
+- All tabs (`view:all-tabs`, ⌃0, the switcher's first row): every workspace's tabs side by side; tab search lists
+  other workspaces' too, and the switcher marks a workspace where a page plays sound.
 
 **Moving tabs** between workspaces: `POST /api/workspaces/move` with `{"from": 1, "to": 2, "tab": "<tab id>"}` (a tab,
 all its panes), `{"to": 2, "pane": "<pane id>"}` or `{"to": 2, "path": "Notes/Idea.md"}` (a pane, out of its split), or

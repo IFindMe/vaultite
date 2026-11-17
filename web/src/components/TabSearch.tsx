@@ -12,8 +12,9 @@ import { marked, NoMatches, Palette } from "@/components/Palette"
 import { GroupLabel, groupName, useTabLabels, type TabInfo } from "@/components/Tabs"
 import { Badged } from "@/components/kit"
 import { cn, plural } from "@/lib/utils"
+import { otherWorkspacesTabs, showWorkspaceTab } from "@/core/scope"
 
-const OPEN = "Open tabs", CLOSED = "Recently closed", ARCHIVED = "Archived tabs"
+const OPEN = "Open tabs", ELSEWHERE = "In other workspaces", CLOSED = "Recently closed", ARCHIVED = "Archived tabs"
 const FEW = 5
 const CLOSE = "Mod+Backspace"
 
@@ -59,6 +60,11 @@ export function TabSearch({ store, onClose }: { store: Store; onClose: () => voi
     return { id: `open:${t.id}`, section: OPEN, tab: t, info: i, label: i.label, text: [...places(t), group && groupName(group)].filter(Boolean).join("\n"),
       host: hostOf(focusedPane(t).to), meta, group, current: t.id === cur, marks: [], pick: () => selectTab(t.id) }
   })
+  const elsewhere = otherWorkspacesTabs().flatMap(({ w, tabs }) => tabs.filter((t) => focusedPane(t).to !== "new").map((t): Row => {
+    const i = info(t)
+    return { id: `ws${w.n}:${t.id}`, section: ELSEWHERE, tab: t, info: i, label: i.label, text: [...places(t), w.label].join("\n"),
+      host: hostOf(focusedPane(t).to), meta: w.label, marks: [], pick: () => showWorkspaceTab(w.n, t.id) }
+  }))
   const seen = new Set<string>()
   const once = (to: string) => !seen.has(to) && !!seen.add(to)
   const closed = closedTabs().flatMap((c): Row[] => {
@@ -75,7 +81,7 @@ export function TabSearch({ store, onClose }: { store: Store; onClose: () => voi
       meta: fmtAgo(e.archived), marks: [], pick: () => reopenArchived(e.id) }
   })
   const query = q.trim()
-  const rows = [...matching(open, query), ...matching(query ? closed : closed.slice(0, FEW), query), ...matching(query ? kept : kept.slice(0, FEW), query)]
+  const rows = [...matching(open, query), ...matching(query ? elsewhere : elsewhere.filter((r) => r.info.mark), query), ...matching(query ? closed : closed.slice(0, FEW), query), ...matching(query ? kept : kept.slice(0, FEW), query)]
 
   const selected = useRef<string | null>(null)
   const pick = (r: Row | null) => {
@@ -128,6 +134,7 @@ function TabRow({ r }: { r: Row }) {
         <span className="min-w-0 shrink truncate text-[15px] leading-[21px] text-foreground/90">{marked(r.label, r.marks)}</span>
         {r.host && r.host !== r.label && <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{r.host}</span>}
       </span>
+      {i.mark && <i.mark.icon aria-label={i.mark.label} className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} style={i.mark.tint ? { color: i.mark.tint } : undefined} />}
       {r.group && <GroupLabel g={{ ...r.group, collapsed: false }} className="max-w-[40%]" />}
       {r.meta && <span className="shrink-0 text-[13px] text-muted-foreground">{r.meta}</span>}
     </>
