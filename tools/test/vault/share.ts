@@ -252,8 +252,8 @@ export default async ($: VaultTest) => {
       const spaced = await timed(`# A\n\n]:${" ".repeat(120_000)}!\n`)
       const long = await timed(`# A\n\n${Array.from({ length: 1500 }, (_, i) => `Note ${i} has **bold**, _a word_ and [a link](https://example.com/${i}).`).join("\n\n")}\n`)
       check("share: no alias bomb in a guest's YAML, nor any reused value, refused at once", bombed.status === 403 && reused.status === 403 && bombed.ms < 1000 && !read("Shared/A.md").includes("&a0"), [bombed, reused])
-      check("share: Markdown that would take long to read is refused at once; long text that isn't, taken at once", slow.every((x) => x.status === 403 && x.ms < 1000)
-        && spaced.status === 200 && spaced.ms < 1000 && long.status === 200 && long.ms < 1000, [slow, spaced, long])
+      check("share: Markdown that would take long to read is refused at once; long text that isn't, taken (its 150 KB write: 0.2 s here, 1 s on CI's macOS runner)",
+        slow.every((x) => x.status === 403 && x.ms < 1000) && spaced.status === 200 && spaced.ms < 1000 && long.status === 200 && long.ms < 3000, [slow, spaced, long])
       await put(a, "A.md", "# A\n")
       const { load } = await import("../../../core/yaml.ts")
       let blown = ""
