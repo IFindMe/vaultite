@@ -185,7 +185,7 @@ export function momentsText(ms: Moment[], md: Mode, f: Target | null, notes: Exc
     if (was) out.push(was)
   }
   for (const e of notes) {
-    if (e.pane) { out.push(`"${e.title ?? e.pane}" (pane ${e.pane}), what it shows now${e.text?.includes("[ref=") || /\be\d+\b/.test(e.text ?? "") ? " (refs for look --el, act)" : ""}:`, e.text ?? ""); continue }
+    if (e.pane) { out.push(`"${e.title ?? e.pane}" (pane ${e.pane}), what it shows now${e.text?.includes("[ref=") || /\be\d+\b/.test(e.text ?? "") ? " (refs for look --el, act and marks: [ring e12])" : ""}:`, e.text ?? ""); continue }
     if (e.scene) { out.push(`${e.path}, the drawing (ids for companion draw, say --find):`, e.scene); continue }
     out.push(`${e.path}, lines ${e.from}-${e.to} of ${e.of}:`)
     e.lines.forEach((l, i) => out.push(`${String(e.from + i).padStart(4)}  ${l}`))

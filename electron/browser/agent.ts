@@ -781,8 +781,8 @@ serve("agent:at", async (_win, tab, x, y) => {
   return { tab: p.id, url: p.wc.getURL(), text }
 })
 serve("agent:find", async (_win, tab, words) => {
-  const p = pageFor(tab, "read"), want = String(words ?? "").slice(0, 200), { findWords } = await import("./findwords.ts")
-  const found: unknown = await p.wc.executeJavaScriptInIsolatedWorld(1011, [{ code: `(${findWords})(${JSON.stringify(want)})` }]).catch(() => [])
+  const p = pageFor(tab, "read"), want = String(words ?? "").slice(0, 200), { findWords, shownPart } = await import("./findwords.ts")
+  const found: unknown = await p.wc.executeJavaScriptInIsolatedWorld(1011, [{ code: `(${findWords})(${JSON.stringify(want)}, ${shownPart})` }]).catch(() => [])
   return { tab: p.id, zoom: p.wc.getZoomFactor(), found: Array.isArray(found) ? found.slice(0, 20) : [] }
 })
 serve("agent:close", async (_win, tab) => {

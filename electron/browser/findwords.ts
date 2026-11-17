@@ -3,16 +3,15 @@
 
 /** Where the page shows `text` on screen: each place (viewport CSS px) with how well (3: an element named it; 2: its whole
  *  words; 1: inside longer words), shown and on top. */
-export function findWords(text: string) {
+export function findWords(text: string, visible: typeof shownPart) {
   const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim(), want = norm(text), out: { x: number; y: number; w: number; h: number; q: number }[] = []
   if (!want) return out
-  const shown = (r: DOMRect) => r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth
   const onTop = (el: Element, r: DOMRect) => {
     if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false
-    const top = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + Math.min(r.width / 2, 12))), Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)))
+    const top = document.elementFromPoint(r.left + Math.min(r.width / 2, 12), r.top + r.height / 2)
     return !!top && (el.contains(top) || top.contains(el))
   }
-  const add = (el: Element, r: DOMRect, q: number) => { if (shown(r) && onTop(el, r)) out.push({ x: r.left, y: r.top, w: r.width, h: r.height, q }) }
+  const add = (el: Element, r: DOMRect, q: number) => { const v = visible(el, r); if (v && onTop(el, v)) out.push({ x: v.left, y: v.top, w: v.width, h: v.height, q }) }
   for (const el of document.querySelectorAll("[aria-label], [title], img[alt], input[placeholder]")) {
     if ([el.getAttribute("aria-label"), el.getAttribute("title"), el.getAttribute("alt"), el.getAttribute("placeholder")].some((n) => n && norm(n) === want)) add(el, el.getBoundingClientRect(), 3)
   }
@@ -52,4 +51,23 @@ export function findWords(text: string) {
     add(at[i][0].parentElement!, range.getBoundingClientRect(), whole ? 2 : 1)
   }
   return out.map((r) => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h), q: r.q }))
+}
+
+export function shownPart(el: Element, r: DOMRect): DOMRect | null {
+  if (!(r.width > 0 && r.height > 0)) return null
+  const v = { l: Math.max(r.left, 0), t: Math.max(r.top, 0), r: Math.min(r.right, innerWidth), b: Math.min(r.bottom, innerHeight) }
+  const clip = (p: HTMLElement, s: CSSStyleDeclaration) => {
+    const box = p.getBoundingClientRect(), x0 = box.left + p.clientLeft, y0 = box.top + p.clientTop
+    if (s.overflowX !== "visible") Object.assign(v, { l: Math.max(v.l, x0), r: Math.min(v.r, x0 + p.clientWidth) })
+    if (s.overflowY !== "visible") Object.assign(v, { t: Math.max(v.t, y0), b: Math.min(v.b, y0 + p.clientHeight) })
+  }
+  let pos = getComputedStyle(el).position
+  for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+    const s = getComputedStyle(p)
+    if (s.transform === "none" && (pos === "fixed" || (pos === "absolute" && s.position === "static"))) continue
+    clip(p, s)
+    pos = s.position === "absolute" || s.position === "fixed" ? s.position : "static"
+  }
+  const w = v.r - v.l, h = v.b - v.t
+  return w > 0 && h > 0 && w * h >= (r.width * r.height) / 2 ? new DOMRect(v.l, v.t, w, h) : null
 }

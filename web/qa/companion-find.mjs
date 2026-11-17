@@ -78,6 +78,7 @@ const put = await page.evaluate(() => {
   add("left:40px;top:730px", "<div>Every lamp</div><div>at dusk</div>")
   add("left:500px;top:730px", "<div data-companion-own>Quiet harbor 12</div>")
   add("left:40px;top:790px", "<div>it ends with Cedar</div>"); add("left:700px;top:790px", "<div>Ridge starts here</div>")
+  add("left:900px;top:560px;width:200px;height:30px;overflow:auto", "<div style='height:200px'><div style='margin-top:120px'>Harbor ledger 5</div></div>")
   const ox = window.screenX, oy = window.screenY + Math.max(0, window.outerHeight - window.innerHeight), at = (e) => { const b = e.getBoundingClientRect(); return { x: Math.round(ox + b.left), y: Math.round(oy + b.top) } }
   return { left: at(left), right: at(right), tag: at(tag), alone: at(alone) }
 })
@@ -97,6 +98,8 @@ check("words across a row's elements are found whole, on the companion's page to
   tagged.res.status === 200 && Math.abs((tagged.at?.x ?? -99) - put.tag.x) <= 2 && tagged.at.w > 60, { tagged, put })
 check("words not all shown in a row aren't drawn, though one of them is by the pointer, and it says so",
   missing.res.status === 409 && !missing.at && /nothing on the user's screen says "9:31 PM · Lantern"/.test(missing.res.error ?? ""), missing)
+const scrolled = await findAt("Harbor ledger 5", 920, 570)
+check("words scrolled out of a scroller's box aren't found", scrolled.res.status === 409, scrolled)
 const stacked = await findAt("lamp at dusk", 60, 740), own = await findAt("Quiet harbor 12", 520, 740), apart = await findAt("Cedar Ridge", 300, 800)
 check("words split across rows, across panels far apart, or in the companion's talk aren't found", stacked.res.status === 409 && own.res.status === 409 && apart.res.status === 409, { stacked, own, apart })
 
@@ -114,15 +117,20 @@ check("a mark at a pane lands on its copy shown, never one kept out of sight; on
   r.status === 200 && near(drawing()?.places?.["pane:qaghost"], shownPane) && away.status === 409, { r, shownPane, places: drawing()?.places, away })
 await page.evaluate(() => window.qaFind?.forEach((e) => e.remove()))
 
-const { findWords } = await import("../../electron/browser/findwords.ts")
+const { findWords, shownPart } = await import("../../electron/browser/findwords.ts")
 const site = await ctx.newPage()
 await site.setContent(`<body style="font:16px sans-serif;margin:0"><p style="position:absolute;left:20px;top:40px">No model, <em>no internet</em>. Your vault changes only when you write in it.</p>
   <p style="position:absolute;left:20px;top:200px;visibility:hidden">Use AI</p><button aria-label="Use AI" style="position:absolute;left:400px;top:200px;width:40px;height:30px">🤖</button>
   <p style="position:absolute;left:20px;top:300px">Again and again</p>
   <div style="position:absolute;left:20px;top:400px;display:flex;gap:6px"><div>4:24 PM</div><div>·</div><div>Lantern</div></div>
-  <div style="position:absolute;left:20px;top:440px"><div>Every lamp</div><div>at dusk</div></div></body>`)
-const inPage = (words) => site.evaluate(`(${findWords})(${JSON.stringify(words)})`)
+  <div style="position:absolute;left:20px;top:440px"><div>Every lamp</div><div>at dusk</div></div>
+  <div style="position:fixed;left:300px;top:480px;width:400px;height:120px"><div style="position:absolute;left:0;top:0;width:150px;overflow:hidden;white-space:nowrap"><span style="display:inline-block;width:150px">Monthly</span><span style="display:inline-block;width:150px">Yearly</span></div>
+    <div style="position:absolute;left:200px;top:0;width:150px;height:40px;overflow:auto"><div style="height:300px;padding-top:200px">Billed every year</div></div></div></body>`)
+const inPage = (words) => site.evaluate(`(${findWords})(${JSON.stringify(words)}, ${shownPart})`)
 const [line, label, part, row, rows] = await Promise.all([inPage("No model, no internet. Your vault changes only when you write in it."), inPage("Use AI"), inPage("ai"), inPage("4:24 PM · Lantern"), inPage("lamp at dusk")])
+const [shownCard, hiddenCard, scrolledAway] = await Promise.all([inPage("Monthly"), inPage("Yearly"), inPage("Billed every year")])
+check("in a dialog, a carousel's card it clips and rows its scroller hides aren't found; the card shown is", shownCard.length === 1 && Math.abs(shownCard[0].x - 300) <= 2 &&
+  hiddenCard.length === 0 && scrolledAway.length === 0, { shownCard, hiddenCard, scrolledAway })
 check("a web page's words are found there whole, across its styling and a row's elements; an element its label names; hidden, inside words or across rows, not",
   line.length === 1 && line[0].q === 2 && Math.abs(line[0].x - 20) <= 2 && label.length === 1 && label[0].q === 3 && Math.abs(label[0].x - 400) <= 2 && part.length === 0 &&
   row.length === 1 && Math.abs(row[0].x - 20) <= 2 && rows.length === 0, { line, label, part, row, rows })

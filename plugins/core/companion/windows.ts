@@ -54,7 +54,9 @@ export const screenDrawing = screenDrawings(plugin, {
     if (!ask || awayIn([ask])) return {}
     const els = (nearBy.get(key(a)) ?? []).filter((e) => ids.includes(e.id) && ui(e))
     const now = await Promise.all(els.map((e) => windowRects([`ui:${ui(e)}`], { x: e.frame.x + e.frame.width / 2, y: e.frame.y + e.frame.height / 2 }).then((r) => r[`ui:${ui(e)}`])))
-    return Object.fromEntries(els.flatMap((e, i) => (now[i] ? [[`el:${e.id}`, { ...now[i], label: e.label }]] : [])))
+    const refs = ask.pane ? ids.filter((id) => PAGE_REF.test(id) && !els.some((e) => e.id === id)) : []
+    const onPage = refs.length ? await pageRefs(a, ask.pane!, refs) : {}
+    return Object.assign(Object.fromEntries(els.flatMap((e, i) => (now[i] ? [[`el:${e.id}`, { ...now[i], label: e.label }]] : []))), onPage)
   },
   find: (a, text) => screenFind(a, text),
   drawn: (a) => (askOf(a)?.ink ?? []).map((k) => ({ x: k.box.x, y: k.box.y, w: k.box.width, h: k.box.height })),
@@ -71,6 +73,19 @@ export type ScreenRectLike = { x: number; y: number; width: number; height: numb
 export function displaysOf(name: string): ScreenRectLike[] {
   const asked = askOf(name)?.displays ?? []
   return asked.length ? asked : shown?.displays ?? []
+}
+const PAGE_REF = /^e\d+$/
+async function pageRefs(a: string, pane: string, refs: string[]): Promise<Record<string, ScreenRect>> {
+  const box = (await windowRects(["pages"]))[`page:${pane}`]
+  if (!box) return {}
+  const each = await Promise.all(refs.map((el) => resolve({ pane, el }, a).then((t) => t.box ?? null, () => null)))
+  return Object.fromEntries(refs.flatMap((ref, i) => {
+    const b = each[i]
+    if (!b) return []
+    const x = Math.max(box.x, box.x + b.x * b.zoom), y = Math.max(box.y, box.y + b.y * b.zoom)
+    const w = Math.min(box.x + box.w, box.x + (b.x + b.w) * b.zoom) - x, h = Math.min(box.y + box.h, box.y + (b.y + b.h) * b.zoom) - y
+    return w > 0 && h > 0 ? [[`el:${ref}`, { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) }]] : []
+  }))
 }
 const rectOfNear = (e: Near): ScreenRect => ({ x: e.frame.x, y: e.frame.y, w: e.frame.width, h: e.frame.height, label: e.label })
 async function windowRects(places: string[], near?: { x: number; y: number }): Promise<Record<string, ScreenRect & { q?: number }>> {

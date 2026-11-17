@@ -1,4 +1,5 @@
 import { DRAWN, OWN } from "./uidom.ts"
+import { shownPart } from "../../../electron/browser/findwords.ts"
 type Rect = { x: number; y: number; w: number; h: number; q?: number }
 type Sized = { interfaceSize?: { get: () => Promise<number>; on: (fn: (zoom: number) => void) => void } }
 let zoom = 1
@@ -78,8 +79,8 @@ export function findText(text: string, near?: { x: number; y: number }): { r: DO
   for (const el of document.querySelectorAll<HTMLElement>("[aria-label], [data-tip], button, a, [role]")) {
     const names = [el.getAttribute("aria-label"), el.dataset.tip, el.children.length ? null : el.textContent].filter((x): x is string => !!x)
     if (!names.some((n) => normWords(n) === want) || el.closest(OWN)) continue
-    const r = el.getBoundingClientRect()
-    if (shown(r) && onTop(el, r)) found.push({ r, q: 3 })
+    const r = shownPart(el, el.getBoundingClientRect())
+    if (r && onTop(el, r)) found.push({ r, q: 3 })
   }
   let flat = ""
   const at: [Text, number][] = [], blocks: number[] = []
@@ -104,8 +105,8 @@ export function findText(text: string, near?: { x: number; y: number }): { r: DO
     const [a, ai] = at[i], [b, bi] = at[i + want.length - 1], range = document.createRange()
     range.setStart(a, ai)
     range.setEnd(b, bi + 1)
-    const r = range.getBoundingClientRect(), el = a.parentElement!
-    if (shown(r) && onTop(el, r)) found.push({ r, q: whole ? 2 : 1 })
+    const el = a.parentElement!, r = shownPart(el, range.getBoundingClientRect())
+    if (r && onTop(el, r)) found.push({ r, q: whole ? 2 : 1 })
   }
   for (const pane of document.querySelectorAll<HTMLElement>("[data-ui^='pane:']")) {
     const s = screenOf(pane)
