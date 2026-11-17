@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Companion: after opening something it points at and names the pane that really shows it (a new tab, or a pane
+  that moved on), and when no pane shows it yet it says so instead of saying it opened.
 - Companion: a ring or point at words in a web page lands on what the page shows, never on words a dialog's
   scroller or a carousel hides, and it can ring a page's element by its ref ([ring e12]).
 - Terminal: an agent's terminal no longer goes blank mid-session: terminals opened before 0.14.0 still ran the old

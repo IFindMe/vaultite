@@ -32,6 +32,14 @@ try {
   check("its cursor shows by the note", await until(async () => { const c = await cursor(); return !!c && !c.docked && !c.away }), await cursor())
   await page.screenshot({ path: `${OUT}open.png` })
 
+  const tabs = () => call("tabs.list", {}).then((x) => x.body)
+  const showing = async (pane) => (await tabs())?.tabs.flatMap((t) => t.panes).find((p) => p.id === pane)?.to
+  const was = o.body?.pane
+  const there = await call("companion.open", { path: "How this vault works.md" })
+  check("opened in place, it answers the pane showing the new note", there.status === 200 && /How this vault works/.test(await showing(there.body?.pane) ?? "") && /How this vault works/.test(there.body?.shows ?? ""), [there, await tabs()])
+  const fresh = await call("companion.open", { path: "Start here.md", newTab: true })
+  check("in a new tab, it answers the new tab's pane, not the one in front", fresh.status === 200 && fresh.body?.pane !== there.body?.pane && /Start here/.test(await showing(fresh.body?.pane) ?? ""), [fresh, was, await tabs()])
+
   const files = "[data-ui='panel:files:files']"
   if (!(await page.$(`${files}[data-collapsed]`))) await page.click(`${files} [data-panel-handle] [aria-expanded]`)
   check("the Files panel is folded first", await until(async () => !!(await page.$(`${files}[data-collapsed]`))))

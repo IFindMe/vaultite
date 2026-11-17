@@ -4,7 +4,7 @@ import { DEVICE } from "@/core/device"
 import { notify } from "@/core/notify"
 import { share } from "@/core/share"
 import { askerOf } from "@/core/askers"
-import { liveMessageOf, uiActionOf, type UiAction } from "@/core/liveMessage"
+import { liveMessageOf, uiActionOf, type UiAction, type UiDone, type UiDoneMessage } from "@/core/liveMessage"
 import { isNumber, isObj, isText } from "../../../core/values.ts"
 
 export type Paths = string[] | null
@@ -95,8 +95,8 @@ function release() {
   emit(paths)
 }
 
-let uiHandler: ((m: UiAction) => unknown) | null = null
-export const onUiAction = (fn: (m: UiAction) => unknown) => { uiHandler = fn }
+let uiHandler: ((m: UiAction) => UiDone | Promise<UiDone>) | null = null
+export const onUiAction = (fn: (m: UiAction) => UiDone | Promise<UiDone>) => { uiHandler = fn }
 const asking = new Map<string, AbortController>()
 
 let said = 0
@@ -178,12 +178,14 @@ function connect() {
       Promise.resolve().then(() => asker?.(m.raw, ended.signal))
         .then((result) => reply({ ran: true, result }), (e) => reply({ ran: false, error: e instanceof Error ? e.message : String(e) }))
     } else if (m.type === "ui" && m.action) {
-      let r: unknown = true
+      let r: UiDone | Promise<UiDone>
       try { r = uiHandler?.(uiActionOf(m.raw, m.action)) } catch (e) { r = Promise.reject(e) }
       void Promise.resolve(r).then((v) => {
         if (!m.rid) return
-        const notices = isObj(v) && Array.isArray(v.notices) ? v.notices : undefined
-        s.send(JSON.stringify({ type: "ui-done", rid: m.rid, ran: v !== false, ...(notices?.length ? { notices } : {}) }))
+        const done: UiDoneMessage = { type: "ui-done", rid: m.rid, ran: v !== false }
+        if (v && v.notices?.length) done.notices = v.notices
+        if (v && v.to) { done.pane = v.pane ?? null; done.to = v.to }
+        s.send(JSON.stringify(done))
       }, (e) => {
         console.error(e)
         if (m.rid) s.send(JSON.stringify({ type: "ui-done", rid: m.rid, ran: false, error: e instanceof Error ? e.message : String(e) }))

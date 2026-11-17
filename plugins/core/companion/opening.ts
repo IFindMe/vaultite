@@ -32,11 +32,30 @@ function companionAsking(): string | null {
   if (laneOf?.vault === plugin.vault && lane().id() === sid) return ownName()
   return [...agents.values()].find((a) => session(a.name)?.id === sid)?.name ?? null
 }
+const bare = (to: string) => to.replace(/^view:web\/@[a-z0-9]{1,24}\//, "view:web/")
 function shows(p: Pane, path: string) {
   const x = path.replace(/^file:/, "")
-  const to = p.to.replace(/^view:web\/@[a-z0-9]{1,24}\//, "view:web/")
+  const to = bare(p.to)
   return /^https?:\/\//i.test(x) ? to === `view:web/${x}` || to.startsWith(`view:web/${x.replace(/\/$/, "")}`)
     : x.startsWith("view:") ? p.to === x : p.to === `file:${x}` || p.to === `file:${x}.md` || p.to === `view:folder/${x}`
+}
+const Answered = z.object({ pane: z.string().nullable(), to: z.string() })
+const SEEN_MS = 4000
+type Before = { focused?: string; tos: Map<string, string> }
+function showsOpened(x: Pane, a: z.infer<typeof Answered>, before: Before) {
+  if (x.id !== a.pane) return false
+  const was = before.tos.get(x.id), to = bare(x.to), asked = bare(a.to)
+  return to === asked || (asked.startsWith("view:web/") && to.startsWith(asked.replace(/\/$/, ""))) || (was !== undefined ? x.to !== was : to.startsWith("view:web/"))
+}
+async function paneShowing(path: string, answered: z.infer<typeof Answered> | undefined, before: Before) {
+  if (answered && !answered.pane) return undefined
+  for (const until = Date.now() + SEEN_MS; Date.now() < until;) {
+    await new Promise((done) => setTimeout(done, 100))
+    const f = paneFocus(), p = answered ? allPanes().find((x) => showsOpened(x, answered, before))
+      : allPanes().find((x) => shows(x, path)) ?? (f && f.id !== before.focused ? f : undefined)
+    if (p) return p
+  }
+  return undefined
 }
 async function openSeen(name: string, path: string, open: () => Promise<unknown>) {
   const was = allPanes().find((p) => shows(p, path) && p.tab)
@@ -45,15 +64,11 @@ async function openSeen(name: string, path: string, open: () => Promise<unknown>
   let p: Pane | undefined
   try {
     if (was) await new Promise((done) => setTimeout(done, LAND_MS))
-    const focused = paneFocus()?.id
+    const before: Before = { focused: paneFocus()?.id, tos: new Map(allPanes().map((x) => [x.id, x.to])) }
     const r = await opening.run(true, open)
-    for (const until = Date.now() + 1500; !p && Date.now() < until;) {
-      await new Promise((done) => setTimeout(done, 100))
-      const f = paneFocus()
-      p = allPanes().find((x) => shows(x, path)) ?? (f && f.id !== focused ? f : undefined)
-    }
-    p ??= paneFocus() ?? undefined
-    return { result: r, pane: p?.id }
+    const answered = Answered.safeParse(r).data
+    p = await paneShowing(path, answered, before)
+    return { result: r, pane: p?.id, title: p?.title, sheet: answered?.pane === null }
   } finally {
     const at = p && !privatePane(p) ? p : null
     done(at ? { ...await resolve({ pane: at.id }, name).catch(() => ({ pane: at.id })), pointed: Date.now() } : {})
@@ -74,11 +89,12 @@ plugin.around("tabs.focus", async (call, next) => {
   if (name && tab) { wroteAt(name, { ui: `tab:${tab}`, pointed: Date.now() }); await new Promise((done) => setTimeout(done, LAND_MS)) }
   return next()
 })
-type Opened = { path: string; pane?: string | null; fresh?: "made" | "there"; unshown?: string; browser?: boolean; in?: string; title?: string; near?: Parameters<typeof nearText>[0] }
+type Opened = { path: string; pane?: string | null; shows?: string; sheet?: true; fresh?: "made" | "there"; unshown?: string; browser?: boolean; in?: string; title?: string; near?: Parameters<typeof nearText>[0] }
 export const openText = (r: Opened) => (r.browser ? `Opened ${r.path} in ${r.in}, a new tab there in front of them.`
   : "in" in r ? `Opened ${r.path} on their Mac${r.in ? `: ${r.in}${r.title ? `, "${r.title}"` : ""} is in front` : ""}.${nearText(r.near ?? [], "In it now (point, ring or act by id)")}`
   : r.unshown ? `${r.fresh === "made" ? "Made" : "Found"} ${r.path}, but their window couldn't show it (${r.unshown}): it has only its heading: write it all the same with edit (append, a section at a time), it's saved, and say where it is in a few words.`
-  : `Opened ${r.path}${r.pane ? ` (pane ${r.pane})` : ""}.${r.fresh === "made" ? " It's new, only its heading in it: write it with edit (append), a section at a time; nothing is in it until you do." : r.fresh === "there" ? " It was there already (new left it as it was): read it before you write in it." : ""}`)
+  : !r.pane && !r.sheet ? `Asked their window to open ${r.path}, but no pane of it shows it yet: don't say it's open or point at it; look (companion look) and say what's there.`
+  : `Opened ${r.path}${r.pane ? ` (pane ${r.pane}${r.shows ? `, showing "${r.shows}"` : ""})` : " in their phone's sheet"}.${r.fresh === "made" ? " It's new, only its heading in it: write it with edit (append), a section at a time; nothing is in it until you do." : r.fresh === "there" ? " It was there already (new left it as it was): read it before you write in it." : ""}`)
 type UiOpen = { path: string; split?: string; newTab?: true; in?: string; container?: string }
 const HAS_EXT = /\.[a-z0-9]{1,8}$/i, OUTSIDE_VAULT = /^[a-z][\w+.-]*:|^[~/]/i
 async function newNote(ctx: OpCtx, path: string): Promise<"made" | "there"> {
@@ -141,7 +157,12 @@ time), each typed in as they watch: it holds nothing else.
     if (p.container) how.container = str(p.container)
     const out: Opened = { path, pane: null }
     if (fresh) out.fresh = fresh
-    try { out.pane = (await openSeen(name, path, () => ctx.op("ui.open", how))).pane ?? null } catch (e) {
+    try {
+      const seen = await openSeen(name, path, () => ctx.op("ui.open", how))
+      out.pane = seen.pane ?? null
+      if (seen.title) out.shows = seen.title
+      if (seen.sheet) out.sheet = true
+    } catch (e) {
       if (!fresh) throw e
       out.unshown = messageOf(e)
     }

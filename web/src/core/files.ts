@@ -148,14 +148,20 @@ function openAsked(path: string, split?: "right" | "down" | null, newTab = false
   if (t && !path.startsWith("view:") && isFolder(t, path.replace(/^file:/, ""))) path = folderTarget(path.replace(/^file:/, ""))
   const view = path.startsWith("view:")
   const to = view ? path : `file:${path.replace(/^file:/, "")}`
-  if (background) return void (findOpen(to) || openTab(to, { background: true }))
-  if (!isDesktop()) return view ? afterSheets(() => go(to)) : openFile(to.slice(5))
+  return { pane: openTo(to, split, newTab, background, into), to }
+}
+function openTo(to: string, split?: "right" | "down" | null, newTab = false, background = false, into?: string | null): string | null {
+  const view = to.startsWith("view:")
+  if (background) return findOpen(to)?.p.id ?? openTab(to, { background: true })
+  if (!isDesktop()) { if (view) afterSheets(() => go(to)); else openFile(to.slice(5)); return null }
   const at = into ? paneNamed(into) : null
-  if (at && split) { selectPane(at.id); return void openInSplit(to, split === "down" ? "bottom" : "right") }
-  if (at) return void openInPane(at.id, to)
+  if (at && split) { selectPane(at.id); return openInSplit(to, split === "down" ? "bottom" : "right") }
+  if (at) return openInPane(at.id, to)
   if (split) return openInSplit(to, split === "down" ? "bottom" : "right")
   if (!view) besideKept()
   go(to, newTab)
+  const cur = activePane()
+  return cur.to === to ? cur.id : findOpen(to)?.p.id ?? null
 }
 function inContainer(to: string, said: string) {
   if (!to.startsWith("view:web/")) throw new Error("a container is for a web address (https://...)")
@@ -176,7 +182,7 @@ onUiAction((m) => {
     const b = m.button
     return void notice(m.text, { kind: m.kind === "error" ? "error" : undefined, action: b ? { label: b.label, run: () => openAsked(b.open) } : undefined })
   }
-  if (m.action === "open" && m.path) openAsked(m.path, m.split, !!m.newTab, !!m.background, m.container, m.in)
+  if (m.action === "open" && m.path) return openAsked(m.path, m.split, !!m.newTab, !!m.background, m.container, m.in)
 })
 
 /** Open a plugin's view, shown once: a pane that has it shows it (no two terminal panes fighting over its size), else a

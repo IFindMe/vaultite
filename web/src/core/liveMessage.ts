@@ -1,5 +1,8 @@
 import { isNumber, isObj, isText, strings } from "../../../core/values.ts"
 
+type Opened = { notices?: readonly unknown[]; pane?: string | null; to?: string }
+export type UiDone = false | void | Opened
+export type UiDoneMessage = Opened & { type: "ui-done"; rid: string; ran: boolean }
 export type UiAction = { action: string; path?: string; split?: "right" | "down" | null; newTab?: boolean; background?: boolean; container?: string | null; in?: string | null; id?: string; rid?: string
   text?: string; kind?: "error" | null; button?: { label: string; open: string } | null }
 

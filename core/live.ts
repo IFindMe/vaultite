@@ -9,6 +9,7 @@ import { type TreeWatcher, watchTree } from "./treewatch.ts"
 import { keptOf } from "./kept.ts"
 import { logger } from "./log.ts"
 import { codeOf, isObj, isText, messageOf } from "./values.ts"
+import { z } from "zod"
 
 const log = logger("live")
 
@@ -16,7 +17,9 @@ const QUIET = 20, GAP = 100, PING = 25_000, RECENT = 500, UI_ANSWER_MS = 3000, A
 /** Seconds each ask may wait for its window's answer. */
 const ASKS = new Map([["commands", 120], ["dev", 120], ["choose", 600], ["secret", 600], ["tabs", 30], ["setting", 30]])
 const isAsk = (action: string) => ASKS.has(action) || /^[a-z0-9-]+:[a-z0-9-]+$/.test(action)
-type Answer = { ran?: boolean; result?: unknown; error?: unknown; notices?: unknown[] }
+const Opened = z.object({ pane: z.string().nullable().catch(null), to: z.string() })
+type Driven = { ran: boolean; notices?: { text: string; kind?: string }[]; pane?: string | null; to?: string }
+type Answer = { ran?: boolean; result?: unknown; error?: unknown; notices?: unknown[]; pane?: unknown; to?: unknown }
 
 export function ignored(rel: string) {
   const parts = rel.split("/"), name = parts[parts.length - 1]
@@ -317,7 +320,11 @@ export class Live {
       if (a && a.ran === false && message!.action === "command") throw new OpError(`the command ${String(message!.id)} isn't available in the user's window right now (it may need a note open there): nothing ran`, 422)
       if (!a) return out
       const notices = Array.isArray(a.notices) ? a.notices.slice(-5).flatMap((x) => (isObj(x) && isText(x.text) ? [{ text: x.text.slice(0, 300), ...(x.kind === "error" ? { kind: "error" } : {}) }] : [])) : []
-      return { ...out, ran: true, ...(notices.length ? { notices } : {}) }
+      const done: typeof out & Driven = { ...out, ran: true }
+      if (notices.length) done.notices = notices
+      const opened = Opened.safeParse(a).data
+      if (opened) { done.pane = opened.pane; done.to = opened.to }
+      return done
     } finally {
       if (rid) this.answers.delete(rid)
     }

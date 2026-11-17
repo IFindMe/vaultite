@@ -525,6 +525,9 @@ export default async ($: VaultTest) => {
     check("companion: open's text tells it to write in a new note, or to read one that was there",
       /write it with edit/.test(C.openText({ path: "N.md", pane: "p1", fresh: "made" })) && /read it before/.test(C.openText({ path: "N.md", pane: "p1", fresh: "there" })) &&
       /write it all the same/.test(C.openText({ path: "N.md", pane: null, fresh: "made", unshown: "no window" })))
+    const unseen = C.openText({ path: "https://example.com/doc" })
+    check("companion: an open no pane was seen showing never says it opened, nor names a pane", !/^Opened|\(pane/.test(unseen) && /don't say it's open/.test(unseen), unseen)
+    check("companion: an open seen says the pane and what it shows now", /\(pane p2, showing "Doc"\)/.test(C.openText({ path: "https://example.com/doc", pane: "p2", shows: "Doc" })))
     ;[s1, r1] = await api("POST", "ops/companion.open", { path: "https://example.com", new: true })
     check("companion: open with new only makes a note in the vault", s1 === 400 && /in the vault/.test(r1.error), [s1, r1])
   }
