@@ -57,11 +57,12 @@ type Step = { to: Updates; do: Effect[]; ignored?: true }
 export const AWAY_S = 10 * 60
 export const PREPARING = "an update is being prepared"
 
-export function restartWaitsOn(s: { othersOpen: boolean; pages: number; safe: number; idle: number; busy: string | null }): string | null {
+export function restartWaitsOn(s: { othersOpen: boolean; pages: number; safe: number; idle: number; talked: number; busy: string | null }): string | null {
   if (s.othersOpen) return "another machine's window is open"
   if (!s.pages) return "no window is open"
   if (s.safe < s.pages) return "a window would lose something (unsaved, under way, or in use)"
   if (s.idle < AWAY_S) return "the user is at the computer"
+  if (s.talked < AWAY_S) return "the user is talking to the companion"
   return s.busy
 }
 

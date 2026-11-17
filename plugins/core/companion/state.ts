@@ -21,7 +21,16 @@ import { toGuest } from "./people.ts"
 
 export const moments: Moment[] = []
 export let seq = 0
-export const nextSeq = () => ++seq
+let numbered = false
+export function numberOn() {
+  numbered = true
+  const day = log.days().at(-1)
+  seq = (day ? log.read(day) : []).reduce((n, m) => Math.max(n, m.seq), seq)
+}
+export const nextSeq = () => {
+  if (!numbered) numberOn()
+  return ++seq
+}
 export const delivered = new Map<string, number>()
 export const handed = new Set<string>()
 export const asking = new Set<string>()

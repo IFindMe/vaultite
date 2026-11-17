@@ -37,7 +37,8 @@ import { badge, badged, followInbox, hideTray, jobNotice, login, menuHost, menuI
 import { drawingCame, drawn, drawnIs, marks, offerAnswered, paceDrawing, penHeard, realtimePaused, sayHere, speaker, spoken, stopVoice, voiceFront, voiceHeard, voiceHeardAgent, voiceHost, voiceSetting, waited } from "./helpervoice.ts"
 import { followHeard, landAsks, learnHost } from "./helperlearn.ts"
 import { act, freeBy, freeTick, micSent, micTold, roamIn, session, sessionHost, starting, stopListening } from "./helpersession.ts"
-import { answerArrived, answerBox, askedAloud, askFrom, saidInBoxIs, captured, closeSummon, cue, endExchange, exchange, failed, heldClick, holdAppear, inkHeard, inkOff, missed, moveOn, openAnswer, presses, saidInBox, sendSummon, settle, startSummon, summon, talkHeard, talkHost, talkNow } from "./helpertalk.ts"
+import { cutWords, keepCut, takeCut } from "./helpercut.ts"
+import { answerArrived, answerBox, cutShort, talkedAt, askedAloud, askFrom, saidInBoxIs, captured, closeSummon, cue, endExchange, exchange, failed, heldClick, holdAppear, inkHeard, inkOff, missed, moveOn, openAnswer, presses, saidInBox, sendSummon, settle, startSummon, summon, talkHeard, talkHost, talkNow } from "./helpertalk.ts"
 import { boxAgain, followCalls, keptQuiet, notCall, playQuiet, quietForCall, quietHeld, quietHeldIs, quietHost, replaying, replayingIs, stopFromBox, unheard } from "./helperquiet.ts"
 import { chatChanged, chatOf, openChat } from "./helperchat.ts"
 import { chordHeard, fnHeard, followKeys, listen, modHeard } from "./helperkeys.ts"
@@ -138,12 +139,16 @@ export async function startHelper(h: HelperHost) {
   refreshing = setInterval(() => void refresh(), 10_000)
   refreshing.unref()
   await refresh()
+  const cut = takeCut(talkDir())
+  if (cut) { const w = cutWords(cut); notice(`cut-${cut.t}`, w.title, w.body) }
   return true
 }
 
 let refreshing: ReturnType<typeof setInterval> | null = null
 export function stopHelper() {
   if (!host) return
+  const cut = cutShort()
+  if (cut) keepCut(talkDir(), cut)
   hostIs(null)
   if (refreshing) clearInterval(refreshing)
   refreshing = null
@@ -171,6 +176,8 @@ export function stopHelper() {
   freeAll()
 }
 
+const talkDir = () => path.join(app.getPath("userData"), "talk")
+export const helperTalked = () => (helperBusy() ? 0 : talkedAt ? (Date.now() - talkedAt) / 1000 : Infinity)
 /** What a reload onto another code root would cut short now (a press, a dictation, its voice, a walk...), or null. */
 export function helperBusy(): string | null {
   if (!host) return null

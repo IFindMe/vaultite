@@ -210,6 +210,16 @@ export default async ($: VaultTest) => {
   ;[st, r] = await api("POST", "ops/companion.next", { timeout: 0 })
   check("companion: and not again", st === 200 && r.moments.length === 0, r)
   {
+    const { localDate } = await import("../../../core/plugins.ts")
+    const later = Date.now() + 3 * 86_400_000, top = cState.seq + 500
+    cState.log.append(later, [{ seq: top, t: later, kind: "open", path: "Notes/A.md" }])
+    cState.numberOn()
+    const next = cIntake.addMoment({ kind: "ask", path: "Notes/B.md", line: 2, text: "numbered on from the log?" })
+    cState.log.rewrite(localDate(later), [])
+    await api("POST", "ops/companion.next", { timeout: 0 })
+    check("companion: after a restart, an exchange's number goes on from the last one kept, so it's never used twice", next?.seq === top + 1, next)
+  }
+  {
     // An ask they go on writing after it went (a pause mid-dictation): before it's handed, the same ask as it reads now;
     // after, a new one with the whole line, that says so.
     const said = "One more thing, on the margin comments, color the agent's name. The \""

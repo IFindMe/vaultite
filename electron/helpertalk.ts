@@ -12,6 +12,7 @@ import { type Press, pressLog } from "./presslog.ts"
 import { pressMachine, type Phase } from "./pressmachine.ts"
 import type { AppWindowInfo } from "./screen.ts"
 import { talkState } from "./talkstate.ts"
+import type { Cut } from "./helpercut.ts"
 import { teachHeard } from "./teach.ts"
 import { happened } from "./timeline.ts"
 import { offerHeard } from "./timelineoffer.ts"
@@ -97,6 +98,7 @@ export let exchange: Exchange | null = null
 /** A Talk key (alone, or a chord), as its gesture: the companion summoned at the pointer, in any app and in Vaultite's
  *  windows alike (one companion, over the screen: the page never gets the key). */
 export function talkHeard(m: FnEvent) {
+  talkedAt = Date.now()
   // (Control's double tap: no Talk key is Control)
   if (!host?.home() || "double" in m) return
   const now = "t" in m && m.t ? m.t : Date.now(), kind = "other" in m ? "other" : m.down ? "down" : "up"
@@ -326,6 +328,7 @@ export function cue(name: "listen" | "sent" | "answer" | "missed" | "knock") {
 }
 /** The exchange over (Esc; `stop`: its voice too): its box closed, its cursor gone (at once when it's done; else once it is). */
 export function endExchange(stop = true) {
+  talkedAt = Date.now()
   // (Esc: its words and its turn on them stop)
   if (stop) { stopVoice(); live.say({ t: "interrupt" }) }
   if (settleTimer) { clearTimeout(settleTimer); settleTimer = null }
@@ -364,6 +367,7 @@ export function settle() {
 /** An ask typed (or said) in its conversation: about the point of its exchange, else where its cursor is on screen,
  *  else the pointer. */
 export async function askFrom(name: string, text: string) {
+  talkedAt = Date.now()
   if (walkHeard(text) || teachHeard(text, Date.now())) { saidInBox = 0; return }
   const a = live.state.agents.get(name), x = exchange?.name === name ? exchange : null
   const p = x?.p ?? (a && onScreen(a) ? drawnAt(keyOf(a)) : undefined) ?? screen.getCursorScreenPoint()
@@ -375,6 +379,21 @@ export async function askFrom(name: string, text: string) {
   askedAloud = said
   live.say({ t: "moment", kind: "ask", agent: name, text, ...(await pointedAt(name, p, w?.window ? w : null)), summoned: true, ...(said ? { voice: true } : {}) })
   if (!x) { exchange = { name, p, w: w?.window ? w : null, since: Date.now() }; void screenDo("exchange", { on: true }) }
+}
+export let talkedAt = 0
+export function cutShort(): Cut | null {
+  const s = summon, t = talkNow(), now = Date.now()
+  const heard = (s && session?.of === s ? [...session.finals, session.pending].join(" ").trim() : "") || s?.heard || ""
+  const cut: Cut = { t: now, what: "turn" }
+  if (heard) cut.heard = heard
+  if (s?.press && !s.press.ended()) {
+    cut.what = "press"
+    const audio = keepAudio(s.press.id)
+    if (audio) cut.audio = audio
+    s.press.end("cut", audio ? { why: "the app quit", audio } : { why: "the app quit" })
+    return cut
+  }
+  return t.pressing || t.answering ? cut : null
 }
 /** When words were last said into a cursor's box: the ask they make is a spoken one. */
 export let saidInBox = 0

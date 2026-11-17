@@ -30,6 +30,7 @@ export type UpdatesHost = {
   othersOpen(): boolean
   mode(): UpdateMode
   busy(): string | null
+  talked(): number
   quitting(): boolean
   beginQuit(): void
   handOver(): void
@@ -266,8 +267,11 @@ function weigh() {
   const auto = host.mode() === "automatic" && !host.quitting()
   if (!auto || !state.offer) return send({ type: "weighed", auto, why: null })
   const pages = [...host.windows().map((w) => w.win.webContents), ...host.popouts().keys()].filter((wc) => !wc.isDestroyed())
-  send({ type: "weighed", auto, why: restartWaitsOn({ othersOpen: host.othersOpen(), pages: pages.length, safe: pages.filter((wc) => safeNow.has(wc)).length,
-    idle: powerMonitor.getSystemIdleTime(), busy: host.busy() }) })
+  const s = { othersOpen: host.othersOpen(), pages: pages.length, safe: pages.filter((wc) => safeNow.has(wc)).length,
+    idle: powerMonitor.getSystemIdleTime(), talked: host.talked(), busy: host.busy() }
+  const why = restartWaitsOn(s)
+  if (why === null) logUpdate(`updates: nobody is using it (idle ${s.idle} s, last talked ${Number.isFinite(s.talked) ? `${Math.round(s.talked)} s` : "never"}, ${s.safe} of ${s.pages} windows safe): restarting`)
+  send({ type: "weighed", auto, why })
 }
 
 function setStatus() {

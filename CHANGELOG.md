@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Desktop app: an update's relaunch never comes while you talk to the companion (a key held, its answer coming, or an
+  ask in the last 10 minutes, even with keys untouched); an ask cut short by a quit is told at the next launch, and the
+  companion's exchange numbers go on across restarts instead of starting at 1 again.
 - Tab groups: drag one onto a workspace in the switcher to move it there whole (its tabs, name, colour and fold, with
   Undo; `vau workspace move <group id> <n>`). A tab held over a folded group lights its row and counts itself in, its
   card stepping aside so the group shows; held a moment, the group opens to drop among its tabs, and folds again if

@@ -189,10 +189,14 @@ await section("after a launch: the running server against the installed build", 
 
 await section("an automatic restart: what it waits on (electron/updatelogic.ts)", async () => {
   const { AWAY_S, restartWaitsOn } = await import("../electron/updatelogic.ts")
-  const away = { othersOpen: false, pages: 2, safe: 2, idle: AWAY_S, busy: null }
+  const away = { othersOpen: false, pages: 2, safe: 2, idle: AWAY_S, talked: Infinity, busy: null }
   check("every window safe, the user away, the browser idle: it restarts", restartWaitsOn(away) === null)
   check("a window not safe yet, the user at the computer, another machine's window: it waits", !!restartWaitsOn({ ...away, safe: 1 })
     && !!restartWaitsOn({ ...away, idle: AWAY_S - 1 }) && !!restartWaitsOn({ ...away, othersOpen: true }) && !!restartWaitsOn({ ...away, pages: 0, safe: 0 }))
+  check("keys and pointer untouched for long, but the user talked to the companion a minute ago (a typed ask, an exchange): it waits",
+    restartWaitsOn({ ...away, idle: 3 * AWAY_S, talked: 60 }) === "the user is talking to the companion" && restartWaitsOn({ ...away, talked: AWAY_S }) === null)
+  check("an ask to the companion under way (dictating, its turn running): it waits, saying why",
+    restartWaitsOn({ ...away, talked: 0, busy: "an exchange with the companion is on" }) !== null)
   check("agents at work in the browser: it waits, saying why", restartWaitsOn({ ...away, busy: "an agent's call is under way" }) === "an agent's call is under way")
 })
 

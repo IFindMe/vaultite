@@ -551,6 +551,20 @@ check("jobs: one at work that comes to need them is a notification", await until
   check("voice: dropped, the answer held is never said, and the realtime voice's words aren't stopped", !rec.some((m) => m.cmd === "say" || m.cmd === "stop") && !cv.saying(), rec)
 }
 
-helper.stopHelper()
+{
+  const cutAt = path.join(USERDATA, "talk", "cut.json")
+  front(false)
+  chord(true)
+  const held = await until(() => H.scene()!.summon?.state === "listening")
+  check("quit mid-ask: a press held is a restart's reason to wait, and the user counts as talking", held && !!helper.helperBusy() && helper.helperTalked() === 0, [helper.helperBusy(), helper.helperTalked()])
+  helper.stopHelper()
+  const { takeCut, cutWords } = await import(at("helpercut.ts"))
+  const ends = fs.readFileSync(path.join(USERDATA, "talk", fs.readdirSync(path.join(USERDATA, "talk")).find((f) => f.startsWith("talk-") && f.endsWith(".jsonl"))!), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+  const cut = takeCut(path.join(USERDATA, "talk"))
+  check("quit mid-ask: its press ends as cut by the quit, and a note of it is kept for the next launch",
+    ends.some((e) => e.ev === "end" && e.outcome === "cut") && cut?.what === "press" && !fs.existsSync(cutAt), [ends.slice(-2), cut])
+  check("quit mid-ask: the next launch tells the user to say it again", !!cut && /didn't reach/.test(cutWords(cut, () => "12:25").title) && /12:25.*Say it again/.test(cutWords(cut, () => "12:25").body), cut && cutWords(cut, () => "12:25"))
+}
+
 srv.close()
 process.exit(fails ? 1 : 0)
