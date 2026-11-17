@@ -3,8 +3,8 @@ import { type Handler, HTTPError, type Request, NOT_THE_USER, reply, type RouteO
 import { type Item, str } from "../../../core/vault.ts"
 import { byMachine, isOne, onMachine, others } from "./live.ts"
 import { doneAs, type InboxEvent, pinnedAs, readThere, snoozedAs, unreadThere } from "./model.ts"
-import { holdNow, owner, plugin } from "./server.ts"
-import { askerOf } from "./sessions.ts"
+import { holdNow, mutedAccount, owner, plugin } from "./server.ts"
+import { askerOf, settleNewlyMuted } from "./sessions.ts"
 import { Fix, Fixed } from "./wire.ts"
 import { addEvent, changed, eventOf, gates, list, markDone, markRead, markUnread, needing, pin, remotes, sameKey, shown, snooze, told, unread } from "./store.ts"
 
@@ -54,12 +54,15 @@ const ROUTES: [string, string, Handler, RouteOptions?][] = [
     const limit = req.query.all ? Infinity : Math.max(Math.trunc(Number(req.query.limit)) || 50, 1)
     const local = !!req.query.local
     if (!local) await others()
+    settleNewlyMuted()
     const es = req.query.open ? shown(local).filter((e) => e.state !== "done") : shown(local)
     return { events: es.slice(0, limit), unread: unread(local), needs: needing(local), hold: holdNow() }
   }],
   ["POST", "inbox/events", async (req) => {
     await owner(req)
-    return reply(201, { event: addEvent(eventOf(req.body ?? {})) })
+    const e = eventOf(req.body ?? {})
+    if (mutedAccount(e.account)) return { event: null, muted: true }
+    return reply(201, { event: addEvent(e) })
   }],
   ["POST", "inbox/events/read", async (req) => {
     await owner(req)

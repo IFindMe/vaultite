@@ -2,6 +2,7 @@ import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 import { WebSocket } from "ws"
+import { z } from "zod"
 import { HTTPError, logger } from "../../../core/plugins.ts"
 import { archiveTwin, type Item, str, writeAtomic } from "../../../core/vault.ts"
 import { asThreads, BLOCKED, byThread, clip, doneAs, type InboxEvent, pinnedAs, previewOf, readThere, snoozedAs, type State, TERMINAL, unreadThere } from "./model.ts"
@@ -93,8 +94,12 @@ export function eventOf(b: Item): Omit<InboxEvent, "id" | "t"> {
   if (ASKS.includes(str(b.ask))) e.ask = str(b.ask)
   const key = clip(b.key, 60)
   if (key) e.key = key
+  const account = AccountIn.safeParse(b.account).data
+  if (account) e.account = account
   return e
 }
+
+const AccountIn = z.object({ id: z.string().trim().min(1).max(80), label: z.string().trim().min(1).max(80) })
 
 const ASKS = ["permission", "question", "auth", "plan", "reply", "answer", "report", "error"]
 export const newId = (now: number) => `${now.toString(36)}-${crypto.randomBytes(3).toString("hex")}`

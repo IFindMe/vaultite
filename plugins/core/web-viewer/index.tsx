@@ -122,7 +122,7 @@ function pageNotified(m: Extract<WebEvent, { type: "notify" | "session" }>) {
   const link = here ? `view:web/${argOf(m.url, container)}` : undefined
   const open = () => { if (link) openView(link, { newTab: !isViewOpen(link) }) }
   const event = m.type === "session"
-    ? { source: m.site, kind: m.kind, title, body, link, session: m.url }
+    ? { source: m.site, kind: m.kind, title, body, link, session: m.url, account: m.account }
     : { source: m.site || "web", kind: "web", title, body, link }
   post("inbox/events", event).catch(() => {
     notify(body ? `${title}: ${body}` : title, { action: link ? { label: "Open", run: open } : undefined })

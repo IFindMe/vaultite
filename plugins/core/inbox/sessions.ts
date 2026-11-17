@@ -7,7 +7,7 @@ import { BLOCKED, clip, type InboxEvent, TERMINAL } from "./model.ts"
 import { judge } from "./needs.ts"
 import { afterTurn, askedRow, askOf, bodyOf, delegated, delegatedRow, fromHook, hear, type Heard, heardWho, keyOf, type Last, type Lineage, reportedSince,
   rowOf, rowWith, type Seen, wantsLast, type Who, wordsOf } from "./rows.ts"
-import { owner, plugin, settings } from "./server.ts"
+import { mutedAccount, owner, plugin, settings } from "./server.ts"
 import { list, moveOn, newId, put, resolve, shown, told } from "./store.ts"
 
 const log = logger("inbox")
@@ -59,15 +59,12 @@ async function severalAccountsOf(agent: string, terminal: string, session: strin
   return out
 }
 
-export const mutedAccount = (a: Account | null | undefined, names = settings().muted) =>
-  !!a && names.some((n) => n === a.id.toLowerCase() || n === a.label.toLowerCase())
-
 let mutedBefore: string | null = null
-function settleNewlyMuted() {
+export function settleNewlyMuted() {
   const names = settings().muted, now = names.join("\n")
   if (now === mutedBefore) return
   mutedBefore = now
-  moveOn(list().filter((e) => e.kind === "session" && e.state !== "done" && !e.machine && mutedAccount(e.account, names)), "done")
+  moveOn(list().filter((e) => e.state !== "done" && !e.machine && mutedAccount(e.account, names)), "done")
 }
 
 /** Claude Code's hooks call its own questions permissions; its transcript can trail its screen a moment. */

@@ -66,7 +66,8 @@ What it says, as Markdown.
   Wake (`vau inbox wake <path|event id>`) brings it back now.
 - Pin (`vau inbox pin <path|event id>`, `--off` unpins): kept on top under Pinned whatever it waits on, until it's settled.
 - Mute an account (the setting `muted`, or Mute the <account> account on a thread's menu): its agent's sessions in that
-  account make no thread, toast or notification, and the ones open are settled. Only the user mutes.
+  account (a Claude Code account, or a claude.ai one for Claude Code on the web's) make no thread, toast or
+  notification, and the ones open are settled. Only the user mutes.
 - Hold (`vau inbox hold 30m --label "Practice guitar"`, or 07:30, off): nothing is told (toasts, the Mac's and the phone's
   notifications) until then, on every machine; what came is unread, summed up in one line when it ends.
 - **A TL;DR on top** of every result you write (`--tldr`): what it says, in a line or two of plain words. All of it in

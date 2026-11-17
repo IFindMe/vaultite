@@ -216,7 +216,7 @@ export type WebEvent =
   /** A page's notification (its title and body; the page's address and site, and its logins' profile). */
   | { type: "notify"; id: number; profile: string; url: string; site: string; title: string; body: string }
   /** A Claude Code on the web session finished or waits for the user: `url` is the session's page. */
-  | { type: "session"; id: number; profile: string; url: string; site: string; kind: "done" | "waiting"; title: string; body: string }
+  | { type: "session"; id: number; profile: string; url: string; site: string; kind: "done" | "waiting"; title: string; body: string; account?: { id: string; label: string } }
   /** Claude Code on the web's sessions changed (`cloud`); older builds tell only the sessions. */
   | ({ type: "cloud" } & Partial<CloudState> & { sessions: CloudSession[] })
   /** Something a feature of the browser engine tells (electron/browser/engine.ts `tell`): its own `type`. */

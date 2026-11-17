@@ -22,6 +22,9 @@ export function settings() {
     prompt: str(s.dispatch_prompt).trim() || str(plugin.manifest.settings?.dispatch_prompt?.default) }
 }
 
+export const mutedAccount = (a: { id: string; label: string } | null | undefined, names = settings().muted) =>
+  !!a && names.some((n) => n === a.id.toLowerCase() || n === a.label.toLowerCase())
+
 export const machineList = () => plugin.ask<Machine[]>("machines", [])
 
 export async function owner(req: Request) {

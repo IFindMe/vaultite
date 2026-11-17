@@ -10,6 +10,21 @@ import { request, socket } from "../fakes.ts"
 import { portOf } from "../../../core/listening.ts"
 import { messageOf } from "../../../core/values.ts"
 
+async function browserSessionMuted({ api, check }: VaultTest) {
+  const acct = { id: "org-mute-1", label: "agents@example.com" }, url = "https://claude.ai/code/session_01MutedOrg"
+  const [, open] = await api("POST", "inbox/events", { source: "claude.ai", kind: "waiting", title: "Claude Code needs you", body: "Which folder?", session: url, account: acct })
+  check("inbox events: a browser's session keeps its account (its row's Mute)", open.event?.account?.id === acct.id && open.event.account.label === acct.label, open)
+  await api("PATCH", "config/plugin/inbox", { muted: [acct.label] })
+  let after: Any
+  for (const end = Date.now() + 5000; Date.now() < end && after?.state !== "done"; await new Promise((ok) => setTimeout(ok, 50))) after = (await api("GET", "inbox/events"))[1].events.find((e: Any) => e.id === open.event.id)
+  check("inbox events: muting a browser session's account settles its open row", after?.state === "done" && after.read === true, after)
+  const [st2, muted] = await api("POST", "inbox/events", { source: "claude.ai", kind: "waiting", title: "Claude Code needs you", body: "Another one", session: `${url}2`, account: { ...acct, label: "Agents@Example.com" } })
+  const [, l] = await api("GET", "inbox/events")
+  check("inbox events: a muted account's news makes no event", st2 === 200 && muted.muted === true && !l.events.some((e: Any) => e.session === `${url}2`), [st2, muted])
+  await api("PATCH", "config/plugin/inbox", { muted: null })
+  await api("DELETE", `inbox/events/${open.event.id}`)
+}
+
 export default async ($: VaultTest) => {
   const { CLAUDE_DIR, VAULT, api, app, check, exists, read, sleep, tmp, write } = $
   const { vau } = $.vars
@@ -154,6 +169,7 @@ export default async ($: VaultTest) => {
         mine[0].body === "Lighthouse notes: 120 of 120 migrated" && theirs.length === 1 && theirs[0].state === "done", [quiet, asking, mine, theirs])
       for (const e of [...mine, ...theirs]) await api("DELETE", `inbox/events/${e.id}`)
     }
+    await browserSessionMuted($)
     {
       // One of a kind (a key): a new one takes the place of its source's event with that key; inbox:drop takes it away.
       await api("POST", "inbox/events", { source: "lessons", kind: "info", title: "3 cards to review", key: "cards-due" })

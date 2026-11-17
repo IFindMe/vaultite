@@ -28,7 +28,7 @@ export type CloudState = { signedIn: boolean; accounts: CloudAccount[]; sessions
 type CloudWant = { profiles: string[]; read: boolean; hidden: string[] }
 
 export type CloudMessage = ({ type: "cloud" } & CloudState)
-  | { type: "session"; id: number; profile: string; site: string; url: string; kind: "done" | "waiting"; title: string; body: string }
+  | { type: "session"; id: number; profile: string; site: string; url: string; kind: "done" | "waiting"; title: string; body: string; account: { id: string; label: string } }
 
 const Want = z.object({ profiles: z.unknown().optional(), read: z.unknown().optional(), hidden: z.unknown().optional() }).catch({})
 const Answer = z.object({ status: z.number(), json: z.unknown().optional() })
@@ -191,9 +191,9 @@ export function cloudHandlers(host: CloudHost) {
     if (JSON.stringify(after) !== before) for (const w of windows) host.tell(w, { type: "cloud", ...after })
   }
 
-  const news = (s: CloudSession, kind: "done" | "waiting", title: string) => {
+  const news = (s: CloudSession, kind: "done" | "waiting", title: string, account: CloudAccount) => {
     const body = s.summary ? `${s.title}: ${s.summary}` : s.title
-    for (const w of windows) host.tell(w, { type: "session", id: 0, profile: s.profile, site, url: s.url, kind, title, body: body.slice(0, 280) })
+    for (const w of windows) host.tell(w, { type: "session", id: 0, profile: s.profile, site, url: s.url, kind, title, body: body.slice(0, 280), account: { id: account.id, label: account.label } })
   }
 
   /** Each named profile signed in to claude.ai, each of its organizations once (in the first profile that has it), each
@@ -227,9 +227,9 @@ export function cloudHandlers(host: CloudHost) {
           const now = new Map(list.map((c) => [c.id, c]))
           for (const c of was) {
             const n = now.get(c.id), said = newsOf(c, n)
-            if (said) news(n ?? c, said.kind, said.title)
+            if (said) news(n ?? c, said.kind, said.title, account)
           }
-          for (const n of list) if (n.state === "waiting" && !was.some((c) => c.id === n.id)) news(n, "waiting", "Claude Code needs you")
+          for (const n of list) if (n.state === "waiting" && !was.some((c) => c.id === n.id)) news(n, "waiting", "Claude Code needs you", account)
         }
       }
       // (hidden, turned away or gone: their sessions go, and a hidden one shows again from a fresh read)

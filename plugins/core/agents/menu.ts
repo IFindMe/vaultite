@@ -28,10 +28,12 @@ export async function viewMenu(r: DOMRect, kinds: { kind: AgentRun["kind"]; labe
           save(settings.set({ hide: next.length ? next : null }))
         } })))
     }
-    if (accounts.length > 1) {
+    const mutedElsewhere = (inbox.get()?.muted ?? []).filter((m) => !accounts.some((a) => [a.id, a.label].some((x) => x.toLowerCase() === m.toLowerCase())))
+      .map((m) => ({ id: m, label: m }))
+    if (accounts.length > 1 || mutedElsewhere.length) {
       out.push({ label: "Notifications", sep: true, run: () => {}, items: [
         { label: "Sessions in these accounts notify you and show in the inbox", caption: true, run: () => {} },
-        ...accounts.map((a) => ({ label: a.label, checked: !isMuted(a), keep: true, run: () => mute(a) })),
+        ...[...accounts, ...mutedElsewhere].map((a) => ({ label: a.label, checked: !isMuted(a), keep: true, run: () => mute(a) })),
       ] })
     }
     return out

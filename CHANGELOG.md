@@ -17,7 +17,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   spot: press the new keys, Escape keeps the old ones; keys another command has ask Replace or Keep both, with Undo,
   Remove and Restore default.
 - Inbox: Mute the <account> account on an agent's thread stops that account's sessions coming to the inbox, with
-  their toasts and notifications, and settles the ones open; the Agents panel's Notifications lists every machine's accounts.
+  their toasts and notifications, and settles the ones open, Claude Code on the web's claude.ai accounts too; the Agents
+  panel's Notifications lists every machine's accounts and any muted one.
 - The companion is one talk on a Mac: asked in one vault, a follow-up in another knows what was said, and its chat
   (Show the companion's chat: the Conversations view's Talk) shows every day and every vault's asks, its session's
   context a button there.
