@@ -4,7 +4,7 @@ sidebars' panels, its pinned pages, and what the app keeps for it (the file tree
 The vault (files, settings, the default panels and pinned pages) and running terminals are shared; switching never
 changes them. Workspaces are the computers': a phone keeps its own tabs, panels and pins. Which one is current is each
 computer's own (a new one is on 1); `vau context` says which the user's window is on. ⌃1 to ⌃5 switch (⌥1 to ⌥5 off a Mac), as does a two-finger swipe over a
-sidebar.
+sidebar. Dragging one in the switcher (or `vau workspace reorder <n> <to>`) renumbers them: files, tabs and every window follow.
 
 What the user sets of each is its own file, `.vaultite/plugins/workspaces/<n>.json` (none: nothing set); what's open in
 it (`layout`, `state`) is kept by the server, not in the vault (shared with the other machines, live: `vau kept

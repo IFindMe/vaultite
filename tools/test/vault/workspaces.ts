@@ -310,6 +310,7 @@ export default async ($: VaultTest) => {
     fs.rmSync(path.join(VAULT, "Notes/Qa desk moved.md"))
     clearWs()
   }
+  await reorders($, { L, T, tos })
   // ---------- what's open in a workspace is kept by the server, never in its file ----------
   {
     const file = `${WS_DIR}/3.json`
@@ -333,4 +334,23 @@ export default async ($: VaultTest) => {
     check("workspaces: deleted, nothing's kept of it", !exists(file) && !readWs().workspaces[2])
     clearWs()
   }
+}
+
+async function reorders($: VaultTest, { L, T, tos }: { L: (tabs: Any[]) => Any; T: (id: string, to: string) => Any; tos: (l: Any) => string }) {
+  const { WS_DIR, api, check, clearWs, exists, read, readWs } = $
+  const { vau } = $.vars
+  for (const [n, name] of [[1, "One"], [2, "Two"], [4, "Four"]] as const) await api("PUT", `workspaces/${n}`, { name, layout: L([T(String(n), `file:Notes/${name}.md`)]) })
+  const seq0 = (await api("GET", "state"))[1].workspaceMoves.seq
+  let [st, body] = await api("POST", "workspaces/order", { from: 4, to: 1 })
+  const names = () => readWs().workspaces.map((w: Any) => w?.name ?? null).join()
+  check("workspaces: moving 4 to 1 shifts 1 to 3 down, files and kept tabs with them", st === 200 && names() === "Four,One,Two" &&
+    tos(readWs().workspaces[0].layout) === "file:Notes/Four.md" && tos(readWs().workspaces[2].layout) === "file:Notes/Two.md" &&
+    JSON.parse(read(`${WS_DIR}/1.json`)).name === "Four" && !exists(`${WS_DIR}/4.json`) && body.moves.seq === seq0 + 1, [names(), body.moves])
+  ;[st] = await api("PUT", `workspaces/2?moves=${seq0}`, { name: "Two again" })
+  check("workspaces: a write naming a number from before the move lands where that workspace is now", st === 200 && names() === "Four,One,Two again", names())
+  const cm = await vau("workspace", "reorder", "3", "1")
+  check("vau workspace reorder", cm.code === 0 && cm.out === "Workspace 3 is now workspace 1." && names() === "Two again,Four,One", [cm, names()])
+  ;[st] = await api("PUT", "workspaces/1?moves=-9", { name: "x" })
+  check("workspaces: a moves seq that isn't one is ignored", st === 200 && names().startsWith("x,"), names())
+  clearWs()
 }

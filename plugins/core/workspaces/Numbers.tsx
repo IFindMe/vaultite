@@ -2,11 +2,13 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, ChevronDown, LayoutGrid } from "lucide-react"
 import { Mark as Look } from "./Mark"
-import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, panesClosed, pluginOn, sidebarsChanged, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
+import { tintWash } from "./tint"
+import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, panesClosed, pluginOn, reorder as reorderKeys, sidebarsChanged, slotAt, startDrag, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, useSlide, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
 import {
-  cycle, emit, getRenaming, label, leaving, lit as litNow, lookOf, markOf, named, othersOnly, patch, showAllTabs, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
+  cycle, emit, getRenaming, label, leaving, lit as litNow, lookOf, markOf, named, othersOnly, patch, reorder, showAllTabs, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
   SLOTS, switchTo, sync, tookTabs, used, useVersion, type Sent,
 } from "./state"
+import { moved } from "./order"
 
 function Mark({ n, look, size }: { n: number; look: string; size?: string }) {
   return <Look n={n} {...lookOf(n)} look={look} size={size} />
@@ -15,7 +17,7 @@ function Mark({ n, look, size }: { n: number; look: string; size?: string }) {
 function Rename({ n, on, end }: { n: number; on: boolean; end: (enter: boolean) => void }) {
   const done = (name: string | null) => renamed(n, name)
   return (
-    <div data-workspace={n} className={cn("flex h-7 items-center gap-2 rounded-[5px] px-1.5", on && "bg-foreground/[0.08]")}>
+    <div data-workspace={n} data-slide={n} style={tintWash(lookOf(n).tint, on)} className={cn("flex h-7 items-center gap-2 rounded-[5px] px-1.5", on && "bg-foreground/[0.08]")}>
       <Mark n={n} look={cn("border", on ? "border-primary/60 bg-primary/10 font-semibold text-primary" : "border-border font-medium text-foreground")} />
       <input autoFocus onFocus={(e) => e.currentTarget.select()} aria-label={`Name of workspace ${n}`}
         defaultValue={slots()?.[n - 1]?.name ?? ""} placeholder={`Workspace ${n}`}
@@ -35,6 +37,22 @@ function renamed(n: number, name: string | null) {
   if (name !== null) patch(n, { name: name.trim() || null })
 }
 
+type Order = { from: number; to: number; order: string[] }
+const ORDER = "workspaces:order"
+let droppedAt = 0
+function useOrderDrop(rows: React.RefObject<HTMLDivElement | null>, done: (o: Order) => void) {
+  useDropTarget<Order>(ORDER, (item, x, y) => {
+    const el = rows.current
+    if (!item.workspace || !el) return null
+    const b = el.getBoundingClientRect()
+    if (x < b.left - 40 || x > b.right + 40 || y < b.top - 28 || y > b.bottom + 28) return null
+    const list = [...el.querySelectorAll<HTMLElement>(":scope > [data-slide]")]
+    const { order, same } = reorderKeys(list.map((e) => e.dataset.slide!), [String(item.workspace)], slotAt(el, list, x, y, "y"))
+    return same ? null : { from: item.workspace, to: order.indexOf(String(item.workspace)) + 1, order }
+  }, (_item, h) => { droppedAt = Date.now(); done(h) }, { hint: (h) => `Make it ${h.to}` })
+  return useDropHit<Order>(ORDER)?.order ?? null
+}
+
 function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail: boolean }) {
   const list = slots()!
   const [shown, setOpen] = useState(false)
@@ -47,6 +65,10 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
   }
   const btn = useRef<HTMLButtonElement>(null)
   const box = useRef<HTMLDivElement>(null)
+  const rows = useRef<HTMLDivElement>(null)
+  const [pending, setPending] = useState<Order | null>(null)
+  useSlide(rows, useOrderDrop(rows, (o) => { setPending(o); void reorder(o.from, o.to)?.finally(() => setPending(null)) }), "y")
+  const shownOrder = pending ? moved(SLOTS, pending.from, pending.to) : SLOTS
   const [at, setAt] = useState({ left: 0, top: 0 })
   const sprung = useRef(false)
   const dragging = useDrag((d) => !!d)
@@ -104,29 +126,36 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
           </button>
           <div className="mx-1 my-1 h-px bg-border" />
           <div className="px-2 pt-0.5 pb-1.5 text-[11px] font-medium text-tertiary">Workspaces</div>
-          {SLOTS.map((m) => {
-            const on = m === lit, has = !!list[m - 1] || on
-            if (renaming === m) return <Rename key={m} n={m} on={on} end={(enter) => ended(m, enter)} />
-            return (
-              <button key={m} type="button" data-workspace={m} data-used={has || undefined} data-drop={over === m || undefined} aria-pressed={on}
-                data-tip={has ? label(m) : undefined} data-tip-trunc data-tip-side="right"
-                onClick={() => { setOpen(false); switchTo(m) }}
-                onContextMenu={menuFor(() => slotMenu(m))}
-                className={cn("flex h-7 cursor-pointer items-center gap-2 rounded-[5px] px-1.5 text-left text-[13px] transition-colors",
-                  "outline-none focus-visible:bg-foreground/[0.07]", over === m ? "bg-primary/15 ring-1 ring-primary/50" : "hover:bg-foreground/[0.07]")}>
-                <Mark n={m} look={cn("border", on ? "border-primary/60 bg-primary/10 font-semibold text-primary"
-                  : has ? "border-border font-medium text-foreground" : "border-dashed border-border text-tertiary")} />
-                <span className={cn("min-w-0 flex-1 truncate", on ? "font-medium" : has ? "" : "text-tertiary")}>{has ? label(m) : "New workspace"}</span>
-                <Marked n={m} />
-                {on && <Check aria-hidden className="size-3.5 shrink-0 text-primary" strokeWidth={2.5} />}
-                <span className="text-[11px] text-tertiary">{commandKeys(`workspace:${m}`)}</span>
-              </button>
-            )
-          })}
+          <div ref={rows} className="relative flex flex-col gap-px">
+          {shownOrder.map((m) => renaming === m
+            ? <Rename key={m} n={m} on={m === lit} end={(enter) => ended(m, enter)} />
+            : <Row key={m} m={m} on={m === lit} has={!!list[m - 1] || m === lit} over={over === m} pick={() => { setOpen(false); switchTo(m) }} />)}
+          </div>
         </div>,
         document.body,
       )}
     </>
+  )
+}
+
+function Row({ m, on, has, over, pick }: { m: number; on: boolean; has: boolean; over: boolean; pick: () => void }) {
+  const { tint } = lookOf(m)
+  return (
+    <button type="button" data-workspace={m} data-slide={m} data-used={has || undefined} data-drop={over || undefined} aria-pressed={on}
+      data-tip={has ? label(m) : undefined} data-tip-trunc data-tip-side="right"
+      data-tint={tint} style={over ? undefined : tintWash(tint, on)}
+      onPointerDown={has ? (e) => startDrag(e, { from: "workspace", workspace: m, label: label(m) }) : undefined}
+      onClick={() => { if (Date.now() - droppedAt >= 400) pick() }}
+      onContextMenu={menuFor(() => slotMenu(m))}
+      className={cn("flex h-7 cursor-pointer items-center gap-2 rounded-[5px] px-1.5 text-left text-[13px] transition-colors",
+        "outline-none focus-visible:bg-foreground/[0.07]", over ? "bg-primary/15 ring-1 ring-primary/50" : "hover:bg-foreground/[0.07]")}>
+      <Mark n={m} look={cn("border", on ? "border-primary/60 bg-primary/10 font-semibold text-primary"
+        : has ? "border-border font-medium text-foreground" : "border-dashed border-border text-tertiary")} />
+      <span className={cn("min-w-0 flex-1 truncate", on ? "font-medium" : has ? "" : "text-tertiary")}>{has ? label(m) : "New workspace"}</span>
+      <Marked n={m} />
+      {on && <Check aria-hidden className="size-3.5 shrink-0 text-primary" strokeWidth={2.5} style={tint ? { color: colorVar(tint) } : undefined} />}
+      <span className="text-[11px] text-tertiary">{commandKeys(`workspace:${m}`)}</span>
+    </button>
   )
 }
 

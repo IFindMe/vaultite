@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowUp, Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
   cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
   replaceHash, sameSidebars, isPhoneDevice, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
@@ -7,6 +7,7 @@ import {
 } from "@vaultite"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
 import { markIcon } from "./Mark"
+import { Moves, NO_MOVES, numberNow } from "./order"
 
 const MAX = 5
 export const SLOTS = Array.from({ length: MAX }, (_, i) => i + 1)
@@ -14,6 +15,7 @@ type Def = { name?: string; icon?: unknown; tint?: unknown; container?: unknown;
 type Slots = (Def | null)[]
 
 const current_ = devicePref<number>("workspace", 0)
+const movesSeen = devicePref<number>("workspace-moves", -1)
 const arrival = location.hash
 let wentTo: string | null = null
 let arrived = false
@@ -36,17 +38,24 @@ const unusedIfBlank = (list: unknown[]): Slots => SLOTS.map((n) => {
 let seen: unknown = undefined
 let seenDef = ""
 let local: Slots | null = null
+let movesNow: Moves = NO_MOVES
+let reorderedAt = 0
 export function slots(): Slots | null {
   if (isPhoneDevice()) return null
   const w = getStore()?.workspaces
   const d = JSON.stringify(savedSidebars())
   if (w !== seen || d !== seenDef) {
     seen = w; seenDef = d
+    const m = Moves.parse(getStore()?.workspaceMoves)
+    if (local && m.seq < movesNow.seq && Date.now() - reorderedAt < 10_000) return local
+    movesNow = m
     local = Array.isArray(w) ? unusedIfBlank(w) : null
   }
   return local
 }
-const picked = () => { const n = current_.get(); return n >= 1 && n <= MAX ? n : 0 }
+const followed = (n: number) => { const s = movesSeen.get(); return s >= 0 && s < movesNow.seq ? numberNow(movesNow, n, s) ?? n : n }
+const picked = () => { const n = current_.get(); return n >= 1 && n <= MAX ? followed(n) : 0 }
+const at = (path: string) => `${path}?moves=${movesNow.seq}`
 export const current = () => (slots() ? picked() || used()[0] || 1 : 0)
 export const lit = () => current() || 1
 
@@ -77,7 +86,8 @@ export function patch(n: number, keys: Partial<Record<keyof Def, unknown>>): voi
   list[n - 1] = defOf(next)
   local = list
   emit(); sidebarsChanged()
-  writing = queue(() => put(`workspaces/${n}`, had ? keys : next)).catch(() => {})
+  const to = at(`workspaces/${n}`)
+  writing = queue(() => put(to, had ? keys : next)).catch(() => {})
 }
 
 const memory = new Map<number, Record<string, unknown>>()
@@ -106,7 +116,8 @@ export function setState(key: string, value: unknown) {
   list[n - 1] = { ...d, state }
   local = list
   emit()
-  writing = queue(() => put(`workspaces/${n}`, { state: { [key]: v } })).catch(() => {})
+  const to = at(`workspaces/${n}`)
+  writing = queue(() => put(to, { state: { [key]: v } })).catch(() => {})
 }
 
 const pinnedHere = (): string[] | null => { const n = current(); const p = n ? slots()?.[n - 1]?.pinned : undefined; return Array.isArray(p) ? p : null }
@@ -120,11 +131,13 @@ function pinHere(path: string, on: boolean, before: string | null | undefined, b
   list[n - 1] = { ...(list[n - 1] ?? {}), pinned: next }
   local = list
   emit()
-  writing = queue(() => post(`workspaces/${n}/pins`, { path, pinned: on, ...(before !== undefined ? { before } : {}) })).catch((e) => { notifyError(e, "Couldn't pin it") })
+  const to = at(`workspaces/${n}/pins`)
+  writing = queue(() => post(to, { path, pinned: on, ...(before !== undefined ? { before } : {}) })).catch((e) => { notifyError(e, "Couldn't pin it") })
   return writing
 }
 export function pinsForNew(n: number) {
-  writing = queue(() => post(`workspaces/${n}/pins/default`, {})).then(() => { notify("New workspaces start with these pinned pages") }, (e) => { notifyError(e) })
+  const to = at(`workspaces/${n}/pins/default`)
+  writing = queue(() => post(to, {})).then(() => { notify("New workspaces start with these pinned pages") }, (e) => { notifyError(e) })
   return writing
 }
 
@@ -156,7 +169,8 @@ function clear(n: number) {
   list[n - 1] = null
   local = list
   emit(); sidebarsChanged()
-  writing = queue(() => del(`workspaces/${n}`)).catch(() => {})
+  const to = at(`workspaces/${n}`)
+  writing = queue(() => del(to)).catch(() => {})
 }
 
 const VISIT = new Set(["back", "fwd", "from"])
@@ -206,6 +220,7 @@ function arrive() {
 }
 
 export function sync() {
+  followMoves()
   if (!taking || !slots()) { syncTabs(); return }
   const own = taking
   taking = null; synced = true
@@ -270,7 +285,7 @@ export async function sendTo(n: number, what: Sent) {
   if (gone) apply(gone, true, true)
   await writing
   try {
-    const r = await post<{ tabs: { id: string }[]; workspaces: unknown[] }>("workspaces/move", { ...("open" in what ? {} : { from }), to: n, ...what })
+    const r = await post<{ tabs: { id: string }[]; workspaces: unknown[] }>(at("workspaces/move"), { ...("open" in what ? {} : { from }), to: n, ...what })
     local = unusedIfBlank(r.workspaces)
     const l = local[from - 1]?.layout ?? null
     mine.add(layoutKey(l))
@@ -293,7 +308,7 @@ async function bringBack(n: number, to: number, what: Sent, place: { at?: number
   await writing
   moving = true
   try {
-    const r = await post<{ workspaces: unknown[] }>("workspaces/move", { from: n, to, ...what, ...place })
+    const r = await post<{ workspaces: unknown[] }>(at("workspaces/move"), { from: n, to, ...what, ...place })
     local = unusedIfBlank(r.workspaces)
     if (current() === to) { const l = local[to - 1]?.layout ?? null; mine.add(layoutKey(l)); apply(l, true) }
     emit()
@@ -321,7 +336,7 @@ async function takeIn(own: TabLayout) {
   try {
     await writing
     const name = await deviceName()
-    const r = await post<{ tabs: Tab[]; workspaces: unknown[] }>("workspaces/take", { to: n, tabs: strip(own), name: name && `From ${name}` })
+    const r = await post<{ tabs: Tab[]; workspaces: unknown[] }>(at("workspaces/take"), { to: n, tabs: strip(own), name: name && `From ${name}` })
     local = unusedIfBlank(r.workspaces)
     const l = local[n - 1]?.layout ?? null
     mine.add(layoutKey(l))
@@ -378,6 +393,38 @@ export function switchTo(n: number) {
 }
 
 export const used = () => SLOTS.filter((n) => slots()?.[n - 1])
+
+function followMoves() {
+  const s = movesSeen.get()
+  if (!slots() || s === movesNow.seq) return
+  const n = picked()
+  movesSeen.set(movesNow.seq)
+  if (s < 0 || s > movesNow.seq) return
+  if (current_.get() !== n && n) current_.set(n)
+  const renumber = <V,>(m: Map<number, V>) => {
+    const was = [...m]
+    m.clear()
+    for (const [k, v] of was) { const to = numberNow(movesNow, k, s); if (to) m.set(to, v) }
+  }
+  renumber(kept); renumber(memory)
+}
+
+export function reorder(from: number, to: number) {
+  const list = slots()
+  if (!list || from === to || !list[from - 1] && from !== current()) return
+  if (timer) saveTabs()
+  const path = at("workspaces/order")
+  writing = queue(async () => {
+    const r = Reordered.parse(await post(path, { from, to }))
+    reorderedAt = Date.now()
+    local = unusedIfBlank(r.workspaces)
+    movesNow = Moves.parse(r.moves)
+    followMoves()
+    emit(); sidebarsChanged()
+  }).catch((e) => { notifyError(e, "Couldn't reorder the workspaces") })
+  return writing
+}
+const Reordered = z.object({ workspaces: z.array(z.unknown()), moves: z.unknown() })
 
 export function openElsewhere(): string[] {
   const n = current()
@@ -443,6 +490,11 @@ export function remove(n: number) {
   } } })
 }
 
+const moveItems = (n: number): MenuItem[] => [
+  ...(n > 1 ? [{ label: "Move up", icon: ArrowUp, run: () => void reorder(n, n - 1) }] : []),
+  ...(n < MAX ? [{ label: "Move down", icon: ArrowDown, run: () => void reorder(n, n + 1) }] : []),
+].map((m, i) => (i ? m : { ...m, sep: true }))
+
 export function slotMenu(n: number, rename = true): MenuItem[] {
   const has = !!now(n)
   const d = slots()?.[n - 1]
@@ -456,6 +508,7 @@ export function slotMenu(n: number, rename = true): MenuItem[] {
       patch(free!, rest)
       if (free === current()) { apply(rest.layout ?? null); sidebarsChanged() }
     } },
+    ...(has ? moveItems(n) : []),
     ...(own ? [
       { label: "Use these panels for new workspaces", icon: LayoutPanelLeft, sep: true, run: () => { setDefaultSidebars(own); notify("New workspaces start with these panels") } },
     ] : []),

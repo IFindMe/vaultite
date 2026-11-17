@@ -4,6 +4,7 @@ import {
   type TabInfo,
 } from "@vaultite"
 import { Mark } from "./Mark"
+import { tintWash } from "./tint"
 import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, showTab, SLOTS, slots, useVersion } from "./state"
 
 type TabRun = { group?: TabGroup; tabs: Tab[] }
@@ -49,7 +50,7 @@ export function AllTabs({ store }: { store: Store }) {
       {query && shown.every((d) => !d.count) ? <Empty>No tabs match "{query}".</Empty> : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] items-start gap-3">
           {shown.flatMap((d) => (query && !d.count ? [] : [
-            <section key={d.n} data-all-tabs-workspace={d.n} className={cn("glass rounded-[12px] p-2 [contain:content]", d.n === here && "ring-1 ring-primary/40")}>
+            <section key={d.n} data-all-tabs-workspace={d.n} style={tintWash(lookOf(d.n).tint, false)} className={cn("glass rounded-[12px] p-2 [contain:content]", d.n === here && "ring-1 ring-primary/40")}>
               <div className="flex items-center gap-2 px-1.5 pt-1 pb-2">
                 <Mark n={d.n} {...lookOf(d.n)} look="border border-border font-medium text-foreground" />
                 <h2 className="min-w-0 flex-1 truncate text-[14px] font-semibold">{label(d.n)}</h2>

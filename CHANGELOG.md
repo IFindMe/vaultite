@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Workspaces: drag one in the switcher (or Move up and Move down in its menu) to reorder them; its number and ⌃ key
+  follow, on every computer. A workspace's colour tints its row in the switcher and its card in All tabs.
 - Workspaces: turning them on never hides a tab: the tabs on screen go into the workspace, as a group named after the
   device when it has tabs of its own; turning them off keeps the current workspace's tabs. All tabs (⌃0, atop the
   switcher) shows every workspace's in the tabs panel's order, with their tab groups and split tabs (a click on a pane

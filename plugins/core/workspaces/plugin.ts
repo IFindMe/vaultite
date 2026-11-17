@@ -5,6 +5,7 @@ import { fileTree, HTTPError, type OpCtx, OpError, type Param, pathAsSaid, pinPr
 import { ConfigError, type Item } from "../../../core/vault.ts"
 import { allPanes, blankList, clean, mapPlaces, newGroupId, newPaneId, newTabId, panesOf, placesIn, placesOf, tabWith, tabWithout, withoutPanes, withoutTabs, type Group, type Pane, type Tab, type TabList, type Workspace } from "../../../core/layout.ts"
 import { blankLayout, isBlank } from "./blank.ts"
+import { moved, Moves, numberNow } from "./order.ts"
 
 export const plugin = new Plugin(import.meta.url)
 export const MAX = 5
@@ -76,11 +77,27 @@ function readable(i?: number) {
   }
 }
 
-function slot(arg: string) {
+const moves = (): Moves => Moves.parse(plugin.kept("moves", null))
+function slot(arg: string, seen?: string) {
   const n = Number(arg)
   if (!Number.isInteger(n) || n < 1 || n > MAX) throw new HTTPError(400, `a workspace is 1 to ${MAX}, not '${arg}'`)
-  return n - 1
+  if (seen === undefined || !/^\d+$/.test(seen)) return n - 1
+  const now = numberNow(moves(), n, Number(seen))
+  if (now === null) throw new HTTPError(409, `the workspaces were reordered since workspace ${n} was meant: reload`)
+  return now - 1
 }
+type Req = { arg: (i: number) => string; query: Record<string, string> }
+const slotIn = (req: Req, arg = req.arg(0)) => slot(arg, req.query.moves)
+
+plugin.route("POST", "workspaces/order", (req) => {
+  const from = slotIn(req, String(req.body.from ?? "")) + 1, to = slot(String(req.body.to ?? "")) + 1
+  if (from === to) return { workspaces: shown(), moves: moves() }
+  readable()
+  save(moved(slotList(), from, to))
+  const was = moves(), seq = was.seq + 1
+  plugin.keep("moves", { seq, log: [...was.log, { seq, from, to }].slice(-50) }, { shared: true })
+  return { workspaces: shown(), moves: moves() }
+})
 
 const TERM = "view:terminal/"
 let selfNow = ""
@@ -119,7 +136,7 @@ const withPins = (d: Item | null) => { const own = ownPins(d); return own ? { ..
 const relocatedPins = (list: string[]) => [...new Set(list.map((p) => relocatedPin(plugin.vault, p)))]
 export const shown = (self = selfNow) => slots().map((d) => shownSlot(d, self))
 
-plugin.state(async () => ({ workspaces: shown(await selfId()) }))
+plugin.state(async () => ({ workspaces: shown(await selfId()), workspaceMoves: moves() }))
 
 plugin.route("GET", "workspaces", async () => ({ workspaces: shown(await selfId()) }))
 
@@ -130,7 +147,7 @@ function slotList(): (Item | null)[] {
 }
 const obj = (v: unknown): Item => (v && typeof v === "object" && !Array.isArray(v) ? { ...v } : {})
 
-plugin.route("PUT", "workspaces/*", (req) => putSlot(slot(req.arg(0)), req.body))
+plugin.route("PUT", "workspaces/*", (req) => putSlot(slotIn(req), req.body))
 
 function putSlot(i: number, body: unknown) {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new HTTPError(400, "send an object: the keys to change")
@@ -154,7 +171,7 @@ function putSlot(i: number, body: unknown) {
 const ownPins = (d: Item | null) => (Array.isArray(d?.pinned) ? d.pinned.filter((x): x is string => typeof x === "string" && !!x) : null)
 const vaultPins = () => { const p = plugin.vault.config("pages").pinned; return Array.isArray(p) ? p.filter((x): x is string => typeof x === "string" && !!x) : [] }
 
-plugin.route("POST", "workspaces/*/pins", (req) => pinIn(slot(req.arg(0)), obj(req.body)))
+plugin.route("POST", "workspaces/*/pins", (req) => pinIn(slotIn(req), obj(req.body)))
 
 function pinIn(i: number, body: Item) {
   const p = typeof body.path === "string" ? relocatedPin(plugin.vault, body.path.trim().replace(/^\/+/, "")) : ""
@@ -175,7 +192,7 @@ function pinIn(i: number, body: Item) {
 }
 
 plugin.route("POST", "workspaces/*/pins/default", (req) => {
-  const i = slot(req.arg(0))
+  const i = slotIn(req)
   const own = ownPins(slotList()[i])
   if (!own) return { pinned: vaultPins() }
   plugin.vault.setConfig("pages", { ...plugin.vault.config("pages"), pinned: own })
@@ -224,7 +241,7 @@ plugin.provide("tabs:open", () => shown().flatMap((d) => {
 }))
 
 plugin.route("DELETE", "workspaces/*", (req) => {
-  const i = slot(req.arg(0))
+  const i = slotIn(req)
   const list = slots()
   if (i < list.length) { list[i] = null; save(list) }
   return { ok: true }
@@ -262,7 +279,7 @@ type Found = { tab: Tab; pane?: Pane }
 
 plugin.route("POST", "workspaces/move", (req) => {
   const body = req.body
-  const to = slot(String(body.to ?? ""))
+  const to = slotIn(req, String(body.to ?? ""))
   const id = str(body.tab), pid = str(body.pane), file = str(body.path)
   const open = (Array.isArray(body.open) ? body.open : [body.open]).filter((x): x is string => typeof x === "string" && !!x)
   if ([id, pid, file, open.length ? "open" : null].filter(Boolean).length !== 1) {
@@ -302,7 +319,7 @@ plugin.route("POST", "workspaces/move", (req) => {
   }
   let from: number
   if (body.from !== undefined && body.from !== null) {
-    from = slot(String(body.from))
+    from = slotIn(req, String(body.from))
     if (!has(from)) throw new HTTPError(404, `${what} isn't open in workspace ${from + 1}`)
   } else {
     const where = list.map((_, i) => i).filter((i) => has(i))
@@ -335,7 +352,7 @@ const local = (t: Tab): Tab => ({ ...t, root: mapPlaces(t.root, (p) => ({ ...p, 
 plugin.route("POST", "workspaces/take", (req) => {
   const w = clean(req.body.tabs)
   if (!w) throw new HTTPError(400, "send `tabs`: a tab list ({tabs, groups, active})")
-  return take(slot(String(req.body.to ?? "")), w, str(req.body.name))
+  return take(slotIn(req, String(req.body.to ?? "")), w, str(req.body.name))
 })
 
 type Taken = { t: Tab; groups: Group[] }
@@ -376,7 +393,7 @@ plugin.route("POST", "workspaces/close", async (req) => {
   const id = str(body.tab), file = str(body.path)
   if ([id, file].filter(Boolean).length !== 1) throw new HTTPError(400, "say what, one of: `tab` (a tab's or pane's id) or `path` (what its panes show: a file, or view:terminal/<id>)")
   const self = await selfId()
-  const only = body.from !== undefined && body.from !== null ? slot(String(body.from)) : null
+  const only = body.from !== undefined && body.from !== null ? slotIn(req, String(body.from)) : null
   readable(only ?? undefined)
   const list = slots()
   const target = file ? localPlace(targetOf(file), self) : null
@@ -463,6 +480,10 @@ nobody is switched, and nothing is closed (a terminal's shell keeps running).
 open: opens a file in workspace <n> (a new tab at the end of its tabs, not shown there; nothing if it's already open
 there), like dragging it from the file tree onto the number. Nobody is switched.
 
+reorder: moves workspace <n> to number <to>, the ones between shifting over (POST /api/workspaces/order {from, to}), like
+dragging it in the switcher; every window on it follows. A write naming a number from before (?moves=<seq>, the
+state's workspaceMoves) is taken as meant.
+
 close: closes a tab or pane by its id, or every pane showing a file or a view (view:terminal/<id>), in every workspace
 or in --from <m>'s (POST /api/workspaces/close); a tab goes with its last pane. Every open window follows at once.
 Closing a terminal's pane doesn't end its session (vau terminal end does both).
@@ -477,6 +498,7 @@ Closing a terminal's pane doesn't end its session (vau terminal end does both).
   vau workspace move Idea 2 --whole
   vau workspace open "Notes/Idea.md" 3
   vau workspace close t1k2x9a0
+  vau workspace reorder 5 2
   vau workspace close view:terminal/claude-k3j2h1g0
   vau workspace close "Notes/Idea.md" --from 2`
 
@@ -533,6 +555,18 @@ plugin.op({
     }
   },
   text: (r) => ("switched" in r ? `Sent workspace:${r.switched}.` : listText(r)),
+})
+
+plugin.op({
+  id: "workspace.reorder",
+  cli: "workspace reorder",
+  summary: "Move a workspace to another number (1 to 5), the ones between shifting over, like dragging it in the switcher: its ⌃ shortcut follows.",
+  help: HELP,
+  kind: "write",
+  params: { n: N("the workspace to move"), to: N("the number it takes") },
+  args: ["n", "to"],
+  run: async ({ n, to }, ctx) => { await ctx.api("POST", "workspaces/order", { from: n, to }); return { n, to } },
+  text: (r) => `Workspace ${r.n} is now workspace ${r.to}.`,
 })
 
 plugin.op({
