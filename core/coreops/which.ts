@@ -31,7 +31,7 @@ const settings = (app: App, on: (id: string) => boolean): Entry[] =>
 const shownPath = (p: string) => !p.split("/").some((x) => x.startsWith("."))
 const named = (p: string) => p.split("/").pop()!.replace(/\.md$/i, "")
 function vaultEntries(app: App): Entry[] {
-  const place = (kind: "folder" | "file", path: string, weight: number): Entry => ({ kind, weight, title: path, names: [named(path), kind === "folder" ? "folder" : "note file"], plugin: null, pluginOff: false,
+  const place = (kind: "folder" | "file", path: string, weight: number): Entry => ({ kind, weight, title: path, names: [`${named(path)} ${kind === "folder" ? "folder" : "note"}`], plugin: null, pluginOff: false,
     summary: null, panel: null, how: `vau open "${path}"` })
   return [...app.vault.folders.filter(shownPath).map((p) => place("folder", p, 5)), ...tree(app.vault).files.map((f) => f.path).filter(shownPath).map((p) => place("file", p, 1))]
 }

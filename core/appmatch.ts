@@ -32,9 +32,10 @@ export function matchScore(said: string, f: Findable): number {
   const named = [f.title, ...(f.names ?? [])].map(wordsOf)
   if (named.some((ws) => ws.join(" ") === phrase)) return 100
   const best = (60 * qs.filter((w) => named.some((ws) => ws.some((x) => alike(w, x)))).length) / qs.length
+  const whole = Math.max(...named.map((ws) => (ws.length ? ws.filter((x) => qs.some((w) => alike(w, x))).length / ws.length : 0)))
   const about = wordsOf(f.about ?? "")
   const told = qs.filter((w) => w.length > 2 && about.some((x) => alike(w, x))).length
-  const score = best + (20 * told) / qs.length
+  const score = best + (20 * told) / qs.length + (best ? 10 * whole : 0)
   return score > 0 ? score + (f.weight ?? 0) : 0
 }
 

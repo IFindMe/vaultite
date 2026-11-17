@@ -236,6 +236,7 @@ async function whichChecks({ check, write, vault, vars: { vau } }: VaultTest) {
   check("vau which: another page by one word of its title", keys[0]?.how === "vau open view:agent-passkeys", keys.slice(0, 2))
   check("vau which: a word is never a longer one it only starts (mode isn't model)", !dark.some((f: { title: string }) => /model/i.test(f.title)), dark)
   write("Personal/Lighthouse/Plan.md", "# Plan\n")
+  write("Attachments/lighthouse-launch-shots/a.md", "# A\n")
   await vault.synced()
   const folder = await which("the lighthouse folder"), pin = await which("pin a folder")
   check("vau which: a vault folder by its name, with how to open it", folder[0]?.kind === "folder" && folder[0].how === 'vau open "Personal/Lighthouse"', folder.slice(0, 2))
