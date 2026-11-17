@@ -67,9 +67,10 @@ export function checkPush(root: string, from: string, to: string): string | null
     "  Pushing anyway (GitHub's runners down): VAULTITE_TRY=skip git push ..."].join("\n")
 }
 
-/** A try run's jobs, judged: a job is the change's failure unless all it failed on also fails on main now. */
+/** A try run's jobs, judged: a job is the change's failure unless all it failed on also fails on main now, on its OS. */
 export function judge(jobs: Job[], failures: Failure[], mains: Failure[]) {
-  const onMain = (f: Failure) => mains.some((m) => m.job === f.job && sameTest(m.test, f.test))
+  const osOfJob = (job: string) => job.replace(/, (vault|rest)\)$/, ")")
+  const onMain = (f: Failure) => mains.some((m) => osOfJob(m.job) === osOfJob(f.job) && sameTest(m.test, f.test))
   const rows = jobs.filter((j) => j.conclusion !== "skipped").map((j) => {
     const own = failures.filter((f) => f.job === j.name)
     const state = j.conclusion === "success" ? "ok" : j.conclusion === "failure" && own.length && own.every(onMain) ? "main's" : "FAIL"

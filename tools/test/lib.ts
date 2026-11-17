@@ -198,6 +198,7 @@ const REPO = path.resolve(import.meta.dirname, "..", "..")
 function runsFile() {
   return path.join(process.env.VAULTITE_RUNS_DIR ?? path.join(REPO, "tools", ".runs"), "test-runs.jsonl")
 }
+const KEPT_RUNS = 500
 type RunRecord = { suite: string; at: string; ms: number; ok: boolean; sections: { name: string; ms: number; ok: boolean; fails: string[] }[] }
 
 export function record(suite: string, rows: { name: string; ms: number; ok: boolean; fails: string[] }[], ms: number) {
@@ -206,6 +207,8 @@ export function record(suite: string, rows: { name: string; ms: number; ok: bool
     fs.mkdirSync(path.dirname(runsFile()), { recursive: true })
     if (!process.env.VAULTITE_RUNS_DIR) fs.writeFileSync(path.join(path.dirname(runsFile()), ".gitignore"), "*\n")
     fs.appendFileSync(runsFile(), JSON.stringify(rec) + "\n")
+    const lines = fs.readFileSync(runsFile(), "utf8").split("\n").filter(Boolean)
+    if (lines.length > 2 * KEPT_RUNS) { const tmp = `${runsFile()}.${process.pid}`; fs.writeFileSync(tmp, lines.slice(-KEPT_RUNS).join("\n") + "\n"); fs.renameSync(tmp, runsFile()) }
   } catch { /* a read-only checkout: runs aren't kept */ }
 }
 

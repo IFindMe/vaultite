@@ -100,6 +100,8 @@ check("a job failing on its own is the change's", !judge(jobs, mine, []).ok && j
 const asMain = judge(jobs, mine, [{ job: "test (windows-2025)", test: "test_vault.ts: live: walks" }])
 check("failing only as main does isn't, and a skipped job isn't counted", asMain.ok && asMain.rows.length === 2 && asMain.rows[1].state === "main's", asMain)
 check("a failure main has on another OS is still the change's", !judge(jobs, mine, [{ job: "test (macos-15)", test: "test_vault.ts: live: walks" }]).ok)
+check("main's failure in the same OS's other part (or a machine's run of it) is main's, not the change's",
+  judge([job(4, "test (ubuntu-24.04, rest)", "failure")], [{ job: "test (ubuntu-24.04, rest)", test: "test_vault.ts: live: walks" }], [{ job: "test (ubuntu-24.04)", test: "test_vault.ts: live: walks" }]).ok)
 check("a job that failed with nothing said (cancelled, timed out) is a failure", !judge([job(2, "test (windows-2025)", "cancelled")], [], []).ok)
 
 // A scratch repository: main, a branch with an OS-sensitive change, main moving on, the branch rebased.
@@ -213,7 +215,8 @@ section("try on machines")
   const yml = fs.readFileSync(path.join(import.meta.dirname, "..", ".github/workflows/ci.yml"), "utf8")
   const job = /\n {2}test:\n(?:(?! {2}[\w-]+:\n).*\n)*/.exec(yml)?.[0] ?? ""
   const runs = [...job.matchAll(/^\s+(?:- )?run: (.+)$/gm)].map((m) => m[1].replace(/\$\{\{[^}]*\}\}\s*/g, "").trim()).filter((r) => !r.startsWith("sudo "))
-  check("a machine runs ci.yml's test job, step by step (but what needs sudo on a runner)", runs.join() === STEPS.map((x) => x.cmd).join(), { runs, steps: STEPS.map((x) => x.cmd) })
+  const whole = runs.join().replace(/node tools\/test_vault\.ts --jobs[^,]*,npm test -- --except test_vault/, "npm test")
+  check("a machine runs ci.yml's test job, step by step, its two parts at once (but what needs sudo on a runner)", whole === STEPS.map((x) => x.cmd).join(), { runs, steps: STEPS.map((x) => x.cmd) })
   const r = parseJob(["== npm test", "try-job: step FAIL 3.0 npm test", "try-job: summary", "try-job: result ok 20.5 npm ci", "try-job: result FAIL 61.2 npm test",
     "try-job: fail npm test: test_vault.ts: terminal: teleport", "try-job: flaky npm test: test_vault.ts: live: walks", "try-job: log /home/alice/.vaultite-try/logs/a.log", "try-job: done FAIL 90.0"].join("\r\n"))
   check("a job's summary, read: its steps, failures, flaky tests and log", !r.ok && r.steps?.length === 2 && r.steps[1].ok === false && r.failures?.join() === "test_vault.ts: terminal: teleport"

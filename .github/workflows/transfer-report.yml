@@ -1,10 +1,10 @@
-# CI's transfer table (ci.yml's transfer job) on its pull request, as one comment kept up to date. It runs from main
+# The transfer table (transfer.yml) on its pull request, as one comment kept up to date. It runs from main
 # (workflow_run, whose token can write even for a fork's pull request), never the pull request's code: the pull request's
 # artifact is read as data by main's tools/perf/transfer_report.ts, which checks every value before any reaches the comment.
 name: Transfer report
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [Transfer]
     types: [completed]
 permissions:
   actions: read
