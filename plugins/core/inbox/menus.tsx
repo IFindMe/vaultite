@@ -1,9 +1,10 @@
 import type { MouseEvent } from "react"
-import { AlarmClockOff, Check, Clock, ExternalLink, FileText, FolderInput, Globe, Mail, MailOpen, MoreHorizontal, Pin, PinOff, RotateCcw, ShieldCheck, SquareTerminal, Trash2 } from "lucide-react"
+import { AlarmClockOff, BellOff, Check, Clock, ExternalLink, FileText, FolderInput, Globe, Mail, MailOpen, MoreHorizontal, Pin, PinOff, RotateCcw, ShieldCheck, SquareTerminal, Trash2 } from "lucide-react"
 import { askMoveMany, cn, DoIt, getStore, haptic, menuBelow, openFile, openMenu, openWebLink, pluginFileGroups, useSelectable, useStoreWith, type FileHead, type MenuItem, type Store, type SwipeAction, type TabButton } from "@vaultite"
 import { fixEvent, forget, getEvents, markRead, markUnread, openAsker, openEvent, snoozable, targetOf } from "./events"
 import type { InboxEvent, InboxItem } from "./types"
 import { snoozed } from "./snooze"
+import { muteAccount } from "./mute"
 import { reviewing } from "./threads"
 import { keepDefault } from "./DecisionRows"
 import { waiting, pathOf, SELECT, resultKey, eventKey, markDone, fileTo, unInbox, pinKeys, markManyDone, markManyEventsDone, reopen } from "./items"
@@ -88,7 +89,9 @@ export const eventItems = (e: InboxEvent, shownNew: boolean, touched?: (id: stri
     ? { label: "Back to inbox", icon: RotateCcw, sep: true, run: () => markManyEventsDone([e], false) }
     : { label: "Settle", icon: Check, sep: true, run: () => { markManyEventsDone([e]); touched?.(e.id) } },
   ...(e.state === "done" ? [{ label: "Delete", icon: Trash2, run: () => void forget(e.id) }] : []),
+  ...muteItem(e.account),
 ]
+const muteItem = (a: InboxEvent["account"]): MenuItem[] => (a ? [{ label: `Mute the ${a.label} account`, icon: BellOff, sep: true, run: () => void muteAccount(a) }] : [])
 
 export const decisionItems = (r: InboxItem): MenuItem[] => [
   { label: "Open", icon: FileText, run: () => openFile(pathOf(r)) },

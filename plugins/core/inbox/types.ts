@@ -81,6 +81,7 @@ export type InboxEvent = {
   fix?: Fix
   /** A session's latest progress (inbox.progress), each replacing the last: shown on its row, never told. */
   progress?: string
+  account?: { id: string; label: string }
   /** The session that delegated this one its task, by its name then (its own thread, if any, by its terminal or session). */
   parent?: { title: string; agent: string; terminal?: string; session?: string }
   /** The session that asked (a permission the server waits on, an ask made in its request), by its name then. */

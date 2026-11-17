@@ -56,6 +56,7 @@ export type InboxEvent = {
   pinned?: boolean
   stays?: boolean
   fix?: Fix
+  account?: { id: string; label: string }
   /** The session that delegated this one its task (Delegation), by its name then: the thread says "from" it. */
   parent?: { title: string; agent: string; terminal?: string; session?: string }
   /** The session that asked (a gate's, a waiting ask's made in its request), by its name then: "Go to session" opens it. */

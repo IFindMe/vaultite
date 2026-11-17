@@ -8,7 +8,7 @@ import { judge } from "./needs.ts"
 import { afterTurn, askedRow, askOf, bodyOf, delegated, delegatedRow, fromHook, hear, type Heard, heardWho, keyOf, type Last, type Lineage, reportedSince,
   rowOf, rowWith, type Seen, wantsLast, type Who, wordsOf } from "./rows.ts"
 import { owner, plugin, settings } from "./server.ts"
-import { list, newId, put, resolve, shown, told } from "./store.ts"
+import { list, moveOn, newId, put, resolve, shown, told } from "./store.ts"
 
 const log = logger("inbox")
 
@@ -23,7 +23,7 @@ export const settled = async () => { while (pending.size) await Promise.all([...
 /** A session's change heard: its row made or changed. Never throws, and the terminal never waits on it. */
 export async function heard(h: Heard) {
   const key = keyOf(h)
-  if (!key || !h.agent || await muted(h.agent, h.terminal ?? "", h.session ?? "")) return
+  if (!key || !h.agent || mutedAccount(await severalAccountsOf(h.agent, h.terminal ?? "", h.session ?? ""))) return
   const { seen, act } = hear(states.get(key), h, Date.now())
   if (act.do === "repeat") return
   states.set(key, seen)
@@ -46,11 +46,28 @@ export async function heard(h: Heard) {
   }
 }
 
-async function muted(agent: string, terminal: string, session: string) {
-  const names = settings().muted
-  if (!names.length) return false
-  const a = await plugin.ask<{ id: string; label: string } | null>(`agent-account:${agent}`, null, terminal, session).catch(() => null)
-  return !!a && names.some((n) => n === a.id.toLowerCase() || n === a.label.toLowerCase())
+type Account = NonNullable<InboxEvent["account"]>
+const accounts = new Map<string, Account | null>()
+async function severalAccountsOf(agent: string, terminal: string, session: string): Promise<Account | null> {
+  const key = `${agent}:${terminal || session}`
+  if (accounts.has(key)) return accounts.get(key)!
+  const several = ((await plugin.ask<string[] | null>(`agent-accounts:${agent}`, null).catch(() => null)) ?? []).length > 1
+  const a = several ? await plugin.ask<Account | null>(`agent-account:${agent}`, null, terminal, session).catch(() => null) : null
+  const out = a ? { id: a.id, label: a.label } : null
+  if (out || terminal) accounts.set(key, out)
+  if (accounts.size > 500) accounts.delete(accounts.keys().next().value!)
+  return out
+}
+
+export const mutedAccount = (a: Account | null | undefined, names = settings().muted) =>
+  !!a && names.some((n) => n === a.id.toLowerCase() || n === a.label.toLowerCase())
+
+let mutedBefore: string | null = null
+function settleNewlyMuted() {
+  const names = settings().muted, now = names.join("\n")
+  if (now === mutedBefore) return
+  mutedBefore = now
+  moveOn(list().filter((e) => e.kind === "session" && e.state !== "done" && !e.machine && mutedAccount(e.account, names)), "done")
 }
 
 /** Claude Code's hooks call its own questions permissions; its transcript can trail its screen a moment. */
@@ -130,7 +147,8 @@ export async function sessionRow(k: Who, patch: Partial<InboxEvent>, news: boole
   const es = list()
   const old = es.find(rowOf(k)) ?? null
   const now = Date.now()
-  return put(rowWith(old, patch, k, { id: newId(now), t: now, title, fallback: `${agentLabel(k.agent)} session`, parent: line?.parent }), old, es, news)
+  const account = await severalAccountsOf(k.agent, k.terminal, k.session)
+  return put(rowWith(old, account ? { ...patch, account } : patch, k, { id: newId(now), t: now, title, fallback: `${agentLabel(k.agent)} session`, parent: line?.parent }), old, es, news)
 }
 
 export function agentLabel(name: string) {
@@ -196,6 +214,8 @@ export async function askerOf(): Promise<InboxEvent["from"]> {
 }
 
 export function register() {
+  plugin.onEvent({ types: ["file.changed"] }, () => { if (plugin.loaded) settleNewlyMuted() })
+
   /** A session's state from a host outside this server (SessionState): answered at once, the thread worked out after. */
   plugin.route("POST", "inbox/sessions", async (req) => {
     await owner(req)

@@ -330,15 +330,23 @@ export default async ($: VaultTest) => {
       }
       {
         // The setting `muted`: a session in an account the user muted (its agent's plugin says whose) makes no thread.
-        const acct = cc.services["agent-account:claude"]
+        const acct = cc.services["agent-account:claude"], accts = cc.services["agent-accounts:claude"]
+        cc.services["agent-accounts:claude"] = () => ["default", "contact"]
         cc.services["agent-account:claude"] = async (terminal: string) => (terminal === "claude_contact-mute0001" ? { id: "contact", label: "Contact" } : { id: "default", label: "Work" })
         await api("PATCH", "config/plugin/inbox", { muted: ["Contact"] })
         tell({ terminal: "claude_contact-mute0001", agent: "claude", state: "blocked", kind: "permission", msg: "Run it?", from: "osc7501", at })
         tell({ terminal: "claude-mute0002", agent: "claude", state: "blocked", kind: "permission", msg: "Run it?", from: "osc7501", at })
         const m = await rows()
         check("muted: a session in a muted account makes no thread, another account's does", !m.some((e) => e.terminal === "claude_contact-mute0001") && m.some((e) => e.terminal === "claude-mute0002"), m)
+        const work = m.find((e) => e.terminal === "claude-mute0002")
+        check("muted: a thread names its session's account when its agent has several (its row's Mute)", work?.account?.id === "default" && work.account.label === "Work", work)
+        await api("PATCH", "config/plugin/inbox", { muted: ["Contact", "default"] })
+        let after: Any
+        for (const end = Date.now() + 5000; Date.now() < end && after?.state !== "done"; await new Promise((ok) => setTimeout(ok, 50))) after = (await rows()).find((e) => e.terminal === "claude-mute0002")
+        check("muted: muting an account settles its open threads, quietly", after?.state === "done" && after.read === true, after)
         await api("PATCH", "config/plugin/inbox", { muted: null })
         cc.services["agent-account:claude"] = acct
+        cc.services["agent-accounts:claude"] = accts
       }
       // OSC 7501's done comes before Claude Code writes its last answer: the transcript has the turn's earlier words (or
       // none), then the answer a moment later. The answer is what's judged.

@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Inbox: Mute the <account> account on an agent's thread stops that account's sessions coming to the inbox, with
+  their toasts and notifications, and settles the ones open; the Agents panel's Notifications lists every machine's accounts.
 - The companion is one talk on a Mac: asked in one vault, a follow-up in another knows what was said, and its chat
   (Show the companion's chat: the Conversations view's Talk) shows every day and every vault's asks, its session's
   context a button there.

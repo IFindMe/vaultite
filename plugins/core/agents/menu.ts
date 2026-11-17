@@ -1,11 +1,11 @@
-import { accountsOf, agentsOn, notifyError, openMenu, type AgentRun, type MenuItem } from "@vaultite"
+import { accountsOf, agentsOn, fetchMachines, notifyError, otherMachines, openMenu, type Agent, type AgentRun, type MenuItem } from "@vaultite"
 import { GROUPS, inbox, settings, SORTS } from "./view"
 
 const save = (p: Promise<void>) => void p.catch((e) => notifyError(e, "Couldn't save that"))
 
 export async function viewMenu(r: DOMRect, kinds: { kind: AgentRun["kind"]; label: string }[]) {
   const claude = agentsOn().find((a) => a.name === "claude")
-  const [accounts] = await Promise.all([claude ? accountsOf(claude, "") : [], settings.ready(), inbox.ready()])
+  const [accounts] = await Promise.all([claude ? accountsOnEveryMachine(claude) : [], settings.ready(), inbox.ready()])
   const items = (): MenuItem[] => {
     const s = settings.get() ?? {}, group = s.group ?? "none", sort = s.sort ?? "status", hide = s.hide ?? []
     const muted = (inbox.get()?.muted ?? []).map((m) => m.toLowerCase())
@@ -37,4 +37,10 @@ export async function viewMenu(r: DOMRect, kinds: { kind: AgentRun["kind"]; labe
     return out
   }
   openMenu({ x: r.left, y: r.bottom + 4, flip: r.top - 4 }, items(), false, items)
+}
+
+async function accountsOnEveryMachine(a: Agent) {
+  const others = otherMachines(await fetchMachines().catch(() => []), "claude-code")
+  const lists = await Promise.all([accountsOf(a, ""), ...others.map((m) => accountsOf(a, m.id))])
+  return lists.flat().filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i)
 }
