@@ -23,7 +23,7 @@ import { focusedVault, manager, openVault, sandbox, showManager, waiting } from 
 import { openRemote, probe, remoteWins } from "./remotewin.ts"
 import { folderName, handle, str, who } from "./handle.ts"
 import { pathDirs, serverUrl, showSetup, where } from "./setupwin.ts"
-import { copyIn, openFiles, pickOutside } from "./fromoutside.ts"
+import { copyIn, openFiles, pathKind, pickOutside, showFolder } from "./fromoutside.ts"
 import { applyDockIcon, DOCK_ICON, IMAGE_TYPES, zoomBy } from "./appmenu.ts"
 import { logger } from "../core/log.ts"
 
@@ -91,6 +91,8 @@ handle("files:copy-in", (w, paths: string[], folder: string, move: boolean) => {
 })
 handle("files:open", (w, paths: string[]) => openFiles(strings(paths), w))
 handle("files:pick", async (w) => pickOutside(w))
+handle("files:kind", (_w, p: string) => pathKind(str(p)))
+handle("files:show", (_w, p: string) => showFolder(str(p)))
 const DIALOG_KEYS = ["title", "defaultPath", "buttonLabel", "filters", "properties", "message", "detail", "nameFieldLabel", "showsTagField", "buttons", "type", "defaultId", "cancelId", "checkboxLabel", "noLink"]
 ipcMain.on("dialog:sync", (e, kind: unknown, options: unknown) => {
   try {

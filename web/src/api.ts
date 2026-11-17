@@ -217,7 +217,7 @@ export { Button, buttonClass, HeadingButton } from "@/components/Button"
 export { Banner } from "@/components/Banner"
 // A cursor's conversation: its last words and what the user asked, above a box to ask more (the window's and the screen's).
 export { Chat, type ChatItem } from "@/components/Chat"
-export { Badged, Bar, Bars, Editable, IconAction, Empty, FilterField, Foldable, Group, GroupNote, KV, List, Loading, LoadingRows, OnThisMac, PageHeader, Panel, Ring, Row, Section, Segmented, SettingRow, SheetHead, Slider, Stat, Switch, type Dot } from "@/components/kit"
+export { Badged, Bar, Bars, Editable, IconAction, Empty, FilterField, Foldable, Group, GroupNote, KV, List, Loading, LoadingRows, OnThisMac, PageHeader, Panel, Ring, Row, Section, Segmented, SettingRow, SheetHead, Slider, Stat, Stone, Switch, type Dot } from "@/components/kit"
 // A place in the app's chrome a view draws into (a portal's host: #phone-actions, #phone-subtitle), once it's there.
 export { usePortalHost } from "@/components/kit"
 export { useQuerySuggest, useSuggest } from "@/components/Suggest"
@@ -345,6 +345,8 @@ export { dockIcon } from "@/core/desktop"
 // A file outside the vault, by its absolute path (a notice's Open): the desktop app opens it.
 export { isOutside } from "@/core/desktop"
 export { openOutside } from "@/core/desktopapp"
+// Full paths on the desktop app's computer (null in a browser): what's at one, and a folder shown in the file manager.
+export { outsidePaths } from "@/core/desktopapp"
 // macOS's Look up and the spell checker (the desktop app; null in a browser): the editor's menu.
 export { lookUp, spelling } from "@/core/desktop"
 // Web pages laid over a pane (the Browser): null in a browser, and in app builds from before it.

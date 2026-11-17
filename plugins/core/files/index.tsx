@@ -9,6 +9,7 @@ export default definePlugin({
     folder: { icon: Folder, title: folderName, pathArg: true, pinAs: () => null, tabMenu: (arg) => folderTabMenu(arg),
       bar: ({ arg }) => folderBar(arg), render: ({ store, arg }) => <FolderPage key={arg} store={store} path={arg} /> },
   },
+  searchQuery: { opens: async (q) => (/[\\/]/.test(q) ? (await import("./typed")).typedRows(q) : []) },
   settingsPanel: () => <FilesSettings />,
   settingsSearch: filesSettingsSearch,
   commands: [

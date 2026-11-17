@@ -89,6 +89,21 @@ export function useQueried(query: string): { section: string; hits: Hit[] }[] {
   return found
 }
 
+export function useOpens(query: string): Hit[] {
+  const { disabled } = usePrefs()
+  const openers = useMemo(() => active(disabled).filter((p) => p.searchQuery?.opens), [disabled])
+  const [found, setFound] = useState<{ for: string; hits: Hit[] }>({ for: "", hits: [] })
+  useEffect(() => {
+    const q = query.trim()
+    if (!q || !openers.length) return
+    let on = true
+    const t = setTimeout(() => void Promise.all(openers.map((p) => p.searchQuery!.opens!(q).catch(() => [])))
+      .then((all) => { if (on) setFound({ for: q, hits: all.flat().map((d) => ({ ...d, lead: true, marks: [], score: 0 })) }) }), 60)
+    return () => { on = false; clearTimeout(t) }
+  }, [query, openers])
+  return found.for === query.trim() ? found.hits : []
+}
+
 export function typedHits(query: string, disabled: string[], o: { complete: string | null; turn: number } = { complete: null, turn: 0 }): Hit[] {
   const q = query.trim()
   if (!q) return []

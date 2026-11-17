@@ -488,6 +488,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `optimistic(change, write, failed)`: A tap answered at once: change the store now, then write; a failed write brings the server's back and says so.
 - `orderRuns(list)`: The panel's order: needs you, then working, then at rest; the ones at rest newest first, the others oldest first (as they started: a new one doesn't push the rest down).
 - `otherMachines(list, plugin?)`: The other machines that are online and have `plugin` on (all online ones without it).
+- `outsidePaths()`
 - `overConnect()`: Used through Vaultite Connect, without owner tools.
 - `PageCtx`: What a page view gets: the file as it is in the editor, the page's name, where it's drawn, and which plugins are off.
 - `PageHeader({ title, subtitle, section, tabs, children, className })`: A page's large title, on desktop right under its tab's bar (ViewBar), like a file's.
@@ -711,6 +712,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `stem(path)`: A file's name as the app shows it: without .md, or the extension of a page a plugin draws (an artifact's .html, a table's .csv: named like notes, FileFormat.page); other files keep theirs.
 - `stepTextSize(kind, step)`: One step bigger (1), smaller (-1), or back to 100% (0).
 - `stiffness(ms)`: The stiffness that settles a move (to within 1%) in `ms`.
+- `Stone({ className })`
 - `stopDictation(cancel?)`: Stop listening: what was heard becomes final (`cancel`: the words not settled yet are dropped).
 - `Store`: The store every block, detail and panel gets: the state without the settings, which the app applies itself.
 - `subscribeScoped(f)`: Subscribe to the current workspace and what's kept in it (for useSyncExternalStore with a getter of your own).

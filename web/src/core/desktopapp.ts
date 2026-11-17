@@ -72,6 +72,8 @@ export async function openOutside(path: string) {
   else notify(`Couldn't open ${name}: it isn't on this computer`)
 }
 
+export const outsidePaths = () => (desktop?.pathKind && desktop.showFolder ? { kind: desktop.pathKind, showFolder: desktop.showFolder } : null)
+
 let known: { path: string; name: string }[] = []
 export const otherVaults = () => known
 type Listed = { current?: string | null; vaults: { path: string; name: string }[] }

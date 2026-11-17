@@ -96,6 +96,8 @@ contextBridge.exposeInMainWorld("vaultite", {
   copyIn: call("files:copy-in"),
   openOutside: call("files:open"),
   pickOutside: call("files:pick"),
+  pathKind: call("files:kind"),
+  showFolder: call("files:show"),
   dialogSync: (kind, options) => ipcRenderer.sendSync("dialog:sync", kind, options),
   ready: call("app:ready"),
   restartToUpdate: call("app:update-restart"),

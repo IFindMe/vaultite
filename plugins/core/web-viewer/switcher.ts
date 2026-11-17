@@ -67,7 +67,6 @@ export function switcherSearch(openPage: (url: string, container?: string | null
         return complete?.text ?? null
       },
       typed: (q, { complete, turn }) => {
-        if (!webPages) return []
         const t = q.trim(), engine = settings.get().search
         const done = complete ? completedTo.get(complete.toLowerCase()) ?? null : null
         const typed = addressOf(t, engine), words = searchUrl(t, engine)
@@ -76,18 +75,18 @@ export function switcherSearch(openPage: (url: string, container?: string | null
         const first = destination(to ?? words, { from: null, fresh: true }).container
         const chosen = turn ? ids[(((ids.indexOf(first) + turn) % ids.length) + ids.length) % ids.length] : undefined
         const at = (url: string) => destination(url, { from: null, fresh: true, chosen })
-        const tag = (w: Where) => { const c = containerById(w.container); return c ? { label: c.name, color: colorOf(c) } : turn ? { label: "No container", color: "var(--tertiary)" } : undefined }
+        const tag = (w: Where) => { if (!webPages) return undefined; const c = containerById(w.container); return c ? { label: c.name, color: colorOf(c) } : turn ? { label: "No container", color: "var(--tertiary)" } : undefined }
         const opening = to ? at(to) : null, searching = at(words)
         const guessed = !!to && !done && guessedHttps(t)
         return [
-          ...(to && opening ? [{ id: "web-open", title: `Open ${bare(to)}`, meta: "", kind: "Web", icon: siteIcon(to), tint: TINT, tag: tag(opening),
+          ...(to && opening ? [{ id: "web-open", title: `Open ${bare(to)}`, meta: "", kind: "Web", icon: siteIcon(to), tint: TINT, tag: tag(opening), lead: http(t),
             run: () => { if (guessed) guessedFor(to); open(to, "typed", opening) }, text: "", recent: 0 }] : []),
           ...(http(t) ? [] : [{ id: "web-search", title: `Search the web for "${t}"`, meta: hostOf(searchUrl("", engine)), kind: "Web", icon: Search, tint: TINT,
             tag: tag(searching), run: () => open(words, "typed", searching), text: "", recent: 0 }]),
         ]
       },
       turns: "container",
-      owns: (q) => { const engine = settings.get().search, to = addressOf(q, engine); return !!webPages && !!to && to !== searchUrl(q, engine) },
+      owns: (q) => { const engine = settings.get().search, to = addressOf(q, engine); return !!to && to !== searchUrl(q, engine) },
       launcher: () => (webPages ? "Search or enter address…" : null),
     },
   }

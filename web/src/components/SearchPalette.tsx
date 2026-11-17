@@ -9,7 +9,7 @@ import { launcherAt, launcherClosed } from "@/core/launcher"
 import { newNoteFolder } from "@/core/conventions"
 import { snippet } from "@/core/plaintext"
 import { openDetail } from "@/core/nav"
-import { completeTyped, launcherText, search, suggestions, typedHits, typedOwned, typedTurns, useQueried, useSearchIndex, type Hit } from "@/core/search"
+import { completeTyped, launcherText, search, suggestions, typedHits, typedOwned, typedTurns, useOpens, useQueried, useSearchIndex, type Hit } from "@/core/search"
 import { useRecentFiles } from "@/core/scope"
 import { usePrefs } from "@/core/prefs"
 import { useStateFor } from "@/core/statefor"
@@ -67,6 +67,7 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
     return () => { on = false; off(); clearTimeout(t) }
   }, [q, node, plain, limit, short, setText])
   const queried = useQueried(plain && !error ? q : "")
+  const opens = useOpens(q)
   const lead = launcher ? launcherText(disabled) : null
   const [auto, setAuto] = useState(true)
   const [done, setDone] = useState<{ for: string; text: string } | null>(null)
@@ -90,12 +91,14 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
     const inFiles = text.hits.filter((h) => !have.has(h.file))
     const found = queried.flatMap((g) => g.hits)
     const all = [...local.filter((h) => !h.archived), ...found, ...inFiles.filter((h) => !h.archived), ...local.filter((h) => h.archived), ...inFiles.filter((h) => h.archived)]
-    const sections = new Map<string, string>([...queried.flatMap((g) => g.hits.map((h) => [h.id, g.section] as const)), ...typed.map((h) => [h.id, lead ? "" : "More"] as const)])
+    const first = [...opens, ...typed.filter((h) => h.lead)]
+    const sections = new Map<string, string>([...queried.flatMap((g) => g.hits.map((h) => [h.id, g.section] as const)), ...typed.map((h) => [h.id, lead ? "" : "More"] as const),
+      ...first.map((h) => [h.id, ""] as const)])
     const query = q.trim()
-    const rows = !query ? all : lead ? [...typed, ...all, ...(all.length ? [everything] : [])] : [...all, ...typed, ...(all.length ? [everything] : [])]
-    const seen = new Set<string>()
-    return { hits: rows.filter((h) => !seen.has(h.id) && !!seen.add(h.id)), sections }
-  }, [local, text, q, queried, typed, lead, everything])
+    const rows = !query ? all : lead ? [...first, ...typed, ...all, ...(all.length ? [everything] : [])] : [...first, ...all, ...typed, ...(all.length ? [everything] : [])]
+    const seen = new Set<string>(), opened = new Set(first.flatMap((h) => (h.file ? [h.file] : [])))
+    return { hits: rows.filter((h) => !seen.has(h.id) && !!seen.add(h.id) && (first.includes(h) || !h.file || !opened.has(h.file))), sections }
+  }, [local, text, q, queried, typed, opens, lead, everything])
   const more = named.length > local.length || text.files > text.hits.length
 
   const go = (h: Hit, mod = false) => {
@@ -129,7 +132,7 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
         setTurn((t) => t + (e.key === "ArrowDown" ? 1 : -1))
         return true
       }}
-      heading={!q.trim() ? "Recent files and pages" : node && !plain ? explain(node) : undefined}
+      heading={!q.trim() ? "Recent files and pages" : node && !plain && !opens.length ? explain(node) : undefined}
       section={(h) => (h.id === "search-tab" ? "More" : sections.has(h.id) ? sections.get(h.id) || undefined : plain && h.id.startsWith("text-") ? "In files" : undefined)}
       empty={error ? <p className="px-3 py-6 text-center text-[15px] text-muted-foreground">{error}</p>
         : q.trim() && <NoMatches what="Nothing matches" query={q} then="Enter makes a note with that name" />}

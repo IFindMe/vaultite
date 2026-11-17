@@ -1,7 +1,7 @@
 // Search (core/search.ts, components/SearchPalette.tsx, pages/Search.tsx, core/searchquery.ts): the quick switcher
 // marks what matched in the grey text too (a word found only in a note's body shows the part around it), files found by
 // their text come under "In files", pages aren't found by their folder's name, an operator query lists files only with
-// what it asks for in words, a bad query says why, and a running terminal is found by name. The search tab lists the
+// what it asks for in words, a bad query says why, a running terminal is found by name, a full path opens it. The search tab lists the
 // operators while empty (a click adds one), marks matched lines (as they read, not as written), and its options (match case, sort, collapse, more
 // context, explain) are saved in .vaultite/plugins/search/data.json. Phones at 390px: no horizontal overflow.
 // WRITES a "Qa search" folder, a note in Notes/ and the search plugin's settings (put back), runs a shell.
@@ -66,6 +66,25 @@ try {
   r = await palette('"open')
   check("a query it can't read says why", r.some((x) => x.text.includes("A quote isn't closed")) || (await page.textContent('[role="dialog"]')).includes("A quote isn't closed"), r)
   await page.keyboard.press("Escape")
+
+  const full = path.join(path.resolve(VAULT), DIR, "Budget plan.md")
+  r = await palette(full)
+  check("a full path in the vault opens it, first", r[0]?.text.startsWith(`Open ${DIR}/Budget plan.md`), r.map((x) => x.text))
+  check("...and is listed once", r.filter((x) => x.text.includes("Budget plan") && !x.text.startsWith("Search the web")).length === 1, r.map((x) => x.text))
+  await shot(page, "palette-path")
+  r = await palette(`file://${encodeURI(full)}`)
+  check("a file:// URL in the vault opens it, first, not read as a query", r[0]?.text.startsWith(`Open ${DIR}/Budget plan.md`), r.map((x) => x.text))
+  r = await palette(`${path.resolve(VAULT)}/${DIR}/`)
+  check("a folder's full path opens the folder", r[0]?.text.startsWith(`Open ${DIR}`) && r[0].text.includes("Folder in the vault"), r.map((x) => x.text))
+  r = await palette(`${path.resolve(VAULT)}/${DIR}/Nothing here.png`)
+  check("a path to nothing offers no Open, searching the web stays", !r.some((x) => x.text.startsWith("Open")) && r.some((x) => x.text.startsWith("Search the web")), r.map((x) => x.text))
+  r = await palette(path.resolve(VAULT, ".."))
+  check("outside the vault a browser offers no Open", !r.some((x) => x.text.startsWith("Open")), r.map((x) => x.text))
+  r = await palette("https://example.com/qa")
+  check("a full address opens it, first", r[0]?.text.startsWith("Open example.com/qa"), r.map((x) => x.text))
+  await palette(full)
+  await page.keyboard.press("Enter")
+  check("Enter on the path opens the file", await until(() => page.evaluate(() => decodeURIComponent(location.hash).includes("Budget plan.md")), 5000), await page.evaluate(() => location.hash))
 
   // A running terminal is found by name.
   await page.goto(`${B}#view/terminal%2Fqasearch`)

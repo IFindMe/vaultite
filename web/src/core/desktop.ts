@@ -22,6 +22,8 @@ export type DesktopApi = {
   copyIn: (paths: string[], folder: string, move: boolean) => Promise<string[]>
   openOutside: (paths: string[]) => Promise<string[]>
   pickOutside: () => Promise<string[]>
+  pathKind?: (path: string) => Promise<{ path: string; kind: "file" | "folder" | "vault" } | null>
+  showFolder?: (path: string) => Promise<boolean>
   /** Electron's sync dialogs (its options): "open" answers the paths or null, "save" a path or null, "message" the
    *  button's index. */
   dialogSync?: (kind: "open" | "save" | "message", options: Record<string, unknown>) => unknown

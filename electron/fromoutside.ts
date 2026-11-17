@@ -1,12 +1,13 @@
-import { app, dialog, type OpenDialogOptions } from "electron"
+import { app, dialog, shell, type OpenDialogOptions } from "electron"
 import fs from "node:fs"
+import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { parseRepo, repoText } from "../core/bundlelinks.ts"
 import { plainError } from "../core/plainerror.ts"
 import { inVault } from "../core/opening.ts"
 import { ROOT, WIN } from "./mainbase.ts"
-import { known, real, vaultOf } from "./vaultlist.ts"
+import { find, known, real, vaultOf } from "./vaultlist.ts"
 import type { Win } from "./servers.ts"
 import { allowIn, focusedVault, openVault, send, showManager, waiting } from "./vaultwindow.ts"
 
@@ -40,6 +41,24 @@ export async function openFiles(paths: string[], into: Win | null): Promise<stri
     else { send(w, abs); w.win.focus() }
   }
   return mine
+}
+
+export type PathKind = { path: string; kind: "file" | "folder" | "vault" }
+
+export function pathKind(typed: string): PathKind | null {
+  const p = typed.replace(/^~(?=$|[\\/])/, os.homedir())
+  if (!path.isAbsolute(p)) return null
+  let st: fs.Stats | undefined
+  try { st = fs.statSync(p, { throwIfNoEntry: false }) } catch { return null }
+  if (!st) return null
+  const abs = slashed(path.resolve(p))
+  if (!st.isDirectory()) return { path: abs, kind: "file" }
+  return { path: abs, kind: find(path.resolve(p)) || fs.existsSync(path.join(p, ".vaultite")) ? "vault" : "folder" }
+}
+
+export async function showFolder(p: string) {
+  if (!path.isAbsolute(p) || !fs.statSync(p, { throwIfNoEntry: false })?.isDirectory()) return false
+  return !(await shell.openPath(p))
 }
 
 function freeIn(dir: string, name: string) {

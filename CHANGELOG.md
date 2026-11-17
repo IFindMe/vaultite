@@ -19,6 +19,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   in, the one signed in with a login your passwords have for the site first; a username-first sign-in page shows the
   address bar's key, a sign-in page with saved logins offers to fill one (the one this container already uses, among several), and agents read a code a site mails with
   `vau browser code`.
+- Search: a full path typed or pasted in the switcher (/Users/…, ~/…, file://…, or a path in the vault) opens that file
+  or folder from the first row, when it's there; a full web address opens first too, and phones and browsers get it.
 - iPhone: a terminal's key row stays right above the keyboard, and the page no longer pans when you start typing or drag
   the terminal.
 - Updates: a checkout set right after diverging updates at its next look, without waiting for a newer commit.

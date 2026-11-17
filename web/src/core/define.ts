@@ -241,6 +241,8 @@ export type SearchDoc = {
   archived?: boolean
   /** In the excluded files (the core sets it from its `file`): ranked after the rest, never suggested. */
   excluded?: boolean
+  /** The text typed names it outright (a path that's there, a full address): listed first, above what matches. */
+  lead?: boolean
 }
 /** Something a [[wikilink]] can point to: `names` match exactly (any case), after files' names and paths. An archived
  *  one loses every tie. */
@@ -698,6 +700,9 @@ export type PluginDef = {
   searchQuery?: {
     /** Things matching it, asked a moment after typing stops (the last answer wins), listed under `section`. */
     find?: (q: string) => Promise<SearchDoc[]>; section?: string
+    /** What the text names outright (a file's full path), asked as it's typed, whatever it is (file:///… reads as a
+     *  query too): listed first. */
+    opens?: (q: string) => Promise<SearchDoc[]>
     /** Rows for the text itself, at once (open it as an address, search the web for it): after the matches. `complete`:
      *  what a new tab's switcher completed it to inline; `turn`: how far ⌥↓ (less ⌥↑) moved its rows' `tag`. */
     typed?: (q: string, o: { complete: string | null; turn: number }) => SearchDoc[]
