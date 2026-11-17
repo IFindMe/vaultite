@@ -1,25 +1,18 @@
-import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
 import { Blocks, Clock } from "lucide-react"
 import { loadIconTags } from "@/core/icons"
 import { ICONS } from "@/core/pages"
 import { catalog, EMOJI_GROUPS, ICONS_GROUP, recentGlyphs, rememberGlyph, RECENT_GROUP, sectionsFor, type Catalog, type Glyph } from "@/core/glyphs"
 import { CELL, layout, moved, useColumns, type Layout, type Move } from "@/core/glyphgrid"
 import { usePrefs } from "@/core/prefs"
-import { signal } from "@/core/signal"
+import { pickIcon, type IconAsk } from "@/core/iconask"
 import { capitalize, cn } from "@/lib/utils"
 import { Keys, NoMatches, PaletteFrame } from "@/components/Palette"
 import { GlyphGrid, GlyphMark } from "@/components/GlyphGrid"
 
-export type IconAsk = { title: string; current?: string; onPick: (name: string) => void; onClose?: () => void }
-let asking: IconAsk | null = null
-const subs = signal()
-/** Ask the user for an icon: `onPick` gets its name (`guitar`) or the emoji; `onClose` runs as it closes, picked or not. */
-export function pickIcon(a: IconAsk | null) { asking = a; subs.notify() }
-
-export const IconPicker = memo(function IconPicker() {
-  const a = subs.use(() => asking)
-  return a ? <Picker key={a.title} a={a} onClose={() => { pickIcon(null); a.onClose?.() }} /> : null
-})
+export default function IconPicker({ a }: { a: IconAsk }) {
+  return <Picker key={a.title} a={a} onClose={() => { pickIcon(null); a.onClose?.() }} />
+}
 
 let made: Catalog | null = null, making: Promise<Catalog> | null = null
 const loadCatalog = () => (making ??= Promise.all([loadIconTags(), import("gemoji")]).then(([tags, m]) => {

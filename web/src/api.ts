@@ -57,7 +57,7 @@ export { onResized, resizing } from "@/core/resizing"
 export { moves } from "@/core/animation"
 /** FLIP: an element laid out in its new place glides there from where it was (nothing when things are kept still). */
 export { slideFrom } from "@/core/animation"
-export { pickIcon } from "@/components/IconPicker"
+export { pickIcon } from "@/core/iconask"
 export { BrandIcon, GitHubIcon } from "@/core/icons"
 // The tabs and splits as a whole (Workspaces keeps one per workspace).
 export { getWorkspace as getTabLayout, onWorkspaceChange as onTabLayoutChange, replaceWorkspace as setTabLayout, mineInto as withMyTabs, panesClosed, tabsInWorkspace } from "@/core/workspace"

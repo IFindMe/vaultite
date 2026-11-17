@@ -68,7 +68,7 @@ import { APP_PAGES, appPageOf, hrefOf, isSetupTab, openAppPage, openSettings, op
 import { CommandPalette } from "@/components/CommandPalette"
 import { FolderPicker } from "@/components/FolderPicker"
 import { Chooser } from "@/components/Chooser"
-import { IconPicker, pickIcon } from "@/components/IconPicker"
+import { pickIcon, useIconAsk } from "@/core/iconask"
 import { SearchPalette } from "@/components/SearchPalette"
 import { TabSearch } from "@/components/TabSearch"
 import { openNewTab } from "@/core/launcher"
@@ -103,6 +103,11 @@ import { chooseNewTabPage, showNewTabSections } from "@/components/NewTab"
 
 const Setup = lazy(() => import("@/pages/Setup").then((m) => ({ default: m.Setup })))
 const PluginGroupSheet = lazy(() => import("@/pages/Plugins").then((m) => ({ default: m.PluginGroupSheet })))
+const IconPicker = lazy(() => import("@/components/IconPicker"))
+const IconAsked = memo(function IconAsked() {
+  const a = useIconAsk()
+  return a ? <Suspense><IconPicker a={a} /></Suspense> : null
+})
 const KeyboardKeys = lazy(() => import("@/components/KeyboardKeys").then((m) => ({ default: m.KeyboardKeys })))
 const GetPluginSheet = lazy(() => import("@/components/PluginBrowse").then((m) => ({ default: m.GetPluginSheet })))
 const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })))
@@ -639,7 +644,7 @@ export default function App() {
       <FolderPicker />
       <Chooser />
       <DownloadingNotice store={store} />
-      <IconPicker />
+      <IconAsked />
       {desktop && !bare && <StatusBar />}
       {desktop && <KeyHints />}
       {desktop && <Tooltips />}
