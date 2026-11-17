@@ -1,5 +1,5 @@
 import { Folder, FolderOpen } from "lucide-react"
-import { get, getStore, isFolder, kindIcon, notify, openFile, openFolder, openOutside, outsidePaths, showLabel, Stone, type SearchDoc } from "@vaultite"
+import { get, getStore, isFolder, kindIcon, notify, openFile, openFolder, openOutside, outsidePaths, post, Stone, type SearchDoc } from "@vaultite"
 import { inVault, typedPath } from "../../../core/typedpath.ts"
 
 type Named = { where: "vault"; path: string; folder: boolean } | { where: "outside"; path: string; kind: "file" | "folder" | "vault" }
@@ -29,7 +29,7 @@ async function named(typed: string): Promise<Named | null> {
 function open(n: Named, newTab: boolean) {
   if (n.where === "vault") return n.folder ? openFolder(n.path, { newTab }) : openFile(n.path, { newTab })
   if (n.kind !== "folder") return void openOutside(n.path)
-  void outsidePaths()?.showFolder(n.path).then((ok) => { if (!ok) notify(`Couldn't show ${n.path}`) })
+  void post<{ path: string }>("outside/allow", { path: n.path }).then((r) => openFolder(r.path, { newTab }), (e) => notify(`Couldn't open ${n.path}: ${e instanceof Error ? e.message : String(e)}`))
 }
 
 function row(n: Named): SearchDoc {
@@ -41,7 +41,7 @@ function row(n: Named): SearchDoc {
   }
   const id = `path-${n.path}`
   if (n.kind === "vault") return { ...base, id, meta: "Vault", icon: Stone }
-  if (n.kind === "folder") return { ...base, id, meta: showLabel, icon: FolderOpen }
+  if (n.kind === "folder") return { ...base, id, meta: "Folder", icon: FolderOpen }
   return { ...base, id, meta: "Outside the vault", icon: kindIcon(n.path) }
 }
 

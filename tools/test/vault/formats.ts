@@ -155,6 +155,28 @@ export default async ($: VaultTest) => {
     check("outside: an editor's edit-only save is written", code === 200 && fs.readFileSync(note, "utf8") === "Written outside.\nEdited.\n", [code, saved])
     ;[code] = await api("PUT", "file", { path: note, edit: { at: 0, cut: 0, add: "x" }, baseHash: textHash("something else") })
     check("outside: an edit of a base that changed on disk asks for the base (412)", code === 412, code)
+    const repo = path.join(tmp, "lighthouse")
+    for (const [f, text] of [[".gitignore", "build/\nsecret.txt\n"], ["README.md", "# Lighthouse\n"], ["build/out.js", ""], ["secret.txt", "x"], ["docs/Plan.md", "Plan\n"]]) {
+      fs.mkdirSync(path.dirname(path.join(repo, f)), { recursive: true })
+      fs.writeFileSync(path.join(repo, f), text)
+    }
+    const { execFileSync } = await import("node:child_process")
+    const { gitEnv } = await import("../../../core/gitenv.ts")
+    execFileSync("git", ["init", "-q"], { cwd: repo, env: gitEnv() })
+    ;[code] = await api("GET", `outside/list?path=${repo}`)
+    check("outside folder: not listed till it's opened", code === 404, code)
+    let listed: Any
+    ;[code, listed] = await api("POST", "outside/allow", { path: repo })
+    check("outside folder: opening it says it's a folder", code === 200 && listed.folder === true, listed)
+    ;[code, listed] = await api("GET", `outside/list?path=${repo}`)
+    const names = (listed.items ?? []).map((i: Any) => i.name).sort().join(",")
+    check("outside folder: listed a level at a time, less what git ignores and .git", code === 200 && names === ".gitignore,README.md,docs" && listed.root === listed.path, [code, listed])
+    ;[code, listed] = await api("GET", `outside/list?path=${path.join(repo, "docs")}`)
+    check("outside folder: a folder in it is listed, with the folder it was opened as", code === 200 && listed.items[0]?.name === "Plan.md" && listed.root === repo.replace(/\\/g, "/"), listed)
+    ;[code] = await api("GET", `file?path=${path.join(repo, "docs", "Plan.md")}`)
+    check("outside folder: a file in it opens", code === 200, code)
+    ;[code] = await api("GET", `outside/list?path=${tmp}`)
+    check("outside folder: what's above it stays closed", code === 404, code)
     const base = "One\nTwo\nThree\n", disk = "One\nTwo by them\nThree\n"
     const saves: [string, (p: string) => object][] = [
       ["an edit of the base on disk", (p) => ({ path: p, edit: { at: 0, cut: 3, add: "Uno" }, baseHash: textHash(disk), lean: true })],

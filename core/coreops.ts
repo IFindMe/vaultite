@@ -29,6 +29,7 @@ import { propTypeOps } from "./coreops/proptypes.ts"
 import { topic, topics } from "./docs.ts"
 import { defineOp, type Op, OpError, quoted } from "./ops.ts"
 import { isOutside } from "./fileprops.ts"
+import { allowPath } from "./outside.ts"
 
 export function coreOps(app: App): Op[] {
   return [...contextOps(app), ...fileOps(app), ...anchorOps(app), ...typeOps(app), ...propTypeOps(app), ...uploadOps(app), ...pluginOps(app), ...aiOps(app), ...installOps(app), ...bundleOps(app), ...panelOps(app), ...newTabOps(app), ...pageOps(app), ...settingsOps(app), ...paletteOps(app), ...keptOps(app), ...itemOps(app),
@@ -90,6 +91,13 @@ or one of the app's (vault, app, vault-plugins, from-other-apps, api: every oper
   })]
 }
 
+function outsideOr(p: string) {
+  if (!isOutside(p) && !/^~(\/|$)/.test(p)) return p
+  let at: ReturnType<typeof allowPath>
+  try { at = allowPath(p) } catch (e) { throw new OpError(e instanceof Error ? e.message : String(e), 404) }
+  return at.folder ? `view:folder/${at.path}` : at.path
+}
+
 function uiOps(app: App): Op[] {
   return [defineOp({
     id: "ui.windows",
@@ -101,8 +109,8 @@ function uiOps(app: App): Op[] {
     cli: "open",
     mcp: "open",
     summary: "Open a file, a view or a web page in the user's app window: where they say (a pane they name, as a new tab there; a split), a web page in the browser container they name.",
-    help: `Shows something in the app the user has open: a file in a tab, a folder as its page (a list or a grid of what
-it holds), a view ("view:terminal/<id>", "view:graph") or a web address in a web tab.
+    help: `Shows something in the app the user has open: a file in a tab, a folder as its page (a list, a grid or columns of what
+it holds; one elsewhere on this machine too, by its path: ~/Projects/lighthouse, less what git ignores), a view ("view:terminal/<id>", "view:graph") or a web address in a web tab.
 Only the window the user was in last acts. On a phone it opens in the sheet. For something the user should look at now
 (a file you wrote).
 Where, as the user says it:
@@ -126,7 +134,7 @@ A pane or container nobody has is an error that lists the ones there are.
   vau open https://github.com --in "top right" --container work`,
     kind: "write",
     params: {
-      path: { type: "string", format: "path", required: true, description: "the vault path (Notes/Idea.md, or as the user says it: Today), a folder, a view (view:graph) or a web address" },
+      path: { type: "string", format: "path", outside: true, required: true, description: "the vault path (Notes/Idea.md, or as the user says it: Today), a folder, a view (view:graph), a web address, or a folder or file elsewhere on this machine (its absolute path)" },
       split: { type: "string", enum: ["right", "down"], description: "open it in a pane beside (right) or below (down) the current one (or the one `in` names)" },
       newTab: { type: "boolean", description: "in a new tab, keeping the current one" },
       in: { type: "string", description: "the pane to open it in, as a new tab there, as the user names it: where it is (left, right, top right, bottom), this (the focused one), what it shows (a note, a site, its title's words) or its id" },
@@ -136,7 +144,7 @@ A pane or container nobody has is an error that lists the ones there are.
     run: async ({ path, split, newTab, in: into, container }, ctx) => {
       const why = typeof path === "string" && path.startsWith("view:terminal/") ? await ctx.refusal?.("the terminal") : ""
       if (why) throw new OpError(why, 403)
-      return ctx.ui({ action: "open", path, split: split ?? null, newTab: !!newTab, ...(into ? { in: into } : {}), ...(container ? { container } : {}) }).catch(noWindow)
+      return ctx.ui({ action: "open", path: outsideOr(path), split: split ?? null, newTab: !!newTab, ...(into ? { in: into } : {}), ...(container ? { container } : {}) }).catch(noWindow)
     },
     text: (_r, p) => `Opened ${p.path}${p.in ? ` as a new tab in the pane "${p.in}"` : ""}${p.split ? ` in a split ${p.split}` : ""}${p.container ? ` in the container ${p.container}` : ""}.`,
     did: ({ path, split }) => ({ action: "ui", text: `Opened ${path} in the app${split ? ` (split ${split})` : ""}`, paths: path && !path.startsWith("view:") ? [path] : [] }),

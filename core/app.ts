@@ -12,7 +12,6 @@ import { MARKER as SANDBOX_MARKER, newSandbox } from "./sandbox.ts"
 import { accessToMachine, allDone, cachesToKept, migrate, migrateMoved } from "./migrations.ts"
 import { installFrom } from "./coreops/installs.ts"
 import * as F from "./files.ts"
-import { saveBody } from "./contracts/save.ts"
 import * as O from "./outside.ts"
 import * as pages from "./pages.ts"
 import { setUpNew } from "./start.ts"
@@ -84,6 +83,7 @@ export class App {
 
   constructor(vaultPath: string) {
     this.vault = new Vault(vaultPath)
+    O.keepIn(vaultPath)
     this.index = new PluginIndex(this.vault)
     this.scheduler = new Scheduler({
       file: path.join(LOCAL, "schedules", `${vaultHere(vaultPath).key}.json`),
@@ -492,8 +492,8 @@ export class App {
   private async dispatch(method: string, parts: string[], query: Record<string, string>, body: unknown, http?: IncomingMessage): Promise<unknown> {
     const obj: Item = isObj<Item>(body) ? body : {}
     if (parts[0] === "ops") return await this.opsRoute(method, parts.slice(1), query, body, http)
-    if (parts.join("/") === "file" && O.isOutside(method === "GET" ? query.path : obj.path)) return O.handle(method, method === "GET" ? query.path : obj.path, saveBody(obj))
-    if (parts.join("/") === "file/info" && method === "GET" && O.isOutside(query.path)) return O.info(query.path)
+    const outside = await O.route(method, parts.join("/"), query, obj)
+    if (outside !== undefined) return outside
     if (method === "POST" && parts.join("/") === "upload") return await F.upload(this.vault, query, obj, http, (fn) => this.hold(fn))
     const res = (await F.handle(this.vault, method, parts, query, obj)) ?? Look.handle(this.vault, method, parts, obj)
     if (res !== undefined) return res

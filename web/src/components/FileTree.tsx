@@ -9,6 +9,7 @@ import { edgeScroller, getDrag, startDrag, useDragItem, useDropHit, useDropTarge
 import { desktop, hasFiles } from "@/core/desktop"
 import { dropInto } from "@/core/desktopapp"
 import { isMac, isDesktop } from "@/core/platform"
+import { compare } from "@/core/filesort"
 import { cleanName, createFile, createFolder, folderList, folderOf, freeName, inArchive, inTrash, isDoc, isFolder, isHidden, isJson, isProtected, joinPath, moveFile, nameProblem, openFile, openFolder, openingSoon, openNew, openView, pathTarget, refuseName, restoreFile, shownName, stem, type VaultFile } from "@/core/files"
 import { currentFile, getWorkspace, onWorkspaceChange } from "@/core/workspace"
 import { allPanes, type Workspace } from "../../../core/layout.ts"
@@ -293,26 +294,12 @@ function drawn(g?: FileIcon): { icon: LucideIcon; tint?: string } | null {
 }
 
 type Node = { path: string; name: string; folder: boolean; file?: VaultFile; other?: boolean; mtime: number; ctime: number; children: Node[] }
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
 
 export const SORTS: { value: FileSort; label: string }[][] = [
   [{ value: "name", label: "File name (A to Z)" }, { value: "name-desc", label: "File name (Z to A)" }],
   [{ value: "modified", label: "Modified time (new to old)" }, { value: "modified-old", label: "Modified time (old to new)" }],
   [{ value: "created", label: "Created time (new to old)" }, { value: "created-old", label: "Created time (old to new)" }],
 ]
-function compare(sort: FileSort) {
-  const byName = (a: Node, b: Node) => collator.compare(a.name, b.name)
-  const files: (a: Node, b: Node) => number = {
-    name: byName,
-    "name-desc": (a: Node, b: Node) => byName(b, a),
-    modified: (a: Node, b: Node) => b.mtime - a.mtime || byName(a, b),
-    "modified-old": (a: Node, b: Node) => a.mtime - b.mtime || byName(a, b),
-    created: (a: Node, b: Node) => b.ctime - a.ctime || byName(a, b),
-    "created-old": (a: Node, b: Node) => a.ctime - b.ctime || byName(a, b),
-  }[sort] ?? byName
-  return (a: Node, b: Node) => (a.folder !== b.folder ? (a.folder ? -1 : 1) : a.folder ? (sort === "name-desc" ? byName(b, a) : byName(a, b)) : files(a, b))
-}
-
 const fileNodes = new WeakMap<VaultFile, Node>()
 function fileNode(f: VaultFile): Node {
   let n = fileNodes.get(f)

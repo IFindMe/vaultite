@@ -17,6 +17,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   follow, on every computer. A workspace's colour tints its row in the switcher and its card in All tabs.
 - Terminals: a session's hover preview shows the pictures it shows (a screenshot an agent read) instead of a block
   of garbled characters, and `vau terminal capture` writes `[picture]` where one is (as a page, the picture itself).
+- Folders: a folder anywhere on the computer opens in a tab as the vault's folders do (list, grid, columns, gallery),
+  without what its .gitignore leaves out: typed in the switcher, from `vau open ~/Projects/lighthouse`, or asked of the
+  companion, instead of in Finder. Its files open in Vaultite.
 - Workspaces: turning them on never hides a tab: the tabs on screen go into the workspace, as a group named after the
   device when it has tabs of its own; turning them off keeps the current workspace's tabs. All tabs (⌃0, atop the
   switcher) shows every workspace's as the Tabs panel does: groups fold on a click (their count in their pill), a row

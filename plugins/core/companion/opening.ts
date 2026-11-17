@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks"
+import fs from "node:fs"
 import os from "node:os"
 import { z } from "zod"
 import { type OpCtx, OpError } from "../../../core/plugins.ts"
@@ -96,6 +97,11 @@ export const openText = (r: Opened) => (r.browser ? `Opened ${r.path} in ${r.in}
   : !r.pane && !r.sheet ? `Asked their window to open ${r.path}, but no pane of it shows it yet: don't say it's open or point at it; look (companion look) and say what's there.`
   : `Opened ${r.path}${r.pane ? ` (pane ${r.pane}${r.shows ? `, showing "${r.shows}"` : ""})` : " in their phone's sheet"}.${r.fresh === "made" ? " It's new, only its heading in it: write it with edit (append), a section at a time; nothing is in it until you do." : r.fresh === "there" ? " It was there already (new left it as it was): read it before you write in it." : ""}`)
 type UiOpen = { path: string; split?: string; newTab?: true; in?: string; container?: string }
+function whereTo(path: string, app: string, browser: string) {
+  if (browser) return { mac: { url: path, app: browser }, path }
+  const mac = macOpen(path, app, plugin.vault.path, os.homedir()), at = app ? undefined : mac?.path
+  return at && fs.statSync(at, { throwIfNoEntry: false })?.isDirectory() ? { mac: null, path: at } : { mac, path }
+}
 const HAS_EXT = /\.[a-z0-9]{1,8}$/i, OUTSIDE_VAULT = /^[a-z][\w+.-]*:|^[~/]/i
 async function newNote(ctx: OpCtx, path: string): Promise<"made" | "there"> {
   if (!path.toLowerCase().endsWith(".md") || OUTSIDE_VAULT.test(path)) throw new OpError(`new makes a note in the vault: give its path as Folder/Title.md, not ${path}`)
@@ -108,9 +114,10 @@ export const openedFor = new Map<string, Moment>()
 plugin.op({
   id: "companion.open",
   cli: "companion open",
-  summary: "Open what the user asked to see, your cursor flying there: a note, a folder, a view or a web page in their window, or on their Mac an app, a file or folder in its app, any address (a System Settings pane).",
-  help: `For what they asked to see: a pinned page, a note, a site; on their Mac, what they could open themselves (an app,
-~/Downloads in Finder, a System Settings pane by its address). It answers the pane it opened (a web page's: see and act
+  summary: "Open what the user asked to see, your cursor flying there: a note, a folder (one elsewhere on this machine too), a view or a web page in their window, or on their Mac an app, a file in its app, any address (a System Settings pane).",
+  help: `For what they asked to see: a pinned page, a note, a site, a folder anywhere on this machine (~/Projects/lighthouse:
+its page in their window, as Finder shows it; --app Finder for Finder itself); on their Mac, what they could open
+themselves (an app, a file in its app, a System Settings pane by its address). It answers the pane it opened (a web page's: see and act
 work there), or the Mac's window in front and what's in it by id (point, ring and act on those).
 new: a note to work on with them, made at path when there's none (only its heading, "# <its name>") and opened beside
 them (split right unless split, in or newTab says where); then write all of it with edit (append, a section at a
@@ -121,7 +128,7 @@ time), each typed in as they watch: it holds nothing else.
   vau companion open https://www.linkedin.com/in/alice-park --container Personal
   vau companion open http://localhost:5173 --in left
   vau companion open "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
-  vau companion open ~/Downloads
+  vau companion open ~/Projects/lighthouse/docs
   vau companion open --app Calculator
   vau companion open "Notes/Blues history.md" --new`,
   kind: "write",
@@ -141,7 +148,7 @@ time), each typed in as they watch: it holds nothing else.
     const fresh = p.new === true ? await newNote(ctx, path) : null
     did(name, "open")
     const browser = /^https?:\/\/\S+$/i.test(path) && !app && p.vaultite !== true && !p.container && !p.in && m?.summoned && m.app && isBrowser(m.app) ? m.app : ""
-    const mac = browser ? { url: path, app: browser } : macOpen(path, app, plugin.vault.path, os.homedir())
+    const { mac, path: shown } = whereTo(path, app, browser)
     if (mac) {
       const r = await takeover.open(mac)
       if (!r.ok) throw new OpError(`it didn't open${mac.app ? ` in ${mac.app}` : ""}: ${r.text ?? r.why ?? "no answer"}${browser ? " (vaultite: true opens it in Vaultite)" : ""}`, 409)
@@ -150,7 +157,7 @@ time), each typed in as they watch: it holds nothing else.
       return { path: path || app, pane: null, in: r.app || mac.app || "", title: r.title ?? "", near: r.near ?? [], browser: !!browser }
     }
     const split = p.split || (fresh && !p.in && !p.newTab ? "right" : "")
-    const how: UiOpen = { path }
+    const how: UiOpen = { path: shown }
     if (split) how.split = split
     if (p.newTab) how.newTab = true
     if (p.in) how.in = str(p.in)

@@ -11,6 +11,7 @@ import { naming, pick, pickedIn, SELECT, type Moves } from "@/pages/FolderParts"
 export type KeyedPage = {
   path: string; items: FolderItem[]; moves: Moves | null; view: FolderView
   open: (n: FolderItem, newTab?: boolean) => void; show: (n: FolderItem) => void; up: () => void; showAs: (v: FolderView) => void
+  outside?: boolean
 }
 export const keyedPages = new WeakMap<HTMLElement, () => KeyedPage>()
 
@@ -36,6 +37,7 @@ function at(choices = false): At | null {
   const was = pickedIn(p.path)
   return { el, p, lines, flat, cur: on && flat.includes(on) ? on : was && flat.includes(was) ? was : null }
 }
+const ownThing = () => { const t = onThing(); return t && !t.p.outside ? t : null }
 const onThing = () => {
   const a = document.activeElement
   if (a instanceof HTMLElement && a !== document.body && !a.closest("[data-folder-item]")) return null
@@ -130,9 +132,9 @@ registerCommands([
   { id: "folder:open-tab", name: "Open it in a new tab", keys: ["Mod+Enter"], when: () => !!onThing(), run: () => open(true), icon: SquareArrowOutUpRight },
   { id: "folder:enclosing", name: "Go to the enclosing folder", keys: ["Mod+ArrowUp"], when: can((t) => !!t.p.path), run: () => at()?.p.up(), icon: FolderUp },
   { id: "folder:preview", name: "Preview it", keys: ["Space"], when: () => !!onThing() && !typing(), run: preview, icon: Eye },
-  { id: "folder:rename", name: "Rename it", keys: ["F2"], when: () => { const t = onThing(); return !!t && !fixed(t.cur!) }, run: () => { const t = onThing(); if (t) naming.set({ path: t.cur!, fresh: false }) }, icon: Pencil },
-  { id: "folder:duplicate", name: "Duplicate it", keys: ["Mod+D"], when: () => { const t = onThing(); return !!t && !thing(t)?.folder && !fixed(t.cur!) }, run: () => { const t = onThing(); if (t) void duplicate(t.cur!) }, icon: Copy },
-  { id: "folder:delete", name: "Delete it, or the selected ones", keys: isMac ? ["Mod+Backspace"] : ["Delete"], when: () => !!onThing(), run: () => { const t = onThing(); if (t) void removeMany(these(t)) }, icon: Trash2 },
+  { id: "folder:rename", name: "Rename it", keys: ["F2"], when: () => { const t = ownThing(); return !!t && !fixed(t.cur!) }, run: () => { const t = ownThing(); if (t) naming.set({ path: t.cur!, fresh: false }) }, icon: Pencil },
+  { id: "folder:duplicate", name: "Duplicate it", keys: ["Mod+D"], when: () => { const t = ownThing(); return !!t && !thing(t)?.folder && !fixed(t.cur!) }, run: () => { const t = ownThing(); if (t) void duplicate(t.cur!) }, icon: Copy },
+  { id: "folder:delete", name: "Delete it, or the selected ones", keys: isMac ? ["Mod+Backspace"] : ["Delete"], when: () => !!ownThing(), run: () => { const t = ownThing(); if (t) void removeMany(these(t)) }, icon: Trash2 },
   ...VIEWS.map(({ v, label, icon }, i) => ({ id: `folder:show-as-${v}`, name: `Show folder as ${label}`, keys: [`Mod+Alt+${i + 1}`],
     when: () => { const t = at(true); return !!t && t.p.view !== v && (i < 2 || isDesktop()) }, run: () => at(true)?.p.showAs(v), icon })),
 ])

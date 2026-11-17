@@ -165,7 +165,7 @@ export function Preview({ n, text, stage }: { n: FolderItem; text?: string; stag
   if (k === "image" && stage) {
     return <img key={n.path} src={rawUrl(n.path)} alt="" draggable={false} className="max-h-full max-w-full rounded-[6px] object-contain" />
   }
-  if (k === "markdown") {
+  if (k === "markdown" && n.file) {
     return (
       <div className={cn("aspect-[3/4] max-h-full max-w-full overflow-hidden rounded-[8px]", paper, stage ? "h-full" : "w-full")}>
         <p className="h-full overflow-hidden p-5 text-left text-[13px] leading-[19px] text-muted-foreground [mask-image:linear-gradient(to_bottom,black_75%,transparent)]">

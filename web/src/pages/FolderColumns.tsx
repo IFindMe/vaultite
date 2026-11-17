@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type MouseEvent } from "react"
 import { ChevronRight, SquareArrowOutUpRight } from "lucide-react"
-import type { Store } from "@/core/data"
 import { folderOf, inArchive } from "@/core/files"
 import { kindOf } from "@/core/filekinds"
 import { usePrefs } from "@/core/prefs"
@@ -8,18 +7,19 @@ import { selectClick, selectedAttr, useSelected } from "@/core/select"
 import { useVirtual } from "@/core/virtual"
 import { menuFor } from "@/components/ContextMenu"
 import { Button } from "@/components/Button"
-import { folderItems, type FolderItem } from "@/components/FileTree"
+import type { FolderItem } from "@/components/FileTree"
 import { useFill } from "@/components/FileViewers"
 import { cn } from "@/lib/utils"
 import { drawnRows, Facts, hrefOf, iconFor, NameField, pick as pickIn, pickedIn, playPause, Preview, SELECT, useEnter, useKept, usePicked, usePreviews, type Kids } from "@/pages/FolderParts"
 import { arrive } from "@/pages/FolderKeys"
+import { chainOf } from "@/pages/folderviews"
 
-type ColumnsProps = Kids & { files: Store["files"]; folder: string; openIt: (n: FolderItem, newTab?: boolean) => void }
+export type Lister = { root: string; useList: (folder: string) => FolderItem[] | null; peek: (folder: string) => FolderItem[] | null }
+type ColumnsProps = Kids & { lister: Lister; folder: string; openIt: (n: FolderItem, newTab?: boolean) => void }
 
-export function Columns({ setMoves, files, folder, items, counts, openIt, menuOf, press, renaming, lit }: ColumnsProps) {
-  const { fileSort, showArchived } = usePrefs()
+export function Columns({ setMoves, lister, folder, items, counts, openIt, menuOf, press, renaming, lit }: ColumnsProps) {
   const enter = useEnter()
-  const chain = useMemo(() => (folder ? ["", ...folder.split("/").map((_, i, a) => a.slice(0, i + 1).join("/"))] : [""]), [folder])
+  const chain = useMemo(() => chainOf(lister.root, folder), [lister.root, folder])
   const current = usePicked(folder)
   const pick = (p: string) => pickIn(folder, p)
   const cur = items.find((n) => n.path === current) ?? null
@@ -46,8 +46,8 @@ export function Columns({ setMoves, files, folder, items, counts, openIt, menuOf
     setMoves({
       lines: items.map((n) => [n.path]),
       side: (dir) => {
-        if (dir < 0) { if (folder) step(folderOf(folder), folder, -1); return }
-        const first = cur?.folder ? folderItems(files, cur.path, fileSort, showArchived)?.items[0] : null
+        if (dir < 0) { if (folder !== lister.root) step(folderOf(folder) || lister.root, folder, -1); return }
+        const first = cur?.folder ? lister.peek(cur.path)?.[0] : null
         if (cur && first) step(cur.path, pickedIn(cur.path) ?? first.path, 1)
       },
       preview: () => playPause(box.current?.querySelector("[data-folder-preview] :is(video, audio)")),
@@ -58,9 +58,9 @@ export function Columns({ setMoves, files, folder, items, counts, openIt, menuOf
     <div ref={fill} style={{ height: h ?? 480 }} data-folder-columns className="overflow-hidden rounded-[10px] border-[0.5px] border-border bg-card/40">
       <div ref={box} className="flex h-full overflow-x-auto overflow-y-hidden">
         {chain.map((f, i) => (
-          <Column key={f} folder={f} files={files} on={chain[i + 1] ?? cur?.path ?? null} last={f === folder} {...row} />
+          <Column key={f} folder={f} useList={lister.useList} on={chain[i + 1] ?? cur?.path ?? null} last={f === folder} {...row} />
         ))}
-        {ahead && <Column key={ahead} folder={ahead} files={files} on={null} last={false} {...row} />}
+        {ahead && <Column key={ahead} folder={ahead} useList={lister.useList} on={null} last={false} {...row} />}
         {cur && !cur.folder && (
           <div data-folder-preview={cur.path} className="flex h-full min-w-[300px] flex-1 flex-col items-center gap-4 overflow-y-auto p-5"
             onContextMenu={menuFor(menuOf(cur))} onDoubleClick={() => openIt(cur)}>
@@ -80,10 +80,9 @@ type RowProps = Pick<Kids, "menuOf" | "press" | "renaming" | "lit"> & {
   openIt: (n: FolderItem, newTab?: boolean) => void; click: (n: FolderItem, column: string, e: MouseEvent) => void
 }
 
-function Column({ folder, files, on, last, ...row }: RowProps & { folder: string; files: Store["files"]; on: string | null; last: boolean }) {
-  const { fileSort, showArchived } = usePrefs()
-  const got = useMemo(() => folderItems(files, folder, fileSort, showArchived), [files, folder, fileSort, showArchived])
-  const items = useMemo(() => got?.items ?? [], [got])
+function Column({ folder, useList, on, last, ...row }: RowProps & { folder: string; useList: Lister["useList"]; on: string | null; last: boolean }) {
+  const listed = useList(folder)
+  const items = useMemo(() => listed ?? [], [listed])
   const list = useRef<HTMLDivElement>(null)
   const keys = useMemo(() => items.map((n) => n.path), [items])
   const keep = useKept(list, keys, keys, on)
@@ -101,7 +100,7 @@ function Column({ folder, files, on, last, ...row }: RowProps & { folder: string
         const n = items[i]
         return <ColumnRow key={n.path} n={n} index={i} column={folder} state={n.path === on ? (last ? "picked" : "way") : null} last={last} {...row} />
       })}
-      {!items.length && <p className="px-2 py-3 text-center text-[12px] text-tertiary">Empty</p>}
+      {listed?.length === 0 && <p className="px-2 py-3 text-center text-[12px] text-tertiary">Empty</p>}
     </div>
   )
 }
