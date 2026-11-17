@@ -5,28 +5,21 @@ import { Mark as Look } from "./Mark"
 import { tintWash } from "./tint"
 import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, panesClosed, pluginOn, reorder as reorderKeys, sidebarsChanged, slotAt, startDrag, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, useSlide, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
 import {
-  cycle, emit, getRenaming, moveAt, label, leaving, lit as litNow, lookOf, markOf, named, othersOnly, patch, reorder, showAllTabs, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
+  ALL_TABS, cycle, emit, getRenaming, moveAt, label, leaving, lit as litNow, lookOf, markOf, named, othersOnly, patch, reorder, showAllTabs, saveTabs, saveTabsSoon, savePending, sendTo, setRenaming, slotMenu, slots,
   SLOTS, switchTo, sync, tookTabs, used, useVersion, type Sent,
 } from "./state"
 import { moved } from "./order"
+import { NameField } from "./Name"
 
 function Mark({ n, look, size }: { n: number; look: string; size?: string }) {
   return <Look n={n} {...lookOf(n)} look={look} size={size} />
 }
 
 function Rename({ n, on, end }: { n: number; on: boolean; end: (enter: boolean) => void }) {
-  const done = (name: string | null) => renamed(n, name)
   return (
     <div data-workspace={n} data-slide={n} style={tintWash(lookOf(n).tint, on)} className={cn("flex h-7 items-center gap-2 rounded-[5px] px-1.5", on && "bg-foreground/[0.08]")}>
       <Mark n={n} look={cn("border", on ? "border-primary/60 bg-primary/10 font-semibold text-primary" : "border-border font-medium text-foreground")} />
-      <input autoFocus onFocus={(e) => e.currentTarget.select()} aria-label={`Name of workspace ${n}`}
-        defaultValue={slots()?.[n - 1]?.name ?? ""} placeholder={`Workspace ${n}`}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { done(e.currentTarget.value); end(true) }
-          else if (e.key === "Escape") { done(null); end(false) }
-        }}
-        onBlur={(e) => done(e.currentTarget.value)}
-        className="-mx-1 h-[22px] min-w-0 flex-1 rounded-[4px] border-[0.5px] border-primary bg-background px-1 text-[13px] outline-none" />
+      <NameField n={n} done={(name, key) => { renamed(n, name); if (key) end(key === "Enter") }} className="h-[22px] text-[13px]" />
     </div>
   )
 }
@@ -109,6 +102,7 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
       <button ref={btn} type="button" data-workspace-switcher={n} aria-haspopup="dialog" aria-expanded={open}
         aria-label={`${label(n)}: switch workspace`} data-tip={open ? undefined : `${label(n)}${commandKeys("workspace:1") ? ` (${commandKeys("workspace:1")} to ${commandKeys("workspace:5")})` : ""}`} data-tip-side={rail ? "right" : undefined}
         onClick={() => (open ? shut() : setOpen(true))} onContextMenu={menuFor(() => slotMenu(n))}
+        onPointerDown={(e) => startDrag(e, { from: "workspace", to: `view:${ALL_TABS}`, label: "Workspaces" })}
         className={cn("flex shrink-0 cursor-pointer items-center justify-center gap-0.5 rounded-[5px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground",
           rail ? "size-7" : "h-6 pr-0.5 pl-1", open && "bg-foreground/[0.08] text-foreground")}>
         <Mark n={n} look="border-[1.5px] border-current font-semibold" />
@@ -121,11 +115,10 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
           <button type="button" data-workspace-all onClick={() => { setOpen(false); showAllTabs() }}
             className="flex h-7 cursor-pointer items-center gap-2 rounded-[5px] px-1.5 text-left text-[13px] outline-none hover:bg-foreground/[0.07] focus-visible:bg-foreground/[0.07]">
             <LayoutGrid aria-hidden className="size-[18px] shrink-0 p-px text-muted-foreground" strokeWidth={2} />
-            <span className="min-w-0 flex-1 truncate">All tabs</span>
+            <span className="min-w-0 flex-1 truncate">Workspaces</span>
             <span className="text-[11px] text-tertiary">{commandKeys("workspace:all-tabs")}</span>
           </button>
           <div className="mx-1 my-1 h-px bg-border" />
-          <div className="px-2 pt-0.5 pb-1.5 text-[11px] font-medium text-tertiary">Workspaces</div>
           <div ref={rows} className="relative flex flex-col gap-px">
           {shownOrder.map((m) => renaming === m
             ? <Rename key={m} n={m} on={m === lit} end={(enter) => ended(m, enter)} />

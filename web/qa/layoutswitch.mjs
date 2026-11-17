@@ -83,13 +83,13 @@ try {
   check("...splits and sizes kept", JSON.stringify(took.tabs.find((t) => t.id === "t2")?.root?.sizes) === "[0.3,0.7]", took.tabs.find((t) => t.id === "t2"))
   const toast = await ui.toast.wait(/from this device (is|are) in workspace 1/i).catch(() => null)
   const toastText = toast ? await toast.innerText() : ""
-  check("Browser: a toast says where they went, naming the group, with Show all tabs", /3 tabs from this device are in workspace 1, in the group "From .+"/i.test(toastText) && /Show all tabs/.test(toastText), [toastText, await ui.toast()])
+  check("Browser: a toast says where they went, naming the group, with Show workspaces", /3 tabs from this device are in workspace 1, in the group "From .+"/i.test(toastText) && /Show workspaces/.test(toastText), [toastText, await ui.toast()])
   await until(async () => isMerged(await ws1()), 8000)
   check("Browser: workspace 1 saved the merge", isMerged(await ws1()), tabsOf(await ws1()))
   if (toast) {
     const allTabsCount = () => page.locator("[data-all-tabs-workspace='1'] h2 + span").innerText().then((t) => t.trim(), () => "")
-    await toast.getByRole("button", { name: "Show all tabs" }).click(); await ui.idle()
-    check("the toast's Show all tabs: the All tabs page, workspace 1 with its 4 tabs, the page itself left out", !!(await until(async () => (await allTabsCount()) === "This one · 4", 6000)),
+    await toast.getByRole("button", { name: "Show workspaces" }).click(); await ui.idle()
+    check("the toast's Show workspaces: the Workspaces page, workspace 1 with its 4 tabs, the page itself left out", !!(await until(async () => (await allTabsCount()) === "This one · 4", 6000)),
       await allTabsCount())
     // (opened in the focused pane, the split's, as a tab of its own: closed, the pane shows its note again)
     await command(page, "Close current tab", 0); await ui.saved()

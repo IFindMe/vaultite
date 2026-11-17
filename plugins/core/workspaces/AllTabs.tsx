@@ -1,15 +1,16 @@
 import { useRef, useState, type PointerEvent } from "react"
-import { Pin, X } from "lucide-react"
+import { Ellipsis, Pin, X } from "lucide-react"
 import {
   closeTab, cn, colorVar, dragTab, Empty, groupName, INCOMING, startDrag, tabPreviewOrder, useSlide, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow,
-  tabMenuOf, useGroupIn, useGroupLines, useGrowIn, useShrinkOut, useTabLabels, useTabLayout, type MenuItem, type Pane, type Store, type Tab, type TabGroup, type TabInfo, type TabList,
+  rightClickBelow, tabMenuOf, useGroupIn, useGroupLines, useGrowIn, useShrinkOut, useTabLabels, useTabLayout, type MenuItem, type Pane, type Store, type Tab, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
 import { TabGroupRow } from "@plugins/tabs/grouprow"
-import { Mark } from "./Mark"
+import { Mark, markIcon } from "./Mark"
+import { NameField } from "./Name"
 import { tintWash } from "./tint"
 import { previewOf, useAllDrops, type AllDrop } from "./alldrops"
 import { closeIn, foldIn } from "./elsewhere"
-import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, showTab, SLOTS, slots, useVersion } from "./state"
+import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, patch, showTab, slotMenu, SLOTS, slots, switchTo, useVersion } from "./state"
 
 type Shown = { l: TabList; tabs: Tab[] }
 type Desk = { n: number; lists: Shown[]; count: number }
@@ -32,8 +33,8 @@ function runsOf({ l, tabs }: Shown): Run[] {
   return runs
 }
 
-function desksOf(here: number, keep: Keep): Desk[] {
-  return SLOTS.filter((n) => n === here || slots()?.[n - 1]).map((n) => {
+function desksOf(here: number, keep: Keep, naming: number): Desk[] {
+  return SLOTS.filter((n) => n === here || n === naming || slots()?.[n - 1]).map((n) => {
     const lists = listsOf(n).map((l) => ({ l, tabs: l.tabs.filter((t) => listed(t) && keep(t, groupOf(l, t))) }))
     return { n, lists, count: lists.reduce((sum, s) => sum + s.tabs.length, 0) }
   })
@@ -45,10 +46,11 @@ export default function AllTabs({ store }: { store: Store }) {
   const info = useTabLabels(store)
   const [q, setQ] = useState("")
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
-  const here = current(), query = q.trim()
+  const [naming, setNaming] = useState(0)
+  const here = current(), query = q.trim(), free = SLOTS.find((n) => n !== here && !slots()?.[n - 1])
   const matches: Keep = (t, g) => hasWords(query, [info(t).label, g?.name ?? "", ...placesIn(t).flatMap((p) => [info(p).label, p.to])].join("\n"))
-  const desks = desksOf(here, () => true)
-  const shown = query ? desksOf(here, matches) : desks
+  const desks = desksOf(here, () => true, naming)
+  const shown = query ? desksOf(here, matches, naming) : desks
   const total = desks.reduce((sum, d) => sum + d.count, 0)
   const moves = (n: number, t: Tab): MenuItem[] => desks.flatMap((d) => (d.n === n ? [] : [{ label: `Move to ${label(d.n)}`, run: () => void moveBetween(n, d.n, t.id) }]))
   const fold = (at: Where, g: TabGroup) => {
@@ -61,18 +63,14 @@ export default function AllTabs({ store }: { store: Store }) {
   const hit = useAllDrops(shownList)
   return (
     <div data-all-tabs data-own-drops className="mx-auto max-w-[1100px] pb-10">
-      <PageHeader title="All tabs" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
+      <PageHeader title="Workspaces" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
         <FilterField value={q} onChange={setQ} placeholder="Filter tabs" className="max-w-64 basis-48" />
       </PageHeader>
       {query && shown.every((d) => !d.count) ? <Empty>No tabs match "{query}".</Empty> : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] items-start gap-3">
           {shown.flatMap((d) => (query && !d.count ? [] : [
             <section key={d.n} data-all-tabs-workspace={d.n} style={tintWash(lookOf(d.n).tint, false)} className={cn("glass rounded-[12px] p-2", d.n === here && "ring-1 ring-primary/40")}>
-              <div className="flex items-center gap-2 px-1.5 pt-1 pb-2">
-                <Mark n={d.n} {...lookOf(d.n)} look="border border-border font-medium text-foreground" />
-                <h2 className="min-w-0 flex-1 truncate text-[14px] font-semibold">{label(d.n)}</h2>
-                <span className="text-[12px] text-muted-foreground">{d.n === here ? `This one · ${d.count}` : d.count}</span>
-              </div>
+              <DeskHead d={d} here={here} naming={naming === d.n} name={setNaming} />
               {!d.count && <p className="px-1.5 pb-1.5 text-[13px] text-muted-foreground">No tabs</p>}
               {d.lists.map((s, w) => (!s.tabs.length ? null : (
                 <div key={w}>
@@ -83,9 +81,42 @@ export default function AllTabs({ store }: { store: Store }) {
               )))}
             </section>,
           ]))}
+          {free && !query && !naming && <NewDesk n={free} start={() => setNaming(free)} />}
         </div>
       )}
     </div>
+  )
+}
+
+function DeskHead({ d, here, naming, name }: { d: Desk; here: number; naming: boolean; name: (n: number) => void }) {
+  const n = d.n
+  const menu = (): MenuItem[] => [
+    ...(n !== here ? [{ label: `Switch to ${label(n)}`, icon: markIcon(n, lookOf(n)), run: () => switchTo(n) }] : []),
+    ...slotMenu(n, () => name(n)).map((it, k) => (k || n === here ? it : { ...it, sep: true })),
+  ]
+  const done = (typed: string | null) => { name(0); if (typed !== null) patch(n, { name: typed.trim() || null }) }
+  return (
+    <div data-all-tabs-head={n} onContextMenu={menuFor(menu)} className="flex h-8 items-center gap-2 px-1.5 pb-1">
+      <Mark n={n} {...lookOf(n)} look="border border-border font-medium text-foreground" />
+      {naming ? <NameField n={n} done={done} className="h-6 text-[14px] font-semibold" /> : (
+        <h2 className="flex min-w-0 flex-1">
+          <button type="button" data-all-tabs-name onClick={() => name(n)} data-tip="Rename"
+            className="-mx-1 max-w-full cursor-text truncate rounded-[4px] px-1 text-left text-[14px] font-semibold hover:bg-foreground/[0.06]">{label(n)}</button>
+        </h2>
+      )}
+      <span className="text-[12px] text-muted-foreground">{n === here ? `This one · ${d.count}` : d.count}</span>
+      <HeadingButton icon={Ellipsis} label={`More for ${label(n)}`} tip="More" onClick={rightClickBelow} data-all-tabs-more={n} />
+    </div>
+  )
+}
+
+function NewDesk({ n, start }: { n: number; start: () => void }) {
+  return (
+    <button type="button" data-all-tabs-new={n} onClick={start}
+      className="flex h-12 cursor-pointer items-center gap-2 rounded-[12px] border border-dashed border-border px-3.5 text-left text-[14px] text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground">
+      <Mark n={n} look="border border-dashed border-border text-tertiary" />
+      New workspace
+    </button>
   )
 }
 

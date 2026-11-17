@@ -386,7 +386,7 @@ try {
   check("rail: a click switches", !!(await until(async () => (await lit()) === "1", 6000)), await lit())
   await pick(2)
   await until(async () => (await lit()) === "2", 6000)
-  // A tab dragged over the rail's switcher opens its list too; let go on the list's heading (no row): nothing moves.
+  // A tab dragged over the rail's switcher opens its list too; let go on its Workspaces row (no workspace): nothing moves.
   // (once the tab bar has settled beside the rail: it slides with the sidebar's edge)
   const termTab = page.locator("[data-tab-strip] [role=tab]", { hasText: "Terminal" }).first()
   const railTab = await until(async () => { const a = await center(termTab); await ui.idle(); const b = await center(termTab); return a.x === b.x && a.y === b.y ? b : null }, 3000) ?? await center(termTab)
@@ -396,7 +396,7 @@ try {
   const rs = await center(page.locator(SWITCHER))
   await page.mouse.move(rs.x, rs.y, { steps: 10 })
   check("rail: dragging over the switcher opens the list", !!(await until(() => isOpen(), 2000)))
-  const head = await center(page.locator(LIST).getByText("Workspaces", { exact: true }))
+  const head = await center(page.locator(`${LIST} [data-workspace-all]`))
   await page.mouse.move(head.x, head.y, { steps: 4 }); await ui.idle()
   await page.mouse.up()
   check("rail: ...closed when the drag ends, nothing moved", !!(await until(async () => !(await isOpen()), 2000)) && JSON.stringify(await tabs()) === tabsNow && (await lit()) === "2", await tabs())

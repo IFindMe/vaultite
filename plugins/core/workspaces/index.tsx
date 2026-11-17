@@ -27,11 +27,11 @@ export default definePlugin({
   header: { numbers: { render: (ctx) => <Workspaces {...ctx} /> } },
   background: (ctx) => (isPopout() || isPhoneDevice() ? null : <Background {...ctx} />),
   views: {
-    [ALL_TABS]: { icon: LayoutGrid, title: () => "All tabs", render: ({ store }) => <AllTabs store={store} /> },
+    [ALL_TABS]: { icon: LayoutGrid, title: () => "Workspaces", render: ({ store }) => <AllTabs store={store} /> },
   },
   commands: [
     ...SLOTS.map((n) => ({ id: `workspace:${n}`, name: `Switch to workspace ${n}`, keys: [isMac ? `Ctrl+${n}` : `Alt+${n}`], run: () => switchTo(n) })),
-    { id: "workspace:all-tabs", name: "Show all tabs", keys: [isMac ? "Ctrl+0" : "Alt+0"], icon: LayoutGrid, run: showAllTabs },
+    { id: "workspace:all-tabs", name: "Show workspaces", keys: [isMac ? "Ctrl+0" : "Alt+0"], icon: LayoutGrid, run: showAllTabs },
     { id: "workspace:next", name: "Switch to next workspace", when: () => used().length > 1, run: () => cycle(1) },
     { id: "workspace:previous", name: "Switch to previous workspace", when: () => used().length > 1, run: () => cycle(-1) },
     ...SLOTS.map((n) => ({ id: `workspace:move-tab-${n}`, name: `Move current tab to workspace ${n}`, when: () => lit() !== n && !!currentTab(),

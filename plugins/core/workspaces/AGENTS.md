@@ -45,8 +45,9 @@ hand, or by an older app) is taken in and leaves the file.
   one takes them as they are, one with tabs gets those open in no workspace yet at its end, as a tab group named after
   the device (`POST /api/workspaces/take {to, tabs, name}`). Turned off, the current workspace's tabs stay on screen;
   the others' stay saved for next time, and their web pages close.
-- All tabs (`view:all-tabs`, ⌃0, the switcher's first row): every workspace's tabs side by side; tab search lists
-  other workspaces' too, and the switcher marks a workspace where a page plays sound.
+- The Workspaces page (`view:all-tabs`, ⌃0, the switcher's first row, or its button dragged onto a pane): every
+  workspace's tabs side by side, each under its name (a click renames it) with the switcher's menu, and a new one at
+  the end; tab search lists other workspaces' too, and the switcher marks a workspace where a page plays sound.
 
 **Moving tabs** between workspaces: `POST /api/workspaces/move` with `{"from": 1, "to": 2, "tab": "<tab id>"}` (a tab,
 all its panes), `{"to": 2, "pane": "<pane id>"}` or `{"to": 2, "path": "Notes/Idea.md"}` (a pane, out of its split),

@@ -153,7 +153,7 @@ export const host: WorkspaceHost = {
     return [
       ...SLOTS.filter((m) => m === n || now(m)).map((m) => ({ label: label(m), icon: markIcon(m, lookOf(m)), checked: m === n, run: () => switchTo(m) })),
       ...(free ? [{ label: "New workspace", icon: Plus, run: () => switchTo(free) }] : []),
-      ...slotMenu(n, false).map((it, i) => (i ? it : { ...it, sep: true })),
+      ...slotMenu(n, null).map((it, i) => (i ? it : { ...it, sep: true })),
     ]
   },
   get: getState,
@@ -360,7 +360,7 @@ async function takeIn(own: TabLayout) {
     emit(); sidebarsChanged()
     if (had && r.tabs.length) {
       notify(`${plural(r.tabs.length, "tab")} from this device ${r.tabs.length === 1 ? "is" : "are"} in ${named(n)}${name ? `, in the group "From ${name}"` : ""}`,
-        { action: { label: "Show all tabs", run: showAllTabs } })
+        { action: { label: "Show workspaces", run: showAllTabs } })
     }
   } catch (e) {
     notifyError(e, "Couldn't put this device's tabs in a workspace")
@@ -510,13 +510,13 @@ const moveItems = (n: number): MenuItem[] => [
   ...(n < MAX ? [{ label: "Move down", icon: ArrowDown, run: () => void reorder(n, n + 1) }] : []),
 ].map((m, i) => (i ? m : { ...m, sep: true }))
 
-export function slotMenu(n: number, rename = true): MenuItem[] {
+export function slotMenu(n: number, rename: (() => void) | null = () => setRenaming(n)): MenuItem[] {
   const has = !!now(n)
   const d = slots()?.[n - 1]
   const free = SLOTS.find((m) => m !== n && !now(m))
   const own = d?.sidebars && !defaultSidebars(d.sidebars) ? d.sidebars : null
   return [
-    ...(rename ? [{ label: "Rename", icon: Pencil, run: () => setRenaming(n) }] : []),
+    ...(rename ? [{ label: "Rename", icon: Pencil, run: rename }] : []),
     ...lookItems(n),
     { label: !has ? "Duplicate" : free ? `Duplicate to workspace ${free}` : "Duplicate (all five are in use)", icon: Copy, disabled: !has || !free, run: () => {
       const { name: _name, ...rest } = now(n)!

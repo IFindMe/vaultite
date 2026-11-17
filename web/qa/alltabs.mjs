@@ -1,4 +1,4 @@
-// All tabs, tab search across workspaces, and Workspaces turned on over a device's tabs and off again, losing none.
+// The Workspaces page (each one's tabs, name and menu; the switcher dragged onto a pane), tab search, and Workspaces turned on and off, losing no tab.
 //   node web/qa/alltabs.mjs <base url> <vault path> [out dir]
 import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -6,7 +6,7 @@ import path from "node:path"
 import { apiAt, qa, until, workspaceKey } from "./lib/qa.mjs"
 import { app } from "./lib/app.mjs"
 import { clearWorkspaces, workspaces } from "./lib/wsfiles.mjs"
-// Paths: plugins/core/workspaces/AllTabs.tsx, plugins/core/workspaces/Numbers.tsx, plugins/core/workspaces/state.ts, web/src/components/TabSearch.tsx, web/src/core/scope.ts
+// Paths: plugins/core/workspaces/AllTabs.tsx, plugins/core/workspaces/Name.tsx, plugins/core/workspaces/Numbers.tsx, plugins/core/workspaces/state.ts, web/src/components/TabSearch.tsx, web/src/core/scope.ts
 const { args: [B, VAULT, OUT = "/tmp/alltabs-shots/"], browser, check, watch, noErrors, done } = await qa(import.meta.url)
 mkdirSync(OUT, { recursive: true })
 
@@ -55,7 +55,7 @@ try {
   await page.waitForSelector(SWITCHER)
   const toast = await ui.toast.wait(/from this device/).catch(() => null)
   const said = toast ? (await toast.innerText()).trim() : ""
-  check("on: a toast says where this device's tab went, and its group", /^1 tab from this device is in Personal, in the group "From .+"/.test(said) && /Show all tabs/.test(said), [said, await ui.toast()])
+  check("on: a toast says where this device's tab went, and its group", /^1 tab from this device is in Personal, in the group "From .+"/.test(said) && /Show workspaces/.test(said), [said, await ui.toast()])
   await until(async () => tosOf(await mine()).includes(F("Standup")), 8000); await ui.saved()
   const took = await mine()
   check("on: Personal's tabs first, then Standup (Reading list isn't added twice)", tosOf(took).join() === [F("Reading list"), F("Trip ideas"), F("Standup")].join(), tosOf(took))
@@ -127,9 +127,45 @@ try {
 
   await page.click(SWITCHER); await page.waitForSelector("[data-workspace-list]")
   const first = await page.$eval("[data-workspace-list] button", (e) => (e.hasAttribute("data-workspace-all") ? e.innerText.trim() : null))
-  check("switcher: All tabs is its first row", !!first?.startsWith("All tabs"), first)
+  check("switcher: Workspaces is its first row", !!first?.startsWith("Workspaces"), first)
   await page.click("[data-workspace-list] [data-workspace-all]"); await page.waitForSelector("[data-all-tabs]"); await ui.idle()
-  check("switcher's All tabs: the page, the list closed", (await page.locator("[data-all-tabs]").count()) === 1 && !(await page.locator("[data-workspace-list]").count()))
+  check("switcher's Workspaces: the page, the list closed", (await page.locator("[data-all-tabs]").count()) === 1 && !(await page.locator("[data-workspace-list]").count()))
+  check("its tab is named Workspaces", /(^|\n)Workspaces$/.test((await active()) ?? ""), await active())
+
+  const nameOf = (n) => card(n).locator("[data-all-tabs-name]").innerText().then((t) => t.trim(), () => null)
+  const field = (n) => card(n).locator(`input[aria-label='Name of workspace ${n}']`)
+  await card(3).locator("[data-all-tabs-name]").click()
+  check("a click on a workspace's name: a field with it, selected", (await field(3).inputValue()) === "Vaultite" && (await field(3).evaluate((e) => e.selectionEnd - e.selectionStart)) === 8)
+  await page.keyboard.type("Vaultite app"); await page.keyboard.press("Enter"); await ui.idle()
+  check("Enter: renamed on the page and saved", !!(await until(async () => (await nameOf(3)) === "Vaultite app" && workspaces(B)[2]?.name === "Vaultite app", 6000)), [await nameOf(3), workspaces(B)[2]?.name])
+  await card(3).locator("[data-all-tabs-name]").click(); await page.keyboard.type("Nope"); await page.keyboard.press("Escape"); await ui.idle()
+  check("Escape: the name as it was", !(await field(3).count()) && (await nameOf(3)) === "Vaultite app" && workspaces(B)[2]?.name === "Vaultite app", [await nameOf(3)])
+  await ui.menu.context(card(3).locator("[data-all-tabs-head]"))
+  const heads = await ui.menu.items()
+  check("a workspace's right-click: switch to it, then the switcher's menu", !!heads[0]?.endsWith("Switch to Vaultite app") && ["Rename", "Change icon", "Colour", "Delete"].every((x) => heads.includes(x)) && heads.some((x) => x.startsWith("Duplicate")), heads)
+  await ui.menu.pick("Colour", "Green")
+  check("Colour: the card takes it, saved", !!(await until(async () => workspaces(B)[2]?.tint === "green" && !!(await card(3).getAttribute("style"))?.includes("green"), 6000)), [workspaces(B)[2]?.tint, await card(3).getAttribute("style")])
+  await ui.menu.open(card(3).locator("[data-all-tabs-more]"))
+  const more = await ui.menu.items()
+  check("its More button: the same menu", JSON.stringify(more) === JSON.stringify(heads), [more, heads])
+  await ui.menu.pick("Rename")
+  check("the menu's Rename: the field on the page, the switcher shut", (await field(3).count()) === 1 && !(await page.locator("[data-workspace-list]").count()))
+  await page.keyboard.press("Escape"); await ui.idle()
+  await ui.menu.context(card(2).locator("[data-all-tabs-head]"))
+  const ownItems = await ui.menu.items()
+  check("this workspace's menu: no switch to it, its Settings", ownItems[0] === "Rename" && ownItems.includes("Settings…"), ownItems)
+  await ui.menu.close()
+
+  check("New workspace: at the end, the first free number", (await page.locator("[data-all-tabs-new]").getAttribute("data-all-tabs-new")) === "4")
+  await page.locator("[data-all-tabs-new]").click()
+  check("...a click: a card for it, its name to type", (await field(4).count()) === 1 && !(await page.locator("[data-all-tabs-new]").count()))
+  await page.keyboard.press("Escape"); await ui.idle()
+  check("...Escape: no workspace made", !(await card(4).count()) && !workspaces(B)[3] && (await page.locator("[data-all-tabs-new]").count()) === 1)
+  await page.locator("[data-all-tabs-new]").click(); await page.keyboard.type("Ideas"); await page.keyboard.press("Enter"); await ui.idle()
+  check("...named: workspace 4, saved, still on this one", !!(await until(async () => (await nameOf(4)) === "Ideas" && workspaces(B)[3]?.name === "Ideas", 6000)) && (await lit()) === "2", [await nameOf(4), workspaces(B)[3]])
+  await page.screenshot({ path: `${OUT}workspaces-page.png` })
+  await ui.menu.context(card(4).locator("[data-all-tabs-head]")); await ui.menu.pick("Delete")
+  check("Delete from the page: its card goes, with Undo", !!(await until(async () => !(await card(4).count()) && !workspaces(B)[3], 6000)) && !!(await ui.toast.wait(/Deleted Ideas/).catch(() => null)))
   await ui.menu.context(card(3).locator("[data-all-tabs-tab]", { hasText: "Release notes" }))
   const items = await ui.menu.items()
   check("All tabs: a row's menu moves it to each other workspace, or closes it", items.join() === "Move to Personal,Move to Work,Close tab", items)
@@ -173,6 +209,19 @@ try {
   check("tab search: picking it goes to Personal and shows the tab", !!(await until(async () => (await lit()) === "1" && (await active()) === "Trip ideas", 6000)), [await lit(), await active()])
   await page.keyboard.press("ControlOrMeta+Shift+a"); await page.waitForSelector("[role=dialog] input:focus"); await ui.idle()
   check("tab search, no query: no other workspace's tab without a mark", !(await other.count()), await page.locator("[role=dialog]").innerText())
+  await page.keyboard.press("Escape"); await ui.idle()
+
+  const pagesOpen = () => page.locator("[data-all-tabs]:visible").count()
+  check("Personal shows no Workspaces page before the drag", !(await pagesOpen()))
+  const sw = await page.locator(SWITCHER).boundingBox(), body = await page.locator("[data-pane-body]:visible").first().boundingBox()
+  await page.mouse.move(sw.x + sw.width / 2, sw.y + sw.height / 2); await page.mouse.down()
+  await page.mouse.move(sw.x + sw.width / 2 + 20, sw.y + 30, { steps: 4 }); await page.mouse.move(body.x + body.width - 30, body.y + body.height / 2, { steps: 12 })
+  check("the switcher dragged to a pane's edge: Workspaces follows the pointer, the half it would take shown", !!(await until(async () => /Workspaces/.test(await page.locator("[data-drag-ghost]").innerText().catch(() => "")) && (await page.locator("[data-drag-shape=page]").count()) === 1, 3000)))
+  await page.screenshot({ path: `${OUT}switcher-drag.png` }); await page.mouse.up(); await ui.idle()
+  check("...dropped: the Workspaces page beside the tab, no list open", !!(await until(async () => (await pagesOpen()) === 1 && (await page.locator("[data-pane-body]:visible").count()) === 2, 6000)) && !(await page.locator("[data-workspace-list]").count()),
+    await page.locator("[data-pane-body]:visible").count())
+  await page.click(SWITCHER)
+  check("...and a click on it still opens the list", !!(await until(() => page.locator("[data-workspace-list]").count(), 3000)))
   await page.keyboard.press("Escape"); await ui.idle()
 
   const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true })

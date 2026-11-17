@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Workspaces: All tabs is now the Workspaces page. Each workspace there shows its icon, colour and name: a click on the
+  name renames it, right-click or its … button has the switcher's menu (icon, colour, container, duplicate, delete), and
+  New workspace at the end makes one, named in place. Drag the switcher's button onto a pane to open the page there.
 - Browser: drag a page's container from its address bar onto a pane, its edge or the tabs to see that container's
   sites and logins there. The Sites page opens as `view:sites`.
 - Notes: a phone back from another app no longer saves an older copy of a note over newer text (an agent's, another
@@ -25,14 +28,14 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   card stepping aside so the group shows; held a moment, the group opens to drop among its tabs, and folds again if
   nothing went in. A dragged group looks like its chip on a stack of its tabs.
 - Workspaces: drag one in the switcher (or Move up and Move down in its menu) to reorder them; its number and ⌃ key
-  follow, on every computer. A workspace's colour tints its row in the switcher and its card in All tabs.
+  follow, on every computer. A workspace's colour tints its row in the switcher and its card on the Workspaces page.
 - Terminals: a session's hover preview shows the pictures it shows (a screenshot an agent read) instead of a block
   of garbled characters, and `vau terminal capture` writes `[picture]` where one is (as a page, the picture itself).
 - Folders: a folder anywhere on the computer opens in a tab as the vault's folders do (list, grid, columns, gallery),
   without what its .gitignore leaves out: typed in the switcher, from `vau open ~/Projects/lighthouse`, or asked of the
   companion, instead of in Finder. Its files open in Vaultite.
 - Workspaces: turning them on never hides a tab: the tabs on screen go into the workspace, as a group named after the
-  device when it has tabs of its own; turning them off keeps the current workspace's tabs. All tabs (⌃0, atop the
+  device when it has tabs of its own; turning them off keeps the current workspace's tabs. The Workspaces page (⌃0, atop the
   switcher) shows every workspace's as the Tabs panel does: groups fold on a click (their count in their pill), a row
   opens its tab or pane, closes on hover or middle-click and has the tab's menu, and drags
   like the Tabs panel's, to reorder a workspace's tabs or move them and groups to another workspace's, tab search finds them, a speaker marks the workspace playing sound, and a web page
