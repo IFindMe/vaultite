@@ -115,6 +115,8 @@ export const commandList = () => list
 
 export const useCommandList = () => commandsChanged.use(() => list)
 export const useKnownCommands = () => commandsChanged.use(() => knownList)
+export const knownCommands = () => knownList
+export type KnownCommand = Known
 export const available = (cs: Command[]) => cs.filter((c) => {
   if (c.desktop && !isDesktop()) return false
   try { return !c.when || c.when() } catch { return false }
@@ -175,7 +177,8 @@ export function hydrateHotkeys(saved: unknown, seeds?: unknown) {
 
 /** A command's keys in effect: the vault's hotkeys.json if it names the command, else another app's (`seeded`), else its
  *  own defaults and the keys plugins add to it (`addKeys`). */
-export const keysOf = (c: { id: string; keys?: string[] }) => hotkeys[c.id] ?? seeded[c.id] ?? (extra.has(c.id) ? [...(c.keys ?? []), ...extra.get(c.id)!] : c.keys ?? [])
+export const keysOf = (c: { id: string; keys?: string[] }) => hotkeys[c.id] ?? defaultKeysOf(c)
+export const defaultKeysOf = (c: { id: string; keys?: string[] }) => seeded[c.id] ?? (extra.has(c.id) ? [...(c.keys ?? []), ...extra.get(c.id)!] : c.keys ?? [])
 
 let extra = new Map<string, string[]>()
 const adders = new Map<string, Record<string, string[]>>()

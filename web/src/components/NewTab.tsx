@@ -170,7 +170,7 @@ export function ActionButtons({ phone, open = true, panel, dock }: { phone?: boo
           <div key={c.id} data-slide={c.id} onPointerDown={(e) => startDrag(e, { from: "newtab", newtab: { list: "actions", key: c.id }, label: labelOf(c) }, { touch: !!phone })}
             onContextMenu={panel ? menuFor(() => menu(c.id)) : undefined} className={cn(dragged === c.id && "opacity-50")}>
             <SidebarRow data-newtab-action={c.id} icon={Icon} tint="var(--primary)" label={labelOf(c)} open={open} className="text-primary" onClick={() => runCommand(c)}>
-              {keys && !phone && <span className="mr-1 shrink-0 text-[11px] text-tertiary">{keyHint(keys)}</span>}
+              {keys && !phone && <span data-rebind={c.id} data-tip="Change shortcut" className="mr-0.5 shrink-0 px-1 text-[11px] text-tertiary">{keyHint(keys)}</span>}
             </SidebarRow>
           </div>
         )
@@ -179,7 +179,6 @@ export function ActionButtons({ phone, open = true, panel, dock }: { phone?: boo
   )
 }
 
-/** The buttons' heading's +. */
 export function AddButton() {
   return (
     <HeadingButton icon={Plus} label="Add a button" onClick={() => addButton()} />

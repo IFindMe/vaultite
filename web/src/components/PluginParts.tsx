@@ -104,7 +104,7 @@ export function PluginParts({ plugin, on }: { plugin: Plugin; on: boolean }) {
                   className={cn("inline-flex h-7 max-w-full cursor-pointer items-center gap-1.5 rounded-control bg-background px-2 text-[13px] hover:bg-foreground/[0.06] disabled:cursor-default disabled:opacity-60 md:text-[12px]")}>
                   <MousePointerClick className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
                   <span className="truncate">{c.name}</span>
-                  {keys && <kbd className="shrink-0 font-sans text-muted-foreground">{keys}</kbd>}
+                  {keys && <kbd data-rebind={c.id} data-tip="Change shortcut" className="-mr-1 shrink-0 px-1 font-sans text-muted-foreground">{keys}</kbd>}
                 </button>
               )
             })}

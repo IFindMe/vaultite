@@ -10,7 +10,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `activePane()`: The pane focused in the tab on screen: where the address, the commands and what's opened go.
 - `activeTab()`: The tab on screen in this window.
 - `ActivityNote`
-- `AddButton()`: The buttons' heading's +.
+- `AddButton()`
 - `addDays(s, n)`
 - `addKeys(owner, keys)`: Give commands more default keys, by command id, under `owner` (a plugin's id); null takes them away.
 - `AddToTimeline({ path, kinds })`: Add to a file's timeline where it has none yet (a person's profile): the same form, and the line comes with its `## Timeline` section (the server makes it at the file's end).
@@ -473,7 +473,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `openInSplit(to, side?, focusIt?, paneId?)`: `to` in a pane beside the focused one (right or below, made if none, or beside one keeping its view); `focusIt` false: the focus stays.
 - `openItem(newTab, right?)`: "Open in new tab", with Open to the right in its submenu where there are splits (desktop).
 - `openLinkMenu(link, at, opts?)`
-- `openMenu(at, items, up?, again?)`
+- `openMenu(at, items, up?, again?, closed?)`
 - `openNew(path, opts?)`: Open a file just made, in editing with its name ready to type.
 - `openNewTab({ group, at }?)`: A new tab (or at the end of tab group `group`, a phone's open one): a blank one, or newtab.json's `opens`.
 - `openOutside(path)`: Open a file outside the vault by its absolute path (a notice's Open): the desktop app lets this window have it, as a file dropped on it, or opens the vault it's in; a browser can't, nor a computer…

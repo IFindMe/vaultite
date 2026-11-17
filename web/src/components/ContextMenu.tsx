@@ -23,6 +23,7 @@ export type MenuItem = {
   checked?: boolean
   /** Muted text at the row's right end: where it is (a panel in the other sidebar: Right sidebar). */
   hint?: string
+  keysOf?: string
   /** Clicking it leaves the menu open (redrawn), to switch several things at once (the sidebar's pages). */
   keep?: boolean
   /** A line above it. */
@@ -54,31 +55,38 @@ export function commandItems(...ids: string[]): MenuItem[] {
     const c = offeredCommand(id)
     if (!c) return []
     const keys = keysOf(c)[0]
-    return [{ label: commandName(c), icon: typeof c.icon === "string" ? undefined : c.icon, hint: keys ? keyHint(keys) : undefined,
+    return [{ label: commandName(c), icon: typeof c.icon === "string" ? undefined : c.icon, hint: keys ? keyHint(keys) : undefined, keysOf: keys ? c.id : undefined,
       ...(isSetting(c) ? { checked: isOn(c), keep: true } : {}), run: () => c.run() }]
   })
 }
 
 export type MenuAt = { x: number; y: number; flip?: number }
 type Open = { at: MenuAt; items: MenuItem[]; up?: boolean
-  again?: () => MenuItem[] } | null
+  again?: () => MenuItem[]; closed?: () => void } | null
 
 let open: Open = null
 const subs = signal()
-const set = (o: Open) => { open = o; subs.notify() }
+const set = (o: Open) => {
+  const was = open
+  open = o
+  if (was?.closed && was.closed !== o?.closed) was.closed()
+  subs.notify()
+}
 const icon = "size-5 shrink-0 md:size-4"
 
-export function openMenu(at: MenuAt, items: MenuItem[], up = false, again?: () => MenuItem[]) {
+export function openMenu(at: MenuAt, items: MenuItem[], up = false, again?: () => MenuItem[], closed?: () => void) {
   if (!items.length) return
   if (!open) release = holdFocus()
   // A Mac opens the menu as the right button goes down: letting go on a row picks it.
   armed = pressed ? { ...pressed, at: performance.now() } : null
-  set({ at, items, up, again })
+  set({ at, items, up, again, closed })
 }
 /** The open menu's items swapped for others, if it's still the one showing `was` (what came in after it opened: a
  *  block's sources). */
 export function replaceMenu(was: MenuItem[], items: MenuItem[]) {
-  if (open?.items === was) set({ ...open, items, again: undefined })
+  if (open?.items !== was) return
+  if (items.length) set({ ...open, items, again: undefined })
+  else closeMenu()
 }
 /** A menu is showing. */
 export const menuShowing = () => open !== null
@@ -479,7 +487,7 @@ function MenuList({ items, at, up, beside, again, focus, onBack, onHover }: {
             {!trailing && it.checked !== undefined && <Check className={cn(icon, !it.checked && "invisible")} strokeWidth={2.5} />}
             {(trailing || it.checked === undefined) && (it.icon ? <it.icon className={icon} strokeWidth={2} /> : lead && <span className={icon} />)}
             <span className="min-w-0 flex-1 truncate">{it.label}</span>
-            {it.hint && <span className="shrink-0 pl-4 text-muted-foreground">{it.hint}</span>}
+            {it.hint && <span data-rebind={it.keysOf} className="-mr-1 ml-3 shrink-0 px-1 text-muted-foreground">{it.hint}</span>}
             {trailing && it.checked !== undefined && <Check className={cn(icon, "-mr-1", !it.checked && "invisible")} strokeWidth={2.5} />}
             {it.items && (it.split
               ? <span data-menu-more className="-mr-3 flex h-11 w-11 shrink-0 items-center justify-center border-l-[0.5px] border-border md:-mr-2.5 md:h-7 md:w-7 md:border-l-0">

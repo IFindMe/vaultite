@@ -153,6 +153,10 @@
    15px on computers; on phones 16px, rows 40px (its own spacing unit): a notch under a note's 17px, as a sidebar is. `.size-up-bleed`, on what holds it (zoom would
    scale its own margin), pulls it out by its rows' inset, so their text lines up with the page's. */
 [data-size-up] { zoom: 1.1538; }
+/* A command's keys, drawn where it is (core/rebind.ts): clicking them changes its shortcut, so they look pressable. */
+[data-rebind] { cursor: pointer; border-radius: 6px; }
+[data-rebind]:hover, [data-rebinding] { background: var(--accent); }
+[data-rebinding] { outline: 1.5px solid var(--primary); }
 .size-up-bleed { margin-inline: calc(var(--spacing) * -1.5 * 1.1538); }
 :where([data-phone]) [data-size-up] { zoom: 1.2308; --spacing: 0.29rem; }
 :where([data-phone]) .size-up-bleed { margin-inline: calc(0.29rem * -1.5 * 1.2308); }

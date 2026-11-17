@@ -117,7 +117,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           {Icon ? <Icon className="size-4 shrink-0 text-muted-foreground" strokeWidth={2} /> : <span aria-hidden className="size-4 shrink-0" />}
           <span className="min-w-0 flex-1 truncate text-[15px] leading-[21px] text-foreground/90">{marked(c.name, c.marks)}</span>
           {(isSetting(c) || c.value) && c.place && <span className="hidden max-w-[35%] shrink-0 truncate text-[13px] text-muted-foreground md:block">{c.place.name}</span>}
-          {keysOf(c)[0] && <Keys keys={keysOf(c)[0]} />}
+          {keysOf(c)[0] && <span data-rebind={c.id} data-tip="Change shortcut" className="-m-1 hidden shrink-0 p-1 md:flex"><Keys keys={keysOf(c)[0]} /></span>}
           {isSetting(c) && <SwitchMark c={c} />}
           {c.value && <ChoiceValue value={c.value} />}
         </>

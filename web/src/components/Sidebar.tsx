@@ -455,7 +455,7 @@ export function RowKeys({ id, className }: { id: string; className?: string }) {
   const first = firstKeys(id)
   if (!first) return null
   return (
-    <span aria-hidden className={cn("flex shrink-0 gap-1 opacity-0 transition-opacity duration-150", className)}>
+    <span aria-hidden data-rebind={id} data-tip="Change shortcut" className={cn("-my-0.5 flex shrink-0 gap-1 p-0.5 opacity-0 transition-opacity duration-150 data-rebinding:opacity-100", className)}>
       {keyCaps(first).map((k, i) => (
         <kbd key={i} className="grid h-5 min-w-5 place-items-center rounded-[4px] border-[0.5px] border-border bg-foreground/[0.06] px-1 font-keys text-[11px] leading-none text-muted-foreground">{k}</kbd>
       ))}

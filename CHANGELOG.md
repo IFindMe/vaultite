@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Click a shortcut where it shows (the command palette, menus, the sidebar, a new tab, Hotkeys) to change it on the
+  spot: press the new keys, Escape keeps the old ones; keys another command has ask Replace or Keep both, with Undo,
+  Remove and Restore default.
 - Inbox: Mute the <account> account on an agent's thread stops that account's sessions coming to the inbox, with
   their toasts and notifications, and settles the ones open; the Agents panel's Notifications lists every machine's accounts.
 - The companion is one talk on a Mac: asked in one vault, a follow-up in another knows what was said, and its chat

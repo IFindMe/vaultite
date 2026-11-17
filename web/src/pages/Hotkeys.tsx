@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Command as CommandIcon, Keyboard, Plus, RotateCcw, X } from "lucide-react"
 import { canonical, isCustom, isSeeded, keyCaps, keyHint, keysOf, sameKeys, setHotkeys, shortcutOf, useCommandList, useKnownCommands } from "@/core/commands"
+import { bindable, heldOf, keyHolders } from "@/core/keyholders"
 import { desktop } from "@/core/desktop"
 import { isMac } from "@/core/platform"
 import { commandIcon } from "@/core/pages"
@@ -42,10 +43,10 @@ const heldCaps = (held: string) => held.split("+").filter(Boolean).map(glyph).jo
 
 const iconBtn = "grid size-6 shrink-0 cursor-pointer place-items-center rounded-[5px] text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground"
 
-function Caps({ keys, onRemove }: { keys: string; onRemove: () => void }) {
+function Caps({ id, keys, onRemove }: { id: string; keys: string; onRemove: () => void }) {
   return (
-    <span data-hotkey-keys={keys} className="group/key flex items-center gap-0.5 rounded-[6px] border-[0.5px] border-border bg-card py-0.5 pr-0.5 pl-1.5 text-[12px] shadow-[0_1px_0_var(--border)]">
-      {keyCaps(keys).map((k, i) => <kbd key={i} className="font-keys">{k}</kbd>)}
+    <span data-hotkey-keys={keys} className="group/key flex items-center gap-0.5 rounded-[6px] border-[0.5px] border-border bg-card py-0.5 pr-0.5 pl-1 text-[12px] shadow-[0_1px_0_var(--border)]">
+      <span data-rebind={id} data-rebind-keys={keys} data-tip="Change shortcut" className="flex gap-0.5 rounded-[4px] px-0.5">{keyCaps(keys).map((k, i) => <kbd key={i} className="font-keys">{k}</kbd>)}</span>
       <button type="button" aria-label={`Remove ${keys}`} data-tip="Remove" onClick={onRemove}
         className="ml-0.5 grid size-4 cursor-pointer place-items-center rounded-[3px] text-muted-foreground opacity-40 group-hover/key:opacity-100 hover:bg-foreground/[0.1]">
         <X className="size-3" strokeWidth={2.5} />
@@ -67,10 +68,7 @@ export function HotkeysSheet() {
   const [rec, setRec] = useState<Recording | null>(null)
   const [held, setHeld] = useState("")
 
-  const holders = (k: string, id?: string) => {
-    const self = known.find((c) => c.id === id)
-    return known.filter((c) => c.id !== id && !(self?.contextual && c.contextual) && keysOf(c).some((x) => sameKeys(x, k)))
-  }
+  const holders = (k: string, id?: string) => keyHolders(k, id, known)
   const add = (id: string, k: string) => { const c = known.find((x) => x.id === id); const now = c ? keysOf(c) : []; if (!now.some((x) => sameKeys(x, k))) setHotkeys(id, [...now, k]) }
   const take = (id: string, k: string, from: Known[]) => { for (const o of from) setHotkeys(o.id, keysOf(o).filter((x) => !sameKeys(x, k))); add(id, k) }
 
@@ -82,9 +80,9 @@ export function HotkeysSheet() {
       e.preventDefault()
       e.stopImmediatePropagation()
       if (e.key === "Escape") return setRec(null)
-      setHeld([isMac ? e.metaKey && "Mod" : e.ctrlKey && "Mod", isMac && e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift"].filter(Boolean).join("+"))
+      setHeld(heldOf(e))
       const k = shortcutOf(e)
-      if (!k || !(/^(Mod|Ctrl|Alt)\+/.test(k) || /^F\d+$/.test(k.split("+").pop()!))) return
+      if (!k || !bindable(k)) return
       setHeld("")
       if (id === FIND) { setOnKey(k); setQuery(""); return setRec(null) }
       const others = holders(k, id)
@@ -183,7 +181,7 @@ function Row({ c, rec, held, holders, record, cancel, replace, both }: {
           {notes.map((n) => <div key={n} data-hotkey-conflict className="truncate text-[12px] text-ink-(--red)">{n}</div>)}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-          {keys.map((k) => <Caps key={k} keys={k} onRemove={() => setHotkeys(c.id, keys.filter((x) => x !== k))} />)}
+          {keys.map((k) => <Caps key={k} id={c.id} keys={k} onRemove={() => setHotkeys(c.id, keys.filter((x) => x !== k))} />)}
           {rec && !asking && (
             <span data-recording className="rounded-[6px] px-2 py-0.5 text-[12px] text-primary ring-1 ring-primary">
               {held ? <kbd className="font-keys">{heldCaps(held)}…</kbd> : "Press keys…"}
