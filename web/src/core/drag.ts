@@ -81,11 +81,12 @@ export type DragEnd = { item: DragItem; x: number; y: number; origin?: Origin; d
 const ends = new Set<(e: DragEnd) => void>()
 export const onDragEnd = (fn: (e: DragEnd) => void) => { ends.add(fn); return () => { ends.delete(fn) } }
 
-let fingerHolds = false
+let fingerHolds = false, pageHeld = false
 export const fingerHolding = () => fingerHolds
-// The page mustn't scroll under a finger holding something: WebKit only lets a touchmove stop a begun scroll if a
-// cancelable listener was there all along (as dnd-kit does).
-if (typeof window !== "undefined") addEventListener("touchmove", (e) => { if (fingerHolds && e.cancelable) e.preventDefault() }, { passive: false })
+export const holdPage = (on: boolean) => { pageHeld = on }
+// The page mustn't scroll under a finger holding or dragging something (iOS takes a drag over): WebKit only lets a
+// touchmove stop a begun scroll if a cancelable listener was there all along (as dnd-kit does).
+if (typeof window !== "undefined") addEventListener("touchmove", (e) => { if ((fingerHolds || pageHeld) && e.cancelable) e.preventDefault() }, { passive: false })
 
 if (typeof window !== "undefined") {
   const captured = new Set<number>(), root = document.documentElement

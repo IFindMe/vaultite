@@ -4,7 +4,7 @@ import { ChevronsUpDown } from "lucide-react"
 import { APP_PAGES, appPageOf, hrefOf, openAppPage } from "@/core/apppages"
 import { onAway } from "@/core/away"
 import type { Store } from "@/core/data"
-import { fingerHolding } from "@/core/drag"
+import { fingerHolding, holdPage } from "@/core/drag"
 import { FLICK, fling } from "@/core/pager"
 import { haptic } from "@/core/haptics"
 import { route } from "@/core/nav"
@@ -45,13 +45,13 @@ const EASE = "cubic-bezier(.2,.8,.2,1)"
 const SIDES = ["left", "right"] as const
 const width = () => Math.min(innerWidth * 0.86, 360)
 
-const onPage = (el: Element, page: Element) =>
-  el === document.body || el === document.documentElement || page.contains(el) || !!el.closest("[data-phone-bar]")
+const BAR = "[data-phone-bar]"
+const onPage = (el: Element, page: Element) => el === document.body || el === document.documentElement || page.contains(el) || !!el.closest(BAR)
 const scrollsToward = (a: Element, side: Side) => side === "left" ? a.scrollLeft > 0 : a.scrollLeft + a.clientWidth < a.scrollWidth - 1
 
 function ownsSideways(a: Element, side: Side) {
   const cs = getComputedStyle(a)
-  if ((cs.touchAction === "none" || cs.touchAction === "pinch-zoom") && !a.matches("[data-phone-bar]")) return true
+  if ((cs.touchAction === "none" || cs.touchAction === "pinch-zoom") && !a.matches(BAR)) return true
   return /auto|scroll/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 1 && scrollsToward(a, side)
 }
 
@@ -76,9 +76,9 @@ function useTouched() {
   const [touched, setTouched] = useState(false)
   useEffect(() => {
     if (touched) return
-    const on = () => setTouched(true), opts = { capture: true, passive: true }
-    addEventListener("pointerdown", on, opts)
-    return () => removeEventListener("pointerdown", on, opts)
+    const quit = new AbortController()
+    addEventListener("pointerdown", () => setTouched(true), { capture: true, passive: true, signal: quit.signal })
+    return () => quit.abort()
   }, [touched])
   return touched
 }
@@ -134,6 +134,7 @@ export function PhoneDrawers(props: BodyProps) {
     if (!d.axis) {
       if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) {
         d.axis = "x"
+        holdPage(true)
         try { (e.currentTarget instanceof Element ? e.currentTarget : elementOf(e.target))?.setPointerCapture(e.pointerId) } catch {}
         d.quit = onAway(end)
         if (drawn !== d.side) flushSync(() => setDrawn(d.side))
@@ -150,6 +151,7 @@ export function PhoneDrawers(props: BodyProps) {
     const d = drag.current
     drag.current = null
     setEdgeTouch(false)
+    holdPage(false)
     d?.quit?.()
     if (!d || d.axis !== "x") return
     const open = opensOn(d, e)
@@ -159,7 +161,7 @@ export function PhoneDrawers(props: BodyProps) {
     else openDrawer(open ? d.side : null)
   }
   const handlers = { onPointerMove: move, onPointerUpCapture: end, onPointerCancelCapture: end }
-  useEdgeSwipes({ has, side, drag, start, move, end })
+  useEdgeSwipes({ has, side, start, move, end })
 
   return (
     <>
@@ -193,13 +195,13 @@ function closesOnLeaving() {
     const typing = document.activeElement?.closest("[data-phone-drawer]") && document.activeElement.matches("input, textarea, [contenteditable]")
     if (out && !typing) openDrawer(null)
   }
-  addEventListener("hashchange", on)
-  const esc = (e: KeyboardEvent) => { if (e.key === "Escape" && out) openDrawer(null) }
-  addEventListener("keydown", esc)
-  return () => { removeEventListener("hashchange", on); removeEventListener("keydown", esc) }
+  const quit = new AbortController()
+  addEventListener("hashchange", on, quit)
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && out) openDrawer(null) }, quit)
+  return () => quit.abort()
 }
 
-type Gesture = { has: Record<Side, boolean>; side: Side | null; drag: React.RefObject<Drag | null>
+type Gesture = { has: Record<Side, boolean>; side: Side | null
   start: (e: PointerEvent, s: Side, from: number) => void; move: (e: PointerEvent) => void; end: (e: PointerEvent) => void }
 
 function useEdgeSwipes(now: Gesture) {
@@ -217,20 +219,12 @@ function useEdgeSwipes(now: Gesture) {
     }
     const move = (e: PointerEvent) => { if (edgeTouch()) live.current.move(e) }
     const up = (e: PointerEvent) => { if (edgeTouch()) live.current.end(e) }
-    const keepFromIosScroll = (e: TouchEvent) => { if (live.current.drag.current?.axis === "x" && e.cancelable) e.preventDefault() }
-    const opts = { capture: true, passive: true }
+    const quit = new AbortController(), opts = { capture: true, passive: true, signal: quit.signal }
     addEventListener("pointerdown", down, opts)
     addEventListener("pointermove", move, opts)
     addEventListener("pointerup", up, opts)
     addEventListener("pointercancel", up, opts)
-    addEventListener("touchmove", keepFromIosScroll, { capture: true, passive: false })
-    return () => {
-      removeEventListener("touchmove", keepFromIosScroll, { capture: true })
-      removeEventListener("pointerdown", down, opts)
-      removeEventListener("pointermove", move, opts)
-      removeEventListener("pointerup", up, opts)
-      removeEventListener("pointercancel", up, opts)
-    }
+    return () => quit.abort()
   }, [])
 }
 
