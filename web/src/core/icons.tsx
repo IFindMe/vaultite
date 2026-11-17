@@ -1,6 +1,7 @@
 import { forwardRef, type ComponentType, type CSSProperties } from "react"
 import type { LucideIcon, LucideProps } from "lucide-react"
 import { signal } from "@/core/signal"
+import { isEmoji } from "@/core/glyphs"
 
 export type IconType = ComponentType<{ className?: string; strokeWidth?: number; style?: CSSProperties }>
 
@@ -22,8 +23,6 @@ const pascal = (name: string) => {
   const c = name.replace(/^([A-Z])|[\s-_]+(\w)/g, (_m, p1: string, p2: string) => (p2 ? p2.toUpperCase() : p1.toLowerCase()))
   return c.charAt(0).toUpperCase() + c.slice(1)
 }
-
-export const isEmoji = (s: string) => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(s) && [...s].length <= 10 && !/[\p{L}\p{N}]{2}/u.test(s)
 
 const made = new Map<string, LucideIcon>()
 

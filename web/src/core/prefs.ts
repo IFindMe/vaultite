@@ -52,6 +52,7 @@ export type Prefs = {
   translucentPages: boolean
   translucency: number; pageTranslucency: number
   lineNumbers: boolean
+  iconPickerEmoji: boolean
   statusBar: string[] | null
   statusBarMore: string[]
   statusBarLeft: string[] | null
@@ -96,7 +97,7 @@ const FITS: { [K in Plain]: Fits<Prefs[K]> } = {
   panelDividers: bool, panelHeadings: oneOf(HEADINGS), quickTextSize: bool, interfaceFont: isText, textFont: isText, monoFont: isText, snippets: texts,
   enabled: texts, ai: bool, sidebarWidth: finite, rightSidebar: bool, rightSidebarWidth: finite, fileIcons: bool, tabBar: bool, paneTabBars: bool,
   dimPanes: bool, paneCards: bool, rails: bool, peekShade: bool, sidebarButtons: bool, fileBarFade: oneOf(FADES), translucent: bool, translucentPages: bool,
-  translucency: finite, pageTranslucency: finite, lineNumbers: bool, statusBar: textsOrNull, statusBarMore: texts, statusBarLeft: textsOrNull,
+  translucency: finite, pageTranslucency: finite, lineNumbers: bool, iconPickerEmoji: bool, statusBar: textsOrNull, statusBarMore: texts, statusBarLeft: textsOrNull,
   fileBar: textsOrNull, fileBarHidden: texts, sidebarHeader: textsOrNull, pullActions: textsOrNull, fileSort: oneOf(SORTS), folderView: oneOf(VIEWS),
   folderGroup: oneOf(GROUPINGS), folderLimit: finite, autoReveal: bool, showHidden: bool, showArchived: bool, updates: oneOf(POLICIES),
   updatesOn: texts, updatesOff: texts, device: isObj, editor: isObj,

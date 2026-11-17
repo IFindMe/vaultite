@@ -88,6 +88,7 @@ const APPEARANCE: Record<string, Setting> = {
   pullActions: {
     about: "the commands a page pulled down on a phone offers, left, straight down, right, by command id (default file:new, switcher:open, tab:close): a JSON list or ids separated by commas", parse: names },
   lineNumbers: { about: "true or false: line numbers beside a file's text while editing it (code files always have them)", parse: bool("lineNumbers") },
+  iconPickerEmoji: { about: "true (default) or false: the icon picker lists emoji beside the icons; off, it finds them only after a colon (:ninja)", parse: bool("iconPickerEmoji") },
 }
 
 type HotkeyRow = { id: string; name: string; keys: string[]; changed: boolean; defaults: string[]; note?: string }

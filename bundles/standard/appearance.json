@@ -9,6 +9,7 @@
   "paneTabBars": true, "dimPanes": true, "paneCards": false,
   "rails": true, "peekShade": false, "sidebarButtons": false, "fileBarFade": "off",
   "lineNumbers": false,
+  "iconPickerEmoji": true,
   "statusBar": null,
   "statusBarMore": [],
   "statusBarLeft": null,

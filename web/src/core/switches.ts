@@ -1,4 +1,4 @@
-import { ArrowDownUp, Archive, Blend, Sparkles, BookOpenText, Brackets, Eye, Heading, Layers2, LayoutPanelLeft, Link2, LayoutPanelTop, ListOrdered, ListTree, MousePointer2, PanelLeft, PanelLeftDashed, PanelTop, SeparatorHorizontal, Shapes, SpellCheck, SunDim, WrapText } from "lucide-react"
+import { ArrowDownUp, Archive, Blend, Sparkles, BookOpenText, Brackets, Eye, Heading, Layers2, LayoutPanelLeft, Link2, LayoutPanelTop, ListOrdered, ListTree, Smile, MousePointer2, PanelLeft, PanelLeftDashed, PanelTop, SeparatorHorizontal, Shapes, SpellCheck, SunDim, WrapText } from "lucide-react"
 import { setAi } from "@/core/ai"
 import { canTranslucent, getTranslucency, onTranslucency } from "@/core/appearance"
 import type { Command } from "@/core/commands"
@@ -67,6 +67,7 @@ const CORE: SwitchDef[] = [
   { id: "setting:translucent-pages", name: "Translucent pages", section: "appearance", icon: Layers2, sub: () => "Notes and terminals too, more lightly; web pages and media stay solid", words: "transparent transparency glass full notes terminal editor see-through",
     get: () => getPrefs().translucentPages, set: (on: boolean) => setPrefs(on ? { translucentPages: true, translucent: true } : { translucentPages: false }) },
   { id: "setting:line-numbers", name: "Line numbers", section: "appearance", icon: ListOrdered, words: "gutter", ...pref("lineNumbers") },
+  { id: "setting:icon-picker-emoji", name: "Emoji in the icon picker", section: "appearance", icon: Smile, sub: () => "Off, type a colon first to find one (:ninja)", words: "emoji smiley icons picker workspace", ...pref("iconPickerEmoji") },
   { id: "setting:sidebar-buttons", name: "Sidebar buttons on phones", section: "sidebars", icon: PanelLeft, sub: () => "In the top bar; off, swipe in from the screen's edge. A phone's browser always shows them", words: "drawer swipe edge top bar header mobile iphone", ...pref("sidebarButtons") },
   { id: "setting:sidebar-scroll", name: "Scroll sidebar panels separately", section: "sidebars", icon: ArrowDownUp, words: "sidebars",
     get: () => getPrefs().sidebarScroll !== "sidebar", set: (on) => setPrefs({ sidebarScroll: on ? "panels" : "sidebar" }) },

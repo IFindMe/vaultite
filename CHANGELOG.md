@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- The icon picker is a grid of every Lucide icon and every emoji, found by name (`ninja`), the one selected named below
+  it, with buttons to jump to a group and the arrow keys and Tab to move; a colon (`:heart`) finds emoji only, and
+  Settings' Emoji in the icon picker leaves them out.
 - Desktop app: an update's relaunch never comes while you talk to the companion (a key held, its answer coming, or an
   ask in the last 10 minutes, even with keys untouched); an ask cut short by a quit is told at the next launch, and the
   companion's exchange numbers go on across restarts instead of starting at 1 again.
