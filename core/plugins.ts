@@ -741,19 +741,20 @@ export class Plugin {
     return `plugins/${this.id}/${file}`
   }
 
-  /** JSON lines in localDir(), a file a day (<kind>-<date>.jsonl), appended at once, read as `row` (other lines skipped),
-   *  rewritten by day, days older than `keep` pruned at most hourly. */
+  /** JSON lines in localDir(), a file a day (<kind>-<date>.jsonl), appended at once, read as `row` (other lines skipped;
+   *  readIn: another vault's, from otherLocalDirs), rewritten by day, days older than `keep` pruned at most hourly. */
   dayLog<T>(kind: string, row: z.ZodType<T>) {
-    const file = (date: string) => path.join(this.localDir(), `${kind}-${date}.jsonl`), re = new RegExp(`^${kind}-(\\d{4}-\\d\\d-\\d\\d)\\.jsonl$`)
+    const file = (date: string, dir = this.localDir()) => path.join(dir, `${kind}-${date}.jsonl`), re = new RegExp(`^${kind}-(\\d{4}-\\d\\d-\\d\\d)\\.jsonl$`)
     const lines = (rows: T[]) => rows.map((r) => JSON.stringify(r)).join("\n") + "\n"
     let pruned = 0
     const log = {
       append: (t: number, rows: T[]) => {
         if (rows.length) try { fs.appendFileSync(file(localDate(t)), lines(rows)) } catch { /* its folder gone: nothing to keep */ }
       },
-      read: (date: string): T[] => {
+      read: (date: string): T[] => log.readIn(undefined, date),
+      readIn: (dir: string | undefined, date: string): T[] => {
         let text: string
-        try { text = fs.readFileSync(file(date), "utf8") } catch { return [] }
+        try { text = fs.readFileSync(file(date, dir), "utf8") } catch { return [] }
         return text.split("\n").flatMap((l) => {
           if (!l) return []
           let json: unknown
@@ -804,6 +805,22 @@ export class Plugin {
       try { fs.writeFileSync(path.join(d, "vault.txt"), real + "\n") } catch { /* read-only: fine */ }
     }
     return d
+  }
+
+  /** Its localDir() for each other vault served on this machine (each by its own server), with the vault it's for: what
+   *  carries from one vault to the next on a machine, like the companion's talk. */
+  otherLocalDirs(): { dir: string; vault: string }[] {
+    const root = path.join(LOCAL, this.id), own = this.localDir(false)
+    let keys: string[]
+    try { keys = fs.readdirSync(root) } catch { return [] }
+    return keys.flatMap((k) => {
+      const dir = path.join(root, k)
+      if (dir === own) return []
+      try {
+        const vault = fs.readFileSync(path.join(dir, "vault.txt"), "utf8").trim()
+        return vault && fs.existsSync(vault) ? [{ dir, vault }] : []
+      } catch { return [] }
+    })
   }
 
   /** What it keeps that isn't the user's (runtime state: what's open, a place in a video; core/kept.ts): in this server's

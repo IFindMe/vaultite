@@ -5,7 +5,7 @@ import { LOCAL, localDate } from "../../../core/plugins.ts"
 import type { Vault } from "../../../core/vault.ts"
 import { AUTO_RULES, NEVER_READ, NEVER_RUN, readableDirs } from "./reach.ts"
 import { anchorsOf, inPicture, inSummoned, type Lane, screenNear, SUMMONED_PROMPT, summonedLane } from "./summoned.ts"
-import { exchanges, talkSoFar } from "./conversation.ts"
+import { elsewhereText, exchanges, talkSoFar } from "./conversation.ts"
 import { sitesOf } from "./guides.ts"
 import { loginsText, SignedIn } from "./logins.ts"
 import { type ChatTool, chat, onChat, ALLOWED, apiCtx, toolsFor } from "./chat.ts"
@@ -19,6 +19,7 @@ import { nearBy } from "./screensocket.ts"
 import { answering } from "./edits.ts"
 import { excerpts, awayIn, momentsText } from "./momentstext.ts"
 import { askOf, jobs } from "./wiring.ts"
+import { talkElsewhere } from "./vaults.ts"
 
 export const SUMMONED_TOOLS = ["pass", "open", "edit", "page", "draw", "layer", "see", "act", "check", "follow", "clear", "handoff", "where", "jobs", "job", "job-open", "job-stop", "job-answer", "job-show", "talk", "live-undo", "conversation", "tour", "tour-save"]
 const SUMMONED_ACTS = ["say", "look", "draw"]
@@ -55,7 +56,7 @@ export const lane = (): Lane => {
   const l = summonedLane({
     file: () => `${plugin.localDir()}/summoned.json`, chat, name: ownName, model: summonedModel, effort: summonedEffort,
     options: (model, effort) => ({ cwd: plugin.vault.path, account: agentSetting().split("_")[1] || undefined, model, effort, quick: true, system: SUMMONED_PROMPT,
-      builtins: SUMMONED_BUILTINS, title: "Companion: summoned", by: "companion", inbox: false, mode: "auto", allowed: SUMMONED_ALLOWED,
+      builtins: SUMMONED_BUILTINS, title: "Companion: its context now", by: "companion", inbox: false, mode: "auto", allowed: SUMMONED_ALLOWED,
       denied: ["Bash(vau companion:*)", ...READ_ONLY.denied], dirs: READ_ONLY.dirs, confirm: "confirm", never: [...NEVER_RUN, escaped(path.resolve(LOCAL))], autoMode: AUTO_RULES,
       tools: [...toolsFor(ownName(), SUMMONED_TOOLS), confirmTool(ownName)] }),
     acts: () => { const [say, look, draw] = toolsFor(ownName(), SUMMONED_ACTS); return { say, look, draw } },
@@ -84,6 +85,7 @@ export const lane = (): Lane => {
     watching: (name, seen) => { life.delete(key(name)); setAgent(name, seen ? { seen: true } : {}) },
     did,
     talk: (t) => talkBefore(t),
+    elsewhere: (since, t) => elsewhereText(talkElsewhere(since, t), t),
     say: (name, text) => { const a = agents.get(key(name)), answers = inSummoned.run(true, () => answering(name))
       keepSaid(putNote({ kind: "say", agent: name, text, ...(a?.path ? { path: a.path, line: a.line } : {}), ...(answers ? { answers } : {}) }, sayMs(text))) },
   })
@@ -117,9 +119,11 @@ export function browserLogins() {
   }
   return logins.text
 }
+const DAY_MS = 86_400_000
 function talkBefore(t: number) {
-  const days = [...new Set([localDate(t - 86_400_000), localDate(t)])]
-  const xs = days.flatMap((d) => exchanges(log.read(d), acts.read(d), [], ownName())).filter((e) => e.t < t && t - e.t < 86_400_000)
+  const days = [...new Set([localDate(t - DAY_MS), localDate(t)])]
+  const xs = [...days.flatMap((d) => exchanges(log.read(d), acts.read(d), [], ownName())).filter((e) => e.t < t && t - e.t < DAY_MS), ...talkElsewhere(t - DAY_MS, t)]
+    .sort((a, b) => a.t - b.t)
   const body = String((plugin.vault.has("me") ? plugin.vault.get("me", "me") : null)?.body ?? "").trim()
   const now = nowNote()
   return { me: body.length > ME_CHARS ? `${body.slice(0, ME_CHARS)}…` : body,

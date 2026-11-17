@@ -7,7 +7,7 @@ import { titleOf } from "./drawings.ts"
 export type PressLine = { t: number; press: string; kind: string; ev: string; ms?: number; [k: string]: unknown }
 export type Exchange = {
   t: number; seq: number; kind: string; text: string
-  where: string; voice: boolean; summoned: boolean
+  where: string; vault?: string; voice: boolean; summoned: boolean
   said: string[]; did: string[]; results?: string[]
   word?: number; total?: number
   press?: { id: string; steps: PressLine[]; cost?: number }
@@ -105,18 +105,25 @@ function keptDrawings(acts: Act[], drawn: DrawnRow[], until: number): KeptDrawin
 
 const ago = (now: number, t: number) => { const m = Math.round((now - t) / 60_000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago` }
 const one = (s: string, n: number) => { const x = s.replace(/\s+/g, " ").trim(); return x.length > n ? `${x.slice(0, n - 1)}…` : x }
+const placeOf = (e: Exchange) => `${e.vault ? `, in the vault ${e.vault}` : ""}${e.where ? `, in ${one(e.where, 80)}` : ""}`
 export function talkSoFar(xs: Exchange[], now: number, budget = 6000, whole = 8): string {
   const lines: string[] = []
   let used = 0
   for (let i = xs.length - 1; i >= 0; i--) {
     const e = xs[i], n = xs.length - 1 - i < whole ? 600 : 160
     const did = [...(e.results ?? []).map((r) => one(r, n === 600 ? 300 : 120)), ...(e.results?.length ? [] : e.did)]
-    const line = [e.kind === "shown" ? `- ${ago(now, e.t)}, a job's proof played (${one(e.text, n)}), not an answer to anything they asked` : `- ${ago(now, e.t)}${e.where ? `, in ${one(e.where, 80)}` : ""}, they ${e.voice ? "said" : "asked"}: ${one(e.text, n) || "(pointed, no words)"}`,
+    const line = [e.kind === "shown" ? `- ${ago(now, e.t)}, a job's proof played (${one(e.text, n)}), not an answer to anything they asked` : `- ${ago(now, e.t)}${placeOf(e)}, they ${e.voice ? "said" : "asked"}: ${one(e.text, n) || "(pointed, no words)"}`,
       ...(e.said.length ? [`  you: ${one(e.said.join(" "), n)}`] : []), ...(did.length ? [`  you did: ${did.join("; ")}`] : [])].join("\n")
     if (used + line.length > budget) break
     lines.unshift(line); used += line.length + 1
   }
   return lines.join("\n")
+}
+
+export const inVault = (xs: Exchange[], vault: string): Exchange[] => xs.map((e) => ({ ...e, vault }))
+export function elsewhereText(xs: Exchange[], now: number) {
+  const said = talkSoFar(xs, now, 3000, 4)
+  return said ? `(Since your last ask they talked with you in another vault on this machine: the same talk, you there too, its notes and memory kept there. Oldest first:\n${said}\nA follow-up here ("repeat that", "it") may mean something there: answer it from that.)\n` : ""
 }
 
 const SONIOX_PER_S = 0.12 / 3600

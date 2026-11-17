@@ -154,6 +154,7 @@ function CompactTurn({ e, did, waiting }: { e: Exchange; did: string[]; waiting:
   return (
     <div className="group/turn flex flex-col gap-2" data-companion-turn data-kind={e.kind}>
       <div className="flex min-w-0 flex-col items-end gap-1">
+        {e.vault && <div className="pr-1.5 text-[11.5px] leading-[15px] text-muted-foreground" data-turn-vault>In {e.vault}</div>}
         <Trigger e={e} compact className={cn(words, "rounded-[16px] rounded-br-[4px] bg-foreground/[0.07] px-3 py-[7px]")} />
         <div className={cn(ASIDE, "max-w-[85%] pr-1.5")} data-tip={fmtStamp(e.t)} data-turn-meta>
           <TriggerMeta e={e} truncate />

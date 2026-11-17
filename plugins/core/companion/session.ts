@@ -1,5 +1,6 @@
 import { EyeOff, MessageCircle, MessageSquare, Power, RotateCcw, SquareTerminal, Undo2 } from "lucide-react"
 import { notify, notifyError, op, openView, pluginSettings, type MenuItem } from "@vaultite"
+import { showTalk } from "./talkview"
 import { type Agent, canUndoEdit, foldable, getState, howText, type Mode, undoEdit } from "./live"
 
 const settings = pluginSettings<{ mode?: Mode; agent?: string }>("companion")
@@ -34,6 +35,11 @@ async function start(name: string) {
 }
 
 export async function showSession(name = getState().name) {
+  if (main(name)) return showTalk()
+  return showContext(name)
+}
+
+export async function showContext(name = getState().name) {
   const r = await op<{ sessions: { name: string; id: string }[]; summoned: { id: string | null } | null; moments: { kind: string; summoned?: boolean }[] }>("companion.status")
   const s = r.sessions.find((x) => x.name.toLowerCase() === name.toLowerCase())
   const asked = r.moments.findLast((m) => m.kind === "ask" || m.kind === "point"), quick = main(name) ? r.summoned?.id : null
@@ -66,7 +72,7 @@ export function agentMenu(a: Agent): MenuItem[] {
     ...(fold ? [{ label: "Fold its answer into a bubble", icon: MessageCircle, run: fold }] : []),
     ...(main(a.name) ? [{ ...modeItem(), sep: !!fold }] : []),
     ...(how ? [{ label: how, caption: true, run: () => {}, sep: main(a.name) }] : []),
-    { label: "Show its session", icon: (a.runs ?? "").split("_")[0] === "claude" ? MessageSquare : SquareTerminal, run: () => void showSession(a.name), sep: main(a.name) && !how },
+    { label: main(a.name) ? "Show its chat" : "Show its session", icon: (a.runs ?? "").split("_")[0] === "claude" ? MessageSquare : SquareTerminal, run: () => void showSession(a.name), sep: main(a.name) && !how },
     ...(canUndoEdit(a.name) ? [{ label: "Undo its last edit", icon: Undo2, run: () => void undoEdit(a.name) }] : []),
     ...followItems(a.name),
     { label: "Start fresh", icon: RotateCcw, run: () => void fresh(a.name), disabled: a.state === "starting", sep: true },

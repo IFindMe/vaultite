@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react"
-import { Check, Maximize2, MessagesSquare, RotateCcw, X } from "lucide-react"
+import { Brain, Check, Maximize2, MessagesSquare, RotateCcw, X } from "lucide-react"
 import { cn, fmtAgo, HeadingButton, ink, keyHint, Loading, Markdown, notifyError, op, plural, Segmented, share, snippet, today, useFocusedFile, useKeptCount, type SidebarCtx } from "@vaultite"
 import { AskLine } from "./AskLine"
 import type { Exchange } from "./conversation"
@@ -9,6 +9,9 @@ import { follow } from "./spots"
 import { type Day, JobRow, talkOf, Turn, useOp } from "./Page"
 import { Faces } from "./Presence"
 import { threadsOf } from "./threads"
+import { EarlierDays } from "./Earlier"
+import { showContext } from "./session"
+import { talkAsked } from "./talkview"
 
 type Filter = "open" | "resolved"
 type Tab = "talk" | "note"
@@ -47,13 +50,14 @@ function Conversations({ path, big, fit }: { path: string; big?: boolean; fit: F
   const page = fit === "page"
   const s = useSyncExternalStore(subscribe, getState)
   const [filter, setFilter] = useState<Filter>("open")
-  const [chosen, setChosen] = useState<{ path: string; tab: Tab } | null>(null)
+  const [chosen, setChosen] = useState<{ path: string; tab: Tab } | null>(() => (talkAsked.just() ? { path, tab: "talk" } : null))
   const md = /\.md$/i.test(path)
   const threads = useMemo(() => (md ? threadsOf(s.notes, path) : []), [s.notes, path, md])
   const past = usePast(path, threads)
   const resolved = useKeptCount(md ? `companion:resolved:${path}` : null, past?.length, 0)
   useEffect(() => { if (s.picked && threads.some((n) => n.id === s.picked)) { setFilter("open"); setChosen({ path, tab: "note" }) } }, [s.picked, threads, path])
   useEffect(() => { if (threads.length && chosen?.path !== path) setChosen({ path, tab: "note" }) }, [threads.length, chosen, path])
+  useEffect(() => talkAsked.on(() => setChosen({ path, tab: "talk" })), [path])
   if (s.mode === "off") return <p className="px-1.5 py-1 text-[13px] text-tertiary">The companion is off.</p>
   const tab: Tab = share ? "note" : chosen?.path === path ? chosen.tab : threads.length ? "note" : "talk"
   const list = filter === "open" ? threads : past ?? []
@@ -63,8 +67,7 @@ function Conversations({ path, big, fit }: { path: string; big?: boolean; fit: F
         <div className={cn(page ? "mx-auto flex w-full max-w-[44rem] items-center gap-2 px-4 pt-3 max-md:px-3" : fit === "stack" && "sticky top-7 z-[1] bg-sidebar pt-1 pb-1.5")}>
           <Segmented label="Conversation" value={tab} onChange={(t) => setChosen({ path, tab: t })} className={page ? "w-[15rem] max-md:flex-1" : "mx-0.5"} big={page} small={!page && !big}
             options={[{ value: "talk", label: "Talk" }, { value: "note", label: "Comments", count: threads.length }]} />
-          {page && <span className="flex-1" />}
-          {page && <OpenPage />}
+          {page && <PageButtons talk={tab === "talk"} />}
         </div>
       )}
       {tab === "talk" ? <Talk fit={fit} /> : <div className={cn("flex flex-col gap-1.5", page ? "mx-auto min-h-0 w-full max-w-[44rem] flex-1 overflow-y-auto px-4 pb-4 max-md:px-3"
@@ -99,11 +102,13 @@ function Talk({ fit }: { fit: Fit }) {
   const talk = !shown ? <Loading className="px-0.5 text-[13px] leading-[18px]" error={error ? "Couldn't read the companion's talk." : undefined} />
     : !items.length && !pending.length ? <p className="px-0.5 text-[13px] text-tertiary">Nothing yet today.</p>
     : items.slice(earlier).map((x) => (x.e ? <Turn key={`e${x.e.seq}-${x.e.t}`} e={x.e} compact /> : <JobRow key={`j${x.j.id}`} j={x.j} />))
+  const few = !!shown && items.length < RECENT
   const sentNow = (text: string) => { setSent((s) => [...s.slice(-4), { t: Date.now(), text }]); again() }
   if (fit === "page") return (
     <div data-companion-talk className="flex min-h-0 flex-1 flex-col">
       <div ref={box} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto flex w-full max-w-[44rem] flex-col gap-6 px-5 pt-4 pb-8 max-md:px-4">
+          <EarlierDays before={day} auto={few} />
           <div className="text-center text-[11.5px] font-medium text-muted-foreground">Today</div>
           {talk}
           {pending.map((x) => <Turn key={`p${x.t}`} e={{ ...asked(x.text), t: x.t }} compact />)}
@@ -117,6 +122,7 @@ function Talk({ fit }: { fit: Fit }) {
     <div data-companion-talk className={cn("flex flex-col gap-1.5", fit === "box" && "min-h-0 flex-1")}>
       <div className="flex min-h-6 items-center gap-1 pr-0.5 pl-1.5">
         <span className="flex-1 text-[12px] font-semibold text-muted-foreground">Today</span>
+        <InContext />
         <OpenPage />
       </div>
       <div ref={box} className={cn("flex flex-col gap-4 px-1 pt-1 pb-4", fit === "box" && "min-h-0 flex-1 overflow-y-auto overscroll-contain")}>
@@ -130,6 +136,10 @@ function Talk({ fit }: { fit: Fit }) {
   )
 }
 
+const PageButtons = ({ talk }: { talk: boolean }) => <><span className="flex-1" />{talk && <InContext />}<OpenPage /></>
+const InContext = () => (
+  <HeadingButton icon={Brain} label="What it has in context now" className="max-sm:size-8" data-companion-context onClick={() => void showContext()} />
+)
 const openPage = () => void op("companion.page").catch((e) => notifyError(e, "Couldn't open its page"))
 const OpenPage = () => (
   <HeadingButton icon={Maximize2} label="Open the Companion page" className="max-sm:size-8" data-companion-open-page onClick={openPage} />

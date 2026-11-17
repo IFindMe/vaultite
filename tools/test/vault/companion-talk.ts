@@ -1,6 +1,9 @@
 import type { VaultTest } from "./harness.ts"
 import type { Moment } from "../../../plugins/core/companion/types.ts"
-import { exchanges } from "../../../plugins/core/companion/conversation.ts"
+import fs from "node:fs"
+import path from "node:path"
+import { elsewhereText, exchanges } from "../../../plugins/core/companion/conversation.ts"
+import { localDate } from "../../../core/plugins.ts"
 
 export default async ($: VaultTest) => {
   const now = 10_000_000
@@ -26,4 +29,25 @@ export default async ($: VaultTest) => {
     drew[0]?.drawings?.length === 1 && drew[0].drawings[0].id === "d1" && drew[0].drawings[0].title === "Sign in" && drew[0].drawings[0].marks === 2, drew[0])
   $.check("companion: a follow-up that only talks keeps its words in the chat, with no drawing of its own",
     drew[1]?.said[0] === "Sign in, then home." && !drew[1].drawings, drew[1])
+
+  await anotherVault($)
+}
+
+async function anotherVault($: VaultTest) {
+  await import("../../../plugins/core/companion/plugin.ts")
+  const other = path.join($.tmp, "Lighthouse Notes"), dir = path.join(process.env.VAULTITE_LOCAL!, "companion", "other0")
+  fs.mkdirSync(other, { recursive: true })
+  fs.mkdirSync(dir, { recursive: true })
+  const t = Date.now() - 120_000, day = localDate(t)
+  fs.writeFileSync(path.join(dir, "vault.txt"), `${other}\n`)
+  fs.writeFileSync(path.join(dir, `moments-${day}.jsonl`), JSON.stringify({ seq: 1, t, kind: "ask", text: "when does the ferry to Lighthouse leave", summoned: true, voice: true, for: "Juno", title: "Trips" }) + "\n")
+  fs.writeFileSync(path.join(dir, `actions-${day}.jsonl`), [{ t: t + 2000, as: "Juno", op: "say", text: "The 51 ferry leaves at 9:12 from pier 3." }, { t: t + 3000, as: "Juno", op: "done" }].map((r) => JSON.stringify(r)).join("\n") + "\n")
+  const [, r] = await $.api("POST", "ops/companion.conversation", { day })
+  const x = (r.result?.exchanges ?? r.exchanges ?? []).find((e: { text: string }) => /ferry/.test(e.text))
+  $.check("companion: its chat shows an ask made in another vault on this machine, saying which", x?.vault === "Lighthouse Notes" && x.where === "Trips" && x.said[0]?.includes("9:12"), r)
+  const { talkElsewhere } = await import("../../../plugins/core/companion/vaults.ts")
+  const told = elsewhereText(talkElsewhere(t - 60_000, Date.now()), Date.now())
+  $.check("companion: a follow-up in this vault is told what was said there since its last ask", /another vault/.test(told) && /Lighthouse Notes/.test(told) && /9:12/.test(told), told)
+  $.check("companion: nothing said elsewhere since its last ask, nothing told", elsewhereText(talkElsewhere(Date.now() - 1000, Date.now()), Date.now()) === "")
+  fs.rmSync(dir, { recursive: true, force: true })
 }

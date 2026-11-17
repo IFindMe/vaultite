@@ -1,5 +1,5 @@
 import { lazy, useEffect, useSyncExternalStore } from "react"
-import { Crosshair, Play, MessageCircle, MessageCirclePlus, MessageSquarePlus, MessagesSquare, Power, SquareTerminal, Undo2 } from "lucide-react"
+import { Crosshair, Play, MessageCircle, MessageCirclePlus, MessageSquarePlus, MessagesSquare, Power, Undo2 } from "lucide-react"
 import { answerPlaceAt, cn, currentEditor, definePlugin, menuAbove, notify, notifyError, op, share, useFocusedFile, type MenuItem } from "@vaultite"
 import { drawDriven } from "@plugins/claude-code/driven"
 import { askDrawing, watchCanvases } from "./canvas"
@@ -67,7 +67,7 @@ function Status() {
     ...(a ? followItems(a.name) : []),
     { label: `Ask ${s.name}`, icon: MessageCirclePlus, run: () => ask(), sep: true },
     { label: "Show its page", icon: MessagesSquare, run: () => void op("companion.page").catch((e) => notifyError(e, "Couldn't open its page")) },
-    { label: "Show its session", icon: SquareTerminal, run: () => void showSession() },
+    { label: "Show its chat", icon: MessagesSquare, run: () => void showSession() },
     { label: "Restart its session", icon: Power, run: () => void op("companion.stop").then(() => setMode(s.mode === "off" ? "quiet" : s.mode)) },
   ]
   const unseen = s.mode === "off" ? 0 : unread(a?.name ?? s.name).length
@@ -129,7 +129,7 @@ export default definePlugin({
     { id: "companion:ask", name: "Ask the companion", label: "Ask", keys: ["Mod+Shift+K"], run: () => ask(), icon: MessageCirclePlus },
     COMMENT,
     ...MODES.map((m) => ({ id: `companion:${m.mode}`, name: `Companion: ${m.label}`, when: () => getState().mode !== m.mode, run: () => void setMode(m.mode) })),
-    { id: "companion:session", name: "Show the companion's session", run: () => showSession(), icon: SquareTerminal },
+    { id: "companion:session", name: "Show the companion's chat", words: "session talk history conversations", run: () => showSession(), icon: MessagesSquare },
     { id: "companion:page", name: "Show the companion's page", words: "conversation usage jobs", run: () => void op("companion.page").catch((e) => notifyError(e, "Couldn't open its page")), icon: MessagesSquare },
     { id: "companion:undo-edit", name: "Undo the companion's last edit", when: () => canUndoEdit(), run: () => void undoEdit(), icon: Undo2 },
   ],

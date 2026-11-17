@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- The companion is one talk on a Mac: asked in one vault, a follow-up in another knows what was said, and its chat
+  (Show the companion's chat: the Conversations view's Talk) shows every day and every vault's asks, its session's
+  context a button there.
 - Version history replaces Review: a file's history shows who wrote each version (you, an agent by name, another app
   or device) and what it changed, marked in the note, with Restore this version and Undo, on the Mac and the iPhone; a
   file an agent changed says so at its top. Nothing waits to be kept or reverted any more (`history.restore` for agents).

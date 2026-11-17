@@ -217,7 +217,8 @@ Some words before the steps.
   const dir = (await import("node:fs")).mkdtempSync((await import("node:path")).join((await import("node:os")).tmpdir(), "vaultite-lane-"))
   const lane = summonedLane({ file: () => `${dir}/kept.json`, chat: () => chat as never, name: () => "Claude", model: () => "sonnet", effort: () => "low", options: () => ({}) as never,
     text: async (ms) => ({ text: ms.map((m) => m.text).join("\n"), images: [] }), acts: () => ({ say: tool, look: tool, draw: tool }) as never, found: async () => null,
-    caption() {}, thinking() {}, watching() {}, did() {}, say() {}, talk: () => ({ me: "", now: null, said: "" }) })
+    caption() {}, thinking() {}, watching() {}, did() {}, say() {}, talk: () => ({ me: "", now: null, said: "" }),
+    elsewhere: () => "(Since your last ask, in another vault: the ferry)\n" })
   const moment = (seq: number, text: string, tour = false) => ({ kind: "ask", for: "Claude", summoned: true, text, t: Date.now(), seq, ...(tour ? { tour: true } : {}) }) as never as Parameters<typeof lane.take>[0]
   const settle = () => new Promise((ok) => setTimeout(ok, 10))
   const idle = async () => { states.set("s1", { id: "s1", state: "idle" }); hear("s1", states.get("s1")!); await settle() }
@@ -229,6 +230,7 @@ Some words before the steps.
   await settle()
   check("lane: a tour's step being answered when the tour stops: its turn interrupted, their ask waits for it", dropped && interrupted.join() === "s1" && sent.length === 1 && /step of their tour/.test(sent[0]), { sent, interrupted })
   await idle()
+  check("lane: a session's next ask is told what was said in another vault since its last", sent[1]?.startsWith("(Since your last ask, in another vault") && !sent[0].includes("another vault"), sent)
   check("lane: then their ask goes alone, the step's words never in its answer", sent.length === 2 && sent[1].includes("Lighthouse") && !sent[1].includes("step of their tour"), sent)
   check("lane: and their own ask, being answered, is never withdrawn as a tour's", !lane.drop(theirs) && interrupted.length === 1, interrupted)
   const later = moment(3, "(Another step of their tour)", true)
