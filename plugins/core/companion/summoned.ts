@@ -178,7 +178,7 @@ export function summonedLane(o: {
   const unspoken = new Set<string>()
   const gated = wordsGate(words, (t) => { unspoken.add(t.trim()); if (unspoken.size > 20) unspoken.delete(unspoken.values().next().value!) })
   function words(use: string, text: string, end?: "done" | "stop") {
-    if (talk.turn.cut === "withdrawn" || talk.turn.cut === "lost") return
+    if (talk.turn.cut === "withdrawn" || talk.turn.cut === "lost" || talk.turn.cut === "pressed") return
     const { said, tags } = parseTags(text), a = o.acts()
     for (const t of tags.slice(blocks.get(use) ?? 0)) then(() => tagged(t, said))
     blocks.set(use, tags.length)

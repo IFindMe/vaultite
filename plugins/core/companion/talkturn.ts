@@ -1,5 +1,5 @@
 export type Waiting<A> = { ask: A; again: boolean }
-export type Cut = "withdrawn" | "stopped" | "lost"
+export type Cut = "withdrawn" | "stopped" | "lost" | "pressed"
 export type Turn<A> = { n: number; asks: A[]; again: boolean; acted: boolean; said: boolean; shown: boolean; missed: boolean; did: string
   wrote: boolean; passed: boolean; cut: Cut | null }
 
@@ -209,8 +209,8 @@ const ON: Handlers = {
   answered,
   escaped: (s, e) => {
     if (!turning(s)) return go({ ...s, cutByPress: [] })
-    const owed = !!e.press && handed(s) && unanswered(s.turn)
-    return go({ ...cut(s, s.turn.cut ?? "stopped"), cutByPress: owed ? handedOf(s).map((x) => ({ ...x, again: true })) : [] })
+    const owed = !!e.press && handed(s) && unanswered(s.turn) && !s.turn.again
+    return go({ ...cut(s, s.turn.cut ?? (owed ? "pressed" : "stopped")), cutByPress: owed ? handedOf(s).map((x) => ({ ...x, again: true })) : [] })
   },
   withdrawn: (s) => {
     if (s.waiting.length) return go({ ...s, waiting: s.waiting.slice(0, -1) })
@@ -224,10 +224,10 @@ const ON: Handlers = {
   stopped: (s) => go(between(s) ? { ...s, waiting: [], cutByPress: [], phase: { kind: "unwanted" } } : unhand({ ...s, waiting: [], cutByPress: [] })),
 }
 
-const LATE = new Set<EventKind>(["acted", "wrote", "drew", "answered"])
+const LATE = new Set<EventKind>(["acted", "wrote", "drew", "answered"]), GOING_AGAIN = new Set<Cut | null>(["lost", "pressed"])
 
 export function step<A extends Ask, T, K extends EventKind>(s: TurnState<A>, e: TurnEvent<A, T, K>, w: World): Out<A, T> {
-  if (s.turn.cut === "lost" && LATE.has(e.type)) return go(s)
+  if (GOING_AGAIN.has(s.turn.cut) && LATE.has(e.type)) return go(s)
   const on: Handlers[K] = ON[e.type]
   return on(s, e, w)
 }

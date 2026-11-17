@@ -47,7 +47,7 @@ export function world(moves: Move[]) {
   function answeredBy(t: Turn<Ask>) {
     for (const a of t.asks) {
       if (t.acted || t.said || t.shown) { fate.set(a, "answered"); (answeredIn.get(a) ?? answeredIn.set(a, new Set()).get(a)!).add(t.n) }
-      if (t.cut === "withdrawn" || t.cut === "stopped") fate.set(a, t.cut === "withdrawn" ? "withdrawn" : "cut")
+      if (t.cut === "withdrawn" || t.cut === "stopped" || t.cut === "pressed") fate.set(a, t.cut === "withdrawn" ? "withdrawn" : "cut")
     }
   }
   function go(e: TurnEvent<Ask, string>) {
@@ -100,7 +100,7 @@ export function world(moves: Move[]) {
     answered: (m) => go({ type: "answered", text: "Opened it.", error: m.error, ends: m.ends }),
     drew: (m) => go({ type: "drew", n: s.turn.n - (m.stale ? 1 : 0), ok: m.ok }),
     write: (m) => {
-      if (!handed(s)) return
+      if (!handed(s) || s.turn.cut === "pressed") return
       // A block of its words: its tag's mark, then its words, acted on in order.
       if (m.tag) queue.push({ k: "mark", n: s.turn.n })
       queue.push({ k: "words", n: s.turn.n })
@@ -203,6 +203,12 @@ const REPLAYS: [string, Move[], (w: ReturnType<typeof world>) => boolean][] = [
   ["a new press stops a turn before its answer: that ask goes again with the press's ask, answered in one turn",
     [...busyStart, { t: "escape", press: true }, { t: "end", error: false, words: false, tags: false }, { t: "ask", tour: false }],
     (w) => w.fate.get(w.asks[0]) === "answered" && w.fate.get(w.asks[1]) === "answered" && w.tries.get(w.asks[0]) === 2 && [...w.answeredIn.get(w.asks[0])!].join() === [...w.answeredIn.get(w.asks[1])!].join()],
+  ["a press's stopped turn's late words aren't its answer: its ask goes again, answered once",
+    [{ t: "ask", tour: false }, { t: "make", ok: true }, { t: "escape", press: true }, { t: "write", tag: false }, { t: "ask", tour: false }],
+    (w) => w.fate.get(w.asks[0]) === "answered" && w.tries.get(w.asks[0]) === 2],
+  ["a press on an ask already sent again doesn't send it a third time",
+    [{ t: "ask", tour: false }, { t: "make", ok: false }, { t: "make", ok: true }, { t: "escape", press: true }, { t: "ask", tour: false }],
+    (w) => w.tries.get(w.asks[0]) === 2 && w.fate.get(w.asks[0]) === "cut"],
   ["a new press after its answer began stops it for good", [...busyStart, { t: "acted", op: "say" }, { t: "escape", press: true }, { t: "ask", tour: false }],
     (w) => w.tries.get(w.asks[0]) === 1],
   ["a press-stopped ask that comes back and is lost is told, never tried a third time",
