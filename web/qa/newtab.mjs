@@ -161,7 +161,7 @@ try {
   await lp.keyboard.type("example.com")
   const opts = () => lp.$$eval("#palette-results [role=option]", (els) => els.map((e) => e.textContent.trim()))
   await wait(500)
-  check("… no web rows on the web app (no web tabs to open them in)", !(await opts()).some((t) => /^(Open example|Search the web)/.test(t)), await opts())
+  check("… a typed address is offered on the web app too, to open in the browser", (await opts()).some((t) => t.startsWith("Open example.com")), await opts())
   await lp.fill(`${SEARCH} input`, "Changed lately")
   await until(async () => (await opts())[0]?.startsWith("Changed lately"))
   await lp.keyboard.press("Enter")
