@@ -84,7 +84,8 @@ export { dragTab, paneMenuOf, placeMenuOf, springTabAt, TABS, tabLabel, tabMenuO
 // Tabs panel), which join or leave them as the tab bar's do; a dragged pane or tab held on a row opens it (springOver).
 export { groupMenu, PaneControls } from "@/components/Tabs"
 export { groupName, GroupLabel } from "@/components/GroupLabel"
-export { foldGroup, openInGroup } from "@/core/tabgroups"
+export { TabGroupRow } from "@/components/TabGroupRow"
+export { foldGroup, openInGroup, withGroupFolded } from "@/core/tabgroups"
 export { foldGroupMoving, foldSplitMoving, useListsIn, useGrowIn, useReflow, useGroupIn, useShrinkOut } from "@/core/tabfold"
 export { useGroupLines } from "@/core/tabline"
 export { canDropAt as canDropTab, chipCount as tabChipCount, dropOn as dropTab, groupsAsDrawn, intoFolded as tabIntoFolded, listDrop as tabListDrop, previewIn as tabPreview, previewOrder as tabPreviewOrder, slotBeside as tabSlotBeside, slotIn as tabSlot, springOver, springing, type Drop as TabDrop } from "@/core/drop"

@@ -105,14 +105,17 @@ export const colorGroup = (id: string, color: Color) => changeGroup(id, (g) => (
 /** Fold a tab group to its name, or open it (`collapsed` left out: the other way). Folding the one whose tab is on
  *  screen shows another first (handOver). */
 export function foldGroup(id: string, collapsed?: boolean) {
-  const g = groupById(id)
-  if (!g) return
+  const l = here(), next = withGroupFolded(l, id, collapsed)
+  if (next !== l) put(next, l.active)
+}
+export function withGroupFolded<L extends TabList>(l: L, id: string, collapsed?: boolean): L {
+  const g = l.groups?.find((x) => x.id === id)
+  if (!g) return l
   const fold = collapsed ?? !g.collapsed
-  if (!!g.collapsed === fold) return
+  if (!!g.collapsed === fold) return l
   const { collapsed: _, ...open } = g
-  const l = here(), was = l.active
   const next = { ...l, groups: l.groups!.map((x) => (x.id === id ? (fold ? { ...g, collapsed: true } : open) : x)) }
-  put(fold ? handOver(next, id) : next, was)
+  return fold ? handOver(next, id) : next
 }
 export function handOverFrom(id: string): (() => void) | undefined {
   const l = here(), next = handOver(l, id)
@@ -126,7 +129,7 @@ export function handOverFrom(id: string): (() => void) | undefined {
     put({ ...now, active: was, tabs: blank ? now.tabs.filter((t) => t !== blank) : now.tabs }, to)
   }
 }
-function handOver(l: TabList, id: string): TabList {
+function handOver<L extends TabList>(l: L, id: string): L {
   if (l.tabs.find((t) => t.id === l.active)?.group !== id) return l
   const folded = { ...l, groups: l.groups?.map((s) => (s.id === id ? { ...s, collapsed: true } : s)) }
   const next = nextShown(folded, new Set(l.tabs.filter((t) => t.group === id).map((t) => t.id)), false)

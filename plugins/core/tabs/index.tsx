@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react"
-import { AppWindow, Archive, ChevronDown, Ellipsis, Layers2, ListCollapse, ListTree, MonitorSmartphone, Pin, Plus, X } from "lucide-react"
+import { AppWindow, Archive, Ellipsis, Layers2, ListCollapse, ListTree, MonitorSmartphone, Pin, Plus, X } from "lucide-react"
 import {
-  activePane, Badged, beforeStart, edgeScroller, canDropTab, closePane, closeTab, cn, coarse, colorVar, commandItems, definePlugin, DEVICE, dragTab, dropTab, fmtAgo, foldGroupMoving, foldSplitMoving, groupMenu, groupName, GroupLabel,
+  activePane, Badged, beforeStart, edgeScroller, canDropTab, closePane, closeTab, cn, coarse, colorVar, commandItems, definePlugin, DEVICE, dragTab, dropTab, fmtAgo, foldGroupMoving, foldSplitMoving, groupMenu, groupName,
   groupsAsDrawn, HeadingButton, tabChipCount, tabIntoFolded, IconAction, isPopout, menuFor, openNewTab, isViewOpen, notifyError, openView, paneById, paneMenuOf, panesOf, placeMenuOf, placesIn, placesOf, reorder, rightClickBelow, useArchivedTabs, useMenuShowing, pastEnd, put, rowMenu, RowKeys, selectClick,
-  selectedAttr, selectPane, selectTab, SidebarHeading, SidebarRow, springing, springTabAt, startDrag, tabButtons, tabListDrop, tabMenuOf, tabPreview, tabPreviewOrder, TABS, tabSlot, tabSlotBeside, tabsMenu, useDrag, useDropHit,
+  selectedAttr, selectPane, selectTab, SidebarHeading, SidebarRow, TabGroupRow, springing, springTabAt, startDrag, tabButtons, tabListDrop, tabMenuOf, tabPreview, tabPreviewOrder, TABS, tabSlot, tabSlotBeside, tabsMenu, useDrag, useDropHit,
   useDropTarget, useGroupIn, useGroupLines, useGrowIn, useListsIn, useReflow, useShrinkOut, useSelectable, useSelected, useSlide, useTabLabels, useTabList, useUiMarks,
   INCOMING, laidOut, TabCard, useHoverCard,
   type DragItem, type Pane, type SidebarCtx, type Store, type Tab, type TabDrop, type TabGroup, type TabInfo, type TabList,
@@ -239,11 +239,9 @@ function GroupRow({ g, n, target }: { g: TabGroup; n: number; target: boolean })
     <div ref={box} data-slide={`group:${g.id}`} data-ui={`group:${g.id}`} data-line-head={g.id} style={{ ["--line" as string]: colorVar(g.color) }}
       onPointerDown={(e) => startDrag(e, { from: "group", group: g.id, label: groupName(g) })} className={cn("relative", item?.group === g.id && "opacity-50")}
       onContextMenu={menuFor(() => groupMenu(g.id, "panel"))}>
-      <SidebarRow data-group-row={g.id} data-target={target || undefined} aria-expanded={!g.collapsed} open tip={null} more onClick={() => foldGroupMoving(g.id)}
-        label={<span className="flex"><GroupLabel g={g} n={n} target={target} /></span>}>
+      <TabGroupRow g={g} n={n} target={target} more onFold={() => foldGroupMoving(g.id)} data-target={target || undefined}>
         <Marks id={`group:${g.id}`} />
-        <ChevronDown aria-hidden className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-[rotate,opacity] duration-200 group-hover/row:opacity-100 group-aria-[expanded=false]/row:-rotate-90" strokeWidth={2.25} />
-      </SidebarRow>
+      </TabGroupRow>
     </div>
   )
 }

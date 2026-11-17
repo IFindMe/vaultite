@@ -1,24 +1,28 @@
-import { useState, type MouseEvent, type ReactNode } from "react"
+import { useRef, useState } from "react"
+import { Pin, X } from "lucide-react"
 import {
-  cn, colorVar, Empty, FilterField, focusedPane, GroupLabel, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, useTabLabels, type MenuItem, type Pane, type Store, type Tab, type TabGroup,
-  type TabInfo,
+  closeTab, cn, colorVar, Empty, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow, TabGroupRow,
+  tabMenuOf, useGroupIn, useGroupLines, useGrowIn, useShrinkOut, useTabLabels, useTabLayout, type MenuItem, type Pane, type Store, type Tab, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
 import { Mark } from "./Mark"
 import { tintWash } from "./tint"
-import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, showTab, SLOTS, slots, useVersion } from "./state"
+import { ALL_TABS, closeIn, current, foldIn, label, listsOf, lookOf, moveBetween, showTab, SLOTS, slots, useVersion } from "./state"
 
-type TabRun = { group?: TabGroup; tabs: Tab[] }
-type Desk = { n: number; lists: TabRun[][]; count: number }
+type Shown = { l: TabList; tabs: Tab[] }
+type Desk = { n: number; lists: Shown[]; count: number }
 type Info = (t: Tab | Pane) => TabInfo
 type Keep = (t: Tab, group?: TabGroup) => boolean
+type Where = { n: number; thisWindow: boolean; otherWorkspace: boolean }
+type Run = { group?: TabGroup; tabs: Tab[] }
+
 const hasWords = (q: string, text: string) => { const t = text.toLowerCase(); return q.toLowerCase().split(/\s+/).every((w) => t.includes(w)) }
 const listed = (t: Tab) => !["new", `view:${ALL_TABS}`].includes(focusedPane(t).to)
+const groupOf = (l: TabList, t: Tab) => (t.group ? l.groups?.find((g) => g.id === t.group) : undefined)
 
-function runsOf(tabs: Tab[], groups: TabGroup[], keep: Keep): TabRun[] {
-  const runs: TabRun[] = []
+function runsOf({ l, tabs }: Shown): Run[] {
+  const runs: Run[] = []
   for (const t of tabs) {
-    const last = runs[runs.length - 1], group = t.group ? groups.find((g) => g.id === t.group) : undefined
-    if (!listed(t) || !keep(t, group)) continue
+    const last = runs[runs.length - 1], group = groupOf(l, t)
     if (last && last.group?.id === group?.id) last.tabs.push(t)
     else runs.push({ group, tabs: [t] })
   }
@@ -27,21 +31,29 @@ function runsOf(tabs: Tab[], groups: TabGroup[], keep: Keep): TabRun[] {
 
 function desksOf(here: number, keep: Keep): Desk[] {
   return SLOTS.filter((n) => n === here || slots()?.[n - 1]).map((n) => {
-    const lists = listsOf(n).map((l) => runsOf(l.tabs, l.groups ?? [], keep))
-    return { n, lists, count: lists.flat().reduce((sum, r) => sum + r.tabs.length, 0) }
+    const lists = listsOf(n).map((l) => ({ l, tabs: l.tabs.filter((t) => listed(t) && keep(t, groupOf(l, t))) }))
+    return { n, lists, count: lists.reduce((sum, s) => sum + s.tabs.length, 0) }
   })
 }
 
 export default function AllTabs({ store }: { store: Store }) {
   useVersion()
+  useTabLayout()
   const info = useTabLabels(store)
   const [q, setQ] = useState("")
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
   const here = current(), query = q.trim()
   const matches: Keep = (t, g) => hasWords(query, [info(t).label, g?.name ?? "", ...placesIn(t).flatMap((p) => [info(p).label, p.to])].join("\n"))
   const desks = desksOf(here, () => true)
   const shown = query ? desksOf(here, matches) : desks
   const total = desks.reduce((sum, d) => sum + d.count, 0)
-  const menu = (n: number, t: Tab) => (): MenuItem[] => desks.flatMap((d) => (d.n === n ? [] : [{ label: `Move to ${label(d.n)}`, run: () => void moveBetween(n, d.n, t.id) }]))
+  const moves = (n: number, t: Tab): MenuItem[] => desks.flatMap((d) => (d.n === n ? [] : [{ label: `Move to ${label(d.n)}`, run: () => void moveBetween(n, d.n, t.id) }]))
+  const fold = (at: Where, g: TabGroup) => {
+    if (at.thisWindow) foldGroupMoving(g.id)
+    else if (at.otherWorkspace) foldIn(at.n, g.id)
+    else setFolded((s) => { const next = new Set(s); if (!next.delete(g.id)) next.add(g.id); return next })
+  }
+  const isFolded = (at: Where, g: TabGroup) => !query && (at.thisWindow || at.otherWorkspace ? !!g.collapsed : !!g.collapsed !== folded.has(g.id))
   return (
     <div data-all-tabs className="mx-auto max-w-[1100px] pb-10">
       <PageHeader title="All tabs" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
@@ -57,16 +69,14 @@ export default function AllTabs({ store }: { store: Store }) {
                 <span className="text-[12px] text-muted-foreground">{d.n === here ? `This one · ${d.count}` : d.count}</span>
               </div>
               {!d.count && <p className="px-1.5 pb-1.5 text-[13px] text-muted-foreground">No tabs</p>}
-              {d.lists.map((runs, w) => (!runs.length ? null : (
-                <div key={w} data-all-tabs-window={w}>
+              {d.lists.map((s, w) => (!s.tabs.length ? null : (
+                <div key={w}>
                   {w > 0 && <h3 className="px-1.5 pt-2 pb-1 text-[12px] font-medium text-muted-foreground">Pop-out window {w}</h3>}
-                  {runs.map((r) => {
-                    const rows = r.tabs.map((t) => <TabRow key={t.id} t={t} n={d.n} info={info} menu={menu(d.n, t)} />)
-                    return r.group ? <GroupRun key={`${r.group.id}-${r.tabs[0].id}`} g={r.group} n={r.tabs.length}>{rows}</GroupRun> : rows
-                  })}
+                  <TabRows s={s} w={w} at={{ n: d.n, thisWindow: d.n === here && w === 0 && !isPopout(), otherWorkspace: d.n !== here }} info={info}
+                    folded={isFolded} fold={fold} moves={moves} />
                 </div>
               )))}
-            </section>
+            </section>,
           ]))}
         </div>
       )}
@@ -74,48 +84,82 @@ export default function AllTabs({ store }: { store: Store }) {
   )
 }
 
-function GroupRun({ g, n, children }: { g: TabGroup; n: number; children: ReactNode }) {
+function TabRows({ s, w, at, info, folded, fold, moves }: { s: Shown; w: number; at: Where; info: Info; folded: (at: Where, g: TabGroup) => boolean
+  fold: (at: Where, g: TabGroup) => void
+  moves: (n: number, t: Tab) => MenuItem[] }) {
+  const root = useRef<HTMLDivElement>(null)
+  useGroupLines(root, "y")
+  const row = (t: Tab, line?: string) => <Row key={t.id} t={t} at={at} info={info} active={!at.thisWindow && t.id === s.l.active} line={line} moves={moves(at.n, t)} />
   return (
-    <div data-all-tabs-group={g.id} className="py-0.5">
-      <div className="flex h-7 items-center gap-2 px-1.5">
-        <GroupLabel g={{ ...g, collapsed: false }} className="max-w-40" />
-        <span className="text-[12px] text-muted-foreground tabular-nums">{n}</span>
-      </div>
-      <div className="ml-3 border-l-2 pl-1" style={{ borderColor: colorVar(g.color) }}>{children}</div>
+    <div ref={root} data-all-tabs-window={w} className="relative flex flex-col gap-px">
+      {runsOf(s).map((r) => {
+        const g = r.group
+        if (!g) return r.tabs.map((t) => row(t))
+        const shut = folded(at, g)
+        return (
+          <div key={`${g.id}-${r.tabs[0].id}`} data-all-tabs-group={g.id} className="flex flex-col gap-px">
+            <GroupHead g={{ ...g, collapsed: shut }} n={r.tabs.length} at={at} onFold={() => fold(at, g)} />
+            {!shut && r.tabs.map((t) => row(t, g.id))}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-const ROW = "flex h-8 min-w-0 cursor-pointer items-center gap-2 px-1.5 text-left text-[13px] hover:bg-foreground/[0.06]"
-
-function Label({ i }: { i: TabInfo }) {
-  const mark = i.mark
-  return <>
-    <i.icon className={cn("size-4 shrink-0", !i.tint && "text-muted-foreground", i.iconClassName)} strokeWidth={2} style={i.tint ? { color: i.tint } : undefined} />
-    <span className="min-w-0 flex-1 truncate">{i.label}</span>
-    {mark && <mark.icon aria-label={mark.label} data-all-tabs-mark className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} style={mark.tint ? { color: mark.tint } : undefined} />}
-  </>
+function GroupHead({ g, n, at, onFold }: { g: TabGroup; n: number; at: Where; onFold: () => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  useGroupIn(box, g.id)
+  return (
+    <div ref={box} data-line-head={g.id} style={{ "--line": colorVar(g.color) }} onContextMenu={at.thisWindow ? menuFor(() => groupMenu(g.id, "panel")) : undefined}>
+      <TabGroupRow g={g} n={n} onFold={onFold} more={at.thisWindow} />
+    </div>
+  )
 }
 
-function TabRow({ t, n, info, menu }: { t: Tab; n: number; info: Info; menu: () => MenuItem[] }) {
-  const ps = panesOf(t).filter((p) => !p.float)
-  const open = (e: MouseEvent, pane?: string) => { e.preventDefault(); showTab(n, t.id); if (pane) selectPane(pane) }
-  if (ps.length < 2) {
-    return (
-      <button type="button" data-all-tabs-tab={t.id} onClick={open} onContextMenu={menuFor(menu)} className={cn(ROW, "w-full rounded-[6px]")}>
-        <Label i={info(t)} />
-      </button>
-    )
+function Row({ t, at, info, active, line, moves }: { t: Tab; at: Where; info: Info; active: boolean; line?: string; moves: MenuItem[] }) {
+  const box = useRef<HTMLDivElement>(null)
+  useGrowIn(box, t)
+  useShrinkOut(box, { tab: t.id })
+  const ps = panesOf(t).filter((p) => !p.float), split = ps.length > 1, i = info(t)
+  const closes = !t.pinned && (at.thisWindow || at.otherWorkspace)
+  const close = () => { if (at.thisWindow) closeTab(t.id); else void closeIn(at.n, t.id) }
+  const click = (e: React.MouseEvent) => {
+    if (e.button === 1) { if (closes) close(); return }
+    const half = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-pane-half]")?.dataset.paneHalf : undefined
+    showTab(at.n, t.id)
+    if (half) selectPane(half)
   }
+  const after = (items: MenuItem[]) => items.map((it, k) => (k ? it : { ...it, sep: true }))
+  const menu = (): MenuItem[] => at.thisWindow ? [...tabMenuOf(t.id), ...after(moves)]
+    : [...moves, ...(closes ? after([{ label: "Close tab", icon: X, run: close }]) : [])]
   return (
-    <div data-all-tabs-tab={t.id} data-all-tabs-split="" role="group" aria-label={`Split: ${ps.map((p) => info(p).label).join(", ")}`} onContextMenu={menuFor(menu)}
-      className="flex h-8 overflow-hidden rounded-[6px] ring-1 ring-foreground/15 ring-inset">
-      {ps.map((p, i) => (
-        <button key={p.id} type="button" data-all-tabs-pane={p.id} data-tip={info(p).label} onClick={(e) => open(e, p.id)}
-          className={cn(ROW, "flex-1 basis-0", i && "border-l border-foreground/15")}>
-          <Label i={info(p)} />
-        </button>
-      ))}
+    <div ref={box} data-slide={t.id} data-in-group={at.thisWindow ? t.group : undefined} data-line-of={line} onContextMenu={menuFor(menu)}>
+      <SidebarRow data-all-tabs-tab={t.id} data-all-tabs-split={split ? "" : undefined} icon={split ? undefined : i.icon} iconClassName={i.iconClassName} tint={i.tint}
+        badge={split ? undefined : i.badge} mark={split ? undefined : i.mark} label={split ? <SplitCells ps={ps} info={info} /> : i.label} labelClassName={split ? "[mask-image:none]" : undefined}
+        tip={split ? ps.map((p) => info(p).label).join(" | ") : undefined} open active={active} more className={cn(line && "ml-3.5")}
+        swipe={() => (closes ? [{ label: "Close", icon: X, danger: true, run: close, removes: true }] : [])}
+        actions={closes ? [<HeadingButton key="close" icon={X} label={`Close ${i.label}`} tip="Close tab" data-no-drag onClick={(e) => { e.preventDefault(); e.stopPropagation(); close() }} />] : undefined}
+        onClick={click}>
+        {t.pinned && <span className="grid size-5 shrink-0 place-items-center text-muted-foreground" aria-label="Pinned"><Pin className="size-3.5" strokeWidth={2} /></span>}
+      </SidebarRow>
     </div>
+  )
+}
+
+function SplitCells({ ps, info }: { ps: Pane[]; info: Info }) {
+  return (
+    <span className="-ml-1 flex w-full min-w-0 overflow-hidden rounded-[5px] ring-1 ring-foreground/15 ring-inset">
+      {ps.map((p, k) => {
+        const pi = info(p)
+        return (
+          <span key={p.id} data-pane-half={p.id} data-all-tabs-pane={p.id} data-tip={pi.label}
+            className={cn("flex h-5.5 min-w-0 flex-1 basis-0 items-center gap-2 px-1 transition-colors hover:bg-foreground/[0.06]", k > 0 && "border-l border-foreground/15")}>
+            <pi.icon className={cn("size-4 shrink-0", !pi.tint && "text-muted-foreground", pi.iconClassName)} strokeWidth={2} style={pi.tint ? { color: pi.tint } : undefined} />
+            <span className="min-w-0 flex-1 truncate">{pi.label}</span>
+          </span>
+        )
+      })}
+    </span>
   )
 }

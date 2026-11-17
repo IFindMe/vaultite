@@ -75,7 +75,8 @@ try {
   check("All tabs: each with its tabs", (await rows(2)).join() === "Budget 2027,Sprint review,Roadmap\nRetro" && (await rows(3)).join() === "Release notes" && (await rows(1)).includes("Standup"),
     [await rows(1), await rows(2), await rows(3)])
   const grouped = card(2).locator("[data-all-tabs-group='g1']")
-  check("All tabs: a tab group heads its tabs, as the tabs panel draws them", (await grouped.locator("[data-group-name]").innerText()).trim() === "Lighthouse"
+  check("All tabs: a tab group heads its tabs, as the tabs panel draws them", (await grouped.locator("[data-group-row]").getAttribute("aria-expanded")) === "true"
+    && (await grouped.locator("[data-group-name] > span").first().innerText()).trim() === "Lighthouse"
     && (await grouped.locator("[data-all-tabs-tab]").allInnerTexts()).join() === "Budget 2027,Sprint review", await card(2).innerText())
   const halves = await card(2).locator("[data-all-tabs-split] [data-all-tabs-pane]").allInnerTexts()
   check("All tabs: a split tab is one row with its panes side by side, outside the group", halves.join() === "Roadmap,Retro" && !(await grouped.locator("[data-all-tabs-split]").count()), halves)
@@ -84,6 +85,39 @@ try {
   await page.locator("[data-all-tabs] input").fill(""); await ui.idle()
   check("All tabs: the workspaces' names", (await card(2).innerText()).includes("Work") && (await card(3).innerText()).includes("Vaultite"), await card(2).innerText())
   await page.screenshot({ path: `${OUT}all-tabs.png` })
+  const joins = await card(2).evaluate((c) => {
+    const pill = c.querySelector("[data-all-tabs-group='g1'] [data-group-name]").getBoundingClientRect(), rail = c.querySelector("[data-group-line='g1']")?.getBoundingClientRect()
+    const last = [...c.querySelectorAll("[data-all-tabs-group='g1'] [data-all-tabs-tab]")].at(-1).getBoundingClientRect()
+    return rail && { pill: [pill.top, pill.bottom, pill.left, pill.right], rail: [rail.top, rail.bottom, rail.left], last: [last.top, last.bottom, last.left] }
+  })
+  check("All tabs: the group's line comes out of its pill and ends by its last tab, the tabs set in past it",
+    !!joins && joins.rail[0] > joins.pill[0] && joins.rail[0] < joins.pill[1] && joins.rail[2] >= joins.pill[2] + 2 && joins.rail[2] < joins.pill[3]
+    && joins.rail[1] > joins.last[0] && joins.rail[1] < joins.last[1] && joins.last[2] > joins.rail[2], joins)
+  const workLayout = () => workspaces(B)[1]?.layout
+  await grouped.locator("[data-group-row]").click(); await ui.idle()
+  const inPill = grouped.locator("[data-group-count]")
+  check("All tabs: another workspace's group folds on a click, its tabs hidden and its count in its pill",
+    !!(await until(async () => !(await grouped.locator("[data-all-tabs-tab]").count()) && (await grouped.locator("[data-group-row]").getAttribute("aria-expanded")) === "false", 4000))
+    && (await inPill.getAttribute("aria-hidden")) === null && (await inPill.innerText()).trim() === "2", await card(2).innerText())
+  check("  folded in that workspace too", !!(await until(() => workLayout()?.groups?.[0]?.collapsed === true, 6000)), workLayout()?.groups)
+  await page.screenshot({ path: `${OUT}all-tabs-folded.png` })
+  await grouped.locator("[data-group-row]").click(); await ui.idle()
+  check("  and opens again", !!(await until(async () => (await grouped.locator("[data-all-tabs-tab]").count()) === 2 && !workLayout()?.groups?.[0]?.collapsed, 6000)), workLayout()?.groups)
+  const ownGroup = card(1).locator("[data-all-tabs-group] [data-group-row]").first()
+  await ownGroup.click(); await ui.idle()
+  check("All tabs: this workspace's group folds in its tab bar too", !!(await until(async () => (await mine())?.groups?.some((g) => g.collapsed)
+    && (await page.locator("[data-group-chip][aria-expanded=false]").count()) === 1, 4000)), (await mine())?.groups)
+  await page.locator("[data-group-chip][aria-expanded=false]").click(); await ui.idle()
+  check("  and opens there again", !!(await until(async () => !(await mine())?.groups?.some((g) => g.collapsed), 4000)), (await mine())?.groups)
+  await page.keyboard.press(workspaceKey(0)); await page.waitForSelector("[data-all-tabs]"); await ui.idle()
+  const notes = card(3).locator("[data-all-tabs-tab]", { hasText: "Release notes" })
+  await notes.hover(); await notes.getByRole("button", { name: "Close Release notes" }).click()
+  check("All tabs: another workspace's tab closes from its row", !!(await until(async () => !(await rows(3)).includes("Release notes") && !tosOf(workspaces(B)[2]?.layout).includes(F("Release notes")), 6000)),
+    [await rows(3), tosOf(workspaces(B)[2]?.layout)])
+  const closed = await ui.toast.wait(/Closed in Vaultite/)
+  await closed.getByRole("button", { name: "Undo" }).click()
+  check("  Undo brings it back there", !!(await until(async () => (await rows(3)).includes("Release notes") && tosOf(workspaces(B)[2]?.layout).includes(F("Release notes")), 6000)),
+    [await rows(3), tosOf(workspaces(B)[2]?.layout)])
   await card(2).locator("[data-all-tabs-pane]", { hasText: "Retro" }).click(); await ui.idle()
   const focusedPane = () => page.$eval("#main-scroll", (e) => e.getAttribute("data-tab-body")).catch(() => null)
   check("All tabs: a split's pane goes to its workspace, its tab and that pane", !!(await until(async () => (await lit()) === "2" && (await focusedPane()) === "pb3b", 6000)), [await lit(), await focusedPane()])
@@ -98,7 +132,7 @@ try {
   check("switcher's All tabs: the page, the list closed", (await page.locator("[data-all-tabs]").count()) === 1 && !(await page.locator("[data-workspace-list]").count()))
   await ui.menu.context(card(3).locator("[data-all-tabs-tab]", { hasText: "Release notes" }))
   const items = await ui.menu.items()
-  check("All tabs: a row's menu moves it to each other workspace", items.join() === "Move to Personal,Move to Work", items)
+  check("All tabs: a row's menu moves it to each other workspace, or closes it", items.join() === "Move to Personal,Move to Work,Close tab", items)
   await ui.menu.pick("Move to Personal")
   check("Move to Personal: in Personal's card, out of Vaultite's", !!(await until(async () => (await rows(1)).includes("Release notes") && !(await rows(3)).includes("Release notes"), 6000)), [await rows(1), await rows(3)])
   check("Move to Personal: saved there", !!(await until(() => tosOf(workspaces(B)[0]?.layout).includes(F("Release notes")) && !tosOf(workspaces(B)[2]?.layout).includes(F("Release notes")), 6000)),

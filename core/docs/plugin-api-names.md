@@ -731,6 +731,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `tabChipCount(l, item, preview, g)`
 - `TabDrop`: Where something dragged would land: a place in the list of tabs (`group` it joins, null none; `home`: where it is already), a pane's edge or middle, or before the `index`th of a split pane's own…
 - `TabGroup`: A tab group, as browsers have them: a named, coloured run of tabs side by side (those whose `group` is its id), folded to its name while `collapsed`.
+- `TabGroupRow({ g, n, target, onFold, more, children, … })`
 - `TabInfo`: `iconClassName`: a status on the icon (a view's `iconClass`: a Claude Code session working or waiting).
 - `tabIntoFolded(l, d)`
 - `tabLabel(t, store)`: The same outside a render (what the quick switcher finds).
@@ -892,6 +893,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `WeeksGrid({ tip, tint, goal, weeks, onOpen })`
 - `weekStart(s)`
 - `WIKI`
+- `withGroupFolded(l, id, collapsed?)`
 - `withMyTabs(w)`: Workspace `w` (saved elsewhere: another window, another device) with this window's own tabs: the main window's list and which pop-outs there are (it opens and closes them), or a pop-out's list.
 - `withoutBlocks(text)`: A text without its views (each with the blank lines after it), and blank lines at its ends when it had any.
 - `withoutPanes(l, ids)`: List `l` without the panes `ids`: a tab left with none goes (withoutTabs).

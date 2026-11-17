@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, Box, CircleSlash, Copy, LayoutPanelLeft, Palette, P
 import {
   cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
   replaceHash, sameSidebars, isPhoneDevice, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
-  allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type TabList, type WorkspaceHost, type WorkspaceInfo,
+  allPanes, cleanTabLayout as clean, withGroupFolded, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type TabList, type WorkspaceHost, type WorkspaceInfo,
 } from "@vaultite"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
 import { markIcon } from "./Mark"
@@ -327,6 +327,30 @@ async function bringBack(n: number, to: number, what: Sent, place: { at?: number
     notifyError(e, "Couldn't move it back")
   } finally {
     moving = false
+  }
+}
+
+export function foldIn(n: number, id: string) {
+  const l = clean(slots()?.[n - 1]?.layout)
+  if (!l || n === current()) return
+  const next = { ...withGroupFolded(l, id) }
+  if (l.windows) next.windows = l.windows.map((w) => withGroupFolded(w, id))
+  patch(n, { layout: next })
+}
+
+export async function closeIn(n: number, id: string) {
+  const before = slots()?.[n - 1]?.layout
+  if (!before || n === current()) return
+  await writing
+  try {
+    const { z } = await import("zod")
+    const r = z.object({ workspaces: z.array(z.unknown()) }).parse(await post(at("workspaces/close"), { from: n, tab: id }))
+    local = unusedIfBlank(r.workspaces)
+    emit()
+    const after = layoutKey(local[n - 1]?.layout)
+    notify(`Closed in ${named(n)}`, { action: { label: "Undo", run: () => { if (layoutKey(slots()?.[n - 1]?.layout) === after) patch(n, { layout: before }) } } })
+  } catch (e) {
+    notifyError(e, "Couldn't close it")
   }
 }
 
