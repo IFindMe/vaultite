@@ -1,17 +1,31 @@
 import { useRef, useState, type PointerEvent } from "react"
-import { Ellipsis, Pin, X } from "lucide-react"
+import { Ellipsis, Pin, Plus, X } from "lucide-react"
 import {
-  closeTab, cn, colorVar, dragTab, Empty, groupName, INCOMING, startDrag, tabPreviewOrder, useSlide, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow,
+  Button, closeTab, cn, colorVar, dragTab, Empty, groupName, INCOMING, startDrag, tabPreviewOrder, useSlide, FilterField, focusedPane, foldGroupMoving, groupMenu, HeadingButton, isPopout, menuFor, PageHeader, panesOf, placesIn, plural, selectPane, SidebarRow,
   rightClickBelow, tabMenuOf, useGroupIn, useGroupLines, useGrowIn, useShrinkOut, useTabLabels, useTabLayout, type MenuItem, type Pane, type Store, type Tab, type TabGroup, type TabInfo, type TabList,
 } from "@vaultite"
 import { TabGroupRow } from "@plugins/tabs/grouprow"
 import { Mark, markIcon } from "./Mark"
 import { NameField } from "./Name"
-import { tintWash } from "./tint"
+import { laneWash } from "./tint"
 import { previewOf, useAllDrops, type AllDrop } from "./alldrops"
 import { closeIn, foldIn } from "./elsewhere"
 import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, patch, showTab, slotMenu, SLOTS, slots, switchTo, useVersion } from "./state"
 
+/** The page's width at least (a reading column's), and each lane's share of a wider one. */
+const PAGE = 848, LANE = 312
+/** Lanes per row by the page's width (one fits in 216px): rows filled evenly, never one left alone (4: 2 by 2). */
+const COLS: Record<number, string> = {
+  0: "", 1: "",
+  2: "@min-[444px]:grid-cols-2",
+  3: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3",
+  4: "@min-[444px]:grid-cols-2 @min-[900px]:grid-cols-4",
+  5: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[1128px]:grid-cols-5",
+  6: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3",
+  7: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[900px]:grid-cols-4",
+  8: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[900px]:grid-cols-4",
+  9: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[1128px]:grid-cols-5",
+}
 type Shown = { l: TabList; tabs: Tab[] }
 type Desk = { n: number; lists: Shown[]; count: number }
 type Info = (t: Tab | Pane) => TabInfo
@@ -61,30 +75,40 @@ export default function AllTabs({ store }: { store: Store }) {
   const isFolded = (at: Where, g: TabGroup) => !query && (at.thisWindow || at.otherWorkspace ? !!g.collapsed : !!g.collapsed !== folded.has(g.id))
   const shownList = (n: number) => shownOf(n, whereOf(here, n, 0), isFolded)
   const hit = useAllDrops(shownList)
-  return (
-    <div data-all-tabs data-own-drops className="mx-auto max-w-[1100px] pb-10">
-      <PageHeader title="Workspaces" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
-        <FilterField value={q} onChange={setQ} placeholder="Filter tabs" className="max-w-64 basis-48" />
-      </PageHeader>
-      {query && shown.every((d) => !d.count) ? <Empty>No tabs match "{query}".</Empty> : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] items-start gap-3">
-          {shown.flatMap((d) => (query && !d.count ? [] : [
-            <section key={d.n} data-all-tabs-workspace={d.n} style={tintWash(lookOf(d.n).tint, false)} className={cn("glass rounded-[12px] p-2", d.n === here && "ring-1 ring-primary/40")}>
-              <DeskHead d={d} here={here} naming={naming === d.n} name={setNaming} />
-              {!d.count && <p className="px-1.5 pb-1.5 text-[13px] text-muted-foreground">No tabs</p>}
-              {d.lists.map((s, w) => (!s.tabs.length ? null : (
-                <div key={w}>
-                  {w > 0 && <h3 className="px-1.5 pt-2 pb-1 text-[12px] font-medium text-muted-foreground">Pop-out window {w}</h3>}
-                  <TabRows s={s} w={w} at={whereOf(here, d.n, w)} info={info} folded={isFolded} fold={fold} moves={moves}
-                    hit={!query && w === 0 && hit?.n === d.n ? hit : null} shown={() => shownList(d.n)} />
-                </div>
-              )))}
-            </section>,
-          ]))}
-          {free && !query && !naming && <NewDesk n={free} start={() => setNaming(free)} />}
+  const lanes = shown.filter((d) => !query || d.count)
+  const lane = (d: Desk) => (
+    <Lane key={d.n} d={d} here={here} naming={naming} name={setNaming}>
+      {d.lists.map((s, w) => (!s.tabs.length ? null : (
+        <div key={w}>
+          {w > 0 && <h3 className="px-1.5 pt-2 pb-1 text-[12px] font-medium text-muted-foreground">Pop-out window {w}</h3>}
+          <TabRows s={s} w={w} at={whereOf(here, d.n, w)} info={info} folded={isFolded} fold={fold} moves={moves}
+            hit={!query && w === 0 && hit?.n === d.n ? hit : null} shown={() => shownList(d.n)} />
         </div>
-      )}
+      )))}
+    </Lane>
+  )
+  return (
+    <div data-all-tabs data-own-drops className="@container mx-auto pb-10" style={{ maxWidth: Math.max(PAGE, lanes.length * LANE) }}>
+      <PageHeader title="Workspaces" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
+        <div className="flex items-center justify-end gap-2 max-md:basis-full md:basis-80">
+          {free && !query && !naming && <NewDesk n={free} start={() => setNaming(free)} />}
+          <FilterField value={q} onChange={setQ} placeholder="Filter tabs" className="basis-48 md:max-w-64" />
+        </div>
+      </PageHeader>
+      {query && !lanes.length ? <Empty>No tabs match "{query}".</Empty>
+        : <div data-all-tabs-board className={cn("grid gap-3", COLS[lanes.length])}>{lanes.map(lane)}</div>}
     </div>
+  )
+}
+
+function Lane({ d, here, naming, name, children }: { d: Desk; here: number; naming: number; name: (n: number) => void; children: React.ReactNode }) {
+  return (
+    <section data-all-tabs-workspace={d.n} aria-current={d.n === here || undefined} style={laneWash(lookOf(d.n).tint)}
+      className={cn("glass flex min-w-0 flex-col rounded-card p-2 @min-[444px]:min-h-40", d.n === here && "outline-[1.5px] -outline-offset-1 outline-primary/60")}>
+      <DeskHead d={d} here={here} naming={naming === d.n} name={name} />
+      {!d.count && <p className="mx-0.5 mt-0.5 rounded-control border border-dashed border-border/80 px-3 py-4 text-center text-[13px] text-tertiary">No tabs</p>}
+      {children}
+    </section>
   )
 }
 
@@ -104,20 +128,14 @@ function DeskHead({ d, here, naming, name }: { d: Desk; here: number; naming: bo
             className="-mx-1 max-w-full cursor-text truncate rounded-[4px] px-1 text-left text-[14px] font-semibold hover:bg-foreground/[0.06]">{label(n)}</button>
         </h2>
       )}
-      <span className="text-[12px] text-muted-foreground">{n === here ? `This one · ${d.count}` : d.count}</span>
+      <span data-all-tabs-count className="text-[12px] text-muted-foreground tabular-nums">{d.count}</span>
       <HeadingButton icon={Ellipsis} label={`More for ${label(n)}`} tip="More" onClick={rightClickBelow} data-all-tabs-more={n} />
     </div>
   )
 }
 
 function NewDesk({ n, start }: { n: number; start: () => void }) {
-  return (
-    <button type="button" data-all-tabs-new={n} onClick={start}
-      className="flex h-12 cursor-pointer items-center gap-2 rounded-[12px] border border-dashed border-border px-3.5 text-left text-[14px] text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground">
-      <Mark n={n} look="border border-dashed border-border text-tertiary" />
-      New workspace
-    </button>
-  )
+  return <Button look="secondary" size="small" data-all-tabs-new={n} onClick={start} className="md:h-7.5"><Plus className="-ml-0.5 size-3.5" strokeWidth={2.25} />New workspace</Button>
 }
 
 const whereOf = (here: number, n: number, w: number): Where => ({ n, thisWindow: n === here && w === 0 && !isPopout(), otherWorkspace: n !== here })

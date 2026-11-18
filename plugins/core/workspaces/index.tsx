@@ -27,7 +27,7 @@ export default definePlugin({
   header: { numbers: { render: (ctx) => <Workspaces {...ctx} /> } },
   background: (ctx) => (isPopout() || isPhoneDevice() ? null : <Background {...ctx} />),
   views: {
-    [ALL_TABS]: { icon: LayoutGrid, title: () => "Workspaces", render: ({ store }) => <AllTabs store={store} /> },
+    [ALL_TABS]: { icon: LayoutGrid, wide: true, title: () => "Workspaces", render: ({ store }) => <AllTabs store={store} /> },
   },
   commands: [
     ...SLOTS.map((n) => ({ id: `workspace:${n}`, name: `Switch to workspace ${n}`, keys: [isMac ? `Ctrl+${n}` : `Alt+${n}`], run: () => switchTo(n) })),

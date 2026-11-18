@@ -316,6 +316,8 @@ export type ViewDef = {
   bar?: (ctx: ViewCtx) => { title?: ReactNode; right?: ReactNode }
   /** Draw edge to edge, filling the pane below the tab bar (no path bar, no page margins): a terminal. */
   full?: boolean
+  /** Lay out at the pane's whole width, not a reading column (a board of columns); its path bar and margins stay. */
+  wide?: boolean
   /** It can be what a new tab opens (newtab.json `opens`: `view:<name>`), named so where that's chosen ("Web page");
    *  `here` false where it can't show (a blank tab opens instead). */
   asNewTab?: { label: string; here?: () => boolean }
