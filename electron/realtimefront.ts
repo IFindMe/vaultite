@@ -1,7 +1,8 @@
 /** The realtime voice's first sound for a Talk key's ask (helper.ts'; plugins/core/companion/AGENTS.md): small talk it
  *  answers alone; for the screen two words, the summoned answer (asked at once, as the pipeline asks) said after them. */
 import { realtimeSession, type RealtimeSession } from "./realtime.ts"
-import { costOf, instructions, LOOK_TOOL, msOf, resampler, type Usage } from "./realtimelogic.ts"
+import { costOf, instructions, LOOK_TOOL, msOf, type Usage } from "./realtimelogic.ts"
+import { resampler } from "../core/desktop/pcm.ts"
 import { logger } from "../core/log.ts"
 
 export type FrontConfig = { url: string; key: string; model: string; voice: string }

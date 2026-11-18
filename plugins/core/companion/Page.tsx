@@ -33,7 +33,7 @@ export function talkOf(d: Day | null, day: string) {
 const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
 const secs = (s?: number) => (s === undefined ? "" : s < 10 ? `${s.toFixed(1)} s` : `${Math.round(s)} s`)
 const money = (d?: number) => (!d ? "" : d < 0.01 ? "under 1¢" : `$${d.toFixed(2)}`)
-const SERVICE: Record<string, string> = { soniox: "Soniox", openai: "OpenAI realtime", elevenlabs: "ElevenLabs", apple: "This Mac's recognizer", mac: "This Mac's voice", parakeet: "Parakeet" }
+const SERVICE: Record<string, string> = { soniox: "Soniox", deepgram: "Deepgram", assemblyai: "AssemblyAI", openai: "OpenAI", elevenlabs: "ElevenLabs", apple: "This Mac's recognizer", mac: "This Mac's voice", parakeet: "Parakeet" }
 const nameOf = (s: string) => SERVICE[s] ?? s.charAt(0).toUpperCase() + s.slice(1)
 
 const STATES: Record<string, { icon: typeof CircleDot; tint: string; word: string }> = {

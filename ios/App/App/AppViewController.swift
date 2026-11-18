@@ -63,8 +63,15 @@ class AppViewController: CAPBridgeViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        #if DEBUG
+        // (a file played in as the microphone: the simulator's test opens its voice note once, as the app starts)
+        if VoiceRecorder.played != nil, !Self.playedIn { Self.playedIn = true; Links.pending = Links.record }
+        #endif
         takeLink() // asked before this screen was there (the app started by it)
     }
+    #if DEBUG
+    private static var playedIn = false
+    #endif
 
     private func takeLink() {
         guard viewIfLoaded?.window != nil, let url = Links.pending else { return }
@@ -87,7 +94,7 @@ class AppViewController: CAPBridgeViewController {
         let note = VoiceNote()
         let sheet = UIHostingController(rootView: VoiceNoteView(note: note))
         sheet.isModalInPresentation = true
-        if let s = sheet.sheetPresentationController { s.detents = [.medium()] }
+        if let s = sheet.sheetPresentationController { s.detents = [.large()] }
         note.close = { [weak sheet] in sheet?.dismiss(animated: true) }
         present(sheet, animated: true)
     }

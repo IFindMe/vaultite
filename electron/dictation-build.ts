@@ -67,7 +67,7 @@ const stdout = (bin: string, args: string[]) => new Promise<string>((done) => ex
 let fw: string | null = null
 /** The helper, with transcribe.cpp's framework beside it when it could be had (macOS 14: Parakeet runs there; Apple's
  *  engine is macOS 26's, asked at run time). Its name has transcribe.cpp's version too. */
-export const dictationSwift = swiftHelper({ id: "dictation", sources: ["dictation.swift"], macos: "14", salt: `${TRANSCRIBE.version}${LIB}`,
+export const dictationSwift = swiftHelper({ id: "dictation", sources: ["dictation.swift", "hearing.swift"], macos: "14", salt: `${TRANSCRIBE.version}${LIB}`,
   flags: async () => { fw = await framework(); return fw ? ["-D", "PARAKEET", "-F", fw, "-framework", "CTranscribe"] : [] },
   after: async (bin, dir) => {
     fs.rmSync(path.join(dir, FRAMEWORK), { recursive: true, force: true })

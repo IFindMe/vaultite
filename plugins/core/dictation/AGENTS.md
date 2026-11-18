@@ -20,8 +20,10 @@ helper (Vaultite Dev), leaving the window stops it. Each session's way is in `ta
   closed, cancelled, only copied). A Talk key's asks show beside them from the companion's own log. `vau dictation
   history [--q words]`, `forget <id>`, `clear` (not over MCP); `history: false` (this Mac's) keeps none. A server with
   no Mac app of its own (a phone's, the web's) has only the companion's asks.
-- Settings (`.vaultite/plugins/dictation/data.json`): `engine` `auto` | `soniox` | `apple` | `parakeet`; `language` (Apple's,
-  `pt-BR`; the Mac's when left out); `languages` (Soniox's hints, `[en, pt]`; the language and the Mac's when left out); `silence` (seconds without speech before a tapped dictation stops; 0, the default,
+- Settings (`.vaultite/plugins/dictation/data.json`): `engine` `auto` | `soniox` | `deepgram` | `assemblyai` | `openai` |
+  `elevenlabs` | `apple` | `parakeet`; `phone` `same` (the iPhone app's voice notes heard by the same, the default) |
+  `iphone` (its own, never the cloud); `language` (Apple's,
+  `pt-BR`; the Mac's when left out); `languages` (the cloud's hints, `[en, pt]`; the language and the Mac's when left out); `silence` (seconds without speech before a tapped dictation stops; 0, the default,
   never);
   `keep_audio` (this Mac's), the last dictation's audio kept in the app's logs folder as `dictation-last.wav`;
   `history` (this Mac's, on by default): keep each dictation's words for the Dictations list;
@@ -47,6 +49,13 @@ helper (Vaultite Dev), leaving the window stops it. Each session's way is in `ta
 - Soniox (cloud, real time, any language, switching on its own) is `auto`'s pick once this machine has its key:
   `vau secret "Soniox API key" | vau dictation key` (kept in data/config.json, never the vault). The same key gives the companion its voice (Soniox's TTS). The socket is open only
   while listening; offline, refused or dropped, this Mac's recognizer finishes from the last settled word.
+- The other cloud recognizers are picked by name (`engine`), each with its key: `vau dictation key --provider deepgram`
+  (or `assemblyai`); OpenAI's and ElevenLabs' are the companion's (`vau voice key --provider openai|elevenlabs`).
+  `GET /api/dictation/cloud` (`?for=phone` from the iPhone) gives a recognizer `{provider, name, url, key, model,
+  languages, language, terms, replacements, keep}`, or `why` with no url when the chosen one can't be used. Soniox's: its own socket (the
+  phone gets a single-use temporary key, never this machine's). The others': `url` is the path `/api/dictation/live`
+  (resolved against the server asked, as ws/wss) and `key` a token that opens it once within a minute: the relay
+  (relay.ts) speaks Soniox's protocol to the client and the provider's to it (`providers/`), the key never leaving.
 - Apple's is macOS 26's on-device recognizer. Parakeet (English) is parakeet-unified-en-0.6b run by transcribe.cpp, from
   the GGUF Handy or Hex downloaded (Hex's `~/Library/Application Support/hex/models/`, Hugging Face's cache, Handy's),
   used where it is, in two passes: streaming for the dimmed words, then the utterance whole for the final ones. `auto`

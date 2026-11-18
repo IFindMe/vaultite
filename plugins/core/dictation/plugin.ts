@@ -1,19 +1,11 @@
-import { z } from "zod"
 import { inDesktop, OpError, Plugin } from "../../../core/plugins.ts"
 import { Kind } from "../../../core/vault.ts"
 import { addEntry, hintOf, readDictionary, readEntries, removeEntry } from "./words.ts"
 import type { Entry } from "../../../core/desktop/dictationlearn.ts"
+import { cloudParts } from "./cloud.ts"
+import { relaySocket } from "./relay.ts"
 
 export const plugin = new Plugin(import.meta.url)
-
-const WS = () => process.env.VAULTITE_SONIOX_URL || "wss://stt-rt.soniox.com/transcribe-websocket"
-const API = () => process.env.VAULTITE_SONIOX_API || "https://api.soniox.com"
-const MODEL = "stt-rt-v6"
-export const SET_KEY = `vau secret "Soniox API key" | vau dictation key`
-
-const SECRETS = z.looseObject({ soniox: z.string().optional().catch(undefined) }).catch({})
-const stored = () => SECRETS.parse(plugin.secrets()[plugin.id] ?? {})
-const keyHere = () => stored().soniox?.trim() ?? ""
 
 const VOCABULARY = ["Vaultite", "vau", "Claude", "Claude Code", "Codex", "Sonnet", "Opus", "Agent SDK"]
 const REPLACEMENTS: [string, string][] = [["at Claude", "@claude"]]
@@ -43,52 +35,8 @@ export function terms(): string[] {
     .map((t) => t.trim()).filter(Boolean))].slice(0, 100)
 }
 
-plugin.route("GET", "dictation/cloud", async (req) => {
-  await plugin.ownerOnly(req, "Dictation's key")
-  const s = plugin.settings()
-  const engine = s.engine ?? "auto"
-  if (plugin.isOff()) return {}
-  const expect = { terms: terms(), replacements: replacements(), keep: s.history !== false }
-  if (engine !== "auto" && engine !== "soniox") return expect
-  const key = keyHere()
-  if (!key) return engine === "soniox" ? { why: `No Soniox key on this machine (${SET_KEY})`, ...expect } : expect
-  const languages = Array.isArray(s.languages) ? s.languages.filter((l): l is string => typeof l === "string" && !!l.trim()).map((l) => l.trim()) : []
-  return { url: WS(), key, model: MODEL, languages, ...expect }
-}, { lock: false, sync: false })
-
-plugin.op({
-  id: "dictation.key",
-  cli: "dictation key",
-  mcp: false,
-  owner: "Dictation's key",
-  summary: "Set this machine's Soniox key: dictation then goes through Soniox's cloud recognizer (this Mac's when it can't), and the companion speaks with Soniox's voice.",
-  help: `Kept in this machine's data/config.json, never in the vault; checked with Soniox first. Pipe it in from vau secret, so
-it never lands in a transcript. With nothing piped, says whether one is set.
-
-  ${SET_KEY}
-  vau dictation key --remove`,
-  kind: "write",
-  params: {
-    key: { type: "string", stdin: true, description: "the Soniox API key (piped in when left out)" },
-    remove: { type: "boolean", description: "remove the key: dictation is this Mac's again" },
-  },
-  lock: false,
-  run: async ({ key, remove }, ctx) => {
-    if (ctx.who.client === "mcp") throw new OpError("not over MCP: keys stay on the user's machines (vau dictation key, in a terminal)", 403)
-    if (remove) { plugin.saveSecrets(null); return { set: false, removed: true } }
-    const k = typeof key === "string" ? key.trim() : ""
-    if (!k) return { set: !!keyHere() }
-    if (!/^[\x21-\x7e]{8,200}$/.test(k)) throw new OpError("that isn't a Soniox key (one line, no spaces)")
-    const r = await fetch(`${API()}/v1/models`, { headers: { Authorization: `Bearer ${k}` }, signal: AbortSignal.timeout(8000) }).catch(() => null)
-    if (r && (r.status === 401 || r.status === 403)) throw new OpError("Soniox refused this key: check it in Soniox's console", 400)
-    plugin.saveSecrets({ ...stored(), soniox: k })
-    return { set: true, checked: !!r?.ok }
-  },
-  text: (r: { set: boolean; removed?: boolean; checked?: boolean }) => r.removed ? "Removed the Soniox key: dictation is this Mac's." :
-    r.checked === undefined ? (r.set ? "A Soniox key is set: dictation goes through Soniox." : `No Soniox key here: ${SET_KEY}`) :
-    `Set the Soniox key${r.checked ? "" : " (Soniox didn't answer, so it isn't checked)"}: dictation goes through Soniox.`,
-  did: (p) => ({ action: "settings", text: p.remove ? "Removed the Soniox key" : p.key ? "Set the Soniox key" : "Checked for a Soniox key" }),
-})
+cloudParts(plugin, () => ({ terms: terms(), replacements: replacements(), keep: plugin.settings().history !== false }))
+relaySocket(plugin)
 
 const clean = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 100) : "")
 const entryOf = (p: Record<string, unknown>): Entry => {

@@ -144,17 +144,18 @@ async function engines(language: string) {
 let serverOf: (win?: AppWindow) => number | null = () => null
 export const setDictationServer = (f: typeof serverOf) => { serverOf = f }
 
-type Cloud = { url: string; key: string; model?: string; languages: string[] }
+type Cloud = { url: string; key: string; model?: string; languages: string[]; name: string }
 const PAIR = z.tuple([z.string(), z.string()]).rest(z.unknown()).transform(([a, b]): [string, string] => [a, b])
 const CLOUD_ANSWER = z.object({
   url: z.string().optional().catch(undefined), key: z.string().optional().catch(undefined), model: z.string().optional().catch(undefined),
+  provider: z.string().catch("soniox").default("soniox"), name: z.string().catch("Soniox").default("Soniox"),
   languages: z.array(z.string()).optional().catch(undefined), why: z.string().optional().catch(undefined),
   terms: z.array(z.unknown()).catch([]), replacements: z.array(z.unknown()).catch([]), keep: z.unknown().optional(),
-}).catch({ terms: [], replacements: [] })
+}).catch({ terms: [], replacements: [], provider: "soniox", name: "Soniox" })
 type Words = { terms: string[]; replacements: [string, string][] }
 let lastWords: Words & { keep?: boolean } = { terms: [], replacements: [] }
 export const expectedWords = () => lastWords
-async function cloudFor(sink: DictationSink, language: string): Promise<{ cloud?: Cloud; why?: string; keep?: boolean } & Words> {
+async function cloudFor(sink: DictationSink, language: string): Promise<{ cloud?: Cloud; provider?: string; why?: string; keep?: boolean } & Words> {
   const port = serverOf(sink.win)
   if (!port) return lastWords
   try {
@@ -168,7 +169,8 @@ async function cloudFor(sink: DictationSink, language: string): Promise<{ cloud?
     // (Soniox switches between the hinted languages on its own)
     const said = c.languages?.length ? c.languages : [language, ...app.getPreferredSystemLanguages()]
     const languages = [...new Set(said.map((l) => l.split(/[-_]/)[0].toLowerCase()).filter((l) => /^[a-z]{2,3}$/.test(l)))].slice(0, 6)
-    return { cloud: { url: c.url, key: c.key, model: c.model, languages }, ...words }
+    const url = new URL(c.url, `ws://127.0.0.1:${port}/`).href
+    return { cloud: { url, key: c.key, model: c.model, languages, name: c.name }, provider: c.provider, ...words }
   } catch (e) { return { why: `Vaultite's server didn't answer (${e instanceof Error && e.name === "TimeoutError" ? "timed out" : messageOf(e)})`, ...lastWords } }
 }
 
@@ -197,7 +199,7 @@ export async function dictate(sink: DictationSink, opts: DictateOptions): Promis
   let engine = opts.engine === "parakeet" ? "parakeet" : "apple"
   const language = opts.language ?? ""
   if (process.env.VAULTITE_QUIET && !process.env.VAULTITE_DICTATION_FILE && !TEXT) return { ok: false, code: "quiet" }
-  const [allowed, { cloud, why, terms, replacements, keep }] = await Promise.all([process.env.VAULTITE_DICTATION_FILE || TEXT ? true : systemPreferences.askForMediaAccess("microphone"), cloudFor(sink, language)])
+  const [allowed, { cloud, provider, why, terms, replacements, keep }] = await Promise.all([process.env.VAULTITE_DICTATION_FILE || TEXT ? true : systemPreferences.askForMediaAccess("microphone"), cloudFor(sink, language)])
   if (!allowed) return { ok: false, code: "permission" }
   for (const fn of starts) fn()
   let model = engine === "parakeet" ? parakeetModel() : null
@@ -220,7 +222,7 @@ export async function dictate(sink: DictationSink, opts: DictateOptions): Promis
     ...(opts.keep === true ? { record: path.join(app.getPath("logs"), "dictation-last.wav") } : {}),
     ...(file ? { file: process.env.VAULTITE_DICTATION_FILE } : {}) })
   if (why && !cloud) tell({ type: "fallback", message: why })
-  return { ok: true, engine: cloud ? "soniox" : engine, ...(why && !cloud ? { why } : {}), ...(mic ? { mic } : {}) }
+  return { ok: true, engine: cloud ? provider : engine, ...(why && !cloud ? { why } : {}), ...(mic ? { mic } : {}) }
 }
 export const releaseMic = () => { heldMic = ""; send({ cmd: "release" }) }
 export const micHeld = () => heldMic

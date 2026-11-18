@@ -108,8 +108,8 @@ final class WatchLink: NSObject, WCSessionDelegate {
     }
 }
 
-/// A recording on its way to the inbox, never lost: short ones transcribed here, the rest sent as is to the server.
-/// It waits in Application Support/Voice notes until sent, so one the server can't be reached for goes next time.
+/// A recording on its way to the inbox, never lost: with its words (heard live, or transcribed here when short), else as
+/// is for the server. It waits in Application Support/Voice notes, its words beside it, until sent.
 @MainActor
 enum Voice {
     /// Longer than this, the server transcribes it: here it'd outlast what iOS gives an app in the background.
@@ -119,9 +119,9 @@ enum Voice {
     /// The ones being sent now (by send or retry: never both).
     private static var sending = Set<String>()
 
-    /// Send it on; the file is taken. Its outcome: `text` (what was said, or where it is), `path` and `terminal` when this
-    /// phone transcribed it, `error` when it couldn't even be kept.
-    static func send(_ file: URL, from: String) async -> [String: Any] {
+    /// Send it on; the file is taken. `text`: its words, heard as it was recorded. Its outcome: `text` (what was said,
+    /// or where it is), `path` and `terminal` when its words went with it, `error` when it couldn't even be kept.
+    static func send(_ file: URL, from: String, text: String? = nil) async -> [String: Any] {
         let client = from == "Apple Watch" ? "watch" : "iphone"
         let url = waiting.appendingPathComponent("\(client)-\(Int(Date().timeIntervalSince1970))-\(UUID().uuidString).\(file.pathExtension)")
         do {
@@ -132,17 +132,18 @@ enum Voice {
         }
         sending.insert(url.lastPathComponent)
         defer { sending.remove(url.lastPathComponent) }
-        let seconds = (try? AVAudioFile(forReading: url)).map { Double($0.length) / $0.fileFormat.sampleRate } ?? 0
-        if seconds > 0, seconds <= longest, let text = try? await Transcribe.file(url),
-           let r = try? await Servers.send("ops/inbox.voice", file: url, query: ["text": text, "from": from, "ext": url.pathExtension], from: client) {
-            try? FileManager.default.removeItem(at: url)
-            var out: [String: Any] = ["text": text, "path": r["path"] as? String ?? ""]
+        var said = text
+        if said == nil {
+            let seconds = (try? AVAudioFile(forReading: url)).map { Double($0.length) / $0.fileFormat.sampleRate } ?? 0
+            if seconds > 0, seconds <= longest { said = try? await Transcribe.file(url) }
+        }
+        if let said { try? said.write(to: wordsOf(url), atomically: true, encoding: .utf8) }
+        do {
+            let r = try await deliver(url)
+            guard let said, let r else { return ["text": "Sent to your server to transcribe: it'll be in your inbox"] }
+            var out: [String: Any] = ["text": said, "path": r["path"] as? String ?? ""]
             if let t = r["terminal"] as? String { out["terminal"] = t }
             return out
-        }
-        do {
-            try await upload(url)
-            return ["text": "Sent to your server to transcribe: it'll be in your inbox"]
         } catch {
             return ["text": "Kept on your iPhone: it's sent when Vaultite next opens (\(Servers.say(error)))"]
         }
@@ -151,10 +152,10 @@ enum Voice {
     /// Send the recordings still waiting, oldest first; what still can't go stays.
     static func retry() async {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: waiting.path) else { return }
-        for name in names.sorted() where !name.hasPrefix(".") && !sending.contains(name) {
+        for name in names.sorted() where !name.hasPrefix(".") && !name.hasSuffix(".txt") && !sending.contains(name) {
             sending.insert(name)
             defer { sending.remove(name) }
-            do { try await upload(waiting.appendingPathComponent(name)) } catch { return }
+            do { try await deliver(waiting.appendingPathComponent(name)) } catch { return }
         }
     }
 
@@ -173,12 +174,28 @@ enum Voice {
         }
     }
 
-    /// To the server as it is, then gone from here.
-    private static func upload(_ url: URL) async throws {
+    private static func wordsOf(_ url: URL) -> URL { url.appendingPathExtension("txt") }
+
+    /// To the server with its words when they're known, else as it is for the server to transcribe; then gone from here.
+    /// The inbox's answer when its words went.
+    @discardableResult
+    private static func deliver(_ url: URL) async throws -> [String: Any]? {
         let watch = url.lastPathComponent.hasPrefix("watch-")
-        _ = try await Servers.send("audio-recorder/voice", file: url, query: ["ext": url.pathExtension, "from": watch ? "Apple Watch" : "iPhone"],
-                                   from: watch ? "watch" : "iphone")
+        let from = watch ? "Apple Watch" : "iPhone", client = watch ? "watch" : "iphone"
+        let words = wordsOf(url)
+        if let text = try? String(contentsOf: words, encoding: .utf8) {
+            do {
+                let r = try await Servers.send("ops/inbox.voice", file: url, query: ["text": text, "from": from, "ext": url.pathExtension], from: client)
+                for f in [url, words] { try? FileManager.default.removeItem(at: f) }
+                return r
+            } catch let e as Servers.Failure where e.status != 0 {
+                // (the server refused it with its words: it transcribes the recording itself)
+                try? FileManager.default.removeItem(at: words)
+            }
+        }
+        _ = try await Servers.send("audio-recorder/voice", file: url, query: ["ext": url.pathExtension, "from": from], from: client)
         try? FileManager.default.removeItem(at: url)
+        return nil
     }
 }
 

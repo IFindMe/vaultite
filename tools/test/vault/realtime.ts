@@ -10,7 +10,8 @@ export default async ($: VaultTest) => {
   const { check, sleep } = $
   // The realtime voice front (electron/realtimefront.ts): the Talk key's audio to an OpenAI Realtime session, its answer
   // at once, a screen question handed to the summoned session. OpenAI is a stand-in socket; nothing plays.
-  const { costOf, resampler, msOf } = await import("../../../electron/realtimelogic.ts")
+  const { costOf, msOf } = await import("../../../electron/realtimelogic.ts")
+  const { resampler } = await import("../../../core/desktop/pcm.ts")
   {
     const tone = (n: number, rate: number) => { const b = Buffer.alloc(n * 2); for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 300 * i) / rate) * 10_000), i * 2); return b }
     const whole = resampler()(tone(16_000, 16_000))

@@ -227,6 +227,7 @@ by its path.
 - `context` (pages, workspaces): What `vau context` says of it: the pinned pages the user's window shows.
 - `delegate:lineage` (delegate)
 - `dictation:terms` (companion): Its names, for dictation to expect (@claude, "ask Ada").
+- `dictation:hears` (dictation)
 - `fence:<…>` (genui, chart, base, query): genui; query; search
 - `file-props` (provenance): Other files' `origin` for database views over every file (a .base): the list's, else what the bytes say.
 - `geocode` (people): A place's pin, [lat, lon] or null: looked up once (Nominatim), then cached. Me uses it for ME.md's place.

@@ -7,6 +7,7 @@ import type { Any, VaultTest } from "./harness.ts"
 import { sharedTmp } from "../../../core/testrun.ts"
 import { portOf } from "../../../core/listening.ts"
 import { messageOf } from "../../../core/values.ts"
+import { relay } from "./dictation/relay.ts"
 
 export default async ($: VaultTest) => {
   const { VAULT, api, check, tmp, vault } = $
@@ -119,6 +120,7 @@ export default async ($: VaultTest) => {
     for (const n of ["Quillfeather.md", "Hushed thing.md"]) fs.rmSync(path.join(VAULT, "Notes", n), { force: true })
     rest.close()
   }
+  await relay($)
   await helper($, tmp)
 }
 

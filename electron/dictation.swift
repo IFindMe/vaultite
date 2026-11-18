@@ -1,5 +1,5 @@
 // Live dictation (electron/dictation.ts): the microphone through Apple's recognizer, Parakeet (transcribe.cpp)
-// or Soniox's cloud one when a start brings its key, told as JSON lines (web/src/core/dictation.ts' DictationEvent).
+// or Soniox's cloud one when a start brings its key (hearing.swift), told as JSON lines.
 import AVFoundation
 import AudioToolbox
 import CoreAudio
@@ -27,44 +27,23 @@ func emit(_ type: String, _ fields: [String: Any] = [:]) {
     FileHandle.standardOutput.write(d + Data([10]))
     outLock.unlock()
 }
-
-struct Failure: Error { let code: String; let message: String }
-
-// MARK: - Audio in: 16 kHz mono float, what both engines and the pause detector take
-
-let RATE = 16000.0
-let mono16k = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: RATE, channels: 1, interleaved: false)!
-
-final class Resampler {
-    let converter: AVAudioConverter
-    let ratio: Double
-    init?(from: AVAudioFormat, to: AVAudioFormat = mono16k) {
-        guard let c = AVAudioConverter(from: from, to: to) else { return nil }
-        converter = c
-        ratio = to.sampleRate / from.sampleRate
+/// What hearing tells, as web/src/core/dictation.ts' DictationEvent.
+func emit(_ h: Heard) {
+    switch h {
+    case .start: emit("start")
+    case .speech: emit("speech")
+    case .pause(let ms): emit("pause", ["ms": ms])
+    case .level(let v): emit("level", ["v": v])
+    case .pending(let text, _): emit("pending", ["text": text])
+    case .final(let text): emit("final", ["text": text])
+    case .loading(let what): emit("loading", ["what": what])
+    case .fallback(let message): emit("fallback", ["message": message])
+    case .error(let code, let message): emit("error", ["code": code, "message": message])
+    case .end(let reason, let settled):
+        var o: [String: Any] = ["reason": reason]
+        if let settled { o["settled"] = settled }
+        emit("end", o)
     }
-    func convert(_ b: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        let cap = AVAudioFrameCount(Double(b.frameLength) * ratio + 64)
-        guard let o = AVAudioPCMBuffer(pcmFormat: converter.outputFormat, frameCapacity: cap) else { return nil }
-        var given = false
-        var err: NSError?
-        converter.convert(to: o, error: &err) { _, status in
-            if given { status.pointee = .noDataNow; return nil }
-            given = true
-            status.pointee = .haveData
-            return b
-        }
-        return err == nil ? o : nil
-    }
-    func samples(_ b: AVAudioPCMBuffer) -> [Float] {
-        guard let o = convert(b), let p = o.floatChannelData?[0] else { return [] }
-        return Array(UnsafeBufferPointer(start: p, count: Int(o.frameLength)))
-    }
-}
-
-protocol Source: AnyObject {
-    func start(_ sink: @escaping ([Float]) -> Void) throws
-    func stop()
 }
 
 // MARK: - Devices: listed for the app to pick from (electron/miclogic.ts), told again whenever they change
@@ -321,127 +300,6 @@ final class Microphone: Source {
 /// The Bluetooth mic kept open after its session, until the app says the answer is over.
 var held: Microphone?
 
-/// A file played into the session as the microphone would (in real time unless `fast`), then a breath of silence.
-final class FileSource: Source {
-    let url: URL, fast: Bool, done: () -> Void
-    var stopped = false
-    init(_ url: URL, fast: Bool, done: @escaping () -> Void) { self.url = url; self.fast = fast; self.done = done }
-    func start(_ sink: @escaping ([Float]) -> Void) throws {
-        let file: AVAudioFile
-        do { file = try AVAudioFile(forReading: url) } catch { throw Failure(code: "file", message: "Can't read \(url.path)") }
-        guard let r = Resampler(from: file.processingFormat) else { throw Failure(code: "file", message: "Can't convert \(url.path)") }
-        let chunk = AVAudioFrameCount(file.processingFormat.sampleRate / 10)
-        Thread.detachNewThread { [self] in
-            let t = Date()
-            var fed = 0.0
-            func pace() { if !fast { let wait = t.addingTimeInterval(fed).timeIntervalSinceNow; if wait > 0 { Thread.sleep(forTimeInterval: wait) } } }
-            while !stopped, let b = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) {
-                guard (try? file.read(into: b, frameCount: chunk)) != nil, b.frameLength > 0 else { break }
-                sink(r.samples(b))
-                fed += Double(b.frameLength) / file.processingFormat.sampleRate
-                pace()
-            }
-            for _ in 0..<25 where !stopped { sink([Float](repeating: 0, count: 1600)); fed += 0.1; pace() }
-            if !stopped { done() }
-        }
-    }
-    func stop() { stopped = true }
-}
-
-// MARK: - Engines
-
-protocol Engine: AnyObject {
-    /// 16 kHz mono audio, in order: only while the user speaks and a moment around it (silence makes words up), unless it `hearsAll`.
-    func feed(_ pcm: [Float])
-    /// The user started speaking after a pause (the audio from a moment before comes next).
-    func speech()
-    /// The user paused (a clause's end): what was heard so far becomes final.
-    func pause()
-    /// The end: everything heard becomes final, then `done`.
-    func finish(_ done: @escaping () -> Void)
-    /// Dropped unfinished (cancelled): let go of what it holds.
-    func cancel()
-    /// Fed every sample, not only speech: one that noise doesn't make words up for (Soniox), so speech the pause
-    /// detector misses (far from the mic, in a noisy room) still reaches it.
-    var hearsAll: Bool { get }
-}
-extension Engine { func cancel() {}; var hearsAll: Bool { false } }
-
-/// Apple's DictationTranscriber (macOS 26): volatile results are the pending words, final ones the text.
-@available(macOS 26.0, *)
-final class Apple: Engine {
-    let transcriber: DictationTranscriber
-    let analyzer: SpeechAnalyzer
-    let input: AsyncStream<AnalyzerInput>.Continuation
-    let format: AVAudioFormat
-    let converter: Resampler?
-    var results: Task<Void, Never>?
-
-    static func locale(_ language: String) async -> Locale? {
-        let wanted = language.isEmpty ? Locale.current : Locale(identifier: language)
-        return await DictationTranscriber.supportedLocale(equivalentTo: wanted)
-    }
-
-    init(language: String, words: [String]) async throws {
-        guard let loc = await Apple.locale(language) else {
-            throw Failure(code: "language", message: "Apple's dictation has no \(language.isEmpty ? Locale.current.identifier : language)")
-        }
-        transcriber = DictationTranscriber(locale: loc, contentHints: [], transcriptionOptions: [.punctuation],
-                                           reportingOptions: [.volatileResults, .frequentFinalization], attributeOptions: [])
-        if let install = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-            if !(await DictationTranscriber.installedLocales).contains(loc) { emit("loading", ["what": "language"]) }
-            try await install.downloadAndInstall()
-        }
-        format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) ?? mono16k
-        converter = format == mono16k ? nil : Resampler(from: mono16k, to: format)
-        let (stream, cont) = AsyncStream.makeStream(of: AnalyzerInput.self)
-        input = cont
-        analyzer = SpeechAnalyzer(modules: [transcriber])
-        try await analyzer.prepareToAnalyze(in: format)
-        // (words it should expect: names, "at Claude")
-        if !words.isEmpty { let ctx = AnalysisContext(); ctx.contextualStrings[.general] = words; try? await analyzer.setContext(ctx) }
-        try await analyzer.start(inputSequence: stream)
-        let t = transcriber
-        results = Task {
-            do {
-                for try await r in t.results {
-                    let text = String(r.text.characters)
-                    if r.isFinal {
-                        if !text.isEmpty { emit("final", ["text": text]) }
-                        emit("pending", ["text": ""])
-                    } else {
-                        emit("pending", ["text": text])
-                    }
-                }
-            } catch {
-                emit("error", ["code": "engine", "message": error.localizedDescription])
-            }
-        }
-    }
-
-    func feed(_ pcm: [Float]) {
-        guard !pcm.isEmpty, let b = AVAudioPCMBuffer(pcmFormat: mono16k, frameCapacity: AVAudioFrameCount(pcm.count)) else { return }
-        b.frameLength = AVAudioFrameCount(pcm.count)
-        pcm.withUnsafeBufferPointer { b.floatChannelData![0].update(from: $0.baseAddress!, count: pcm.count) }
-        guard let x = converter.map({ $0.convert(b) }) ?? b else { return }
-        input.yield(AnalyzerInput(buffer: x))
-    }
-    func speech() {}
-    func pause() {
-        let a = analyzer
-        Task { try? await a.finalize(through: nil) }
-    }
-    func finish(_ done: @escaping () -> Void) {
-        input.finish()
-        let a = analyzer, r = results
-        Task {
-            try? await a.finalizeAndFinishThroughEndOfInput()
-            await r?.value
-            done()
-        }
-    }
-}
-
 #if PARAKEET
 /// Parakeet (parakeet-unified-en-0.6b's GGUF) through transcribe.cpp in two passes, as Hex and Handy get their accuracy:
 /// a streaming pass shows the words as they come (pending), then the whole utterance again, offline, is the final text.
@@ -463,7 +321,7 @@ final class Parakeet: Engine {
             if let s = Parakeet.session { transcribe_session_free(s); Parakeet.session = nil }
             if let m = Parakeet.model { transcribe_model_free(m); Parakeet.model = nil }
             guard FileManager.default.fileExists(atPath: path) else { throw Failure(code: "model", message: "Parakeet's model isn't at \(path)") }
-            emit("loading", ["what": "model"])
+            emit(.loading("model"))
             _ = transcribe_init_backends_default()
             var m: OpaquePointer?
             var st = transcribe_model_load_file(path, nil, &m)
@@ -499,7 +357,7 @@ final class Parakeet: Engine {
                 return transcribe_stream_begin(s, nil, &params)
             }
         }
-        guard st == TRANSCRIBE_OK else { emit("error", ["code": "engine", "message": String(cString: transcribe_status_string(Int32(st.rawValue)))]); return }
+        guard st == TRANSCRIBE_OK else { emit(.error(code: "engine", message: String(cString: transcribe_status_string(Int32(st.rawValue))))); return }
         active = true
         heard = []
     }
@@ -512,7 +370,7 @@ final class Parakeet: Engine {
         guard transcribe_stream_get_text(s, &t) == TRANSCRIBE_OK else { return }
         let text = { (p: UnsafePointer<CChar>?, n: UInt64) -> String in p.flatMap { String(data: Data(bytes: $0, count: Int(n)), encoding: .utf8) } ?? "" }
         let now = (text(t.committed_text, t.committed_text_bytes) + text(t.tentative_text, t.tentative_text_bytes)).trimmingCharacters(in: .whitespaces)
-        if now != shown { shown = now; emit("pending", ["text": now]) }
+        if now != shown { shown = now; emit(.pending(now, firm: 0)) }
     }
 
     func feed(_ pcm: [Float]) {
@@ -525,7 +383,7 @@ final class Parakeet: Engine {
         guard let s = Parakeet.session else { return }
         heard.append(contentsOf: pcm)
         let st = pcm.withUnsafeBufferPointer { transcribe_stream_feed(s, $0.baseAddress, Int32(pcm.count), nil) }
-        if st != TRANSCRIBE_OK { emit("error", ["code": "engine", "message": String(cString: transcribe_status_string(Int32(st.rawValue)))]); active = false; return }
+        if st != TRANSCRIBE_OK { emit(.error(code: "engine", message: String(cString: transcribe_status_string(Int32(st.rawValue))))); active = false; return }
         publish()
         if heard.count >= Parakeet.LONGEST { commit(); begin() }
     }
@@ -546,9 +404,9 @@ final class Parakeet: Engine {
         heard = []
         let st = audio.withUnsafeBufferPointer { transcribe_run(s, $0.baseAddress, Int32(audio.count), nil) }
         let text = st == TRANSCRIBE_OK ? (transcribe_full_text(s).map { String(cString: $0) } ?? "").trimmingCharacters(in: .whitespacesAndNewlines) : ""
-        if st != TRANSCRIBE_OK { emit("error", ["code": "engine", "message": String(cString: transcribe_status_string(Int32(st.rawValue)))]) }
-        if !text.isEmpty { emit("final", ["text": text]) }
-        if !shown.isEmpty { shown = ""; emit("pending", ["text": ""]) }
+        if st != TRANSCRIBE_OK { emit(.error(code: "engine", message: String(cString: transcribe_status_string(Int32(st.rawValue))))) }
+        if !text.isEmpty { emit(.final(text)) }
+        if !shown.isEmpty { shown = ""; emit(.pending("", firm: 0)) }
     }
     func pause() { commit() }
     func finish(_ done: @escaping () -> Void) {
@@ -557,401 +415,6 @@ final class Parakeet: Engine {
     }
 }
 #endif
-
-/// Soniox's real-time recognizer over a WebSocket (its key from electron/dictation.ts): the audio streams as it's heard,
-/// a pause or the stop asks it to finalize. Failing, this Mac's engine (`local`) hears again what it hadn't settled.
-final class Soniox: NSObject, Engine, URLSessionWebSocketDelegate, @unchecked Sendable {
-    let q = DispatchQueue(label: "dictation.soniox")
-    let local: () async throws -> Engine
-    let config: String
-    var session: URLSession!
-    var task: URLSessionWebSocketTask!
-    var open = false, closed = false, dead = false
-    var queued: [URLSessionWebSocketTask.Message] = []
-    /// The audio sent from the last final word on (sample `keptAt` of the stream first): what a fallback hears again.
-    var kept: [Float] = [], keptAt = 0, sent = 0, unasked = 0
-    var finals = "", shown = "", paused = false
-    /// Finalizes asked for, and their <fin>s back.
-    var asked = 0, fins = 0
-    var finishing: (() -> Void)?
-    var fallback: Engine?, falling = false
-    /// Gone to this Mac's engine: from then on it hears only speech, as that engine does (read on the session's queue).
-    let fellLock = NSLock()
-    var fellBack = false
-    var hearsAll: Bool { fellLock.lock(); defer { fellLock.unlock() }; return !fellBack }
-    var timer: DispatchSourceTimer?, lastSent = Date()
-    /// The most a fallback hears again (the last final word on), in samples.
-    static let KEPT = Int(RATE * 120)
-
-    init(url: URL, key: String, model: String, languages: [String], words: [String], local: @escaping () async throws -> Engine) {
-        var start: [String: Any] = ["model": model, "audio_format": "pcm_s16le", "sample_rate": Int(RATE), "num_channels": 1]
-        if !languages.isEmpty { start["language_hints"] = languages }
-        if !words.isEmpty { start["context"] = ["terms": words] }
-        config = (try? JSONSerialization.data(withJSONObject: start)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        self.local = local
-        super.init()
-        var req = URLRequest(url: url, timeoutInterval: 5)
-        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        let ops = OperationQueue()
-        ops.underlyingQueue = q
-        ops.maxConcurrentOperationCount = 1
-        session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: ops)
-        task = session.webSocketTask(with: req)
-        q.async { [self] in
-            task.resume()
-            receive()
-            // (no audio for a while, in a long quiet: Soniox drops a stream that says nothing)
-            let t = DispatchSource.makeTimerSource(queue: q)
-            t.schedule(deadline: .now() + 10, repeating: 10)
-            t.setEventHandler { [weak self] in
-                guard let self, self.open, !self.closed, Date().timeIntervalSince(self.lastSent) >= 10 else { return }
-                self.send(.string("{\"type\":\"keepalive\"}"))
-            }
-            t.resume()
-            timer = t
-        }
-    }
-
-    func urlSession(_ s: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol p: String?) {
-        guard !closed else { return }
-        open = true
-        send(.string(config))
-        for m in queued { send(m) }
-        queued = []
-    }
-    // (the receive loop says it in turn, after what came before it: these only if it doesn't)
-    func urlSession(_ s: URLSession, task t: URLSessionTask, didCompleteWithError error: Error?) { droppedSoon() }
-    func urlSession(_ s: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith code: URLSessionWebSocketTask.CloseCode, reason: Data?) { droppedSoon() }
-    func droppedSoon() { q.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.dropped() } }
-    /// The connection failed or went: why, as the handshake's answer tells.
-    func dropped() {
-        let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
-        fail(status == 401 || status == 403 ? "Soniox refused the key" : open ? "Soniox's connection dropped" : status > 0 ? "Soniox answered \(status)" : "Soniox can't be reached")
-    }
-
-    func send(_ m: URLSessionWebSocketTask.Message) {
-        guard !closed else { return }
-        guard open else { queued.append(m); return }
-        lastSent = Date()
-        task.send(m) { [weak self] e in if e != nil { self?.droppedSoon() } }
-    }
-    func receive() {
-        task.receive { [weak self] r in
-            guard let self else { return }
-            self.q.async {
-                guard !self.closed else { return }
-                switch r {
-                case .success(.string(let text)): self.heard(text); self.receive()
-                case .success: self.receive()
-                case .failure: self.dropped()
-                }
-            }
-        }
-    }
-
-    /// A response: final tokens wait for their <fin> (a pause's, the stop's) and settle whole, the rest show pending.
-    func heard(_ text: String) {
-        guard let d = text.data(using: .utf8), let m = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] else { return }
-        if let code = m["error_code"] {
-            return fail("Soniox: \(m["error_message"] as? String ?? "error \(code)")")
-        }
-        var tail = ""
-        for t in m["tokens"] as? [[String: Any]] ?? [] {
-            let s = t["text"] as? String ?? ""
-            if s == "<fin>" || s == "<end>" {
-                if s == "<fin>" { fins += 1 }
-                settle()
-            } else if t["is_final"] as? Bool == true {
-                finals += s
-                if let end = (t["end_ms"] as? NSNumber)?.intValue { forget(through: end * Int(RATE) / 1000) }
-            } else {
-                tail += s
-            }
-        }
-        show((finals + tail).trimmingCharacters(in: .whitespaces))
-        if let done = finishing, fins >= asked || m["finished"] as? Bool == true {
-            settle()
-            finishing = nil
-            close()
-            done()
-        }
-    }
-    func show(_ text: String) { if text != shown { shown = text; emit("pending", ["text": text]) } }
-    func settle() {
-        let t = finals.trimmingCharacters(in: .whitespaces)
-        finals = ""
-        if !t.isEmpty { emit("final", ["text": t]) }
-        show("")
-    }
-    /// The audio up to sample `n` is in final words: a fallback needn't hear it.
-    func forget(through n: Int) {
-        let drop = min(n - keptAt, kept.count)
-        if drop > 0 { kept.removeFirst(drop); keptAt += drop }
-    }
-    func askFinal() {
-        guard unasked > 0 else { return }
-        unasked = 0
-        asked += 1
-        send(.string("{\"type\":\"finalize\"}"))
-    }
-
-    func feed(_ pcm: [Float]) {
-        q.async { [self] in
-            if let f = fallback { return f.feed(pcm) }
-            guard !dead else { return }
-            kept.append(contentsOf: pcm)
-            // (fed silence too now: a long quiet with no words to settle it is kept 2 min at most, trimmed in steps)
-            if kept.count > Soniox.KEPT + Int(RATE * 10) { let drop = kept.count - Soniox.KEPT; kept.removeFirst(drop); keptAt += drop }
-            if falling { return }
-            sent += pcm.count
-            unasked += pcm.count
-            var d = Data(count: pcm.count * 2)
-            d.withUnsafeMutableBytes { (b: UnsafeMutableRawBufferPointer) in
-                let o = b.bindMemory(to: Int16.self)
-                for (i, x) in pcm.enumerated() { o[i] = Int16(max(-1, min(1, x)) * 32767).littleEndian }
-            }
-            send(.data(d))
-        }
-    }
-    func speech() { q.async { [self] in paused = false; fallback?.speech() } }
-    func pause() {
-        q.async { [self] in
-            paused = true
-            if let f = fallback { return f.pause() }
-            if !falling { askFinal() }
-        }
-    }
-    func finish(_ done: @escaping () -> Void) {
-        q.async { [self] in
-            if let f = fallback { return f.finish(done) }
-            if dead { return done() }
-            finishing = done
-            if falling { return }
-            askFinal()
-            if fins >= asked { settle(); finishing = nil; close(); return done() }
-            // (Soniox answers a finalize in a few hundred ms; much later, this Mac finishes instead)
-            q.asyncAfter(deadline: .now() + 4) { [weak self] in if self?.finishing != nil { self?.fail("Soniox didn't answer in time") } }
-        }
-    }
-    func cancel() { q.async { [self] in close(); fallback?.cancel() } }
-
-    func close() {
-        guard !closed else { return }
-        closed = true
-        timer?.cancel()
-        task.cancel(with: .normalClosure, reason: nil)
-        session.invalidateAndCancel()
-    }
-
-    /// The cloud is gone: what it settled stays, this Mac's engine hears the rest again and goes on.
-    func fail(_ why: String) {
-        guard !closed, fallback == nil, !falling else { return }
-        fellLock.lock(); fellBack = true; fellLock.unlock()
-        close()
-        settle()
-        falling = true
-        emit("fallback", ["message": "\(why): dictating on this Mac"])
-        Task {
-            do {
-                let e = try await local()
-                q.async { [self] in
-                    falling = false
-                    fallback = e
-                    e.speech()
-                    e.feed(kept)
-                    kept = []
-                    if paused { e.pause() }
-                    if let done = finishing { finishing = nil; e.finish(done) }
-                }
-            } catch {
-                let f = error as? Failure
-                q.async { [self] in
-                    falling = false
-                    dead = true
-                    kept = []
-                    emit("error", ["code": "cloud", "message": "\(why), and this Mac's recognizer couldn't take over: \(f?.message ?? error.localizedDescription)"])
-                    if let done = finishing { finishing = nil; done() }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - A session: a source, its pause detector and an engine
-
-final class Session: @unchecked Sendable {
-    let work = DispatchQueue(label: "dictation.work")
-    let source: Source
-    var silenceMs: Double
-    var engine: Engine?
-    var backlog: [[Float]] = []
-    var ended = false
-    var ending: String?
-    // The pause detector: loudness against a floor that follows the room, in 20 ms frames.
-    var floor: Float = 0.003
-    var speaking = false, heard = false
-    var quietMs = 0.0, sinceSpeechMs = 0.0
-    var pausesSaid = Set<Int>()
-    var open = false, preroll: [Float] = [], feeding: [Float] = []
-    var level: Float = 0, levelMs = 0.0
-    var onEnd: (() -> Void)?
-    /// What the microphone heard, kept for replaying it (the setting Keep the last dictation's audio).
-    var recording: AVAudioFile?
-    /// The microphone's audio told as it comes, 16-bit at 16 kHz (the companion's realtime voice hears it too).
-    var tap = false
-
-    init(source: Source, silence: Double) {
-        self.source = source
-        silenceMs = silence * 1000
-    }
-
-    /// Listen at once, the audio kept until the engine is ready (`warm`: the engine first, as a test of its latency).
-    func start(warm: Bool = false, make: @escaping () async throws -> Engine) {
-        let listen = { [self] () -> Bool in
-            do {
-                try source.start { [weak self] pcm in self?.work.async { self?.audio(pcm) } }
-            } catch let f as Failure {
-                fail(f); return false
-            } catch {
-                fail(Failure(code: "mic", message: error.localizedDescription)); return false
-            }
-            emit("start")
-            return true
-        }
-        if !warm && !listen() { return }
-        Task {
-            do {
-                let e = try await make()
-                work.async { [self] in
-                    guard !ended else { return e.finish {} }
-                    engine = e
-                    for pcm in backlog { process(pcm) }
-                    backlog = []
-                    if let reason = ending { ending = nil; end(reason) }
-                    if warm { _ = listen() }
-                }
-            } catch let f as Failure {
-                work.async { self.fail(f) }
-            } catch {
-                work.async { self.fail(Failure(code: "engine", message: error.localizedDescription)) }
-            }
-        }
-    }
-
-    func fail(_ f: Failure) {
-        emit("error", ["code": f.code, "message": f.message])
-        end("error", flush: false)
-    }
-
-    /// Audio arrives: its level now (for the indicator), the rest once the engine is ready.
-    func audio(_ pcm: [Float]) {
-        guard !ended, !pcm.isEmpty else { return }
-        if let f = recording, let b = AVAudioPCMBuffer(pcmFormat: mono16k, frameCapacity: AVAudioFrameCount(pcm.count)) {
-            b.frameLength = AVAudioFrameCount(pcm.count)
-            pcm.withUnsafeBufferPointer { b.floatChannelData![0].update(from: $0.baseAddress!, count: pcm.count) }
-            try? f.write(from: b)
-        }
-        if tap {
-            var d = Data(count: pcm.count * 2)
-            d.withUnsafeMutableBytes { raw in
-                let o = raw.bindMemory(to: Int16.self)
-                for (i, x) in pcm.enumerated() { o[i] = Int16(max(-1, min(1, x)) * 32767).littleEndian }
-            }
-            emit("audio", ["data": d.base64EncodedString()])
-        }
-        var sum: Float = 0
-        for x in pcm { sum += x * x }
-        level = max(level, (sum / Float(pcm.count)).squareRoot())
-        levelMs += Double(pcm.count) / RATE * 1000
-        if levelMs >= 100 {
-            // (typed in steps: CI's older Swift gives up on the one expression)
-            let db: Float = 20 * log10(max(level, 1e-6))
-            let shown: Float = min(1, max(0, (db + 60) / 50))
-            let v: Float = (shown * 100).rounded() / 100
-            emit("level", ["v": v])
-            level = 0; levelMs = 0
-        }
-        if engine == nil { backlog.append(pcm) } else { process(pcm) }
-    }
-
-    func process(_ pcm: [Float]) {
-        var i = 0
-        let frame = Int(RATE * 0.02), all = engine?.hearsAll == true
-        while i < pcm.count {
-            let n = min(frame, pcm.count - i)
-            let f = pcm[i..<(i + n)]
-            i += n
-            var sum: Float = 0
-            for x in f { sum += x * x }
-            let rms = (sum / Float(n)).squareRoot()
-            let ms = Double(n) / RATE * 1000
-            if rms < floor { floor = max(rms, 0.0005) } else { floor += (rms - floor) * 0.002 }
-            if rms > max(floor * 3, 0.006) {
-                quietMs = 0
-                sinceSpeechMs = 0
-                if !speaking {
-                    speaking = true
-                    heard = true
-                    pausesSaid = []
-                    emit("speech")
-                    engine?.speech()
-                    if !open {
-                        open = true
-                        feeding.append(contentsOf: preroll)
-                        preroll = []
-                    }
-                }
-            } else {
-                quietMs += ms
-                sinceSpeechMs += ms
-                // (a breath inside a word isn't a pause)
-                if speaking && quietMs >= 250 { speaking = false }
-            }
-            if open || all { feeding.append(contentsOf: f) } else {
-                preroll.append(contentsOf: f)
-                if preroll.count > Session.PREROLL { preroll.removeFirst(preroll.count - Session.PREROLL) }
-            }
-            for p in [700, 2000] where heard && quietMs >= Double(p) && !pausesSaid.contains(p) {
-                pausesSaid.insert(p)
-                if p == 700 {
-                    flush()
-                    engine?.pause()
-                }
-                emit("pause", ["ms": p])
-            }
-            if open && quietMs >= 1000 { flush(); open = false }
-        }
-        flush()
-        if silenceMs > 0 && sinceSpeechMs >= silenceMs && !speaking { end("silence") }
-    }
-    static let PREROLL = Int(RATE * 0.4)
-    func flush() {
-        if !feeding.isEmpty { engine?.feed(feeding); feeding = [] }
-    }
-
-    /// Stop listening; what was heard becomes final (unless cancelled), then `end`.
-    func end(_ reason: String, flush: Bool = true) {
-        guard !ended else { return }
-        // (stopped while the engine is still loading: what was said is heard first)
-        if flush && engine == nil && !backlog.isEmpty { source.stop(); ending = reason; return }
-        ended = true
-        source.stop()
-        let finish = { [self] in
-            recording = nil
-            // (`settled`: ms from the stop to the last words, the wait the user feels)
-            emit("end", ["reason": reason].merging(stopped.map { ["settled": Int(Date().timeIntervalSince($0) * 1000)] } ?? [:]) { a, _ in a })
-            onEnd?()
-        }
-        if flush, let e = engine { e.finish { self.work.async(execute: finish) } } else { engine?.cancel(); finish() }
-    }
-    var stopped: Date?
-    /// The microphone off at once (the engine may still be catching up), then the end in turn: the last words, `end`.
-    func stop(_ reason: String) {
-        if stopped == nil { stopped = Date() }
-        source.stop()
-        work.async { self.end(reason, flush: reason != "cancel") }
-    }
-}
 
 // MARK: - Commands
 
@@ -964,7 +427,8 @@ func makeEngine(_ cmd: [String: Any]) -> () async throws -> Engine {
     // (the cloud first when its key came: this Mac's engine takes over should it fail)
     if let c = cmd["cloud"] as? [String: Any], let u = (c["url"] as? String).flatMap(URL.init(string:)), let key = c["key"] as? String, !key.isEmpty {
         let languages = c["languages"] as? [String] ?? [], model = c["model"] as? String ?? "stt-rt-v6"
-        return { Soniox(url: u, key: key, model: model, languages: languages, words: words, local: here) }
+        let name = c["name"] as? String ?? "Soniox"
+        return { SonioxStream(url: u, key: key, model: model, languages: languages, words: words, name: name, here: "this Mac", tell: emit, local: here) }
     }
     return here
 }
@@ -979,7 +443,7 @@ func makeLocal(engine: String, language: String, model: String, words: [String])
             #endif
         }
         guard #available(macOS 26.0, *) else { throw Failure(code: "unsupported", message: "Apple's dictation needs macOS 26") }
-        return try await Apple(language: language, words: words)
+        return try await Apple(language: language, words: words, tell: emit)
     }
 }
 
@@ -998,6 +462,22 @@ func check(_ language: String) async -> [String: Any] {
         o["apple"] = false
     }
     return o
+}
+
+/// What the microphone heard: kept for replaying it (the setting Keep the last dictation's audio), and told as it comes,
+/// 16-bit at 16 kHz, when `tap` (the companion's realtime voice hears it too).
+func kept(_ recording: AVAudioFile?, tap: Bool) -> (([Float]) -> Void)? {
+    guard recording != nil || tap else { return nil }
+    return { pcm in
+        if let f = recording, let b = buffer16k(pcm) { try? f.write(from: b) }
+        guard tap else { return }
+        var d = Data(count: pcm.count * 2)
+        d.withUnsafeMutableBytes { raw in
+            let o = raw.bindMemory(to: Int16.self)
+            for (i, x) in pcm.enumerated() { o[i] = Int16(max(-1, min(1, x)) * 32767).littleEndian }
+        }
+        emit("audio", ["data": d.base64EncodedString()])
+    }
 }
 
 var current: Session?
@@ -1023,12 +503,13 @@ func handle(_ cmd: [String: Any]) {
                 mic.failed = { f in s.work.async { s.fail(f) } }
                 source = mic
             }
-            s = Session(source: source, silence: cmd["silence"] as? Double ?? 0)
-            s.tap = cmd["tap"] as? Bool ?? false
+            s = Session(source: source, silence: cmd["silence"] as? Double ?? 0, tell: emit)
+            var recording: AVAudioFile?
             if let path = cmd["record"] as? String, !path.isEmpty {
                 try? FileManager.default.removeItem(atPath: path)
-                s.recording = try? AVAudioFile(forWriting: URL(fileURLWithPath: path), settings: mono16k.settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+                recording = try? AVAudioFile(forWriting: URL(fileURLWithPath: path), settings: mono16k.settings, commonFormat: .pcmFormatFloat32, interleaved: false)
             }
+            s.onAudio = kept(recording, tap: cmd["tap"] as? Bool ?? false)
             current = s
             s.onEnd = { DispatchQueue.main.async { if current === s { current = nil } } }
             s.start(make: makeEngine(cmd))
@@ -1064,8 +545,8 @@ if let file = arg("--file") {
     if let c = arg("--cloud"), let d = c.data(using: .utf8) { cmd["cloud"] = try? JSONSerialization.jsonObject(with: d) }
     var session: Session!
     let src = FileSource(URL(fileURLWithPath: file), fast: args.contains("--fast")) { session.stop("stop") }
-    session = Session(source: src, silence: 0)
-    session.tap = args.contains("--tap")
+    session = Session(source: src, silence: 0, tell: emit)
+    session.onAudio = kept(nil, tap: args.contains("--tap"))
     session.onEnd = { exit(0) }
     session.start(warm: args.contains("--warm"), make: makeEngine(cmd))
     dispatchMain()

@@ -22,16 +22,16 @@ const allKeys = (plugin: Plugin) => Secrets.parse(plugin.secrets())
 
 export function voiceHere(plugin: Plugin, setting: (key: string) => string, mic?: string) {
   const k = allKeys(plugin), eleven = !!keyOf(k.companion?.elevenlabs), openai = !!keyOf(k.companion?.openai)
-  const engine = String(plugin.peer("dictation")?.settings().engine ?? "auto")
-  const soniox = !!keyOf(k.dictation?.soniox) && (engine === "auto" || engine === "soniox")
+  const hears = z.string().catch("mac").parse(plugin.service("dictation:hears")?.() ?? "mac")
   const order = setting("voice_provider") === "soniox" ? ["soniox", "elevenlabs"] : ["elevenlabs", "soniox"]
   const speaks = setting("voice") === "off" ? [] : [...order.filter((p) => (p === "soniox" ? !!keyOf(k.dictation?.soniox) : eleven)), "mac"]
   const realtime = setting("voice") === "off" || setting("voice_front") !== "realtime" ? "off" : openai ? "on" : "no key"
-  return { hears: soniox ? "soniox" : "mac", ...(mic ? { mic } : {}), speaks, realtime, ...(realtime === "on" ? { model: setting("realtime_model") } : {}) }
+  return { hears, ...(mic ? { mic } : {}), speaks, realtime, ...(realtime === "on" ? { model: setting("realtime_model") } : {}) }
 }
 const VOICE_NAMES: Record<string, string> = { soniox: "Soniox", elevenlabs: "ElevenLabs", mac: "this Mac's" }
+const HEARS = new Map([["soniox", "Soniox"], ["deepgram", "Deepgram"], ["assemblyai", "AssemblyAI"], ["openai", "OpenAI"], ["elevenlabs", "ElevenLabs"], ["mac", "this Mac's recognizer"]])
 export const voiceHereText = (v: ReturnType<typeof voiceHere>) =>
-  `Voice here: hears with ${v.hears === "soniox" ? "Soniox" : "this Mac's recognizer"}${v.mic ? ` through ${v.mic}` : ""}; ${v.speaks.length ? `speaks with ${v.speaks.map((p) => VOICE_NAMES[p]).join(", then ")}` : "never speaks (voice off)"}; realtime ${v.realtime === "on" ? `on (OpenAI ${v.model})` : v.realtime === "no key" ? "off: no OpenAI key" : "off"}.`
+  `Voice here: hears with ${HEARS.get(v.hears) ?? v.hears}${v.mic ? ` through ${v.mic}` : ""}; ${v.speaks.length ? `speaks with ${v.speaks.map((p) => VOICE_NAMES[p]).join(", then ")}` : "never speaks (voice off)"}; realtime ${v.realtime === "on" ? `on (OpenAI ${v.model})` : v.realtime === "no key" ? "off: no OpenAI key" : "off"}.`
 
 export type ElevenUsage = { used: number; limit: number; resets?: number } | { unread: string }
 export async function elevenUsage(plugin: Plugin): Promise<ElevenUsage | null> {
