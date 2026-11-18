@@ -6,6 +6,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Bad connections: a note or file on its way shows its skeleton, then "Still loading…" with Try again; one that can't
+  be read says why ("Couldn't open this note: the server didn't answer") instead of "isn't in the vault any more", and
+  opens by itself when the connection's back. When the server can't be reached for a while the app says so ("Can't
+  connect to Vaultite · Try now"), and "Reconnected" takes its place.
 - Server: moving or renaming a file in a big vault on iCloud Drive no longer freezes the server. Reading the vault's
   folders and rewriting links to the moved file now happen off the main thread, in steps, so the app, terminals and
   agents keep their connection meanwhile, where the watchdog used to kill and restart the server after 30 seconds.

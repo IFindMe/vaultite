@@ -9,7 +9,8 @@ import { useVaultChange } from "@/core/live"
 import { followLink } from "@/core/links"
 import { openLinkMenu } from "@/components/LinkMenu"
 import { renderMarkdown } from "@/core/markdown"
-import { dismissNotice, notify } from "@/core/notify"
+import { dismissNotice, errorText, notify } from "@/core/notify"
+import { useRead } from "@/core/reading"
 import { timelineKinds, usePluginsVersion } from "@/core/plugins"
 import { usePrefs } from "@/core/prefs"
 import { BlockView, useKindSections } from "@/components/Blocks"
@@ -19,7 +20,7 @@ import { Editor } from "@/editor/lazy"
 import type { EditorApi } from "@/editor/Editor"
 import type { PreviewConfig } from "@/editor/livePreview"
 import { capitalize, cn } from "@/lib/utils"
-import { Arriving } from "@/components/kit"
+import { Arriving, Loading } from "@/components/kit"
 import { joinSection, sectionParts } from "../../../core/sections.ts"
 
 type Shared = {
@@ -35,7 +36,6 @@ export type NoteEditorProps = Shared & {
    *  keeping the cursor. */
   text: string
   onChange: (text: string) => void
-  /** The store (default: the app's). */
   store?: Store
   /** The file it's in (a canvas): links are followed from it, `![[#Heading]]` finds it, pasted images go beside it. */
   from?: string
@@ -114,14 +114,12 @@ function Wired({ store, from, doc, editable, autoFocus, onEscape, onBlur, placeh
 }
 
 export type FileEditorProps = Shared & {
-  /** The Markdown file's vault path. */
   path: string
   store: Store
   /** false: drawn like reading (default true; the trash and the app's copies never are). */
   editable?: boolean
   /** Only this heading's section (`Plan`, `Week#Plan`): its lines, edited in place, the rest of the file kept as is. */
   section?: string
-  /** Drawn instead when the file has no such heading. */
   noSection?: ReactNode
 }
 
@@ -131,25 +129,19 @@ export function FileEditor(props: FileEditorProps) {
 }
 
 function FileLoad({ path, store, editable = true, autoFocus, onEscape, className, section, noSection }: FileEditorProps) {
-  const [file, setFile] = useState<FileText | "missing" | "failed" | null>(null)
-  const [tries, setTries] = useState(0)
-  useEffect(() => {
-    let on = true
-    readFile(path).then((f) => { if (on) setFile(f) })
-      .catch((e) => on && setFile((cur) => (gone(e) ? "missing" : cur && typeof cur === "object" ? cur : "failed")))
-    return () => { on = false }
-  }, [path, tries])
-  useVaultChange(() => { if (typeof file === "string") setTries((n) => n + 1) }, [path])
-  if (typeof file === "string") {
-    return <p className={cn("text-[13px] text-muted-foreground", className)}>{file === "missing" ? `No file ${stem(path)} in the vault.` : `Couldn't read ${stem(path)}.`}</p>
-  }
-  if (!file) return <div className={cn("min-h-6", className)} aria-busy />
+  const read = useRead(() => readFile(path), [path])
+  const [goneFrom, setGoneFrom] = useState<FileText | null>(null)
+  const { value: file, error } = read
+  const missing = (error !== undefined && gone(error)) || (!!file && goneFrom === file)
+  useVaultChange(() => { if (error !== undefined || missing) read.retry() }, [path])
+  if (missing) return <p className={cn("text-[13px] text-muted-foreground", className)}>No file {stem(path)} in the vault.</p>
+  if (!file) return <Loading className={cn("min-h-6 text-[13px]", className)} error={error !== undefined && errorText(error, `Couldn't read ${stem(path)}`)} />
   if (section) {
     return <SectionBody store={store} initial={file} section={section} noSection={noSection} editable={editable && !isReadOnly(path)} autoFocus={autoFocus}
-      onEscape={onEscape} className={className} onGone={() => setFile("missing")} />
+      onEscape={onEscape} className={className} onGone={() => setGoneFrom(file)} />
   }
   return <FileBody store={store} initial={file} editable={editable && !isReadOnly(path)} autoFocus={autoFocus} onEscape={onEscape}
-    className={className} onGone={() => setFile("missing")} />
+    className={className} onGone={() => setGoneFrom(file)} />
 }
 
 const toasted = new WeakSet<Autosave>()

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
+import { Suspense, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { Blocks, Ellipsis, SlidersHorizontal } from "lucide-react"
 import { choose } from "@/components/Chooser"
@@ -6,6 +6,7 @@ import { Catch } from "@/components/Guard"
 import type { Store } from "@/core/data"
 import type { FileCtx } from "@/core/define"
 import { readFile } from "@/core/files"
+import { useRead } from "@/core/reading"
 import { embedOf, fenceBlock } from "@/core/formats"
 import { blockName, scan } from "../../../core/sections.ts"
 import { innerOf, noteParts, setBlockText, setProp } from "@/core/frontmatter"
@@ -227,15 +228,10 @@ function OtherFile({ name, text, options, ctx, render, editing }: {
 }) {
   const path = fileFor(ctx.store, String(options.file), ctx.path)
   const mtime = ctx.store.files.files.find((f) => f.path === path)?.mtime
-  const [other, setOther] = useState<{ path: string; fm: Record<string, unknown>; body: string } | null>(null)
-  useEffect(() => {
-    if (!path) return
-    let live = true
-    readFile(path).then((f) => { if (live) setOther({ path, ...noteParts(f.text) }) }, () => {})
-    return () => { live = false }
-  }, [path, mtime])
+  const read = useRead(path ? () => readFile(path).then((f) => ({ path, ...noteParts(f.text) })) : null, [path, mtime])
+  const other = read.value
   if (!path) return <p className="text-[15px] text-muted-foreground">No file {String(options.file)} to draw this {name} block for.</p>
-  if (other?.path !== path) return <div className="min-h-20" aria-busy />
+  if (other?.path !== path) return <Loading className="min-h-20" error={read.error !== undefined && errorText(read.error, `Couldn't read ${String(options.file)}`)} />
   return <Island retry={`${path}\0${text}`} name={name} editing={editing}><Drawn render={render} ctx={{ ...ctx, ...other, host: undefined, text, options }} /></Island>
 }
 

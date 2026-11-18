@@ -285,6 +285,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `glide()`: A scroll's `behavior`: smooth, unless things are kept still.
 - `Glide`: A point on its way, and its speed (px/s).
 - `goHere(to)`: Show `to` in the focused pane whatever it held (a page's tabs, List -> Map: the same place, its own history).
+- `gone(e)`
 - `GridCard`: A block of a run drawn as a grid: `wide` takes the row, `stack` goes under the one before (its fence's layout: core/blocks.ts fenceLayout).
 - `GridEdit`: What changes a run of blocks in the file, each block by its index in the run (found where it is now).
 - `Group({ children })`: Inset grouped list, like iOS Settings (detail sheets).
@@ -342,6 +343,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `isListedPage(path, store?)`: A page offered to pin where the pages are listed (Pinned's): not one of a dated run (PageView `series`).
 - `isMac`: A Mac, iPhone or iPad: ⌘ is the app's Mod key.
 - `iso(d)`
+- `isOffline()`
 - `isOutside`
 - `isPage(path, store?)`: A page: a file a plugin draws as one (a dashboard).
 - `isPhoneDevice()`: A phone: a touch screen with a short side under 600px, whatever its window is.
@@ -451,6 +453,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `onMachine(id, machine?)`: `id` on `machine` ("" or none: as it is).
 - `onMarkdownDrawn(fn)`: Call fn with each element Markdown was just drawn into as HTML (embeds, previews, a note's callouts and tables, with their lines): plugins that change rendered Markdown (another app's…
 - `onPaneMotion(fn)`: Hear each move of panes as it starts; a promise back holds it at its start till it settles (at most HOLD_MS): what a pane shows outside the page (a web page's native view) stands in a picture of…
+- `onReconnect(fn)`
 - `onResized(f)`: Run `f` each time a resize drag ends; returns its undo.
 - `onTabLayoutChange`: Run fn whenever the tabs or splits change (a tab opened, moved, navigated; a divider dragged).
 - `onTabsEvent(fn)`: Hear every change of this window's tabs as events; returns the unsubscribe.
@@ -577,6 +580,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `range(from, n)`
 - `rawUrl(path, opts?)`: The address of a file's bytes (a vault path, or an outside file's absolute path).
 - `readFile(path)`: A file's text.
+- `Reading`
 - `ReadingBlock`: A note's block as reading offers it to a plugin (`reading`): the note, the block's Markdown, what it is, its lines in the file (0-based, frontmatter counted, as the editor's positions are; where…
 - `ReadingBlocks`: How a note's blocks draw while it's read (another app's post-processors): each text block, drawn as HTML into `el`, goes to `draw` once per text; what it answers it made shows instead of the…
 - `ReadingDrawn`: What a plugin made of a block: shown instead of the editor's drawing until the block or the note goes (`destroy`).
@@ -771,7 +775,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `toggleSidebarMode(key)`: Panel `key` alone in the left sidebar, or the panels again if it is already.
 - `tokens(n)`
 - `Tooltips`: The tooltips of `data-tip` in window `win`: the app's, or a popup's it draws in from here (a presenter view).
-- `touches(paths, path)`: Does this change touch `path` (the file itself, or a folder it's in)?
+- `touches(paths, path)`
 - `touchTabsSeen()`: The tab on screen is being looked at (the window is in view): its panes stamped as seen now.
 - `trace(topic, event)`: Something the app did, under `topic`: plain values only, never a file's text.
 - `TraceEvent`
@@ -825,6 +829,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `useNearEnd(ref, onNear, shown, margin?)`: A list's end that loads more: `onNear` each time `ref`'s element comes within `margin` of what scrolls it, looked at again when `shown` changes (how many are shown: what's drawn since may have…
 - `useNearScreen(ref, margin?)`: Whether `ref`'s element has come within `margin` of the screen (of what scrolls it); stays true after.
 - `useNoPhoneTitle(on)`: A page with no name to say yet (a chat while it loads): the phone's header shows none meanwhile, not a stand-in.
+- `useOffline()`
 - `useOpenedFiles(store, n)`: The files opened lately in this workspace that are still there (not archived), newest first, at most `n`.
 - `useOutline(path)`: A file's headings (from its editor when it's on screen, else from the file), the one at the top of the screen, and going to one.
 - `useOverConnect()`: overConnect(), as a hook.
@@ -837,6 +842,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `usePortalHost(id)`: The element with id `id` (a bar left for a portal: #sheet-bar), found as it renders so the portal is there in the same frame (a view transition's picture takes it at once); one more render if it…
 - `usePreview()`: Drawn in a plugin's preview (made-up data, nothing fetched or written).
 - `useQuerySuggest(value, set, own?)`: A search query's field (core/searchquery.ts): its operators, then the vault's tags, types and folders.
+- `useRead(read, deps, initial?)`: Read again on deps, retry, and the server's return (a slow read: after an outage); the last value outlives a failure.
 - `useReflow(box, l)`: The window's tabs (`box`'s `[data-slide]` items: the tab bar's, the Tabs panel's rows) moved among themselves, not opened or closed (grouped, ungrouped, moved by a menu or a drop) slide from where…
 - `useRewrap(box, on)`: Rows that wrap (tiles) in a box resized (a sidebar's edge dragged): items changing rows glide there, and the panels after its own by as much as it grew.
 - `useRowsNear(total, step?)`: How many of `total` rows to draw: a first `step`, then `step` more whenever the mark (`ref` it: an element after the last row drawn) comes within a few screens of what scrolls it.

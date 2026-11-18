@@ -1,6 +1,6 @@
-import { memo, useEffect, useState, type CSSProperties } from "react"
+import { memo, useState, type CSSProperties } from "react"
 import { ChevronDown, ChevronUp, FileText, ImageOff } from "lucide-react"
-import { cn, FileEditor, FileEmbed, Markdown, NoteEditor, rawUrl, readFile, splitFm, useVaultChange, withoutBlocks, type Store } from "@vaultite"
+import { cn, FileEditor, FileEmbed, gone, Markdown, NoteEditor, rawUrl, readFile, splitFm, useRead, useVaultChange, withoutBlocks, type Store } from "@vaultite"
 import { colorOf, COLLAPSED_H, styleOf, type CanvasNode } from "./codec"
 import { SIDES, DIRS, anchor, type Dir } from "./geometry"
 import { fileName, isImage, px, tint } from "./look"
@@ -13,16 +13,11 @@ function titleOf(n: CanvasNode) {
 }
 
 function NotePreview({ store, path, subpath }: { store?: Store; path: string; subpath?: string }) {
-  const [text, setText] = useState<string | null>(null)
-  const [missing, setMissing] = useState(false)
   const [n, setN] = useState(0)
-  useEffect(() => {
-    let on = true
-    readFile(path).then((f) => { if (on) { setText(f.text); setMissing(false) } }).catch(() => on && setMissing(true))
-    return () => { on = false }
-  }, [path, n])
+  const read = useRead(() => readFile(path).then((f) => f.text), [path, n])
+  const text = read.value ?? null
   useVaultChange(() => setN((x) => x + 1), [path])
-  if (missing) return <Missing path={path} />
+  if (read.error !== undefined && gone(read.error)) return <Missing path={path} />
   if (text === null) return <NameOnly path={path} />
   let body = withoutBlocks(splitFm(text).body)
   if (subpath?.startsWith("#") && !subpath.startsWith("#^")) {

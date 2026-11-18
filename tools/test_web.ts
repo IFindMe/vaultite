@@ -38,7 +38,8 @@ const AUTOSAVE_STUBS: Record<string, string> = {
   "@/core/files": `export const deletedHere = () => false; export const gone = (e) => /^Error: no file /.test(String(e)); export const moveMark = () => 0; export const whereNow = (p) => p
     export const readFile = (p) => globalThis.__autosave.readFile(p); export const stem = (p) => p.replace(/^.*\\//, "").replace(/\\.md$/, "")
     export const splitFm = (t) => { const m = /^---\\n[\\s\\S]*?\\n---\\n/.exec(t); return m ? { fm: m[0], body: t.slice(m[0].length) } : { fm: "", body: t } }`,
-  "@/core/live": "export const useVaultChange = () => {}; export const onReconnect = (fn) => { globalThis.__autosave.back.add(fn); return () => globalThis.__autosave.back.delete(fn) }",
+  "@/core/live": "export const useVaultChange = () => {}",
+  "@/core/connection": "export const onReconnect = (fn) => { globalThis.__autosave.back.add(fn); return () => globalThis.__autosave.back.delete(fn) }",
   "@/core/notify": "export const errorReason = (e) => e?.message ?? null; export const notify = (text) => { globalThis.__autosave.toasts.push(text) }",
   "@/core/drafts": "export const keepDraft = () => {}; export const dropDraft = () => {}",
 }

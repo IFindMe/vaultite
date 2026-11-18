@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react"
+import { useEffect, useRef, type MouseEvent } from "react"
 import { SquareArrowOutUpRight } from "lucide-react"
 import { anchorKey, extract, splitAnchor } from "../../../core/sections.ts"
 import type { Store } from "@/core/data"
@@ -16,6 +16,8 @@ import { FormatEmbed } from "@/components/FormatView"
 import { embedParts } from "@/core/formats"
 import { Markdown } from "@/components/Markdown"
 import { Loading } from "@/components/kit"
+import { errorText } from "@/core/notify"
+import { useRead } from "@/core/reading"
 import type { EmbedEdit } from "@/editor/livePreview"
 import { cn, scrollingBox } from "@/lib/utils"
 
@@ -43,16 +45,8 @@ export function EmbedView({ store, target, height, from, seen = [], edit }: { st
   )
 }
 
-function useNoteText(path: string | null, mtime?: number) {
-  const [file, setFile] = useState<{ path: string; text: string } | null>(null)
-  useEffect(() => {
-    if (!path) return
-    let live = true
-    readFile(path).then((r) => { if (live) setFile({ path, text: r.text }) }, () => { if (live) setFile({ path, text: "" }) })
-    return () => { live = false }
-  }, [path, mtime])
-  return file
-}
+const useNoteText = (path: string | null, mtime?: number) =>
+  useRead(path ? () => readFile(path).then((r) => ({ path, text: r.text })) : null, [path, mtime])
 
 export function NoteEmbed({ store, target, from, seen = [], fill }: { store: Store; target: string; from: string; seen?: string[]; fill?: boolean }) {
   const { disabled } = usePrefs()
@@ -60,7 +54,7 @@ export function NoteEmbed({ store, target, from, seen = [], fill }: { store: Sto
   const [, anchor] = splitAnchor(target)
   const path = noteFor(store, target, from)
   const mtime = path ? fileOf(store, path)?.mtime : undefined
-  const file = useNoteText(path, mtime)
+  const read = useNoteText(path, mtime), file = read.value
   if (!path) return <p className="note-embed-missing">No file {splitAnchor(target)[0] || target} in the vault.</p>
   const box = fill ? "note-embed is-fill size-full overflow-auto" : "note-embed"
   const name = `${stem(path)}${anchor ? ` › ${anchor.replace(/^\^/, "^")}` : ""}`
@@ -76,7 +70,9 @@ export function NoteEmbed({ store, target, from, seen = [], fill }: { store: Sto
   if (loop || seen.length > DEPTH) {
     return <div className={box} data-embed={path}>{!fill && head}<p className="note-embed-missing">{loop ? "It embeds itself, so it isn't shown again here." : "Embedded too deep to show here."}</p></div>
   }
-  if (!file || file.path !== path) return <div className={cn(box, "min-h-16")} data-embed={path}>{!fill && head}<Loading /></div>
+  if (!file || file.path !== path) {
+    return <div className={cn(box, "min-h-16")} data-embed={path}>{!fill && head}<Loading error={read.error !== undefined && errorText(read.error, "Couldn't show this note")} /></div>
+  }
   const own = !anchor && !fill ? fileFormatFor(path, disabled) : null
   if (own) {
     const draw = own.embed ?? own.render
@@ -108,7 +104,7 @@ export function NotePreview({ store, target, from }: { store: Store; target: str
   const { disabled } = usePrefs()
   const [, anchor] = splitAnchor(target)
   const path = noteFor(store, target, from)
-  const file = useNoteText(path)
+  const file = useNoteText(path).value
   const ref = useRef<HTMLDivElement>(null)
   const ready = !!file && file.path === path
   useEffect(() => {

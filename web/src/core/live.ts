@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import { heardBuild } from "@/core/builds"
 import { DEVICE } from "@/core/device"
 import { notify } from "@/core/notify"
+import { forgetUntoldLoss, lostServer, reachedServer, setServerCheck } from "@/core/connection"
 import { share } from "@/core/share"
 import { askerOf } from "@/core/askers"
 import { liveMessageOf, uiActionOf, type UiAction, type UiDone, type UiDoneMessage } from "@/core/liveMessage"
@@ -11,7 +12,7 @@ export type Paths = string[] | null
 type Fn = (paths: Paths) => void
 
 const subs = new Set<Fn>()
-const PING = 25_000, POLL = 10_000, LOST = 10_000
+const PING = 25_000, POLL = 10_000, HEARD = 5_000
 
 export function onVaultChange(fn: Fn) {
   subs.add(fn)
@@ -64,13 +65,6 @@ function heardKept(names: string[] | null, kept: string | undefined, state: numb
   if (names ? names.length : moved) emitKept(names, stateMoved)
 }
 
-const backSubs = new Set<() => void>()
-export function onReconnect(fn: () => void) {
-  backSubs.add(fn)
-  return () => { backSubs.delete(fn) }
-}
-
-/** Does this change touch `path` (the file itself, or a folder it's in)? */
 export const touches = (paths: Paths, path: string) => paths === null || paths.some((p) => p === path || path.startsWith(p + "/"))
 
 function emit(paths: Paths) {
@@ -119,7 +113,6 @@ let tries = 0
 let retry: ReturnType<typeof setTimeout> | null = null
 let poll: ReturnType<typeof setInterval> | null = null
 let started = false
-let downSince: number | null = null
 
 const startPoll = () => { poll ??= setInterval(() => document.visibilityState === "visible" && emit(null), POLL) }
 
@@ -142,14 +135,12 @@ function connect() {
     if (m.type === "hello") {
       tries = 0
       if (poll) { clearInterval(poll); poll = null }
-      if (downSince !== null && Date.now() - downSince > LOST) notify("Reconnected", { id: "live" })
-      downSince = null
       if (heard && m.paths !== undefined) { if (m.paths === null || m.paths.length) emit(m.paths) }
       else if (seen !== null && m.v !== seen) emit(null)
       seen = m.v ?? null
       heard = m.at ?? null
       heardKept(null, m.kept, m.state)
-      for (const fn of [...backSubs]) { try { fn() } catch (e) { console.error(e) } }
+      reachedServer()
       if (share && m.role && m.role !== share.role)
         notify(m.role === "read" ? "You can now only view this folder" : m.role === "edit" ? "You can now edit this folder" : "You can now comment in this folder", { id: "share-role", duration: Infinity, action: { label: "Reload", run: () => location.reload() } })
       heardBuild(m.web)
@@ -200,18 +191,27 @@ function connect() {
   s.onclose = () => {
     if (ws !== s) return
     ws = null
-    if (document.visibilityState === "visible") downSince ??= Date.now()
+    lostServer()
     startPoll()
     retry = setTimeout(connect, Math.min(30_000, 1000 * 2 ** tries++))
   }
 }
 
+function reconnect() {
+  if (ws) { const s = ws; ws = null; s.onclose = null; s.close(); startPoll(); lostServer() }
+  tries = 0
+  connect()
+}
+
 // A phone waking up keeps a dead WebSocket "open".
 function revive() {
   if (ws && Date.now() - lastHeard < PING + 10_000) return
-  if (ws) { const s = ws; ws = null; s.onclose = null; s.close(); startPoll(); downSince = null }
-  tries = 0
-  connect()
+  reconnect()
+}
+
+function recheck() {
+  if (ws?.readyState === WebSocket.CONNECTING || (ws?.readyState === WebSocket.OPEN && Date.now() - lastHeard < HEARD)) return
+  reconnect()
 }
 
 export function startLive(from?: { at?: unknown; kept?: unknown; state?: unknown }) {
@@ -219,12 +219,14 @@ export function startLive(from?: { at?: unknown; kept?: unknown; state?: unknown
   started = true
   if (isText(from?.at)) heard = from.at
   if (isText(from?.kept) && isNumber(from.state)) { keptSeen = from.kept; keptState = from.state }
+  setServerCheck(recheck)
   connect()
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") { if (!ws || ws.readyState !== WebSocket.OPEN) downSince = Date.now(); release(); revive() }
-    else downSince = null
+    if (document.visibilityState === "visible") { if (!ws || ws.readyState !== WebSocket.OPEN) lostServer(); release(); revive() }
+    else forgetUntoldLoss()
   })
   addEventListener("online", revive)
+  addEventListener("offline", recheck)
   addEventListener("pageshow", revive)
   addEventListener("focus", sayActive)
   addEventListener("pointerdown", sayActive, { capture: true, passive: true })

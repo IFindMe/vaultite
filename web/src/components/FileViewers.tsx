@@ -1,12 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type SyntheticEvent } from "react"
+import { useLayoutEffect, useRef, useState, type ReactNode, type SyntheticEvent } from "react"
 import { ArrowUpRight, Download, SquareArrowOutUpRight, type LucideIcon } from "lucide-react"
 import { dateText } from "@/core/data"
 import { get } from "@/core/http"
 import { localCopy } from "@/core/justsaved"
 import { formatSize, kindIcon, kindName, type FileKind } from "@/core/filekinds"
-import { openFile } from "@/core/files"
+import { gone, openFile } from "@/core/files"
 import { isDesktop } from "@/core/platform"
 import { useVaultChange } from "@/core/live"
+import { useRead } from "@/core/reading"
 import { playerFor } from "@/core/plugins"
 import { useStateFor } from "@/core/statefor"
 import { usePrefs } from "@/core/prefs"
@@ -29,17 +30,10 @@ export const thumbUrl = (path: string, px: number, v: number) =>
   `api/raw/${encodeURIComponent(path.split("/").pop()!)}?path=${encodeURIComponent(path)}&thumb=${px}&v=${Math.round(v)}`
 
 export function useFileInfo(path: string) {
-  const [info, setInfo] = useState<FileInfo | null>(null)
-  const [missing, setMissing] = useState(false)
   const [n, setN] = useState(0)
-  useEffect(() => {
-    let on = true
-    get<FileInfo>(`file/info?path=${encodeURIComponent(path)}`).then((i) => { if (on) { setInfo(i); setMissing(false) } })
-      .catch((e) => { if (on && /^Error: no file /.test(String(e))) setMissing(true) })
-    return () => { on = false }
-  }, [path, n])
+  const read = useRead(() => get<FileInfo>(`file/info?path=${encodeURIComponent(path)}`), [path, n])
   useVaultChange(() => setN((x) => x + 1), [path])
-  return [info, n, missing] as const
+  return [read.value ?? null, n, read.error !== undefined && gone(read.error), read] as const
 }
 
 export function useFill(on: boolean) {

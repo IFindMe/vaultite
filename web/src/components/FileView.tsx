@@ -47,7 +47,9 @@ import { Properties } from "@/components/Properties"
 import { effectiveType } from "../../../core/fileprops.ts"
 import { JsonView } from "@/components/JsonView"
 import { barButton, ViewBar } from "@/components/ViewBar"
-import { Arriving, usePortalHost } from "@/components/kit"
+import { Arriving, Bar, usePortalHost } from "@/components/kit"
+import { Pending, ReadFailed, TextLines } from "@/components/Pending"
+import { useRead, type Reading } from "@/core/reading"
 import { ink } from "@/lib/ink"
 import { useWideSheet } from "@/components/DetailSheet"
 import { TITLE, TitleRow } from "@/components/FileTitle"
@@ -275,28 +277,41 @@ export function FileView({ store, path, pane, docked }: { store: Store; path: st
 }
 
 function TextFile({ store, path, pane, docked }: { store: Store; path: string; pane: boolean; docked?: string }) {
-  const [file, setFile] = useState<FileText | null | "missing" | "binary" | "big">(() => seen.get(path) ?? null)
-  const [tries, setTries] = useState(0)
-  useEffect(() => {
-    let on = true
-    readFile(path).then((f) => { if (on) { remember(path, f); setFile(f) } })
-      .catch((e) => on && setFile((cur) => (NOT_TEXT.test(String(e)) ? (/too big/.test(String(e)) ? "big" : "binary")
-        : cur && typeof cur === "object" && !gone(e) ? cur : "missing")))
-    return () => { on = false }
-  }, [path, tries])
-  useVaultChange(() => { if (typeof file === "string") setTries((n) => n + 1) }, [path])
+  const read = useRead(() => readFile(path).then((f) => { remember(path, f); return f }), [path], seen.get(path))
+  const [goneFrom, setGoneFrom] = useState<FileText | null>(null)
+  const { value: file, error } = read
+  const notText = error !== undefined && NOT_TEXT.test(String(error))
+  const missing = !notText && ((error !== undefined && gone(error)) || (!!file && goneFrom === file))
+  useVaultChange(() => { if (error !== undefined || missing) read.retry() }, [path])
   const { disabled } = usePrefs()
   const padded = (node: ReactNode) => (pane && fillsPane(path, disabled) ? <PaneScroll>{node}</PaneScroll> : node)
-  if (file === "missing") return padded(<Missing path={path} pane={pane} />)
-  if (file === "binary" || file === "big") return padded(<MediaFile store={store} path={path} pane={pane} kind="binary" note={file === "big" ? "Too big to open here." : undefined} />)
-  if (!file) return <div className="min-h-[50vh]" aria-busy />
-  return <Loaded key={path} store={store} initial={file} pane={pane} docked={docked} onGone={() => setFile("missing")} />
+  if (missing) return padded(<Missing path={path} pane={pane} />)
+  if (notText) return padded(<MediaFile store={store} path={path} pane={pane} kind="binary" note={/too big/.test(String(error)) ? "Too big to open here." : undefined} />)
+  if (!file) return padded(<Opening path={path} pane={pane} read={read} />)
+  return <Loaded key={path} store={store} initial={file} pane={pane} docked={docked} onGone={() => setGoneFrom(file)} />
+}
+
+const couldnt = (path: string) => `Couldn't open this ${isMd(path) ? "note" : "file"}`
+
+function Opening({ path, pane, read }: { path: string; pane: boolean; read: Reading<FileText> }) {
+  if (read.error !== undefined) return <Unopened path={path} pane={pane}><ReadFailed read={read} what={couldnt(path)} className="mt-2" /></Unopened>
+  const bar = pane && isDesktop()
+  return (
+    <article className={cn("file-view", pane && "mx-auto max-w-(--line-width) pb-24")} data-path={path} data-opening>
+      {bar && <PathBar path={path} settle={async () => {}} locked />}
+      <Pending read={read} what={couldnt(path)}>
+        {!bar && <div className="mb-1 flex min-h-8 items-center text-[15px]"><Bar w="30%" /></div>}
+        <h1 className={TITLE}><Bar w="58%" /></h1>
+        <div className="mt-4"><TextLines /></div>
+      </Pending>
+    </article>
+  )
 }
 
 const moveCommand = (path: string) => (isReadOnly(path) || isOutside(path) ? [] : [{ id: "file:move", name: "Move current file to another folder", run: () => askMove(path), icon: FolderInput }])
 
 function MediaFile({ store, path, pane, kind, note }: { store: Store; path: string; pane: boolean; kind: FileKind; note?: string }) {
-  const [info, v, missing] = useFileInfo(path)
+  const [info, v, missing, read] = useFileInfo(path)
   const { disabled } = usePrefs()
   const format = kind === "binary" && !isHidden(path) && !note ? formatFor(path, disabled)?.format ?? null : null
   const drawn = format?.binary ? format : null
@@ -310,6 +325,7 @@ function MediaFile({ store, path, pane, kind, note }: { store: Store; path: stri
   usePublish(pane, () => ({ path, mode: "read", setMode: noop, body: "", views: [], info: facts, head }), [path, facts, noop, head])
   useCommands(() => (live ? moveCommand(path) : []), [live, path])
   if (missing) return <Missing path={path} pane={pane} />
+  if (!info && read.error !== undefined) return <Unopened path={path} pane={pane}><ReadFailed read={read} what={couldnt(path)} className="mt-2" /></Unopened>
   const settle = async () => {}
   const duration = (secs: number) => {
     if (!Number.isFinite(secs)) return
@@ -348,16 +364,22 @@ function BinaryFormat({ store, format, path, v, pane }: { store: Store; format: 
 const framed = (layout: FileFormat["layout"], pane: boolean, node: ReactNode) =>
   !layout || layout === "box" || layout === "pane" ? <FormatBox place={pane ? "page" : "sheet"}>{node}</FormatBox> : <FormatGuard>{node}</FormatGuard>
 
-function Missing({ path, pane }: { path: string; pane: boolean }) {
+function Unopened({ path, pane, children }: { path: string; pane: boolean; children: ReactNode }) {
   const bar = pane && isDesktop()
   return (
     <article className={cn("file-view", pane && "mx-auto max-w-(--line-width) pb-24", !bar && "py-10")} data-path={path}>
       {bar && <PathBar path={path} settle={async () => {}} locked />}
       <h1 className={TITLE}>{stem(path)}</h1>
-      <p data-placeholder className="mt-2 text-[15px] text-muted-foreground">This file isn't in the vault any more. It may have been renamed or deleted.</p>
+      {children}
     </article>
   )
 }
+
+const Missing = ({ path, pane }: { path: string; pane: boolean }) => (
+  <Unopened path={path} pane={pane}>
+    <p data-placeholder className="mt-2 text-[15px] text-muted-foreground">This file isn't in the vault any more. It may have been renamed or deleted.</p>
+  </Unopened>
+)
 
 function Loaded({ store, initial, pane, docked, onGone }: { store: Store; initial: FileText; pane: boolean; docked?: string; onGone: () => void }) {
   const path = initial.path

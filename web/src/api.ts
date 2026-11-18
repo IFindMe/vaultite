@@ -30,7 +30,7 @@ export type { AgentDef, AgentRun, AmbientItem, BlockCtx, DoTask, BrowseEntry, Br
 export { parseTimeline, timelineOf, type Entry as TimelineEntry } from "../../core/timeline.ts"
 /** A button opening the form that adds a line to a file's `## Timeline` (made when it has none). */
 export { AddToTimeline } from "@/components/Timeline"
-export { closeView, createFile, createNamed, folderOf, folderTarget, freeName, homeOf, isDoc, isFolder, isHidden, isViewOpen, markNew, mergeIntoFile, openFile, openFolder, openNew, openingSoon, openView, pastedFiles, readFile, settleFile, shownName, splitFm, stem } from "@/core/files"
+export { closeView, createFile, createNamed, folderOf, folderTarget, freeName, homeOf, isDoc, isFolder, isHidden, isViewOpen, markNew, mergeIntoFile, openFile, openFolder, openNew, openingSoon, openView, pastedFiles, readFile, gone, settleFile, shownName, splitFm, stem } from "@/core/files"
 /** A folder of the vault, picked in the palette (one typed that isn't there is made). */
 export { chooseFolder } from "@/components/FolderPicker"
 export { seenArea } from "@/components/FileTree"
@@ -164,6 +164,8 @@ export { addKeys, appShortcut, beginKeys, cancelKeys, commandKeys, keyCaps, keyH
 export { isLinux, isMac, isWindows, keysText, modKey, revealLabel, showLabel } from "@/core/platform"
 export { checklist, commandItems, menuAbove, menuBelow, menuFor, menuShowing, openMenu, replaceMenu, useMenuShowing, rightClickBelow, type CheckItem, type MenuItem } from "@/components/ContextMenu"
 export { onVaultChange, touches, useVaultChange } from "@/core/live"
+export { useRead, type Reading } from "@/core/reading"
+export { isOffline, onReconnect, useOffline } from "@/core/connection"
 export { DEVICE } from "@/core/device"
 export { afterSheets, backDetail, openDetail, replaceDetail, replaceHash, scrollPage } from "@/core/nav"
 /** A scroll's `behavior`: smooth, unless Reduce motion or animations off keep things still. */

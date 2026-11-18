@@ -1,6 +1,7 @@
 import { tracked } from "@/core/live"
 import { isPhoneDevice } from "@/core/platform"
-import { errorIn } from "../../../core/plainerror.ts"
+import { checkServer } from "@/core/connection"
+import { errorIn, plainError } from "../../../core/plainerror.ts"
 
 export function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const p = send<T>(method, path, body)
@@ -26,8 +27,9 @@ export async function send<T>(method: string, path: string, body?: unknown, cach
       headers: headers(body), body: text, signal: method === "GET" ? AbortSignal.timeout?.(READ_WAIT) : undefined,
     })
   } catch (e) {
-    if (e instanceof DOMException && e.name === "TimeoutError") throw new Error("The server didn't answer")
-    throw e
+    const thrown = e instanceof DOMException && e.name === "TimeoutError" ? new Error("The server didn't answer") : e
+    if (plainError(thrown).network) checkServer()
+    throw thrown
   }
   const j = r.ok ? await r.json() : await r.json().catch(() => ({}))
   if (!r.ok) throw Object.assign(new Error(errorIn(j) || r.statusText || `Error ${r.status}`), { status: r.status })

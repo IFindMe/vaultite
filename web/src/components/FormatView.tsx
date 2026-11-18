@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Catch } from "@/components/Guard"
 import type { Store } from "@/core/data"
 import { fileOf, readFile, stem } from "@/core/files"
 import { isDesktop } from "@/core/platform"
 import { useVaultChange } from "@/core/live"
+import { useRead } from "@/core/reading"
 import { formatFor } from "@/core/plugins"
 import { usePrefs } from "@/core/prefs"
 import { EmbedHead, rawUrl, useFill } from "@/components/FileViewers"
@@ -26,15 +27,11 @@ export function FormatEmbed({ store, path, height, fill, sub, from }: { store: S
   const { disabled } = usePrefs()
   const format = formatFor(path, disabled)?.format
   const binary = !!format?.binary
-  const [text, setText] = useState<string | null>(null)
   const [n, setN] = useState(0)
-  useEffect(() => {
-    if (binary) return
-    let on = true
-    readFile(path).then((f) => on && setText(f.text)).catch(() => on && setText(null))
-    return () => { on = false }
-  }, [path, n, binary])
+  const read = useRead(binary ? null : () => readFile(path).then((f) => f.text), [path, n, binary])
+  const text = binary ? null : read.value ?? null
   useVaultChange(() => setN((x) => x + 1), [path])
+  const waiting = <Loading className="p-4" error={read.error !== undefined && errorText(read.error, "Couldn't show this file")} />
   if (!format) return null
   const Icon = format.icon
   const draw = format.embed ?? format.render
@@ -44,7 +41,7 @@ export function FormatEmbed({ store, path, height, fill, sub, from }: { store: S
   return (
     <div className="glass overflow-hidden rounded-[12px]" data-format-embed={path}>
       <EmbedHead path={path} icon={Icon} name={format.page ? fileOf(store, path)?.title ?? stem(path) : path.split("/").pop()!} />
-      {box ? <div className="relative" style={{ height: height ?? 360 }}>{drawn || <Loading className="p-4" />}</div> : drawn || <div className="h-24 p-4"><Loading /></div>}
+      {box ? <div className="relative" style={{ height: height ?? 360 }}>{drawn || waiting}</div> : drawn || <div className="h-24">{waiting}</div>}
     </div>
   )
 }

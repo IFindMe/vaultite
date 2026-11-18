@@ -7,6 +7,7 @@ export type Plain = {
   bug: boolean
   /** The exact text, for Details and the error log. */
   detail: string
+  network?: boolean
 }
 
 const CODES: Record<string, string> = {
@@ -47,7 +48,7 @@ export function plainError(e: unknown): Plain {
   const text = unwrap(raw).trim()
   const detail = typeof o.stack === "string" && o.stack.includes(text) ? o.stack : `${name && name !== "Error" && !raw.startsWith(name) ? `${name}: ` : ""}${raw}`
   const status = typeof o.status === "number" ? o.status : 0
-  if (NETWORK.test(text)) return { reason: "the server didn't answer", bug: false, detail }
+  if (NETWORK.test(text)) return { reason: "the server didn't answer", bug: false, detail, network: true }
   // (a code first: one an error carries, or Node's in its text: "EACCES: permission denied, open '…'", "spawn ENOENT")
   const code = (typeof o.code === "string" && o.code) || [...text.matchAll(/\b(E[A-Z]{3,}[A-Z_]*)\b/g)].map((m) => m[1]).find((c) => CODES[c]) || ""
   if (CODES[code]) return { reason: CODES[code], bug: false, detail }
