@@ -124,6 +124,13 @@ try {
   check("… its menu shows each workspace's mark, as the computer's list does", marks?.[0] === "book-open" && marks?.[1] === "2Reading", marks)
   const fits = await P.$eval("[role=menu]", (m) => ({ right: Math.round(m.getBoundingClientRect().right), w: innerWidth, cut: [...m.querySelectorAll(".truncate")].some((t) => t.scrollWidth > t.clientWidth) }))
   check("… within the screen, a long name cut off", fits.right <= fits.w && fits.cut, fits)
+  await P.locator("[role=menu] [role^=menuitem]", { hasText: /^Rename$/ }).click()
+  const field = P.locator("[role=dialog] input")
+  await field.waitFor({ timeout: 5000 })
+  check("phone: Rename in the title's menu asks for its name, the one it has typed", (await field.inputValue()) === "Writing", await field.inputValue())
+  await field.fill("Drafts"); await field.press("Enter")
+  check("… Enter renames it: the title, and its file", !!(await until(async () => (await P.locator("[data-tabs-title]").innerText()) === "Drafts" && workspaces(B)[0]?.name === "Drafts", 5000)),
+    [await P.locator("[data-tabs-title]").innerText(), workspaces(B)[0]])
   await pctx.close()
 } finally {
   writeFileSync(PLUGINS, pluginsBefore)

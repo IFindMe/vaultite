@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
-  cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
+  askText, cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
   replaceHash, sameSidebars, WORKSPACES as MAX, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
   allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type TabList, type WorkspaceHost, type WorkspaceInfo,
 } from "@vaultite"
@@ -152,7 +152,7 @@ export const host: WorkspaceHost = {
     return [
       ...SLOTS.filter((m) => m === n || now(m)).map((m) => ({ label: label(m), icon: markIcon(m, lookOf(m)), checked: m === n, run: () => switchTo(m) })),
       ...(free ? [{ label: "New workspace", icon: Plus, run: () => switchTo(free) }] : []),
-      ...slotMenu(n, null).map((it, i) => (i ? it : { ...it, sep: true })),
+      ...slotMenu(n, () => askName(n)).map((it, i) => (i ? it : { ...it, sep: true })),
     ]
   },
   get: getState,
@@ -460,6 +460,14 @@ export function renamed(n: number, name: string | null) {
   setRenaming(0)
   if (name !== null) patch(n, { name: name.trim() || null })
 }
+function askName(n: number) {
+  const name = slots()?.[n - 1]?.name ?? ""
+  askText({
+    title: "Rename workspace", heading: `Rename workspace "${label(n)}"`, placeholder: "Name this workspace…", typed: name,
+    hint: name ? `Enter to go back to the automatic name, "Workspace ${n}"` : "Type a name",
+    label: (t) => `Rename to "${t}"`, icon: Pencil, onText: (t) => { patch(n, { name: t }) }, onBlank: () => { patch(n, { name: null }) },
+  })
+}
 export const label = (n: number) => slots()?.[n - 1]?.name || `Workspace ${n}`
 export function lookOf(n: number): Pick<WorkspaceInfo, "icon" | "tint" | "container"> {
   const d = slots()?.[n - 1]
@@ -528,13 +536,13 @@ const moveItems = (n: number): MenuItem[] => [
   ...(now(n + 1) ? [{ label: "Move down", icon: ArrowDown, run: () => reorder(n, n + 1) }] : []),
 ].map((m, i) => (i ? m : { ...m, sep: true }))
 
-export function slotMenu(n: number, rename: (() => void) | null = () => setRenaming(n)): MenuItem[] {
+export function slotMenu(n: number, rename = () => setRenaming(n)): MenuItem[] {
   const has = !!now(n)
   const d = slots()?.[n - 1]
   const free = SLOTS.find((m) => m !== n && !now(m))
   const own = d?.sidebars && !defaultSidebars(d.sidebars) ? d.sidebars : null
   return [
-    ...(rename ? [{ label: "Rename", icon: Pencil, run: rename }] : []),
+    { label: "Rename", icon: Pencil, run: rename },
     ...lookItems(n),
     ...(has ? [{ label: free ? `Duplicate to workspace ${free}` : `Duplicate (all ${MAX} are in use)`, icon: Copy, disabled: !free, run: () => {
       const { name: _name, ...rest } = now(n)!

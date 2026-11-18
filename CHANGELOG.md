@@ -6,6 +6,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Phone: the workspace menu (the tab list's title) has Rename, as the computer's does.
 - Workspaces: one made, renamed or recoloured on one machine (or the phone) shows on the others at once, instead of
   waiting for iCloud to bring its file.
 - Agents: a session whose turn is over while its own background work runs (a command, a monitor, a job it handed
