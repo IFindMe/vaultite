@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 const BUTTON = "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 font-medium transition-colors disabled:cursor-default disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
 const BUTTON_SIZE = { normal: "h-9 rounded-[8px] px-3.5 text-[15px] md:h-8 md:text-[13px]", small: "h-7 rounded-[6px] px-3 text-[13px] max-md:h-9 max-md:text-[15px]" }
 const BUTTON_LOOK = {
-  primary: "bg-primary text-primary-foreground hover:bg-primary/85",
+  primary: "bg-primary text-primary-foreground hover:bg-primary/85 disabled:not-aria-busy:bg-foreground/[0.06] disabled:not-aria-busy:text-muted-foreground",
   secondary: "bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.1]",
   outline: "border-[0.5px] border-border bg-background hover:bg-foreground/[0.05]",
   quiet: "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground",

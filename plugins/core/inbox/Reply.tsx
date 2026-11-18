@@ -1,10 +1,11 @@
 import { useEffect, useState, type KeyboardEvent } from "react"
-import { MessageSquareReply, PencilLine, SquareTerminal } from "lucide-react"
-import { appDevice, Button, cn, keyHint, notify, notifyError, op, openFile, Panel, parseTerminal, usePane, type BlockCtx } from "@vaultite"
+import { MessageSquareReply, PencilLine } from "lucide-react"
+import { appDevice, Button, cn, keyHint, notify, notifyError, op, openFile, Panel, usePane, type BlockCtx } from "@vaultite"
 import { draftOf, hasDraft, keepDraft, sendDraft, sendingOf, useHasDraft, useSending } from "./drafts"
-import { openSession, useEvents } from "./events"
+import { reportSession, useEvents } from "./events"
+import { OpenSession } from "./ItemActions"
 
-const field = "w-full resize-y rounded-[7px] border-[0.5px] border-border bg-background px-2.5 py-1.5 text-[17px] leading-[22px] outline-none focus:border-primary md:text-[14px] md:leading-[20px]"
+const field = "w-full resize-y rounded-control border-[0.5px] border-border bg-background px-2.5 py-1.5 text-[17px] leading-[22px] outline-none focus:border-primary md:text-[14px] md:leading-[20px]"
 // (a phone's 44px target)
 const reply = "h-11 rounded-[6px] px-3 md:h-7 md:px-2.5"
 
@@ -32,7 +33,7 @@ const replies = (body: string) => body.split("[!note] You replied").length - 1
 type Plan = { how: "type" | "resume" | "new" | null; ago: number | null; ttl: number | null }
 
 function PlanLine({ plan, how, setHow }: { plan: Plan | null; how: "resume" | "new" | ""; setHow: (h: "resume" | "new" | "") => void }) {
-  if (!plan?.how) return <span className="md:flex-1" />
+  if (!plan?.how) return <span className={cn("md:flex-1", !plan && "max-md:h-[18px] max-md:basis-full")} />
   const auto = plan.how
   const now = how || auto
   const left = plan.ago !== null && plan.ttl ? Math.max(1, Math.round((plan.ttl - plan.ago) / 60)) : null
@@ -96,7 +97,7 @@ export function ReplyBox({ to, draft: key = to, name, kept = 0, open, sent: done
   }
   const showing = sent?.text ?? flying
   return (
-    <Panel title={`Reply to ${name}`} icon={MessageSquareReply} tint="var(--inbox)" action={<DraftTag to={key} />}>
+    <Panel title={`Reply to ${name}`} icon={MessageSquareReply} tint="var(--inbox)" action={<DraftTag to={key} />} className="border-[0.5px] border-border">
       {showing && (
         <div className="mb-2 rounded-[7px] border-[0.5px] border-border bg-foreground/[0.03] px-2.5 py-1.5" data-reply-sending>
           <div className="text-[13px] font-medium text-muted-foreground">Sending…</div>
@@ -107,9 +108,7 @@ export function ReplyBox({ to, draft: key = to, name, kept = 0, open, sent: done
         onChange={(e) => setText(e.target.value)} onKeyDown={onKey} className={field} data-reply />
       <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
         <PlanLine plan={plan} how={how} setHow={setHow} />
-        <Button look="quiet" className={reply} onClick={() => void open().catch((e) => notifyError(e, "Couldn't open it"))}>
-          <SquareTerminal className="size-4" /> Open session
-        </Button>
+        <OpenSession open={open} look="quiet" at="end" className={reply} />
         <Button look="primary" className={reply} disabled={!text.trim() || !!sent || flying !== null} onClick={() => void send()} data-tip={appDevice === "phone" ? undefined : `Send (${keyHint("Enter")})`}>
           Send
         </Button>
@@ -122,11 +121,9 @@ export function ReplyBlock({ store, path, body }: BlockCtx) {
   const r = store.inbox?.find((x) => `${x.id}.md` === path)
   const thread = useEvents().events.find((e) => e.link?.replace(/^file:/, "") === path)?.id
   useEffect(() => { if (thread && hasDraft(path) && !hasDraft(thread)) { keepDraft(thread, draftOf(path)); keepDraft(path, "") } }, [thread, path])
-  const terminal = r?.terminal ?? "", session = r?.session ?? ""
-  if (!r || !(terminal || session)) {
+  const open = reportSession(r)
+  if (!r || !open) {
     return <p className="text-[15px] text-muted-foreground md:text-[13px]">A reply box, for an agent's report: what's typed here goes back into its session.</p>
   }
-  const agent = r.agent || parseTerminal(terminal)?.agent || ""
-  return <ReplyBox to={path} draft={thread ?? path} name={r.from || "the agent"} kept={replies(body)} back={() => openFile(path)}
-    open={() => openSession({ terminal, session, agent, machine: r.machine ?? "", host: !terminal })} />
+  return <ReplyBox to={path} draft={thread ?? path} name={r.from || "the agent"} kept={replies(body)} back={() => openFile(path)} open={open} />
 }

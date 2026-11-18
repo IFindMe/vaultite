@@ -46,8 +46,8 @@ const rows = await sheet.locator("[data-question='0'] [data-option]").allInnerTe
 check("one question: its options numbered, then Type something, as its picker", rows.length === 5 && rows[0].startsWith("1.") && rows[3].startsWith("4.") && rows[4].startsWith("5.") &&
   (await sheet.locator("[data-option='5'] input").getAttribute("placeholder")) === "Type something", rows)
 check("then Chat about this, numbered after it", (await sheet.locator("[data-chat-about]").innerText()).replace(/\s+/g, " ").trim() === "6. Chat about this")
-check("its own answer is that row: no reply box beside it, Open session still there", (await sheet.locator("[data-reply]").count()) === 0 &&
-  (await sheet.getByRole("button", { name: "Open session" }).count()) === 1)
+check("its own answer is that row: no reply box beside it, Open session once, on top", (await sheet.locator("[data-reply]").count()) === 0 &&
+  (await sheet.locator("[data-open-session=top]").count()) === 1 && (await sheet.locator("[data-open-session]").count()) === 1)
 await d.page.screenshot({ path: `${OUT}1-one-question.png` })
 await sheet.locator("[data-option='5'] input").fill("Mango, ripe")
 check("typed: its row is chosen, with a send button", (await sheet.locator("[data-option='5']").getAttribute("data-typed")) === "on" && (await sheet.locator("[data-send-typed]").count()) === 1)

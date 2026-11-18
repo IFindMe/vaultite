@@ -14,6 +14,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Dictation: Deepgram, AssemblyAI, OpenAI and ElevenLabs recognize too (the Recognizer setting, each with its key:
   `vau dictation key --provider deepgram`), through the server so their keys never leave it; the iPhone gets Soniox's with a
   key that opens one stream, or its own recognizer when On the iPhone says so.
+- Inbox: a session's sheet starts with Open session, then Settle, Pin and Snooze, labelled on phones too; a report has
+  Open session in its top bar. Settle shows a single tick, who delegated a session is in the line under its title, and
+  a subagent that needs you is marked. Disabled buttons, such as Send with nothing typed, are now grey.
 - Bad connections: a note or file on its way shows its skeleton, then "Still loading…" with Try again; one that can't
   be read says why ("Couldn't open this note: the server didn't answer") instead of "isn't in the vault any more", and
   opens by itself when the connection's back. When the server can't be reached for a while the app says so ("Can't

@@ -1,7 +1,8 @@
 import type { MouseEvent } from "react"
 import { AlarmClockOff, BellOff, Check, Clock, ExternalLink, FileText, FolderInput, Globe, Mail, MailOpen, MoreHorizontal, Pin, PinOff, RotateCcw, ShieldCheck, SquareTerminal, Trash2 } from "lucide-react"
 import { askMoveMany, cn, DoIt, getStore, haptic, menuBelow, openFile, openMenu, openWebLink, pluginFileGroups, useSelectable, useStoreWith, type FileHead, type MenuItem, type Store, type SwipeAction, type TabButton } from "@vaultite"
-import { fixEvent, forget, getEvents, markRead, markUnread, openAsker, openEvent, snoozable, targetOf } from "./events"
+import { fixEvent, forget, getEvents, markRead, markUnread, openAsker, openEvent, reportSession, snoozable, targetOf } from "./events"
+import { OpenSession } from "./ItemActions"
 import type { InboxEvent, InboxItem } from "./types"
 import { snoozed } from "./snooze"
 import { muteAccount } from "./mute"
@@ -116,13 +117,16 @@ export function itemButtons(r: InboxItem): TabButton[] {
 export const tabButtonsOf = (to: string) => { const r = to.startsWith("file:") ? resultAtPath(to.slice(5)) : undefined; return r ? itemButtons(r) : null }
 
 export function ItemBar({ file }: { file: FileHead & { place: "bar" | "line" } }) {
-  const r = useStoreWith((s) => s?.inbox?.find((x) => pathOf(x) === file.path && reviewing(x)))
-  if (!r) return null
+  const r = useStoreWith((s) => s?.inbox?.find((x) => pathOf(x) === file.path))
+  const open = reportSession(r)
+  const triage = !!r && reviewing(r)
+  if (!open && !triage) return null
   const bar = file.place === "bar"
   return (
     <span data-inbox-bar className={cn("flex shrink-0 items-center", bar ? "gap-0.5" : "-my-1.5 md:my-0")}>
-      {r.do && <DoIt task={{ text: r.do }} done={() => void markDone(r)} />}
-      {itemButtons(r).map((b) => (
+      {open && <OpenSession open={open} at="top" look={bar ? "secondary" : "quiet"} className={bar ? "mr-1.5 h-7 px-2.5 md:h-7" : "px-2 md:mr-1"} />}
+      {triage && r.do && <DoIt task={{ text: r.do }} done={() => void markDone(r)} />}
+      {triage && itemButtons(r).map((b) => (
         <button key={b.label} type="button" aria-label={b.label} data-tip={b.label} data-inbox-bar-button={b.label} onClick={b.run}
           className={cn("grid shrink-0 cursor-pointer place-items-center text-muted-foreground hover:text-foreground",
             bar ? "size-7 rounded-[5px] hover:bg-foreground/[0.06]" : "size-11 active:opacity-50 md:size-8 md:rounded-[6px] md:hover:bg-foreground/[0.06]")}>

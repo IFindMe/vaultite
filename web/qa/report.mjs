@@ -1,5 +1,5 @@
-// An agent's report (inbox.report) and the reply from it (inbox.reply) into its terminal, desktop and 390px. Writes
-// Inbox/, Attachments/ and starts terminals: throwaway server only (then `tmux -L vaultite-<port> kill-server`).
+// An agent's report (inbox.report; plugins/core/inbox/ItemActions.tsx, menus.tsx, Reply.tsx) and the reply from it
+// (inbox.reply) into its terminal, desktop and 390px. Writes Inbox/, Attachments/ and starts terminals: throwaway server only (then `tmux -L vaultite-<port> kill-server`).
 //   node web/qa/report.mjs <base url> [out dir]
 import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, readdirSync } from "node:fs"
@@ -38,6 +38,8 @@ await page.goto(`${B}#file/${enc(file)}`)
 const box = page.locator("textarea[data-reply]")
 check("reply box: drawn at the report's end", await until(() => box.isVisible().catch(() => false), 10000))
 check("reply box: says who it answers", (await page.getByText("Reply to Claude Code").count()) > 0)
+const [top, end, tldr] = await Promise.all(["[data-file-bar] [data-open-session=top]", "[data-open-session=end]", ".cm-callout, [data-callout]"].map(async (s) => (await page.locator(s).filter({ visible: true }).first().boundingBox())?.y ?? -1))
+check("report: Open session in its file bar, above its text, and still by the reply box", top >= 0 && tldr > top && end > tldr, { top, tldr, end })
 check("report: its questions, as decisions", await until(async () => (await page.locator("[data-decisions-block] [data-decision]", { hasText: "Keep the old footer?" }).count()) === 1 &&
   (await page.locator("[data-decisions-block] [data-decision]", { hasText: "Ship it today?" }).count()) === 1, 5000), await page.locator("[data-decisions-block]").innerText().catch(() => ""))
 check("report: its tl;dr drawn on top, a callout", (await page.locator(".cm-callout, [data-callout]").first().innerText().catch(() => "")).includes("In short") ||
@@ -88,6 +90,9 @@ await pbox.scrollIntoViewIfNeeded()
 const send = ph.getByRole("button", { name: "Send" })
 const [bw, sb] = [await pbox.boundingBox(), await send.boundingBox()]
 check("phone: the box is full width, its buttons 44px", bw && bw.width > 300 && sb && sb.height >= 44, { bw, sb })
+await ph.evaluate(() => document.querySelector("#main-scroll")?.scrollTo(0, 0))
+const [pTop, pTitle] = await Promise.all(["[data-file-bar] [data-open-session=top]", "h1, .cm-title"].map((s) => ph.locator(s).filter({ visible: true }).first().boundingBox()))
+check("phone: Open session on the file's top line, above its title, 44px", !!pTop && !!pTitle && pTop.y < pTitle.y && pTop.height >= 44 && pTop.x + pTop.width <= 390, { pTop, pTitle })
 await ph.screenshot({ path: `${OUT}report-phone.png` })
 
 await api("DELETE", `terminals/${term}`).catch(() => {})

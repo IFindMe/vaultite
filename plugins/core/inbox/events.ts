@@ -1,8 +1,8 @@
 import { useMemo } from "react"
-import { agentsOn, canRunAgents, cell, onReconnect, clickOpening, del, detailPath, fetchMachines, focusedPane, get, getTabLayout, haptic, shownTab, isDesktop, isOutside, isViewOpen, notify, notifyError, onMachine, op, openAgent, openDetail, openFile, openOutside, openView, openWebLink, post, splitMachine, type Agent, type TabLayout } from "@vaultite"
+import { agentsOn, canRunAgents, cell, onReconnect, clickOpening, del, detailPath, fetchMachines, focusedPane, get, getTabLayout, haptic, shownTab, isDesktop, isOutside, isViewOpen, notify, notifyError, onMachine, op, openAgent, openDetail, openFile, openOutside, openView, openWebLink, parseTerminal, post, splitMachine, type Agent, type TabLayout } from "@vaultite"
 import { snoozed, snoozeMs } from "./snooze"
 import { isMessage, waitsOnYou } from "./threads"
-import type { InboxEvent } from "./types"
+import type { InboxEvent, InboxItem } from "./types"
 
 export type Hold = { until: string; from: string; label?: string }
 export type Events = { events: InboxEvent[]; unread: number; needs: number; ready: boolean; hold: Hold | null }
@@ -170,6 +170,13 @@ export async function openSession({ terminal = "", session = "", agent = "", mac
   if (bare && sessions.some((s) => s.id === bare)) openView(`terminal/${onMachine(bare, there)}`, { newTab: true })
   else if (session && agent) openAgent(agent, { resume: session, machine: there })
   else notify("Its terminal has ended, and it names no session to resume")
+}
+
+export function reportSession(r: InboxItem | undefined) {
+  const terminal = r?.terminal ?? "", session = r?.session ?? ""
+  if (!r || !(terminal || session)) return null
+  const agent = r.agent || parseTerminal(terminal)?.agent || ""
+  return () => openSession({ terminal, session, agent, machine: r.machine ?? "", host: !terminal })
 }
 
 export function fixEvent(e: InboxEvent) {

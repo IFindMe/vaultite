@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { BookOpen, Check, CheckCheck, Globe, ListVideo, Pause, Play, RotateCcw } from "lucide-react"
+import { BookOpen, Check, CircleCheck, Globe, ListVideo, Pause, Play, RotateCcw } from "lucide-react"
 import { cn, Empty, fmtAgo, isArchived, List, menuFor, op, openFile, optimistic, Panel, rawUrl, resolver, Row, Segmented, SwipeRow, type Store, type BlockCtx, type SwipeAction } from "@vaultite"
 import { leftText, shelfOf, type Place, type Shelf } from "./shelves"
 import { getNow, pictureOf, playFile, markDone, useNow, usePlaces, useTick } from "./now"
@@ -92,13 +92,13 @@ function QueueRow({ e, place }: { e: Entry; place?: Place }) {
     if (playing) { if (now!.el.paused) void now!.el.play(); else now!.el.pause() } else playFile(e.media, e.note)
   }
   const swipe = (): SwipeAction[] => [
-    ...(e.media ? [{ label: place?.done ? "Unplayed" : "Played", icon: place?.done ? RotateCcw : CheckCheck, run: () => markDone(e.media!, !place?.done) }] : []),
+    ...(e.media ? [{ label: place?.done ? "Unplayed" : "Played", icon: place?.done ? RotateCcw : CircleCheck, run: () => markDone(e.media!, !place?.done) }] : []),
     { label: "Done", icon: Check, run: done, removes: true },
   ]
   const menu = menuFor(() => [
     { label: "Open", run: () => openFile(e.note) },
     ...(e.source && /^https?:/.test(e.source) ? [{ label: "Open the page", icon: Globe, run: () => window.open(e.source, "_blank", "noopener") }] : []),
-    ...(e.media ? [{ label: place?.done ? "Mark as unplayed" : "Mark as played", icon: place?.done ? RotateCcw : CheckCheck, run: () => markDone(e.media!, !place?.done) }] : []),
+    ...(e.media ? [{ label: place?.done ? "Mark as unplayed" : "Mark as played", icon: place?.done ? RotateCcw : CircleCheck, run: () => markDone(e.media!, !place?.done) }] : []),
     { label: "Done", icon: Check, run: done },
   ])
   const meta = [e.from, e.media ? leftText(live) : e.created ? fmtAgo(e.created) : ""].filter(Boolean).join(" · ")

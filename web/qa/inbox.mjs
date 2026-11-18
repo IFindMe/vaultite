@@ -64,7 +64,9 @@ let ev = await api("GET", "inbox/events")
 check("a permission isn't read by opening it (its answer reads it)", ev.events.find((e) => e.ask === "permission")?.read !== true, ev.events)
 await ui.idle()
 await shot(page, "2-session-sheet-permission")
-await sheet.getByRole("button", { name: "Open session" }).click()
+check("Open session once, on top, and Approve the one filled button", (await sheet.locator("[data-open-session=top]").count()) === 1 && (await sheet.locator("[data-open-session]").count()) === 1 &&
+  (await sheet.locator("[data-open-session=top]").evaluate((b) => getComputedStyle(b).backgroundColor)) === "rgba(0, 0, 0, 0)")
+await sheet.locator("[data-open-session=top]").click()
 check("Open session goes to its terminal", !!(await until(() => page.evaluate((t) => location.hash.includes(`terminal%2F${t}`) || location.hash.includes(`terminal/${t}`), term))), await page.evaluate(() => location.hash))
 
 await page.bringToFront()
