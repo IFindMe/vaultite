@@ -22,6 +22,22 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   draw (a spinner, an agent at work): their screens take output in batches, and still answer a program's questions at once.
 - Terminal: an agent's terminal no page shows (started in the background, or its tab closed) no longer costs the server:
   its output stops coming there 30 s after the last page leaves, and a page opening it again gets its screen as before.
+- Server: starts answering sooner after an update that changed no part of the web app (2.4 s, now 0.9 s on a 3,000-note
+  vault).
+- Server: an agent's request no longer checks every file of every vault plugin on the main thread (38 file reads each
+  with 3 small plugins, now 8, however many plugins).
+- Server: iCloud is asked for the files it evicted a few at a time, and a file that stays away less and less often (in
+  an hour: 60 asks each, now 6).
+- Server: while iCloud has files to bring down (Optimize Mac Storage), the app's requests no longer each walk the whole
+  vault (78 ms each, now 3).
+- Server: a file iCloud hasn't brought down no longer fails requests and the scheduler's runs ("Unknown system error
+  -11"): what reads it waits for it, the rest goes on.
+- Server: an upload (a voice note from the watch, a photo) no longer holds every save until its bytes arrive.
+- Server: a walk of the vault looks at the disk before it holds the vault, so a save no longer waits behind one on a slow
+  disk (2.4 s, now none).
+- Server: files gone from a folder (moved by hand) ask the disk once, not once each: 1.8 s frozen on a 3,000-note vault,
+  now 0.3 s.
+- Server: a walk of the vault no longer reads every settings file again when none changed (each read a wait on iCloud).
 - Workspaces: tabs opened as the app starts (by an agent, a link, or the demo's Browser page with its live sites) are no
   longer taken away when the workspace's own tabs come in, nor sent back behind the page the app was opened at.
 - Quick switcher: finding notes by name as you type takes about a third of the time it did (over 1,500 notes, 10 ms

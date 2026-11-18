@@ -1115,7 +1115,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `effectiveType(kindType, fm)`: A file's type: its kind's (`kindType`, when a kind owns the file), else its frontmatter `type` when that's text, else a plugin's mark on it.
 - `Entry`
 - `extract(text, anchor)`: What an embed shows: the whole text, a heading's section (`Heading`) or a block (`^id`, its id taken off); null if the anchor isn't there.
-- `fetchFromICloud(p, e)`
+- `fetchFromICloud(p, e, { asked }?)`
 - `FileCreateHook`: onCreateFile's hooks (Vault.onCreateFile): told of a new file that isn't Markdown; they never change its bytes.
 - `FM`
 - `formatInput(abs, rel)`: A file as a plugin's reader of its format gets it (the services `text:<ext>`): its text, or for a file that isn't text (a workbook, a Word document, a book: core/filetypes.ts's "binary") its bytes.
@@ -1134,6 +1134,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `linkKey(e)`: What a [[link]] finds a note by, past its path: its aliases, and whether it's archived (Vault.linkNames).
 - `loadFm(raw)`: Frontmatter text -> a record.
 - `localStamp(d?)`: Local "YYYY-MM-DD HHMMSS", for names of trashed files.
+- `Looked`
 - `mergeFm(existing, owned)`: The keys a kind owns, in its order (blank ones dropped), then every other key the file already had.
 - `MoveHook`: onMove's hooks (Vault.onMove): `to` null when trashed, then `trashed` is its path in .trash.
 - `ms(ns)`

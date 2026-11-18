@@ -220,7 +220,7 @@ export function readBytes(p: string): Buffer {
   if (Date.now() - (reading.get(p)?.since ?? Infinity) >= SLOW && !onDisk(p)) throw stillDownloading(p)
   try { const b = fs.readFileSync(p); if (fetching.size) fetching.delete(p); return b } catch (e) {
     if (!placeholder(e)) throw e
-    fetchFromICloud(p, e)
+    fetchFromICloud(p, e, { asked: true })
     throw stillDownloading(p, e)
   }
 }
@@ -288,15 +288,31 @@ export const iCloud = {
 const placeholder = (e: unknown) => iCloud.on && Math.abs(errnoOf(e) ?? 0) === 11
 const evicted = (abs: string, st: fs.BigIntStats | fs.Stats) => iCloud.on && iCloud.evicted(abs, st)
 
-const fetching = new Map<string, number>()
-export function fetchFromICloud(p: string, e: unknown) {
+/** Few asks at once, each file less often: every ask is work for iCloud's process, once busy for hours on a vault's. */
+const ASK_AGAIN = 60_000, ASK_AT_MOST = 3_600_000, ASKS_AT_ONCE = 4
+const fetching = new Map<string, { at: number; wait: number }>()
+const askQueue: string[] = []
+let asking = 0
+export function fetchFromICloud(p: string, e: unknown, { asked = false } = {}) {
   if (!placeholder(e)) return
-  const now = Date.now()
-  if (now - (fetching.get(p) ?? 0) < 60_000) return
-  fetching.set(p, now)
-  iCloud.download(p, (err) => {
-    if (err && fs.existsSync(p)) log.warn(`couldn't ask iCloud for ${p}: ${err.message}`)
-  })
+  const now = Date.now(), was = fetching.get(p)
+  if (was && now - was.at < (asked ? ASK_AGAIN : was.wait)) return
+  fetching.set(p, { at: now, wait: was ? Math.min(was.wait * 2, ASK_AT_MOST) : ASK_AGAIN })
+  if (askQueue.includes(p)) askQueue.splice(askQueue.indexOf(p), 1)
+  if (asked) askQueue.unshift(p)
+  else askQueue.push(p)
+  askNext()
+}
+function askNext() {
+  while (asking < ASKS_AT_ONCE && askQueue.length) {
+    const p = askQueue.shift()!
+    asking++
+    iCloud.download(p, (err) => {
+      asking--
+      if (err && fs.existsSync(p)) log.warn(`couldn't ask iCloud for ${p}: ${err.message}`)
+      askNext()
+    })
+  }
 }
 
 /** Keep a vault in iCloud Drive downloaded on this Mac (Finder's Keep Downloaded, macOS 15), so iCloud stops evicting
@@ -566,6 +582,8 @@ export function sortBy<T>(xs: T[], key: (x: T) => unknown, reverse = false): T[]
 }
 
 type Stat = { ns: bigint; size: number; born: number }
+type Listed = { found: Map<string, Stat>; others: Map<string, Stat>; folders: string[]; away: string[]; linkedOut: boolean; seen: string }
+export type Looked = { t0: number; locks: number; heard: number; listed: Listed; texts: Map<string, string | Error>; late: string[] }
 const CACHES = new Set(["node_modules", "__pycache__"])
 const unscanned = (rel: string) => rel.split("/").some((n, i, all) => (n.startsWith(".") && (n !== ARCHIVE_DIR || i === all.length - 1)) ||
   n.endsWith(".icloud") || n.includes(".tmp-") || (i < all.length - 1 && CACHES.has(n)))
@@ -675,6 +693,10 @@ export class Vault {
   private settings = new Map<string, string | null>()
   private lastGood = new Map<string, { text: string; stat: string }>()
   private queue: Promise<unknown> = Promise.resolve()
+  private locks = 0
+  doing = ""
+  private holders = 0
+  private waiters = 0
   private next: Promise<boolean> | null = null
   private hooks = new Set<(vault: Vault) => void>()
   private types: Map<string, Kind> | null = null
@@ -703,19 +725,22 @@ export class Vault {
   lock<T>(fn: () => Promise<T> | T): Promise<T> {
     const watched = async () => {
       const t0 = Date.now(), by = errorContext.getStore() ?? "the server's own work"
-      const dog = setInterval(() => log.error(`held ${Math.round((Date.now() - t0) / 1000)} s by ${by}`), HELD_LONG)
+      const dog = setInterval(() => log.error(`held ${Math.round((Date.now() - t0) / 1000)} s by ${by}${this.doing ? ` (${this.doing})` : ""}`), HELD_LONG)
       dog.unref()
       holdingVault(by)
-      try { return await fn() } finally { clearInterval(dog); holdingVault("") }
+      this.locks++
+      this.holders++
+      try { return await fn() } finally { this.holders--; this.doing = ""; clearInterval(dog); holdingVault("") }
     }
-    const run = this.queue.then(watched, watched)
+    this.waiters++
+    const run = this.queue.then(watched, watched).finally(() => { this.waiters-- })
     this.queue = run.catch(() => {})
     return run
   }
 
   private watched = false
   private stale = true
-  private walked = 0
+  walked = 0
   private linkedOut = false
 
   watching(on: boolean, untold?: () => boolean) {
@@ -823,8 +848,7 @@ export class Vault {
 
   private rewalk: ReturnType<typeof setTimeout> | null = null
   vouched(within = VOUCH) {
-    return this.watched && !this.stale && !this.linkedOut && !this.downloading.length && !this.evicted.length &&
-      !this.missing.size && Date.now() - this.walked < within
+    return this.watched && !this.stale && !this.linkedOut && !this.missing.size && Date.now() - this.walked < within
   }
 
   synced({ trusting = false, drained = false } = {}): Promise<boolean> {
@@ -834,10 +858,23 @@ export class Vault {
       this.rewalk ??= setTimeout(() => { this.rewalk = null; this.synced().catch((e) => log.error("the walk after a trusted read failed", e)) }, 100)
       return Promise.resolve(false)
     }
-    return this.next ??= turn().then(() => this.lock(() => {
-      this.next = null
-      return this.sync()
-    }))
+    return this.next ??= turn().then(async () => {
+      const pre = await this.looked()
+      return this.lock(() => {
+        this.next = null
+        return this.sync(pre)
+      })
+    })
+  }
+
+  async looked(): Promise<Looked | null> {
+    if (this.holders || this.waiters) return null
+    try { return await this.look({ ahead: true }) } catch { return null }
+  }
+
+  async walkNow() {
+    const pre = await this.looked()
+    return this.lock(() => this.sync(pre))
   }
 
   abs(rel: string) {
@@ -845,16 +882,20 @@ export class Vault {
     return path.join(this.path, rel)
   }
 
-  afterSync(fn: (vault: Vault) => void) {
+  afterSync(fn: (vault: Vault) => void, by = "") {
+    if (by) this.hookNames.set(fn, by)
     return added(this.hooks, fn)
   }
+  private hookNames = new WeakMap<(vault: Vault) => void, string>()
 
   private async afterSyncHooks() {
     let since = performance.now()
     for (const fn of this.hooks) {
+      this.doing = `after a sync: ${this.hookNames.get(fn) ?? "a hook"}`
       if (performance.now() - since > 20) { await turn(); since = performance.now() }
       try { fn(this) } catch (e) { log.error("a plugin's after-sync hook failed", e) }
     }
+    this.doing = ""
   }
 
   onArrive(fn: (rel: string) => void) {
@@ -1214,7 +1255,7 @@ export class Vault {
     return this.folderSet("dashboards") ?? homeFolder(mine, "Dashboards") ?? "Dashboards"
   }
 
-  private async scan() {
+  private async list(): Promise<Listed> {
     const away: string[] = []
     let linkedOut = false
     const found = new Map<string, Stat>()
@@ -1253,6 +1294,10 @@ export class Vault {
     }
     const seen = await this.settingsStats(away)
     folders.sort()
+    return { found, others, folders, away, linkedOut, seen }
+  }
+
+  private adopt({ found, others, folders, away, linkedOut, seen }: Listed) {
     if (others.size !== this.others.size || folders.length !== this.folders.length || folders.some((f, i) => f !== this.folders[i]) ||
       [...others].some(([r, st]) => { const was = this.others.get(r); return !was || !sameStat(was, st) })) this.version++
     this.others = others
@@ -1296,14 +1341,15 @@ export class Vault {
     return out.sort().join("\n")
   }
 
-  waiting() { return this.missing.size > 0 }
+  waiting() { return this.missing.size > 0 || this.downloading.length > 0 }
 
-  async sync(): Promise<boolean> {
-    const t0 = Date.now()
-    this.stale = false
+  async sync(pre?: Looked | null): Promise<boolean> {
+    const fresh = !!pre && this.locks === pre.locks + 1 && this.holders === 1
     try {
-      const changed = await this.walk()
-      this.walked = t0
+      const at = fresh ? pre : await this.look({ ahead: false, before: pre })
+      if (fresh && this.heardCount === pre.heard) this.stale = false
+      const changed = await this.walk(at)
+      this.walked = at.t0
       return changed
     } catch (e) {
       this.stale = true
@@ -1311,44 +1357,66 @@ export class Vault {
     }
   }
 
-  private async walk(): Promise<boolean> {
-    this.settings.clear()
+  private async look({ ahead, before }: { ahead: boolean; before?: Looked | null }): Promise<Looked> {
+    const t0 = Date.now(), locks = this.locks, heard = this.heardCount
+    if (!ahead) this.stale = false
+    if (!ahead) this.doing = "listing the vault's files"
+    const listed = await this.list()
+    const start = this.startTexts, evictedNow = new Set(listed.away)
+    const stale = (r: string, st: Stat) => { const e = this.entries.get(r); return !e || !sameStat(e.stat, st) || e.broken }
+    const unkept = (r: string, st: Stat) => { const k = start?.had.get(r); return !k || k[0] !== String(st.ns) || k[1] !== st.size || evictedNow.has(r) }
+    const changed = [...listed.found].flatMap(([r, st]) => (stale(r, st) && unkept(r, st) ? [r] : []))
+    const reread = new Set(changed), had = new Map<string, string | Error>()
+    for (const r of changed) {
+      const t = before?.texts.get(r), was = before?.listed.found.get(r), st = listed.found.get(r)!
+      if (t !== undefined && was && sameStat(was, st)) had.set(r, t)
+    }
+    if (!ahead) this.doing = `reading ${changed.length - had.size} changed files${listed.away.length ? `, ${listed.away.length} iCloud has yet to bring down` : ""}`
+    const [{ texts, late }, away] = await Promise.all([this.readAll(changed.filter((r) => !had.has(r))), this.fetchEvicted(listed.away.filter((r) => !reread.has(r)))])
+    return { t0, locks, heard, listed, texts: new Map([...had, ...texts]), late: [...late, ...away] }
+  }
+
+  private async walk(at: Looked): Promise<boolean> {
+    const settingsWere = this.settingsVersion
+    const found = this.adopt(at.listed)
+    if (this.settingsVersion !== settingsWere || !this.walked) this.settings.clear()
     try {
       const plain = this.plain().map((d) => d.replace(/^\/+|\/+$/g, "")).filter(Boolean)
       if (plain.join("\n") !== this.plainDirs.join("\n")) this.plainDirs = plain
     } catch (e) { log.error("couldn't ask which folders hold patterns", e) }
-    const found = await this.scan()
     const kinds = `${this.kindsVersion}:${this.settingsVersion}:${this.plainDirs.join("\n")}`, recheck = kinds !== this.kindsSeen
     this.kindsSeen = kinds
     let changed = [...found].filter(([r, st]) => {
       const e = this.entries.get(r)
       return !e || !sameStat(e.stat, st) || e.broken || (recheck && e.kind !== this.kindFor(r, e.fm))
     }).map(([r]) => r)
-    const reread = new Set(changed), start = this.startTexts, kept = new Map<string, KeptText>()
+    const start = this.startTexts, kept = new Map<string, KeptText>()
     if (start) {
       const away = new Set(this.evicted)
       for (const r of changed) { const k = start.had.get(r), st = found.get(r)!; if (k && k[0] === String(st.ns) && k[1] === st.size && !away.has(r)) kept.set(r, k) }
     }
-    const [{ texts, late: unread }, away] = await Promise.all([this.readAll(kept.size ? changed.filter((r) => !kept.has(r)) : changed),
-      this.fetchEvicted(this.evicted.filter((r) => !reread.has(r)))])
+    const looked = new Set(at.late)
+    const { texts: more, late: unread } = await this.readAll(changed.filter((r) => !kept.has(r) && !at.texts.has(r) && !looked.has(r)))
+    const texts = new Map([...at.texts, ...more]), away = at.late
     for (const [r, k] of kept) texts.set(r, k[2])
     if (start) for (const r of changed) {
       const t = texts.get(r), st = found.get(r)!
       if (typeof t === "string") start.now.set(r, kept.get(r) ?? [String(st.ns), st.size, t])
     }
-    const late = [...unread, ...away].sort()
+    const late = [...new Set([...unread, ...away])].sort()
     if (late.join("\n") !== this.downloading.join("\n")) { this.downloading = late; this.version++ }
     changed = changed.filter((r) => texts.has(r))
     const now = Date.now()
+    const dirs = new Map<string, boolean>(), isDirNow = (p: string) => dirs.get(p) ?? dirs.set(p, isDir(p)).get(p)!
     const vanished = (top: string) => {
-      if (isDir(this.abs(top))) { this.missing.delete(top); return true }
-      if (!isDir(this.path)) return false
+      if (isDirNow(this.abs(top))) { this.missing.delete(top); return true }
+      if (!isDirNow(this.path)) return false
       const since = this.missing.get(top) ?? now
       this.missing.set(top, since)
       return now - since >= 3000
     }
     const gone = [...this.entries.keys()].filter((r) => !found.has(r) &&
-      (r.includes("/") ? vanished(r.split("/")[0]) : isDir(this.path)))
+      (r.includes("/") ? vanished(r.split("/")[0]) : isDirNow(this.path)))
     for (const rel of gone) this.drop(rel)
     if (this.missing.size) {
       const tops = new Set([...this.entries.keys()].map((r) => r.split("/")[0]))
@@ -1356,6 +1424,7 @@ export class Vault {
     }
     const unchanged = new Set<string>()
     let since = performance.now()
+    this.doing = `indexing ${changed.length} changed files`
     for (const rel of changed.sort()) {
       if (performance.now() - since > 20) { await turn(); since = performance.now() }
       const st = found.get(rel)!

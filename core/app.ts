@@ -35,7 +35,7 @@ import { hookOps } from "./hooks.ts"
 import { type Listed, Scheduler, scheduleOps, timed } from "./schedule.ts"
 import { digestOf, VaultPlugins } from "./vaultplugins.ts"
 import * as G from "./grants.ts"
-import { byUser, notHereYet, onItsOwn, overConnect, runHook, WriteRefused } from "./writegate.ts"
+import { byUser, logFailure, notHereYet, onItsOwn, overConnect, runHook, WriteRefused } from "./writegate.ts"
 import { asLocked, type Fetched, fetchSource, parseSource, readLock } from "./installs.ts"
 import { autoUpdates } from "./updates.ts"
 import { disclosuresOf, saysMore } from "./pluginmeta.ts"
@@ -156,7 +156,12 @@ export class App {
   async syncPlugins({ pages: write = true, trusting = false } = {}) {
     const key = `${this.vault.heardCount}:${this.vault.settingsVersion}:${this.vaultPlugins.trust.version}:${this.index.version}`
     if (trusting && this.pluginsSynced === key && this.vault.vouched()) return false
-    const changed = await this.loadPlugins()
+    let changed: boolean
+    try { changed = await this.loadPlugins() } catch (e) {
+      if (!notHereYet(e)) throw e
+      logFailure(log, "loading the vault's plugins", e)
+      return false
+    }
     this.pluginsSynced = key
     this.adopt()
     this.tellPaused()
@@ -486,6 +491,8 @@ export class App {
       const via = <T>(fn: () => T) => (http && CONNECT_HEADER in http.headers ? overConnect(fn) : fn())
       return http ? await via(() => as(() => requestWriter.run(writer, go))) : await go()
     } catch (e) {
+      const known = errorReply(e)
+      if (known) { logFailure(log, "a request failed", e); return known }
       log.error("a request failed", e)
       return reply(500, { error: messageOf(e) })
     }
@@ -679,18 +686,19 @@ export class App {
 
   hold<T>(fn: () => Promise<T> | T, { trusting = false } = {}): Promise<T> {
     if (this.holding.getStore()?.on) return Promise.resolve().then(fn)
-    return this.vault.lock(async () => {
+    const walks = () => !trusting || !this.vault.vouched()
+    return (walks() ? this.vault.looked() : Promise.resolve(null)).then((pre) => this.vault.lock(async () => {
       const token = { on: true }
       try {
         return await this.holding.run(token, async () => {
-          if (!trusting || !this.vault.vouched()) await this.vault.sync()
+          if (walks()) await this.vault.sync(pre)
           this.pagesOf = this.onKey()
-          try { return await fn() } finally { await this.loadPlugins().then(() => this.followPlugins(), (e) => log.error("loading the plugins failed", e)) }
+          try { return await fn() } finally { this.vault.doing = "loading the plugins"; await this.loadPlugins().then(() => this.followPlugins(), (e) => log.error("loading the plugins failed", e)) }
         })
       } finally {
         token.on = false
       }
-    })
+    }))
   }
 
   private async driveUi(message: Item | null) {
@@ -717,7 +725,7 @@ export class App {
     const t0 = performance.now()
     const end = this.reported("POST", `ops/${op.id}`, {}, who, opts.report)
     try {
-      const out = this.holding.getStore()?.on ? await run() : write && op.lock !== false ? await this.hold(run)
+      const out = this.holding.getStore()?.on ? await run() : write && op.lock !== false && !op.input ? await this.hold(run)
         : opts.synced ? await run() : await this.vault.synced({ trusting: serversOwn }).then(run)
       const text = op.text ? op.text(out.result, out.params, who) : typeof out.result === "string" ? out.result
         : jsonBlock(out.result ?? null)
