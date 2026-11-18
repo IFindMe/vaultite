@@ -36,8 +36,11 @@ try {
   check("groups to jump to: recent, icons, then the emoji's", groups.slice(0, 3).join() === "Recent,Icons,Smileys & Emotion" && groups.includes("Flags"), groups)
   const drawn = (await glyphs()).length
   check("only the rows near the screen drawn, of thousands", drawn > 60 && drawn < 900, drawn)
+  const cells = await glyphs()
+  check("a workspace's picker starts with its own number, the current icon after it", cells[0] === "\u0000none" && cells[1] === "🥷", cells.slice(0, 3))
   await page.keyboard.press("ArrowDown"); await ui.idle()
-  check("Down: the icons' first row", await selected() === "activity", await selected())
+  check("Down: the icons' first row, under it", await selected() === "apple", await selected())
+  await page.keyboard.press("ArrowLeft"); await ui.idle()
   await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowDown"); await ui.idle()
   const second = await selected()
   await page.keyboard.press("ArrowUp"); await ui.idle()

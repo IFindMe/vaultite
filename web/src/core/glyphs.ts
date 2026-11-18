@@ -1,4 +1,7 @@
-export type Glyph = { id: string; kind: "icon" | "emoji"; name: string; code?: string; words: string[]; group: string }
+import type { ComponentType } from "react"
+
+export type Glyph = { id: string; kind: "icon" | "emoji" | "none"; name: string; code?: string; words: string[]; group: string
+  mark?: ComponentType<{ className?: string }> }
 export type Section = { name: string; items: Glyph[] }
 export type Catalog = { icons: Glyph[]; emoji: Glyph[]; byId: Map<string, Glyph> }
 type Gemoji = { emoji: string; names: string[]; tags: string[]; description: string; category: string }
@@ -48,18 +51,23 @@ function found(list: readonly Glyph[], words: readonly string[], typed: string) 
   return { items: hits.map((h) => h.g), best: hits[0]?.r ?? Infinity }
 }
 
-export function sectionsFor(c: Catalog, query: string, { emoji, current, recent = [] }: { emoji: boolean; current?: string; recent?: readonly string[] }): Section[] {
+function browsing(c: Catalog, only: boolean, withEmoji: boolean, current: string | undefined, recent: readonly string[]): Section[] {
+  const out: Section[] = []
+  const seen = [...new Set([current, ...recent.filter((id) => withEmoji || !isEmoji(id))].filter((id): id is string => !!id))].map((id) => glyphOf(c, id))
+  if (seen.length && !only) out.push({ name: RECENT_GROUP, items: seen })
+  if (!only) out.push({ name: ICONS_GROUP, items: c.icons })
+  if (withEmoji) for (const [name] of EMOJI_GROUPS) out.push({ name, items: c.emoji.filter((g) => g.group === name) })
+  return out.filter((s) => s.items.length)
+}
+
+export function sectionsFor(c: Catalog, query: string, { emoji, current, recent = [], none }: { emoji: boolean; current?: string; recent?: readonly string[]; none?: Glyph }): Section[] {
   const q = query.trim()
   if (q && isEmoji(q)) return [{ name: "Emoji", items: [glyphOf(c, q)] }]
   const only = q.startsWith(":"), typed = (only ? q.slice(1).replace(/:$/, "") : q).toLowerCase(), words = split(typed)
   const withEmoji = emoji || only
   if (!words.length) {
-    const out: Section[] = []
-    const seen = [...new Set([current, ...recent.filter((id) => withEmoji || !isEmoji(id))].filter((id): id is string => !!id))].map((id) => glyphOf(c, id))
-    if (seen.length && !only) out.push({ name: RECENT_GROUP, items: seen })
-    if (!only) out.push({ name: ICONS_GROUP, items: c.icons })
-    if (withEmoji) for (const [name] of EMOJI_GROUPS) out.push({ name, items: c.emoji.filter((g) => g.group === name) })
-    return out.filter((s) => s.items.length)
+    const shown = browsing(c, only, withEmoji, current, recent)
+    return none && shown[0] ? [{ ...shown[0], items: [none, ...shown[0].items] }, ...shown.slice(1)] : shown
   }
   const icons = only ? { items: [], best: Infinity } : found(c.icons, words, typed)
   const emojis = withEmoji ? found(c.emoji, words, typed) : { items: [], best: Infinity }

@@ -6,6 +6,7 @@ import { useVirtual } from "@/core/virtual"
 import { cn } from "@/lib/utils"
 
 export function GlyphMark({ g, big = false }: { g: Glyph; big?: boolean }) {
+  if (g.mark) return createElement(g.mark, { className: big ? "size-6" : "size-[22px]" })
   if (g.kind === "emoji") return <span className={cn("leading-none", big ? "text-[26px]" : "text-[24px]")} aria-hidden>{g.id}</span>
   const icon = namedIcon(g.id)
   return icon && createElement(icon, { className: big ? "size-6" : "size-[22px]", strokeWidth: big ? 1.75 : 2 })
@@ -16,8 +17,8 @@ const Row = memo(function Row({ index, items, start, sel, current, hands }: { in
   return (
     <div data-vi={index} role="presentation" className="flex px-1.5" style={{ height: CELL }}>
       {items.map((g, j) => (
-        <button key={g.id} id={`glyph-${start + j}`} type="button" role="option" aria-selected={sel === j} aria-label={g.kind === "emoji" ? g.name : g.id}
-          data-glyph={g.id} data-i={start + j} tabIndex={-1} onMouseMove={() => hands.hover(start + j)} onClick={() => hands.pick(start + j)}
+        <button key={g.id} id={`glyph-${start + j}`} type="button" role="option" aria-selected={sel === j} aria-label={g.kind === "icon" ? g.id : g.name}
+          data-glyph={g.id} data-glyph-none={g.kind === "none" || undefined} data-i={start + j} tabIndex={-1} onMouseMove={() => hands.hover(start + j)} onClick={() => hands.pick(start + j)}
           className={cn("grid shrink-0 cursor-pointer place-items-center rounded-[8px] text-foreground/90", sel === j && "bg-foreground/[0.09] text-foreground",
             g.id === current && "ring-[1.5px] ring-primary/70 ring-inset")}
           style={{ width: CELL, height: CELL }}>

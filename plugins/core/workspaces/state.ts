@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowUp, Box, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
   askText, cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
   replaceHash, sameSidebars, WORKSPACES as MAX, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
@@ -474,7 +474,8 @@ export function lookOf(n: number): Pick<WorkspaceInfo, "icon" | "tint" | "contai
   return { ...(typeof d?.icon === "string" && d.icon ? { icon: d.icon } : {}), ...(isColor(d?.tint) ? { tint: d.tint } : {}),
     ...(typeof d?.container === "string" && d.container ? { container: d.container } : {}) }
 }
-export const askIcon = (n: number) => pickIcon({ title: `Icon for ${named(n)}`, current: lookOf(n).icon, onPick: (i) => { patch(n, { icon: i }) } })
+export const askIcon = (n: number) => pickIcon({ title: `Icon for ${named(n)}`, current: lookOf(n).icon, onPick: (i) => { patch(n, { icon: i }) },
+  noIcon: { label: `Its number, ${n}`, mark: markIcon(n, { tint: lookOf(n).tint }), onPick: () => { patch(n, { icon: null }) } } })
 export function tintItems(n: number): MenuItem[] {
   const { tint } = lookOf(n)
   return [{ label: "No colour", checked: !tint, run: () => { patch(n, { tint: null }) } }, ...colorItems(tint ?? "", (c) => { patch(n, { tint: c }) })]
@@ -488,10 +489,9 @@ export function containerItems(n: number): { items: MenuItem[]; name?: string } 
   ] }
 }
 export function lookItems(n: number): MenuItem[] {
-  const { icon, tint } = lookOf(n), box = containerItems(n)
+  const { tint } = lookOf(n), box = containerItems(n)
   return [
     { label: "Change icon", icon: Smile, run: () => askIcon(n) },
-    ...(icon ? [{ label: "Remove icon", icon: CircleSlash, run: () => { patch(n, { icon: null }) } }] : []),
     { label: "Colour", icon: tint ? dotIcon(colorVar(tint)) : Palette, run: () => {}, items: tintItems(n) },
     ...(box.items.length ? [{ label: "Container", icon: Box, hint: box.name, run: () => {}, items: box.items }] : []),
   ]

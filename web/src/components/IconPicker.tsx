@@ -61,13 +61,13 @@ function Hint({ keys, children }: { keys: string; children: string }) {
 }
 
 function About({ g, current }: { g: Glyph | null; current?: string }) {
-  const sub = !g ? "" : [g.kind === "emoji" ? (g.code ? `:${g.code}:` : "Emoji") : "Icon", g.id === current && "Current"].filter(Boolean).join(" · ")
+  const sub = !g ? "" : [g.kind === "emoji" ? (g.code ? `:${g.code}:` : "Emoji") : g.kind === "none" ? "No icon" : "Icon", g.id === current && "Current"].filter(Boolean).join(" · ")
   return (
     <div className="flex items-center gap-4 border-t-[0.5px] border-border py-2.5 pr-5 pl-3">
       <div className="flex min-w-0 flex-1 items-center gap-3" data-glyph-about aria-live="polite">
         <span className={cn("grid size-10 shrink-0 place-items-center rounded-[9px]", g && "bg-foreground/[0.06]")}>{g && <GlyphMark g={g} big />}</span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] leading-[20px] text-foreground" data-glyph-name>{g ? (g.kind === "emoji" ? capitalize(g.name) : g.id) : " "}</span>
+          <span className="block truncate text-[15px] leading-[20px] text-foreground" data-glyph-name>{g ? (g.kind === "icon" ? g.id : capitalize(g.name)) : " "}</span>
           <span className="block truncate text-[12px] leading-[16px] text-muted-foreground">{sub || " "}</span>
         </span>
       </div>
@@ -80,22 +80,24 @@ function About({ g, current }: { g: Glyph | null; current?: string }) {
   )
 }
 
+const NONE = "\u0000none"
 function useLayout(a: IconAsk, q: string, list: RefObject<HTMLDivElement | null>) {
   const c = useCatalog()
   const { iconPickerEmoji: emoji } = usePrefs()
   const [recent] = useState(recentGlyphs)
-  const sections = useMemo(() => (c ? sectionsFor(c, q, { emoji, current: a.current, recent }) : []), [c, q, emoji, a.current, recent])
+  const [none] = useState<Glyph | undefined>(() => a.noIcon && { id: NONE, kind: "none", name: a.noIcon.label, words: [], group: "", mark: a.noIcon.mark })
+  const sections = useMemo(() => (c ? sectionsFor(c, q, { emoji, current: a.current, recent, none }) : []), [c, q, emoji, a.current, recent, none])
   const cols = useColumns(list)
   const l = useMemo(() => layout(sections, cols), [sections, cols])
   const empty = c ? <NoMatches what={emoji || q.trim().startsWith(":") ? "No icon or emoji matches" : "No icon matches"} query={q} /> : <Skeleton />
   return { l, emoji, empty }
 }
 
-function useSelection(l: Layout, q: string) {
-  const [sel, setSel] = useState(0)
+function useSelection(l: Layout, q: string, current: string | undefined) {
+  const [sel, setSel] = useState<number | null>(null)
   const [selFor, setSelFor] = useState(q)
   if (selFor !== q) { setSelFor(q); setSel(0) }
-  const at = Math.min(sel, Math.max(0, l.flat.length - 1))
+  const at = Math.min(sel ?? Math.max(0, l.flat.findIndex((g) => g.id === current)), Math.max(0, l.flat.length - 1))
   return { at, setSel, move: (move: Move, page: number) => setSel(moved(l, at, move, page)) }
 }
 
@@ -103,14 +105,16 @@ function Picker({ a, onClose }: { a: IconAsk; onClose: () => void }) {
   const [q, setQ] = useState("")
   const list = useRef<HTMLDivElement>(null)
   const { l, emoji, empty } = useLayout(a, q, list)
-  const { at, setSel, move } = useSelection(l, q)
+  const current = a.current ?? (a.noIcon ? NONE : undefined)
+  const { at, setSel, move } = useSelection(l, q, current)
   const [shown, setShown] = useState(0)
   const selected = l.flat[at] ?? null
   const pick = (i: number) => {
     const g = l.flat[i]
     if (!g) return
-    rememberGlyph(g.id)
     onClose()
+    if (g.kind === "none") { a.noIcon?.onPick(); return }
+    rememberGlyph(g.id)
     a.onPick(g.id)
   }
   const jump = (k: number) => {
@@ -133,8 +137,8 @@ function Picker({ a, onClose }: { a: IconAsk; onClose: () => void }) {
           aria-activedescendant={selected ? `glyph-${at}` : undefined} className="h-14 min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-muted-foreground" />
       </div>
       {!q.trim() && l.heads.length > 1 && <Jumps heads={l.heads} shown={shown} onJump={jump} />}
-      <GlyphGrid list={list} l={l} sel={at} current={a.current} label={a.title} onHover={setSel} onPick={pick} onShown={setShown} empty={empty} />
-      <About g={selected} current={a.current} />
+      <GlyphGrid list={list} l={l} sel={at} current={current} label={a.title} onHover={setSel} onPick={pick} onShown={setShown} empty={empty} />
+      <About g={selected} current={current} />
     </PaletteFrame>
   )
 }

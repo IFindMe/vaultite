@@ -6,6 +6,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Workspaces: the icon picker starts with the workspace's own number, picked to go back to no icon (Remove icon is gone from its menu).
 - Phone: the workspace menu (the tab list's title) has Rename, as the computer's does.
 - Workspaces: one made, renamed or recoloured on one machine (or the phone) shows on the others at once, instead of
   waiting for iCloud to bring its file.
