@@ -409,6 +409,39 @@ section("a machine's room for a try")
   sleeper.kill(); fs.writeFileSync(lock, String(spawnSync(process.execPath, ["-e", "0"]).pid))
   const after = run()
   check("… one whose process is gone: it runs, and lets go at its end", /try-job: setup can't fetch/.test(after) && !fs.existsSync(lock), after)
+
+  const tries = path.dirname(lock), dead = spawnSync(process.execPath, ["-e", "0"]).pid, live = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"])
+  const leftover = (pid: number, ageDays = 0, c = "b") => {
+    const dir = path.join(tries, `w-${c.repeat(12)}-${pid}`), sub = path.join(dir, "node_modules", "x")
+    fs.mkdirSync(sub, { recursive: true }); fs.writeFileSync(path.join(sub, "ro.txt"), "x"); fs.chmodSync(path.join(sub, "ro.txt"), 0o444); fs.chmodSync(sub, 0o555)
+    const t = new Date(Date.now() - ageDays * 86_400_000)
+    fs.utimesSync(dir, t, t)
+    return dir
+  }
+  const killed = leftover(dead), stale = leftover(live.pid!, 2, "c"), current = leftover(live.pid!), other = path.join(tries, "logs-keep")
+  fs.mkdirSync(other)
+  const swept = run()
+  check("a try job sweeps the worktrees of tries killed before their end, read-only files and all", !fs.existsSync(killed) && /try-job: sweep w-b{12}-/.test(swept), swept)
+  check("… one a day old whose pid lives on with no try of it running: swept too", !fs.existsSync(stale))
+  check("… one of a try that may still run, and what isn't a try's worktree: kept", fs.existsSync(current) && fs.existsSync(other))
+  live.kill()
+
+  const source = path.join(home, "src"), g = (...a: string[]) => spawnSync("git", ["-C", source, ...a], { encoding: "utf8", env: gitEnv() })
+  fs.mkdirSync(source); g("init", "-q"); fs.writeFileSync(path.join(source, "a.txt"), "a"); g("add", "."); g("-c", "user.name=Alice Park", "-c", "user.email=alice@example.com", "commit", "-qm", "a")
+  const head = g("rev-parse", "HEAD").stdout.trim(), worktrees = () => fs.readdirSync(tries).filter((f) => f.startsWith(`w-${head.slice(0, 12)}-`))
+  Object.assign(spec, { sha: head, source, ref: "HEAD", steps: [{ name: "ro", cmd: "chmod a-w a.txt" }] })
+  const done = run()
+  check("a try job's worktree is gone at its end", /try-job: done ok/.test(done) && worktrees().length === 0, done + worktrees())
+  if (process.platform !== "win32") {
+    Object.assign(spec, { steps: [{ name: "long", cmd: "echo started; sleep 60" }] })
+    const p = spawn(process.execPath, [job, `try-job-args=${Buffer.from(JSON.stringify(spec)).toString("base64")}`], { env: { ...process.env, HOME: home, USERPROFILE: home } })
+    const t = Date.now()
+    await new Promise<void>((resolve) => { p.stdout.on("data", (d: Buffer) => { if (d.toString().includes("started")) resolve() }); p.on("close", () => resolve()) })
+    const during = worktrees().length
+    p.kill("SIGTERM")
+    await new Promise((resolve) => p.exitCode !== null ? resolve(0) : p.on("close", resolve))
+    check("… and when it's stopped mid-step (SIGTERM): its step killed, its worktree and lock gone", during === 1 && worktrees().length === 0 && !fs.existsSync(lock) && Date.now() - t < 30_000, [during, worktrees()])
+  }
 }
 
 section("a machine away mid-try")

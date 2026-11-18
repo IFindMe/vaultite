@@ -72,7 +72,7 @@ function lock() {
 function run(cmd, until) {
   return new Promise((resolve) => {
     out(`\n== ${cmd}\n`)
-    const p = bash ? spawn(bash, ["--noprofile", "--norc", "-eo", "pipefail", "-c", cmd], { cwd: wt, env })
+    const p = child = bash ? spawn(bash, ["--noprofile", "--norc", "-eo", "pipefail", "-c", cmd], { cwd: wt, env, detached: process.platform !== "win32" })
       : spawn(cmd, { cwd: wt, env, shell: true })
     const failures = []
     let rest = ""
@@ -93,12 +93,60 @@ function run(cmd, until) {
 }
 function kill(p) {
   if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"])
-  else p.kill("SIGKILL")
+  else try { process.kill(-p.pid, "SIGKILL") } catch { p.kill("SIGKILL") }
+}
+
+const DAY = 86_400_000
+function removeTree(dir) {
+  git(["worktree", "remove", "--force", dir])
+  if (!fs.existsSync(dir)) return
+  try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 }) } catch { writable(dir) }
+  if (fs.existsSync(dir) && process.platform === "win32") spawnSync("cmd", ["/d", "/c", "rd", "/s", "/q", dir], { timeout: 300_000 })
+  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 })
+}
+function unlessGone(f) { try { return f() } catch { return undefined } }
+function writable(dir) {
+  unlessGone(() => fs.chmodSync(dir, 0o777))
+  for (const e of unlessGone(() => fs.readdirSync(dir, { withFileTypes: true })) || []) {
+    if (e.isDirectory()) writable(path.join(dir, e.name))
+    else if (!e.isSymbolicLink()) unlessGone(() => fs.chmodSync(path.join(dir, e.name), 0o666))
+  }
+}
+
+function sweepKilledTries() {
+  const marks = new Set(fs.readdirSync(RUNNING))
+  for (const f of fs.readdirSync(HOME)) {
+    const m = /^w-([0-9a-f]{12})-(\d+)$/.exec(f), dir = path.join(HOME, f)
+    if (!m || dir === wt) continue
+    const pid = Number(m[2]), age = Date.now() - (unlessGone(() => fs.statSync(dir).mtimeMs) || 0)
+    const pidReused = age > DAY && !marks.has(`${pid}.${m[1]}`)
+    if (alive(pid) && !pidReused) continue
+    say(`sweep ${f}`)
+    removeTree(dir)
+    git(["update-ref", "-d", `refs/try/${m[1]}`])
+  }
+  git(["worktree", "prune"])
+}
+
+let child = null, cleaned = false
+function cleanup() {
+  if (cleaned) return
+  cleaned = true
+  if (child && child.exitCode === null) kill(child)
+  if (fs.existsSync(repo)) { removeTree(wt); git(["worktree", "prune"]); git(["update-ref", "-d", `refs/try/${short}`]) }
+  fs.rmSync(mark, { force: true })
+  try { if (Number(fs.readFileSync(LOCK, "utf8")) === process.pid) fs.rmSync(LOCK, { force: true }) } catch { /* not taken */ }
+}
+const sshOrTerminalLost = () => {}
+process.stdout.on("error", sshOrTerminalLost)
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
+  process.on(sig, () => { unlessGone(() => fs.writeSync(log, `\n(stopped: ${sig})\n`)); cleanup(); process.exit(130) })
 }
 
 const steps = []
 async function main() {
   if (!lock()) return { setup: "busy: another try runs on this machine (one at a time; a try again goes to GitHub's runners)" }
+  sweepKilledTries()
   if (!fs.existsSync(repo)) git(["init", "-q", "--bare", repo], HOME)
   const got = git(["fetch", "-q", "--no-tags", spec.source, `+${spec.ref}:refs/try/${short}`])
   if (got.status !== 0) return { setup: `can't fetch ${spec.ref}: ${(got.stderr || "").trim().split("\n").pop()}` }
@@ -128,9 +176,7 @@ async function main() {
 }
 
 main().catch((e) => ({ setup: String(e && e.message || e) })).then((r) => {
-  git(["worktree", "remove", "--force", wt]); git(["worktree", "prune"]); git(["update-ref", "-d", `refs/try/${short}`])
-  fs.rmSync(mark, { force: true })
-  try { if (Number(fs.readFileSync(LOCK, "utf8")) === process.pid) fs.rmSync(LOCK, { force: true }) } catch { /* not taken */ }
+  cleanup()
   // (the summary last, short lines: a terminal's capture reads its end)
   say("summary")
   if (r.setup) say(`setup ${r.setup}`)
