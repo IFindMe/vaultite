@@ -128,7 +128,7 @@ export default async ($: VaultTest) => {
   {
     const { Wire } = await import("../../../plugins/core/claude-code/chatwire.ts")
     const [a, b] = await new Promise<[net.Socket, net.Socket]>((ok) => {
-      const where = path.join(VAULT, "..", `wire-${process.pid}.sock`)
+      const where = process.platform === "win32" ? `\\\\.\\pipe\\vaultite-wire-${process.pid}` : path.join(VAULT, "..", `wire-${process.pid}.sock`)
       let c: net.Socket
       const srv = net.createServer((s) => { srv.close(); ok([c, s]) }).listen(where, () => { c = net.connect(where) })
     })
