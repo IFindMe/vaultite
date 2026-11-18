@@ -10,8 +10,11 @@ module.enableCompileCache?.()
 const checkout = path.dirname(import.meta.dirname)
 const store = process.env.VAULTITE_CODE_STORE
 const SHA = /^[0-9a-f]{40}$/
-/** A root that stopped as it started this many times in a row is bad (the server clears the count once it's up). */
+/** A root whose server stopped as it started this many times in a row is suspect (the server clears the count once up). */
 const TRIES = 3
+/** A start after that many failed in a row waits (s), longer each time: never past a guard's 3 missed minutes. */
+const WAITS = [15, 30, 60, 120]
+const short = (sha) => sha.slice(0, 7)
 const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, "utf8")) } catch { return null } }
 const writeJson = (file, v) => {
   fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -31,29 +34,61 @@ function problem(root) {
   return null
 }
 
+/** A pointer's commit when its root can run (why not is said), else null. */
+function runnable(name) {
+  const sha = readJson(path.join(store, `${name}.json`))?.commit
+  if (typeof sha !== "string" || !SHA.test(sha) || fs.existsSync(path.join(store, "bad", `${sha}.json`))) return null
+  const why = problem(path.join(store, "roots", sha))
+  if (why) console.error(`vaultite: the code store's ${name} root ${short(sha)} can't run: ${why}`)
+  return why ? null : sha
+}
+
+/** A suspect root is bad once another started fine after it (the code's fault, not this machine's); its own fine
+ *  start clears it. */
+function judge(suspects) {
+  const s = readJson(suspects), good = readJson(path.join(store, "good.json"))
+  if (!s || !good || !(good.t > s.t)) return
+  if (good.commit !== s.commit) {
+    writeJson(path.join(store, "bad", `${s.commit}.json`), { why: `its server stopped as it started ${TRIES} times, and ${short(good.commit)}'s started fine after`, t: Date.now() })
+    console.error(`vaultite: ${short(s.commit)}'s server stopped as it started ${TRIES} times, and ${short(good.commit)}'s started fine after: it's bad, not run again`)
+  }
+  fs.rmSync(suspects, { force: true })
+}
+
+/** The root to run: current; once it stopped as it started TRIES times, good, to tell its code from this machine;
+ *  when that fails too (or there's none), the machine's trouble (the vault unreadable, the load): current again, waiting. */
 function pick() {
   if (!store) return null
-  const tries = path.join(store, "service-start.json")
-  for (const name of ["current", "good"]) {
-    const sha = readJson(path.join(store, `${name}.json`))?.commit
-    if (typeof sha !== "string" || !SHA.test(sha) || fs.existsSync(path.join(store, "bad", `${sha}.json`))) continue
-    const why = problem(path.join(store, "roots", sha))
-    if (why) { console.error(`vaultite: the code store's ${name} root ${sha.slice(0, 7)} can't run: ${why}`); continue }
-    const was = readJson(tries)
-    const n = was?.commit === sha ? (Number(was.n) || 0) + 1 : 1
-    if (n > TRIES) {
-      writeJson(path.join(store, "bad", `${sha}.json`), { why: `its server stopped as it started ${TRIES} times`, t: Date.now() })
-      console.error(`vaultite: ${sha.slice(0, 7)}'s server stopped as it started ${TRIES} times: it's bad, not run again`)
-      continue
+  const starts = path.join(store, "service-start.json"), suspects = path.join(store, "service-suspect.json")
+  judge(suspects)
+  const was = readJson(starts) ?? {}, cur = runnable("current"), good = runnable("good"), suspect = readJson(suspects)?.commit
+  let env = was.env === true, from = cur && (env || suspect !== cur || !good || good === cur) ? "current" : good ? "good" : null
+  if (!from) return null
+  let sha = from === "current" ? cur : good, n = was.commit === sha ? (Number(was.n) || 0) + 1 : 1
+  if (n > TRIES && !env) {
+    if (from === "current" && good && good !== cur) {
+      writeJson(suspects, { commit: cur, t: Date.now() })
+      console.error(`vaultite: ${short(cur)}'s server stopped as it started ${TRIES} times: the good root ${short(good)} runs, to tell its code from this machine's trouble`)
+      from = "good"; sha = good; n = 1
+    } else {
+      env = true
+      fs.rmSync(suspects, { force: true })
+      const also = suspect && suspect !== sha ? `, as ${short(suspect)}'s did` : from === "current" ? " (no other root to tell it by)" : ""
+      console.error(`vaultite: ${short(sha)}'s server stopped as it started ${TRIES} times${also}: this machine's trouble, not the code's: not marked bad, started again`)
+      if (cur) { from = "current"; sha = cur }
     }
-    writeJson(tries, { commit: sha, n, t: Date.now() })
-    return { root: path.join(store, "roots", sha), from: name }
   }
-  return null
+  const streak = (Number(was.streak) || 0) + 1
+  writeJson(starts, { commit: sha, n, streak, env, t: Date.now() })
+  return { root: path.join(store, "roots", sha), from, wait: streak > TRIES ? WAITS[Math.min(streak - TRIES, WAITS.length) - 1] : 0 }
 }
 
 const at = pick()
 const root = at?.root ?? checkout
+if (at?.wait) {
+  console.error(`vaultite: its last starts failed: waits ${at.wait} s before the next`)
+  if (process.env.VAULTITE_SERVICE_WAIT !== "off") await new Promise((r) => setTimeout(r, at.wait * 1000))
+}
 if (at) console.log(`vaultite: runs the code store's ${at.from} root ${path.basename(root).slice(0, 7)}`)
 process.env.VAULTITE_SERVICE_CHECKOUT = checkout // (its store's first clone, and where it falls back to)
 process.env.VAULTITE_SERVICE = "1" // (a service manager restarts it: core/watchdog.ts)

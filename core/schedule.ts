@@ -1,6 +1,7 @@
 // Jobs on a timer: plugin.every's and a vault plugin's manifest `schedule` (a command or any op: a note handed to
 // Claude each morning). One machine runs each (Machines' first unless it names one); when they last ran stays on it.
 import fs from "node:fs"
+import { setTimeout as sleep } from "node:timers/promises"
 import { defineOp, type Op, OpError } from "./ops.ts"
 import { writeAtomic } from "./vault.ts"
 import { errorContext } from "./serverlog.ts"
@@ -16,7 +17,6 @@ type Item = Record<string, any>
  *  ("{morning}"); `machine` the Machines id that runs it. */
 export type When = { every: string; at?: string; machine?: string }
 export type Job = When & { name: string; run: () => unknown }
-/** A job as the scheduler sees it: its plugin's id with it. */
 export type Listed = { plugin: string; job: Job }
 /** A job that doesn't run now, and why (its plugin changed and waits to be allowed again). */
 export type Paused = { plugin: string; job: When & { name: string }; why: string }
@@ -25,6 +25,7 @@ type Last = { seen: number; ran?: number; for?: number; ms?: number; error?: str
 
 const UNIT: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000, w: 7 * 86_400_000 }
 const DAY = UNIT.d, TICK = 30_000, SLACK = 3 * 3_600_000 // (a day's slot may move an hour with summer time)
+const AFTER_START_BURST = 60_000, JOBS_APART = 2000
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -48,7 +49,6 @@ function periodOf(every: unknown): number | null {
   return m && Number(m[1]) > 0 ? Number(m[1]) * UNIT[m[2]] : null
 }
 
-/** What's wrong with a job's timing, or []. */
 export function whenProblems(w: Item, where = "schedule"): string[] {
   const out: string[] = []
   const ms = periodOf(w.every)
@@ -61,7 +61,6 @@ export function whenProblems(w: Item, where = "schedule"): string[] {
   return out
 }
 
-/** The first `at` (HH:MM, local) after t. */
 function slotAfter(t: number, at: string) {
   const d = new Date(t)
   d.setHours(Number(at.slice(0, 2)), Number(at.slice(3)), 0, 0)
@@ -69,7 +68,6 @@ function slotAfter(t: number, at: string) {
   return d.getTime()
 }
 
-/** The last `at` at or before t. */
 function slotBefore(t: number, at: string) {
   const d = new Date(slotAfter(t, at))
   d.setDate(d.getDate() - 1)
@@ -102,6 +100,8 @@ export class Scheduler {
   private saved = ""
   private running = new Set<string>()
   private timer: ReturnType<typeof setInterval> | null = null
+  private first: ReturnType<typeof setTimeout> | null = null
+  private stops = 0
   private missedTold = new Map<string, number>()
 
   /** `file`: where last runs are kept on this machine; `jobs`: the ones of the plugins that are on; `here`: whether this
@@ -112,32 +112,46 @@ export class Scheduler {
   }
 
   start() {
-    this.timer ??= setInterval(() => void this.tick().catch((e) => log.error("its tick failed", e)), TICK)
-    this.timer.unref()
-    setTimeout(() => void this.tick().catch((e) => log.error("its tick failed", e)), 5000).unref()
+    if (this.timer || this.first) return
+    const tick = () => void this.tick(Date.now(), JOBS_APART).catch((e) => log.error("its tick failed", e))
+    this.first = setTimeout(() => {
+      this.first = null
+      tick()
+      this.timer = setInterval(tick, TICK)
+      this.timer.unref()
+    }, AFTER_START_BURST)
+    this.first.unref()
   }
 
   stop() {
+    if (this.first) clearTimeout(this.first)
     if (this.timer) clearInterval(this.timer)
-    this.timer = null
+    this.first = this.timer = null
+    this.stops++
   }
 
   private last(key: string, now: number) {
     return (this.state[key] ??= { seen: now })
   }
 
-  /** Run what's due here now (each once at a time). */
-  async tick(now = Date.now()) {
+  async tick(now = Date.now(), apart = 0) {
     await this.before()
-    const due: Promise<unknown>[] = []
-    for (const { plugin, job } of this.jobs()) {
-      const key = `${plugin}/${job.name}`
-      if (this.running.has(key) || nextRun(job, this.last(key, now)) > now || !(await this.here(job.machine))) continue
-      due.push(this.run(key, plugin, job, now))
+    const due: Listed[] = []
+    for (const l of this.jobs()) {
+      const key = `${l.plugin}/${l.job.name}`
+      if (this.running.has(key) || nextRun(l.job, this.last(key, now)) > now || !(await this.here(l.job.machine)) || this.running.has(key)) continue
+      this.running.add(key)
+      due.push(l)
     }
     this.save()
     this.tellMissed(now)
-    await Promise.all(due)
+    const runs: Promise<unknown>[] = [], stops = this.stops
+    for (const [i, { plugin, job }] of due.entries()) {
+      if (i && apart) await sleep(apart)
+      if (this.stops !== stops) { this.running.delete(`${plugin}/${job.name}`); continue }
+      runs.push(this.run(`${plugin}/${job.name}`, plugin, job, now))
+    }
+    await Promise.all(runs)
   }
 
   private tellMissed(now: number) {

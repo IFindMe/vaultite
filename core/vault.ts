@@ -811,9 +811,7 @@ export class Vault {
       }
     }
     if (changed) this.version++
-    for (const fn of this.hooks) {
-      try { fn(this) } catch (e) { log.error("a plugin's after-sync hook failed", e) }
-    }
+    await this.afterSyncHooks()
     return changed
   }
 
@@ -843,6 +841,14 @@ export class Vault {
 
   afterSync(fn: (vault: Vault) => void) {
     return added(this.hooks, fn)
+  }
+
+  private async afterSyncHooks() {
+    let since = performance.now()
+    for (const fn of this.hooks) {
+      if (performance.now() - since > 20) { await turn(); since = performance.now() }
+      try { fn(this) } catch (e) { log.error("a plugin's after-sync hook failed", e) }
+    }
   }
 
   onArrive(fn: (rel: string) => void) {
@@ -1353,9 +1359,7 @@ export class Vault {
     }
     changed = changed.filter((r) => !unchanged.has(r))
     if (changed.length || gone.length) this.version++
-    for (const fn of this.hooks) {
-      try { fn(this) } catch (e) { log.error("a plugin's after-sync hook failed", e) }
-    }
+    await this.afterSyncHooks()
     return !!(changed.length || gone.length)
   }
 

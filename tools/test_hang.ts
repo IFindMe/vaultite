@@ -54,16 +54,23 @@ else {
   } finally { peer.kill("SIGKILL") }
 }
 
-const WATCHED = (o: Partial<Watchdog>, then: string) => `import { killWhenMainThreadStalls } from ${JSON.stringify(core("watchdog.ts"))}
-killWhenMainThreadStalls({ stallMs: 1500, memStallMs: 400, memMB: 1e6, everyMs: 100, ...${JSON.stringify(o)} })
+const REPORTS = path.join(tmp, "reports")
+const WATCHED = (o: Partial<Watchdog>, then: string) => `import { killWhenStuck } from ${JSON.stringify(core("watchdog.ts"))}
+import { ready } from ${JSON.stringify(core("startup.ts"))}
+killWhenStuck({ stallMs: 1500, startStallMs: 1500, memStallMs: 400, memMB: 1e6, everyMs: 100, startupMs: 60_000, reportWaitMs: 10_000, ...${JSON.stringify(o)} }, ${JSON.stringify(REPORTS)})
 console.log("watching")
 ${then}`
-const spin = `setTimeout(() => { for (;;) {} }, 300)`
+const spin = `function spinsForever() { for (;;) {} }\nsetTimeout(spinsForever, 300)`
 const killed = (r: Ran) => r.signal === "SIGKILL" || (process.platform === "win32" && r.code !== null && r.code !== 0)
+const reportIn = (out: string) => /its report (\S+\.json)/.exec(out)?.[1] ?? ""
 {
   const got = await runModuleKilledAfter(WATCHED({}, spin), 10_000)
-  const stalledS = Number(/watchdog: the main thread stalled (\d+) s/.exec(got.out)?.[1] ?? Infinity)
+  const stalledS = Number(/watchdog: the main thread stalled (\d+) s/.exec(got.out)?.[1] ?? Infinity), file = reportIn(got.out)
+  const report = file && fs.existsSync(file) ? fs.readFileSync(file, "utf8") : ""
+  const parts = report ? Object.keys(JSON.parse(report)) : []
   check("a main thread stuck in a loop is killed by the watchdog, saying so", killed(got) && stalledS < 5, got)
+  check("… naming the function it was in, and the report it wrote of it (its JS stack, heap, handles)", /stalled \d+ s \([^)]*\) at \S*spinsForever/.test(got.out) &&
+    !!file && fs.realpathSync(path.dirname(file)) === fs.realpathSync(REPORTS) && /"javascriptStack":\{[^}]*spinsForever/.test(report) && parts.includes("libuv") && !parts.includes("environmentVariables"), { out: got.out, file, parts })
 }
 {
   const holds = `import { holdingVault } from ${JSON.stringify(core("vaultholder.ts"))}\nsetTimeout(() => { holdingVault("#7 POST /api/file/move"); for (;;) {} }, 300)`
@@ -77,9 +84,43 @@ const killed = (r: Ran) => r.signal === "SIGKILL" || (process.platform === "win3
   check("an idle main thread isn't killed", got.code === 0 && !/watchdog/.test(got.out), got)
 }
 {
-  const got = await runModuleKilledAfter(WATCHED({ stallMs: 60_000, memMB: 1 }, spin), 10_000)
+  const got = await runModuleKilledAfter(WATCHED({ stallMs: 60_000, startStallMs: 60_000, memMB: 1 }, spin), 10_000)
   const stalledS = Number(/stalled (\d+) s/.exec(got.out)?.[1] ?? Infinity)
   check("a stalled main thread holding too much memory is killed sooner", killed(got) && stalledS < 5, got)
+}
+{
+  const stall = `setTimeout(() => { const t = Date.now(); while (Date.now() - t < 2500) {} process.exit(0) }, 300)`
+  const starting = await runModuleKilledAfter(WATCHED({ startStallMs: 60_000 }, stall), 10_000)
+  const up = await runModuleKilledAfter(WATCHED({ startStallMs: 60_000 }, `ready()\n${stall}`), 10_000)
+  check("a start is given longer to stall than a server that's ready", starting.code === 0 && !/watchdog/.test(starting.out) && killed(up) && /stalled \d+ s \(\d+ MB, ready/.test(up.out), { starting, up })
+}
+{
+  const got = await runModuleKilledAfter(WATCHED({ startupMs: 1500 }, `setInterval(() => {}, 1000)`), 10_000)
+  check("a start not ready in time is ended, saying where it was and with a report", killed(got) && /watchdog: the server isn't ready \d+ min after it started \(imports\)/.test(got.out) &&
+    fs.existsSync(reportIn(got.out)) && reportIn(got.out).endsWith("-start.json"), got)
+  const fine = await runModuleKilledAfter(WATCHED({ startupMs: 1500 }, `ready()\nsetTimeout(() => process.exit(0), 3000)`), 10_000)
+  check("… and one that got ready isn't", fine.code === 0 && !/watchdog/.test(fine.out), fine)
+}
+if (process.platform === "win32") skip("SIGUSR2's report", "no SIGUSR2 on Windows")
+else {
+  const local = path.join(tmp, "local")
+  const got = await runModuleKilledAfter(`import { reportOnSignal } from ${JSON.stringify(core("reports.ts"))}
+reportOnSignal()
+process.kill(process.pid, "SIGUSR2")
+setTimeout(() => process.exit(0), 2000)`, 20_000, { VAULTITE_LOCAL: local })
+  const kept = fs.existsSync(path.join(local, "reports")) ? fs.readdirSync(path.join(local, "reports")) : []
+  check("SIGUSR2 writes a report and the server goes on", got.code === 0 && kept.length === 1 && kept[0].endsWith("-signal.json") && got.out.includes("a report, as SIGUSR2 asked"), { got, kept })
+}
+{
+  const { pruneReports, reportName } = await import("../core/reports.ts")
+  const dir = path.join(tmp, "many")
+  fs.mkdirSync(dir, { recursive: true })
+  const names = Array.from({ length: 25 }, (_, i) => reportName("stall", Date.UTC(2026, 0, 1, 0, 0, i), 0, 100 + i))
+  for (const n of names) fs.writeFileSync(path.join(dir, n), "{}")
+  fs.writeFileSync(path.join(dir, "notes.txt"), "")
+  pruneReports(dir)
+  const left = fs.readdirSync(dir).sort()
+  check("the last 20 reports are kept, nothing else touched", left.length === 21 && left.includes("notes.txt") && left.filter((n) => n !== "notes.txt").join() === names.slice(5).join(), left)
 }
 if (process.platform === "win32") skip("watchdog: a stopped process", "no SIGSTOP on Windows")
 else {

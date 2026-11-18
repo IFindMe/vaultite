@@ -981,7 +981,6 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `liveMarkdown(text)`: Whether words a guest adds (a comment, a reply: all of it theirs) hold anything live.
 - `load(vault)`: Import every plugin.ts and register its kinds, in discover() order (manifest-only plugins too, for their AGENTS.md).
 - `LOADED`
-- `LOCAL`: This machine's own files: secrets.
 - `localDate(t)`: A time (a Date or epoch ms) as this machine's date, YYYY-MM-DD, and its time, HH:MM.
 - `localTime(t)`
 - `logger(area)`
@@ -1039,7 +1038,6 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `RequestEnd`: How a request ended: `error`, what a failed one (4xx, 5xx) answered.
 - `RequestHook`
 - `RequestStart`: An API request as it starts: `route` is the path under /api/; `client`, `agent`, `command` its X-Vaultite-* headers; `remote`/`port` the caller's address (a loopback caller can be looked up).
-- `ROOT`
 - `RouteOptions`: `lock: false`: not held while it runs; `sync: false`: reads no vault, so neither held nor synced.
 - `running`: What this server runs now.
 - `runtimeDir()`: A folder only this user can use: a Mac's $TMPDIR is that already; Linux's /tmp is shared (another user could make the folder first and swap a script a shell runs), so $XDG_RUNTIME_DIR/vaultite,…

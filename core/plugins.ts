@@ -49,6 +49,7 @@ import { notHereYet, onItsOwn, runHook } from "./writegate.ts"
 export { WriteRefused } from "./writegate.ts"
 import { type ArchiveHook, type CreateHook, type FileCreateHook, isHiddenPath, type Item, Kind, type MoveHook, readText, requestWriter, type SaveHook, type Vault, type WriteHook, writeAtomic } from "./vault.ts"
 import { atExit } from "./exit.ts"
+import { LOCAL, ROOT } from "./local.ts"
 
 /** What kind of file a name is (core/filetypes.ts), for plugins that treat text files differently, and the type it is served with. */
 export { contentType, isTextKind, kindOf } from "./filetypes.ts"
@@ -124,10 +125,8 @@ export type { EventFilter, VaultEvent } from "./events.ts"
 export { pathAsSaid } from "./ops.ts"
 export { BROWSER_UA, type Fetched, fetchPublic, type FetchOptions, pageText, publicUrl } from "./web.ts"
 
-export const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+export { LOCAL, ROOT }
 const PLUGINS = path.join(ROOT, "plugins")
-/** This machine's own files: secrets. Never synced, never in the vault. */
-export const LOCAL = process.env.VAULTITE_LOCAL || path.join(ROOT, "data")
 
 /** This server, as commands on this machine reach it (a shell's VAULTITE_URL, an agent's hooks). */
 export function serverUrl() {

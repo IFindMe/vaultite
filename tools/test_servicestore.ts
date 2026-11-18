@@ -1,6 +1,6 @@
 // A service on its code store (core/update/servicestore.ts, bin/vaultite-server) on throwaway repos: roots made, restarted
 // onto or their web build taken, the one that keeps failing at start left. npm, builds, CI and the graph stood in for.
-import { execFileSync } from "node:child_process"
+import { execFileSync, spawnSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
 import { check, exit, section, skip, summary, tempDir } from "./test/lib.ts"
@@ -51,9 +51,15 @@ const host = (root: string) => inStore({ checkout, store, root, branch: "main", 
 const current = () => JSON.parse(fs.readFileSync(path.join(store, "current.json"), "utf8")).commit
 const rootOf = (sha: string) => path.join(store, "roots", sha)
 const leased = (sha: string) => fs.existsSync(path.join(store, "leases", `${sha}.${process.pid}.json`))
-/** bin/vaultite-server as the service manager runs it: what its server said. */
-const trampoline = () => JSON.parse(execFileSync(process.execPath, [path.join(checkout, "bin", "vaultite-server")], { encoding: "utf8",
-  env: { ...process.env, VAULTITE_CODE_STORE: store, VAULTITE_LOCAL: "" } }).trim().split("\n").at(-1)!)
+const launched: string[] = []
+const trampoline = () => {
+  const r = spawnSync(process.execPath, [path.join(checkout, "bin", "vaultite-server")], { encoding: "utf8",
+    env: { ...process.env, VAULTITE_CODE_STORE: store, VAULTITE_LOCAL: "", VAULTITE_SERVICE_WAIT: "off" } })
+  launched.push(r.stderr)
+  return JSON.parse(r.stdout.trim().split("\n").at(-1)!)
+}
+const pointTo = (name: "current" | "good", sha: string) => fs.writeFileSync(path.join(store, `${name}.json`), JSON.stringify({ commit: sha, t: Date.now() }))
+const isBad = (sha: string) => fs.existsSync(path.join(store, "bad", `${sha}.json`))
 
 await section("a commit the server runs: made into a root, then restarted onto", async () => {
   const c2 = commit({ "server.ts": server(2) }, "the server changes")
@@ -79,12 +85,31 @@ await section("a commit of the web app only: its web build taken, no restart", a
   check("the next web build taken: its root leased, the one before let go", leased(c4) && !leased(c3), fs.readdirSync(path.join(store, "leases")))
 })
 
-await section("a root whose server keeps stopping as it starts: bad, the good one runs", async () => {
+await section("a root whose server keeps stopping as it starts: the good one runs, and it's bad once that one starts", async () => {
   const c4 = current(), c2 = git(dev, "rev-parse", "HEAD~2")
   const said = [1, 2, 3].map(() => trampoline().server)
   const fourth = trampoline()
-  check("three tries of current, then it's bad and the good root runs", said.every((n) => n === 2) && fourth.server === 2 && fs.realpathSync(fourth.cwd) === fs.realpathSync(rootOf(c2))
-    && fs.existsSync(path.join(store, "bad", `${c4}.json`)), { said, fourth })
+  check("three tries of current, then the good root runs, current only suspect", said.every((n) => n === 2) && fs.realpathSync(fourth.cwd) === fs.realpathSync(rootOf(c2))
+    && !isBad(c4) && launched.at(-1)!.includes("to tell its code from this machine's trouble"), { said, fourth, launched })
+  fs.rmSync(path.join(store, "service-start.json"))
+  pointTo("good", c2)
+  const after = trampoline()
+  check("once the good root started fine after it, current is bad, and the good one runs", isBad(c4) && fs.realpathSync(after.cwd) === fs.realpathSync(rootOf(c2)), { after, launched })
+})
+
+await section("every root stopping as it starts (the vault unreadable, the load): this machine's trouble, none bad", async () => {
+  const c3 = git(dev, "rev-parse", "HEAD~1"), c2 = git(dev, "rev-parse", "HEAD~2")
+  fs.rmSync(path.join(store, "service-start.json"))
+  pointTo("current", c3)
+  launched.length = 0
+  const ran = Array.from({ length: 8 }, () => fs.realpathSync(trampoline().cwd))
+  const cur = fs.realpathSync(rootOf(c3)), good = fs.realpathSync(rootOf(c2))
+  check("current three times, the good one three times, then current again, waiting longer each time", ran.join() === [cur, cur, cur, good, good, good, cur, cur].join()
+    && launched[6].includes("this machine's trouble, not the code's") && launched[3].includes("waits 15 s") && launched[7].includes("waits 120 s"), { ran, launched })
+  check("neither is marked bad, nor suspect", !isBad(c3) && !isBad(c2) && !fs.existsSync(path.join(store, "service-suspect.json")))
+  fs.rmSync(path.join(store, "service-start.json"))
+  launched.length = 0
+  check("once a server started, its next start doesn't wait", fs.realpathSync(trampoline().cwd) === cur && !launched[0].includes("waits"), launched)
   fs.rmSync(path.join(store, "current.json")); fs.rmSync(path.join(store, "good.json"))
   check("no root to run: the checkout's own server", trampoline().server === 1)
 })

@@ -3,6 +3,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { pipeline } from "node:stream/promises"
+import { setImmediate as turn } from "node:timers/promises"
 import { type Conflict, type Entry, FileAnswer, HTTPError, LOCAL, localDate, localTime, logger, MACHINE_CLIENT, onTailnet, Plugin, Replica, sha256hex as sha, SYNC_PROTOCOL as PROTOCOL, unsynced, type Vector } from "../../../core/plugins.ts"
 import { DiskFolder, DiskStore } from "./disk.ts"
 import { Mailbox } from "./mailbox.ts"
@@ -329,8 +330,12 @@ export class SyncSet {
       const recent = Date.now() - (FAST ? 0 : 120_000)
       const live = new Map(this.input.list().map((f) => [f.path, f]))
       const mine = new Map(this.folder.list().map((f) => [f.path, f]))
+      await this.input.prepare([...live.keys()], () => undefined)
+      await this.folder.prepare([...mine.keys()], () => undefined)
       const out: Compare = { at: Date.now(), same: 0, differ: [], missing: [], extra: [], keptMore: [], lostLines: [] }
+      let since = performance.now()
       for (const [p, f] of live) {
+        if (performance.now() - since > 20) { await turn(); since = performance.now() }
         if (f.mtime > recent) continue
         const m = mine.get(p)
         if (!m) { out.missing.push(p); continue }

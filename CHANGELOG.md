@@ -47,7 +47,12 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Server: moving or renaming a file in a big vault on iCloud Drive no longer freezes the server. Reading the vault's
   folders and rewriting links to the moved file now happen off the main thread, in steps, so the app, terminals and
   agents keep their connection meanwhile, where the watchdog used to kill and restart the server after 30 seconds.
-  When the watchdog does kill it, its log line has the local time and names what held the vault.
+  When the watchdog does kill it, its log line has the local time and names what held the vault, the function the
+  main thread was in and a report of it (`data/reports`, the last 20; SIGUSR2 writes one too). It watches the start as
+  well: one not ready in 20 minutes is restarted, and `GET /api/health` says where a start is before the vault is read.
+  Device sync's hourly shadow check no longer holds the server (it was killed an hour after each start), scheduled jobs
+  wait a minute after a start and start a few seconds apart, and a service whose starts fail because of the machine
+  (the vault unreadable, heavy load) tries again with a growing wait instead of marking its code bad.
 - Jobs: a follow-up to a job whose agent quit (its terminal back at a shell prompt) starts the agent again in the
   background, resuming its conversation with the follow-up, instead of typing it into the shell; the job shows failed,
   not ready for review, when its agent quit mid-work. `vau terminal send` refuses text for an agent that has left its

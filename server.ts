@@ -27,6 +27,12 @@ module.enableCompileCache?.()
 process.env.UV_THREADPOOL_SIZE ??= "128"
 startServerLog()
 const log = logger("vaultite")
+const DESKTOP = process.env.VAULTITE_DESKTOP === "1"
+const startup = await import("./core/startup.ts")
+;(await import("./core/reports.ts")).reportOnSignal()
+const restartedByServiceManager = !DESKTOP && !!(process.env.VAULTITE_SERVICE || process.env.VAULTITE_UPDATES)
+const pausedByDebugger = process.execArgv.some((x) => x.startsWith("--inspect"))
+if (restartedByServiceManager && !pausedByDebugger && process.env.VAULTITE_WATCHDOG !== "off") (await import("./core/watchdog.ts")).killWhenStuck()
 if (Number(process.env.VAULTITE_PARENT_PID) > 1) {
   const { Worker } = await import("node:worker_threads")
   new Worker(`const pid = ${Number(process.env.VAULTITE_PARENT_PID)}
@@ -35,7 +41,8 @@ setInterval(() => { if (process.ppid === pid) return; try { process.kill(pid, 0)
 if ((await (await import("./core/http1.ts")).fetchOverHttp1()) !== "http1") log.warn("fetch may speak HTTP/2: Node's undici keeps its dispatcher elsewhere now")
 const { askedAt, span } = await import("./core/spans.ts")
 const starting = span("server.start", {}, askedAt - performance.timeOrigin)
-starting.mark("spawn")
+const timing = { mark: (part: string) => { starting.mark(part); startup.markPassed(part) } }
+timing.mark("spawn")
 const { WebSocketServer } = await import("ws")
 const { decodePart: decode, jsonOf, open, queryOf } = await import("./core/app.ts")
 ;(await import("./core/update/graph.ts")).giveGraph(() => import("./core/update/closure.ts"))
@@ -56,12 +63,12 @@ const { fetchFromICloud, iCloud, keepDownloaded, slowReads } = await import("./c
 const vaults = await import("./core/vaults.ts")
 const { answers, bequeath, claim, reclaim, servingKey } = await import("./core/serving.ts")
 const { attach, detach, inDesktop, LISTENING, onHost, onHostMessage } = await import("./core/desktopapp.ts")
-starting.mark("imports")
+timing.mark("imports")
+void (await import("./core/running.ts")).running().then((r) => startup.runsCommit(r.startedOn), () => {})
 
 const HOST = process.env.HOST || "127.0.0.1"
 const PORT = Number(process.env.PORT || 8793)
 process.env.PORT = String(PORT)
-const DESKTOP = process.env.VAULTITE_DESKTOP === "1"
 
 const VAULT_AT = DESKTOP ? VAULT_PATH : vaults.current(VAULT_PATH)
 const { TEST_HEADER, REFUSED_FILE, inTestRun, isOwnVault, keepRefusal, refuseOwnVault } = await import("./core/testrun.ts")
@@ -77,7 +84,7 @@ if (servedBy) {
   process.exit(1)
 }
 let app: App, vault: Vault, live: LiveType
-const ready = open(VAULT_AT, { timing: starting, watch: (v) => { live = new Live(v).start() } }).then((a) => {
+const ready = open(VAULT_AT, { timing, watch: (v) => { live = new Live(v).start() } }).then((a) => {
   app = a
   vault = a.vault
   watch(live)
@@ -86,10 +93,8 @@ const ready = open(VAULT_AT, { timing: starting, watch: (v) => { live = new Live
   for (const p of vault.problemList()) log.info(`${p.file}: ${p.problem}`)
   log.info(`vault read, plugins: ${app.plugins.map((p) => p.id).join(", ")}`)
   starting.end()
+  startup.ready()
   module.flushCompileCache?.() // Node writes the cache only on a normal exit, and a server ends by a signal
-  const restartedByServiceManager = !DESKTOP && !!(process.env.VAULTITE_SERVICE || process.env.VAULTITE_UPDATES)
-  const pausedByDebugger = process.execArgv.some((x) => x.startsWith("--inspect"))
-  if (restartedByServiceManager && !pausedByDebugger && process.env.VAULTITE_WATCHDOG !== "off") void import("./core/watchdog.ts").then((w) => w.killWhenMainThreadStalls())
 }, (e) => {
   log.error("couldn't open the vault", e)
   process.exit(1)
@@ -581,6 +586,7 @@ const server = http.createServer(async (req, res) => {
         keepRefusal(path.join(runtimeDir(), REFUSED_FILE), { run: String(run).slice(0, 64), call: `${req.method} ${url.pathname}`.slice(0, 200) })
         return json(res, { error: "a test run's call to the user's own vault: tests use a throwaway one (vau sandbox)" }, 403)
       }
+      if (url.pathname === "/api/health" && req.method === "GET") return json(res, startup.health())
       if (url.pathname === "/api/loading") {
         const root = path.join(vault?.path ?? VAULT_AT, "/")
         return json(res, { ready: !!vault, downloading: slowReads().filter((p) => p.startsWith(root)).map((p) => p.slice(root.length)) })

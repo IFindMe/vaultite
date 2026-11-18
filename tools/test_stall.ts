@@ -52,6 +52,9 @@ try {
   }
   check("the server starts reading the vault", held >= 0, [Date.now() - t0, log.slice(-500)])
   if (held < 0) throw new Error("the server never read Notes/Slow.md")
+  const early = await get("health", 3000)
+  check("health: answers while the vault is being read, saying where the start is", early.status === 200 && Object.keys(early.body ?? {}).join() === "ok,ready,phase,pid,startedAt,readyAt,commit" &&
+    early.body.ok === true && early.body.pid === server.pid && early.body.startedAt <= Date.now() && (early.body.ready ? early.body.phase === "ready" : ["plugins", "vault", "opening"].includes(early.body.phase) && early.body.readyAt === null), early)
   let loading: any = null
   // (named once it has been read for a second, core/vault.ts SLOW)
   for (const since = Date.now(); Date.now() - since < 15_000;) {
@@ -90,6 +93,8 @@ try {
   check("once it arrives it's read", arrived)
   const slow = await get("file?path=Notes/Slow.md")
   check("and opens", slow.status === 200 && slow.body.text.includes("Arrived."), slow)
+  const h = (await get("health")).body
+  check("health: ready, when, and the commit it runs", h?.ready === true && h.phase === "ready" && h.readyAt >= h.startedAt && (h.commit === null || /^[0-9a-f]{40}$/.test(h.commit)), h)
 } catch (e) {
   check("the test runs to its end", false, String(e))
 } finally {

@@ -37,6 +37,12 @@ TypeScript directly) and, for the QA scripts, Playwright's Chromium (`npx playwr
 - `vau service install --vault <folder>` keeps the server running (launchd on macOS, systemd on Linux, Task Scheduler
   on Windows). A server in WSL (`npm start` there, or `vau service` with systemd on in `/etc/wsl.conf`) answers
   Windows' browser and app at `http://localhost:8793`: WSL forwards localhost.
+- A guard outside a service's server (a script restarting a hung one): `GET /api/health` from this machine answers
+  `{ ok, ready, phase, pid, startedAt, readyAt, commit }` (times in ms) as soon as the server listens, ready or not,
+  without reading the vault. Before restarting one, send its pid SIGUSR2 and give it 10 s: it writes a diagnostic report
+  into `<VAULTITE_LOCAL>/reports` (the last 20 kept) once its main thread turns. A service's own watchdog
+  (`core/watchdog.ts`) kills a main thread stalled 30 s (2 min while starting) or a start not ready in 20 min, with a
+  report of it first: a guard waits longer than that.
 - Windows: `bin/vau.cmd` runs vau from cmd and PowerShell (Git Bash runs `bin/vau`); `vau wsl install` puts it in WSL.
   Windows' default execution policy blocks Node's `npm.ps1` in PowerShell: run `npm.cmd`, use cmd or Git Bash, or allow
   local scripts once (`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`).
