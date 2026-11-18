@@ -450,6 +450,15 @@ export default async ($: VaultTest) => {
     ;[st, r] = await api("POST", "ops/companion.draw", { path: "Notes/A.md", actions: [{ op: "delete", id: "x" }] })
     check("companion: draw is for drawings", st === 400 && /isn't a drawing/.test(r.error), [st, r])
   }
+  {
+    let n = 0, reads = 0
+    const saved = { api: async () => { n++; return { text: n < 3 ? "a\nb" : "a\n@claude why?" } } }
+    const ex = await cMoments.excerpts(saved, [{ seq: 1, t: 0, kind: "ask", path: "N.md", line: 2, text: "@claude why?", waited: 300 }])
+    const spoken: Moment[] = [{ seq: 2, t: 0, kind: "ask", path: "N.md", line: 2, text: "what does this line mean", waited: 120, summoned: true }]
+    const t0 = Date.now(), ex2 = await cMoments.excerpts({ api: async () => { reads++; return { text: "a\nb" } } }, spoken), took = Date.now() - t0
+    check("companion: a typed ask's note is read once its autosave lands; a spoken ask's at once (never 2 s on the in-note wait)",
+      n === 3 && !!ex[0]?.lines.some((l) => l.includes("@claude why?")) && reads === 1 && took < 150 && ex2.length === 1, { n, reads, took, ex, ex2 })
+  }
 
   ;[st, r] = await api("POST", "ops/companion.suggest", { path: "Notes/A.md", find: "friday", replace: "Friday", why: "A day's name" })
   const id = r.id

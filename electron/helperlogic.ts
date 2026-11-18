@@ -202,11 +202,11 @@ export function shotCrop(d: Rect, p: Point): Rect {
 }
 
 /** A closer look where an ask points: what they drew round (all of it, with some room), else this much around the
- *  pointer; pictured at up to `most` pixels a point, `side` on its long side (small logos and text read off it). */
-export const CLOSE = { around: { width: 300, height: 200 }, least: { width: 160, height: 110 }, side: 960, pixels: 1_000_000, most: 4 }
-/** The part of display `d` its closer look shows, in points, and its pixels a point; null when it would be no closer
- *  than the ask's picture (a pixel a point). */
-export function closeCrop(d: Rect, p: Point, drawn: Rect[]): { crop: Rect; scale: number } | null {
+ *  pointer; pictured at up to `side` pixels on its long side (small logos and text read off it). */
+export const CLOSE = { around: { width: 300, height: 200 }, least: { width: 160, height: 110 }, side: 960, pixels: 1_000_000 }
+/** The part of display `d` its closer look shows, in points, and its pixels a point: at most the display's own (`native`;
+ *  more is only upscaled, and tokens in its session for good), null when no closer than the ask's picture (a pixel a point). */
+export function closeCrop(d: Rect, p: Point, drawn: Rect[], native: number): { crop: Rect; scale: number } | null {
   let x0: number, y0: number, x1: number, y1: number
   if (drawn.length) {
     x0 = Math.min(...drawn.map((b) => b.x)); y0 = Math.min(...drawn.map((b) => b.y))
@@ -220,7 +220,7 @@ export function closeCrop(d: Rect, p: Point, drawn: Rect[]): { crop: Rect; scale
   const fit = (a: number, b: number, from: number, span: number) => { const size = Math.min(b - a, span), at = Math.max(from, Math.min(from + span - size, a)); return [Math.round(at), Math.round(size)] }
   const [x, width] = fit(x0, x1, d.x, d.width), [y, height] = fit(y0, y1, d.y, d.height)
   if (width < 8 || height < 8) return null
-  const scale = Math.min(CLOSE.most, CLOSE.side / Math.max(width, height), Math.sqrt(CLOSE.pixels / (width * height)))
+  const scale = Math.min(native, CLOSE.side / Math.max(width, height), Math.sqrt(CLOSE.pixels / (width * height)))
   return scale < 1.5 ? null : { crop: { x, y, width, height }, scale: Math.round(scale * 100) / 100 }
 }
 

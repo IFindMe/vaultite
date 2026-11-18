@@ -32,7 +32,7 @@ export type Place = Omit<InApp, "near"> & { app?: string; appName?: string; wind
 /** A closer look at what an ask points at (helperlogic.ts closeCrop): what they drew round, else by the pointer, at more
  *  pixels a point than its picture, for what's too small to read there (a logo, an icon); their rings or pointer on it. */
 export async function closeShot(p: Point, drawn: Rect[]) {
-  const c = QUIET ? null : closeCrop(screen.getDisplayNearestPoint(p).bounds, p, drawn)
+  const d = screen.getDisplayNearestPoint(p), c = QUIET ? null : closeCrop(d.bounds, p, drawn, d.scaleFactor)
   const r = c ? await shootDisplay(p, await excluded(), SHOTS(), c.crop, c.scale, drawn.length ? { rings: drawn } : { pointer: p }).catch(() => null) : null
   return r && c ? { shot: r.file, at: r.frame, scale: c.scale, mark: drawn.length ? "ring" : "pointer" } : null
 }

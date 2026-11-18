@@ -641,15 +641,16 @@ export default async ($: VaultTest) => {
     check("picture: as much of the display as Claude takes unscaled (a pixel stays a point), around the pointer, inside the display",
       crop.width * crop.height <= SHOT_MOST.pixels && Math.abs(crop.width / crop.height - 1470 / 956) < 0.01 && crop.x <= 766 && crop.x + crop.width >= 766 && crop.y >= 0 && crop.y + crop.height <= 956 &&
       JSON.stringify(whole) === '{"x":0,"y":0,"width":1280,"height":800}' && side.x + side.width === 0 && side.y + side.height === 1240 && side.width * side.height <= SHOT_MOST.pixels, { crop, whole, side })
-    // (a closer look: what they drew round with room, else by the pointer, several pixels a point; none no closer)
-    const ringed = closeCrop(d, { x: 700, y: 400 }, [{ x: 600, y: 300, width: 60, height: 50 }]), pointed = closeCrop(d, { x: 700, y: 400 }, []), edge = closeCrop(d, { x: 1465, y: 3 }, [])
+    // (a closer look: what they drew round with room, else by the pointer, at the display's own pixels; none no closer)
+    const ringed = closeCrop(d, { x: 700, y: 400 }, [{ x: 600, y: 300, width: 60, height: 50 }], 2), pointed = closeCrop(d, { x: 700, y: 400 }, [], 2), edge = closeCrop(d, { x: 1465, y: 3 }, [], 2)
+    const dense = closeCrop(d, { x: 700, y: 400 }, [], 4)
     const within = (r: { x: number; y: number; width: number; height: number }) => r.x >= 0 && r.y >= 0 && r.x + r.width <= 1470 && r.y + r.height <= 956
-    check("closer look: round what they drew (with room) or by the pointer, inside the display, at 1.5 to 4 pixels a point and no bigger than Claude takes",
-      !!ringed && ringed.crop.x < 600 && ringed.crop.x + ringed.crop.width > 660 && ringed.crop.y < 300 && ringed.crop.y + ringed.crop.height > 350 && ringed.scale === CLOSE.most &&
-      !!pointed && JSON.stringify(pointed.crop) === '{"x":550,"y":300,"width":300,"height":200}' && pointed.scale === 3.2 &&
-      !!edge && within(edge.crop) && edge.crop.width === 300 && [ringed, pointed, edge].every((c) => !!c && within(c.crop) && c.scale >= 1.5 && c.scale <= 4 &&
+    check("closer look: round what they drew (with room) or by the pointer, inside the display, at its own pixels a point (never upscaled) and no bigger than Claude takes",
+      !!ringed && ringed.crop.x < 600 && ringed.crop.x + ringed.crop.width > 660 && ringed.crop.y < 300 && ringed.crop.y + ringed.crop.height > 350 && ringed.scale === 2 &&
+      !!pointed && JSON.stringify(pointed.crop) === '{"x":550,"y":300,"width":300,"height":200}' && pointed.scale === 2 && dense?.scale === 3.2 &&
+      !!edge && within(edge.crop) && edge.crop.width === 300 && [ringed, pointed, edge, dense].every((c) => !!c && within(c.crop) && c.scale >= 1.5 && c.scale <= 4 &&
         c.crop.width * c.crop.height * c.scale ** 2 <= CLOSE.pixels * 1.01 && Math.max(c.crop.width, c.crop.height) * c.scale <= CLOSE.side + 1) &&
-      closeCrop(d, { x: 700, y: 400 }, [{ x: 0, y: 0, width: 1400, height: 900 }]) === null, { ringed, pointed, edge })
+      closeCrop(d, { x: 700, y: 400 }, [], 1) === null && closeCrop(d, { x: 700, y: 400 }, [{ x: 0, y: 0, width: 1400, height: 900 }], 2) === null, { ringed, pointed, edge, dense })
   }
   {
     // The companion hears the user on screen: an ask or a point with the window's text, the display's picture, what's near

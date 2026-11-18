@@ -38,7 +38,7 @@ export async function excerpts(ctx: Pick<OpCtx, "api">, ms: Moment[]) {
     try {
       const read = async () => String(FileText.parse(await ctx.api("GET", `file?path=${encodeURIComponent(path)}`)).text ?? "")
       let text = await read()
-      for (let i = 0; i < 8 && list.some((m) => m.kind === "ask" && m.waited !== undefined && m.text && !text.includes(m.text)); i++) { await new Promise((r) => setTimeout(r, 200)); text = await read() }
+      for (let i = 0; i < 8 && list.some((m) => m.kind === "ask" && !m.summoned && m.waited !== undefined && m.text && !text.includes(m.text)); i++) { await new Promise((r) => setTimeout(r, 200)); text = await read() }
       const e = excerpt(path, text, list)
       if (e) out.push(e)
     } catch {}
