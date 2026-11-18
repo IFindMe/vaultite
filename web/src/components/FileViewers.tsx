@@ -149,7 +149,7 @@ export function PlayerView({ path, info, v, video, onDuration }: { path: string;
 
 export function EmbedHead({ path, icon: Icon, name }: { path: string; icon: LucideIcon; name: string }) {
   return (
-    <button type="button" onClick={(e) => openFile(path, { newTab: e.metaKey || e.ctrlKey })} data-hold-menu
+    <button type="button" data-opens onClick={(e) => openFile(path, { newTab: e.metaKey || e.ctrlKey })} data-hold-menu
       className="flex h-9 w-full cursor-pointer items-center gap-1.5 px-3 text-left text-[13px] font-semibold text-muted-foreground hover:text-foreground">
       <Icon className="size-4 shrink-0" strokeWidth={2.25} />
       <span className="min-w-0 flex-1 truncate">{name}</span>

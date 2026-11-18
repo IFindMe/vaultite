@@ -35,7 +35,7 @@ function Value({ v, resolve, from }: { v: unknown; resolve: Resolve; from: strin
   if (link) {
     const file = resolve(link[1], from)?.file
     return file ? (
-      <button type="button" className="cursor-pointer text-primary hover:underline"
+      <button type="button" data-opens className="cursor-pointer text-primary hover:underline"
         onClick={(e) => { e.stopPropagation(); openFile(file, { newTab: e.metaKey || e.ctrlKey }) }}>{link[2] ?? link[1]}</button>
     ) : <span className="text-muted-foreground">{link[2] ?? link[1]}</span>
   }
@@ -352,7 +352,7 @@ const Table = memo(function Table({ groups, res, resolve, ctl, save, fold }: {
             <tr><td colSpan={res.columns.length} className={cn("pb-0.5", gi ? "pt-4" : "pt-2")}><GroupHead g={g} fold={fold} /></td></tr>
           )}
           {g.rows.slice(0, drawn - upTo[gi]).map((r, ri) => (
-            <tr key={r.path} data-query-row={r.path} onClick={(e) => { if (!editing) open(r, e, e.target instanceof Element && !!e.target.closest("[data-editable]")) }}
+            <tr key={r.path} data-query-row={r.path} data-opens onClick={(e) => { if (!editing) open(r, e, e.target instanceof Element && !!e.target.closest("[data-editable]")) }}
               className="cursor-pointer border-b-[0.5px] border-border hover:bg-foreground/[0.03] [tbody:last-child>&:last-child]:border-0">
               {res.columns.map((c, ci) => {
                 const v = r.values[c.key]
@@ -446,7 +446,7 @@ const MapResult = memo(function MapResult({ groups, res, resolve, fill }: { grou
         <div className="text-[13px] text-muted-foreground" data-query-unplaced>
           <span>Without a place ({unplaced.length}): </span>
           {unplaced.slice(0, 12).map((r, i) => (
-            <span key={r.path}>{i > 0 && ", "}<button type="button" className="cursor-pointer text-foreground hover:underline"
+            <span key={r.path}>{i > 0 && ", "}<button type="button" data-opens className="cursor-pointer text-foreground hover:underline"
               onClick={(e) => openFile(r.path, { newTab: e.metaKey || e.ctrlKey })}>{r.title}</button></span>
           ))}
           {unplaced.length > 12 && <span>, and {unplaced.length - 12} more</span>}

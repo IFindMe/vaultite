@@ -41,7 +41,7 @@ export function FileLine({ m, kind, remove }: { m: Media; kind: (typeof KINDS)[n
   const menu = menuFor(() => [{ label: "Open", run: () => openFile(m.path) }, { label: "Remove from this phone", icon: Trash2, danger: true, run: remove }])
   return (
     <SwipeRow actions={swipe}>
-      <button type="button" data-download={m.path} onClick={() => openFile(m.path)} onContextMenu={menu}
+      <button type="button" data-download={m.path} data-opens onClick={() => openFile(m.path)} onContextMenu={menu}
         className="flex min-h-14 w-full cursor-pointer items-center gap-3 py-2 text-left active:bg-foreground/[0.04]">
         <Thumb path={m.path} kind={kind} />
         <span className="min-w-0 flex-1">

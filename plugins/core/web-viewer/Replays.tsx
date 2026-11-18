@@ -124,7 +124,7 @@ function RunRow({ r, open }: { r: Run; open: () => void }) {
   const cover = useShot(r.run, r.shots[r.shots.length - 1], true, near)
   const more = r.hosts.length - 1
   return (
-    <button ref={box} type="button" onClick={open} data-web-replay={r.run}
+    <button ref={box} type="button" data-opens onClick={open} data-web-replay={r.run}
       className="group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-[10px] px-2 py-2 text-left hover:bg-foreground/[0.04]">
       <span className="relative h-[70px] w-[112px] shrink-0 overflow-hidden rounded-[6px] bg-muted ring-[0.5px] ring-border">
         {cover ? <img src={cover} alt="" draggable={false} className="size-full object-cover object-top" />

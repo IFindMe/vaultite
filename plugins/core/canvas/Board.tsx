@@ -844,7 +844,7 @@ export default function Board({ store, text, editable, onChange, place, path }: 
             <Tool icon={Trash2} label="Delete" onClick={removeSelected} />
           </> : <>
             {one && (one.type === "text" || isNote(one)) && <Tool icon={Pencil} label="Edit" onClick={() => beginEdit(one)} />}
-            {one && (one.type === "file" || one.type === "link") && <Tool icon={ArrowUpRight} label="Open" onClick={(e) => openNode(one, e.metaKey || e.ctrlKey)} />}
+            {one && (one.type === "file" || one.type === "link") && <Tool icon={ArrowUpRight} label="Open" opens onClick={(e) => openNode(one, e.metaKey || e.ctrlKey)} />}
             <Tool icon={Palette} label="Colour" onClick={(e) => menuBelow(e, colourItems())} swatch={colorOf(doc.nodes.find((n) => sel.has(n.id))?.color)} />
             {[...sel].some((id) => doc.nodes.find((n) => n.id === id)?.type !== "group") && <Tool icon={Shapes} label="Shape" onClick={(e) => menuBelow(e, styleItems())} />}
             {sel.size > 1 && <Tool icon={AlignStartVertical} label="Align" onClick={(e) => menuBelow(e, alignItems())} />}

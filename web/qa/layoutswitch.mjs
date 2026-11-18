@@ -89,7 +89,7 @@ try {
   if (toast) {
     const allTabsCount = () => page.locator("[data-all-tabs-workspace='1'][aria-current] [data-all-tabs-count]").innerText().then((t) => t.trim(), () => "")
     await toast.getByRole("button", { name: "Show workspaces" }).click(); await ui.idle()
-    check("the toast's Show workspaces: the Workspaces page, workspace 1 with its 4 tabs, the page itself left out", !!(await until(async () => (await allTabsCount()) === "4", 6000)),
+    check("the toast's Show workspaces: the Workspaces page, workspace 1 with its 5 tabs, the split it opened in still one", !!(await until(async () => (await allTabsCount()) === "5", 6000)),
       await allTabsCount())
     // (opened in the focused pane, the split's, as a tab of its own: closed, the pane shows its note again)
     await command(page, "Close current tab", 0); await ui.saved()

@@ -94,7 +94,7 @@ export function Controls({ el, path, video, mark }: { el: MediaEl; path: string;
     <SpeedButton key="speed" el={el} />,
     tracks && <button key="cc" type="button" className={btn} aria-pressed={cc} onClick={() => { captionsOn.set(!cc); setCc(!cc) }} data-tip="Captions" aria-label="Captions"><Captions className={icon} strokeWidth={2} /></button>,
     mark && el.duration >= 60 && <MarkButton key="mark" el={el} path={path} cs={cs} />,
-    mark && from && <button key="note" type="button" className={btn} onClick={() => openFile(from)} aria-label="Open note" data-tip="Open note"><FileText className={icon} strokeWidth={2} /></button>,
+    mark && from && <button key="note" type="button" data-opens className={btn} onClick={() => openFile(from)} aria-label="Open note" data-tip="Open note"><FileText className={icon} strokeWidth={2} /></button>,
     phoneFiles && <Keep key="keep" path={path} />,
     pip && <button key="pip" type="button" className={btn} onClick={togglePip} data-tip="Picture in picture" aria-label="Picture in picture"><PictureInPicture2 className={icon} strokeWidth={2} /></button>,
   ]

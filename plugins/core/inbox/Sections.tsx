@@ -53,7 +53,7 @@ export function Reports({ store }: { store: Store }) {
   return (
     <Folded label="Reports today" n={rs.length} attr="data-inbox-reports">
       {rs.map((r) => (
-        <button key={r.id} type="button" data-report={r.id} onClick={() => openFile(pathOf(r))}
+        <button key={r.id} type="button" data-report={r.id} data-opens onClick={() => openFile(pathOf(r))}
           className="relative isolate flex min-h-11 w-full cursor-pointer items-center gap-3 py-2 text-left before:absolute before:inset-y-0 before:-inset-x-2 before:-z-10 before:rounded-[8px] hover:before:bg-foreground/[0.04]">
           <FileText className="size-[18px] shrink-0 text-muted-foreground" strokeWidth={2} />
           <span className="min-w-0 flex-1">

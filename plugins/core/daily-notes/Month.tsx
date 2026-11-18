@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Calendar1, ChevronLeft, ChevronRight } from "lucide-react"
-import { addDays, cn, dateText, dow, HeadingButton, Loading, openFile, parse, range, SidebarHeading, today, useLive, useTick, type SidebarCtx } from "@vaultite"
+import { addDays, cn, dateText, dow, HeadingButton, linkClick, Loading, openFile, parse, range, SidebarHeading, today, useLive, useTick, type SidebarCtx } from "@vaultite"
 import { nav, openDay } from "./Day"
 
 type Month = { month: string; days: Record<string, { path: string; words: number }> }
@@ -45,9 +45,9 @@ export function MonthCalendar({ tab = false }: { tab?: boolean }) {
         {range(start, weeks * 7).map((d) => {
           const note = data?.days[d], inMonth = d.startsWith(month)
           return (
-            <button key={d} type="button" data-month-day={d} data-has-note={note ? "" : undefined}
+            <button key={d} type="button" data-month-day={d} data-has-note={note ? "" : undefined} data-opens
               aria-label={`${dateText(parse(d), { weekday: "long", day: "numeric", month: "long" })}${note ? ", has a note" : ""}`}
-              onClick={(e) => (note && (e.metaKey || e.ctrlKey) ? openFile(note.path, { newTab: true }) : void openDay(d, e.metaKey || e.ctrlKey))}
+              onClick={(e) => { const { newTab } = linkClick(e); if (note && newTab) openFile(note.path, { newTab }); else void openDay(d, newTab) }}
               className={cn("flex h-8 cursor-pointer flex-col items-center justify-center rounded-[6px] text-[13px] tabular-nums hover:bg-foreground/[0.06]",
                 inMonth ? "text-foreground" : "text-tertiary")}>
               <span className={cn("grid size-6 place-items-center rounded-full leading-none", d === now && "bg-primary font-semibold text-primary-foreground")}>{+d.slice(8)}</span>

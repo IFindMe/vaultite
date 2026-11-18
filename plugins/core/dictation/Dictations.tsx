@@ -184,7 +184,7 @@ function Row({ x, q, leaving, forget }: { x: Item; q: string; leaving?: ""; forg
         <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-[16px] text-muted-foreground max-md:text-[13px]">
           <span className="md:hidden text-tertiary tabular-nums">{dateText(x.t, TIME)}</span>
           {place.open
-            ? <button type="button" onClick={place.open} className="flex min-w-0 items-center gap-1 rounded-[4px] hover:text-foreground" data-dictation-where><place.icon className="size-3 shrink-0" strokeWidth={2} /><span className="truncate">{place.label}</span></button>
+            ? <button type="button" data-opens onClick={place.open} className="flex min-w-0 items-center gap-1 rounded-[4px] hover:text-foreground" data-dictation-where><place.icon className="size-3 shrink-0" strokeWidth={2} /><span className="truncate">{place.label}</span></button>
             : <span className="flex min-w-0 items-center gap-1" data-dictation-where><place.icon className="size-3 shrink-0" strokeWidth={2} /><span className="truncate">{place.label}</span></span>}
           {status && (
             <span data-dictation-status className={cn("flex items-center gap-1 rounded-chip px-1.5 py-[1px]", status.warn ? "bg-[var(--orange)]/12 text-[var(--orange)]" : status.live ? "bg-[var(--blue)]/12 text-[var(--blue)]" : "bg-foreground/[0.05]")}>

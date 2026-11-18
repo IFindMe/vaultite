@@ -72,7 +72,7 @@ export { archivedTabs, archiveUnseen, removeArchived, reopenArchived, restoreArc
 export { activePane, activeTab, closePane, closeTab, goHere, hashOf, newTab, openTab, paneById, paneTab, selectPane, selectTab, useTabList, useWorkspace as useTabLayout } from "@/core/workspace"
 export { newPaneId, newTabId, WORKSPACES } from "../../core/layout.ts"
 // Back and Forward in the focused tab (a view's own history first: ViewDef.history), and whether a tab can go there.
-export { canNavigate, navigate } from "@/core/workspace"
+export { canNavigate, navClicks, navigate, navigateInNewTab } from "@/core/workspace"
 // What the + buttons open: a blank tab, or the quick switcher picking it (newtab.json's `opens`).
 export { openNewTab } from "@/core/launcher"
 export { allPanes, clean as cleanTabLayout, focusedPane, panesOf, paneWith, placesIn, placesOf, shownTab, tabOfPane, withoutPanes, withoutTabs, type Group as TabGroup, type Pane, type Tab, type TabList } from "../../core/layout.ts"

@@ -32,7 +32,7 @@ type Where = { n: number; thisWindow: boolean; otherWorkspace: boolean }
 type Run = { group?: TabGroup; tabs: Tab[] }
 
 const hasWords = (q: string, text: string) => { const t = text.toLowerCase(); return q.toLowerCase().split(/\s+/).every((w) => t.includes(w)) }
-const listed = (t: Tab) => !["new", `view:${ALL_TABS}`].includes(focusedPane(t).to)
+const listed = (t: Tab) => placesIn(t).some((p) => !["new", `view:${ALL_TABS}`].includes(p.to))
 const groupOf = (l: TabList, t: Tab) => (t.group ? l.groups?.find((g) => g.id === t.group) : undefined)
 
 function runsOf({ l, tabs }: Shown): Run[] {

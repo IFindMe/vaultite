@@ -25,6 +25,11 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Inbox: a session's sheet starts with Open session, then Settle, Pin and Snooze, labelled on phones too; a report has
   Open session in its top bar. Settle shows a single tick, who delegated a session is in the line under its title, and
   a subagent that needs you is marked. Disabled buttons, such as Send with nothing typed, are now grey.
+- Middle click works as in a browser across the app. On Back or Forward it opens where they go in a new tab, history
+  and all (⌘-click too, with ⇧ in front). People, tag and query rows, the path bar's folders, embeds, the activity
+  feed, recaps, the calendar, canvas cards and inbox reports open in a new tab on it; in tab search, a split pane's
+  tab menu and the tab switcher's cards it closes the tab.
+- Workspaces page: a split tab with the Workspaces page in one of its panes is listed again, with its other panes.
 - Bad connections: a note or file on its way shows its skeleton, then "Still loading…" with Try again; one that can't
   be read says why ("Couldn't open this note: the server didn't answer") instead of "isn't in the vault any more", and
   opens by itself when the connection's back. When the server can't be reached for a while the app says so ("Can't

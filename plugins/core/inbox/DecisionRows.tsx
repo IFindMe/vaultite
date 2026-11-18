@@ -163,7 +163,7 @@ export function DecisionRow({ r, snooze, swipe, lead, inReport }: { r: InboxItem
           {away && <span className="text-tertiary">· snoozed</span>}
         </div>}
         {why && <p className="mt-2 max-w-[40rem] text-[14px] leading-[20px] text-foreground/75 text-pretty select-text max-md:text-[16px] max-md:leading-[23px]" data-decision-why>{why}</p>}
-        {gist && !inReport && <button type="button" data-decision-tldr disabled={!rep} onClick={(e) => { e.stopPropagation(); if (rep) openFile(pathOf(rep)) }}
+        {gist && !inReport && <button type="button" data-decision-tldr data-opens disabled={!rep} onClick={(e) => { e.stopPropagation(); if (rep) openFile(pathOf(rep)) }}
           className="group/rep mt-2.5 block w-full max-w-[40rem] border-l-2 border-border pl-3 text-left enabled:cursor-pointer">
           {rep && <span className="flex items-center gap-1 text-[12px] leading-[17px] font-medium text-tertiary group-enabled/rep:group-hover/rep:text-muted-foreground max-md:text-[13px]" data-decision-report>
             <FileText className="size-3 shrink-0" strokeWidth={2.25} /><span className="truncate">Report · {subject(rep.title)}</span></span>}

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 import { useCommandKeys } from "@/core/commands"
-import { canNavigate, navigate, paneById, useTabList } from "@/core/workspace"
+import { canNavigate, navClicks, paneById, useTabList } from "@/core/workspace"
 import { usePane, usePaneTopBar } from "@/core/pane"
 import { PaneControls } from "@/components/Tabs"
 import { cn } from "@/lib/utils"
@@ -16,10 +16,10 @@ function NavButtons() {
   return (
     <div className="flex h-7 min-w-0 flex-wrap items-center overflow-clip [overflow-clip-margin:4px]">
 
-      <button type="button" onClick={() => navigate(-1)} disabled={!canNavigate(p, -1)} aria-label="Navigate back" data-ui="button:nav:back" data-tip={`Navigate back${back}`} className={barButton}>
+      <button type="button" {...navClicks(-1, pane)} disabled={!canNavigate(p, -1)} aria-label="Navigate back" data-ui="button:nav:back" data-tip={`Navigate back${back}`} className={barButton}>
         <ArrowLeft className="size-4" strokeWidth={2} />
       </button>
-      <button type="button" onClick={() => navigate(1)} disabled={!canNavigate(p, 1)} aria-label="Navigate forward" data-ui="button:nav:forward" data-tip={`Navigate forward${forward}`} className={barButton}>
+      <button type="button" {...navClicks(1, pane)} disabled={!canNavigate(p, 1)} aria-label="Navigate forward" data-ui="button:nav:forward" data-tip={`Navigate forward${forward}`} className={barButton}>
         <ArrowRight className="size-4" strokeWidth={2} />
       </button>
     </div>

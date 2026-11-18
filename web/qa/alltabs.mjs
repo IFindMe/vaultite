@@ -221,6 +221,8 @@ try {
   await page.screenshot({ path: `${OUT}switcher-drag.png` }); await page.mouse.up(); await ui.idle()
   check("...dropped: the Workspaces page beside the tab, no list open", !!(await until(async () => (await pagesOpen()) === 1 && (await page.locator("[data-pane-body]:visible").count()) === 2, 6000)) && !(await page.locator("[data-workspace-list]").count()),
     await page.locator("[data-pane-body]:visible").count())
+  const besides = await until(async () => (await rows(1)).find((r) => /Trip ideas/.test(r) && /Workspaces/.test(r)), 4000)
+  check("...and the page still lists the split tab it's in, its other pane beside it", !!besides, await rows(1))
   await page.click(SWITCHER)
   check("...and a click on it still opens the list", !!(await until(() => page.locator("[data-workspace-list]").count(), 3000)))
   await page.keyboard.press("Escape"); await ui.idle()

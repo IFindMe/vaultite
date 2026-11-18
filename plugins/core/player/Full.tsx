@@ -36,7 +36,7 @@ export function Full({ el, path }: { el: MediaEl; path: string }) {
           </button>
         )}
         {phoneFiles && <Keep path={path} />}
-        {from && <button type="button" className={btn} onClick={() => openFile(from)} aria-label="Open note" data-tip="Open note"><FileText className={icon} strokeWidth={2} /></button>}
+        {from && <button type="button" data-opens className={btn} onClick={() => openFile(from)} aria-label="Open note" data-tip="Open note"><FileText className={icon} strokeWidth={2} /></button>}
       </div>
       <Book el={el} path={path} cs={cs} className="mt-6" />
     </div>

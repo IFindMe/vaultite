@@ -663,7 +663,7 @@ function CellMore({ tab, pane, info }: { tab: Tab; pane: Pane; info: (t: Tab | P
     e.stopPropagation()
     menuBelow(e, places.map((p) => {
       const i = info(p)
-      return { label: i.label, icon: i.icon, checked: p.id === pane.id, split: true, items: placeMenuOf(p.id), run: () => { selectTab(tab.id); selectPane(p.id) } }
+      return { label: i.label, icon: i.icon, checked: p.id === pane.id, split: true, items: placeMenuOf(p.id), run: () => { selectTab(tab.id); selectPane(p.id) }, middle: () => closePane(p.id) }
     }))
   }
   return (

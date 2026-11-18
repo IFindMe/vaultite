@@ -187,12 +187,12 @@ export function Kinfolk({ id, state }: { id: string; state: string }) {
   const go = (link: string | null) => { if (link) openView(link.replace(/^view:/, ""), { newTab: !isViewOpen(link.replace(/^view:/, "")) }) }
   return (
     <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground max-md:text-[15px]" data-family>
-      {f.parent && <span>Delegated by <button type="button" data-family-parent className="cursor-pointer font-medium text-foreground/80 underline decoration-foreground/20 underline-offset-2 hover:decoration-foreground/60"
+      {f.parent && <span>Delegated by <button type="button" data-family-parent data-opens className="cursor-pointer font-medium text-foreground/80 underline decoration-foreground/20 underline-offset-2 hover:decoration-foreground/60"
         onClick={() => go(f.parent!.link)}>{f.parent.title}</button></span>}
       {f.children.length > 0 && <span className="flex flex-wrap items-center gap-1">
         Subagents
         {f.children.map((k) => (
-          <button key={k.id} type="button" data-family-child={k.id} onClick={() => go(k.link)} data-tip={`${AGENT_NAME[k.agent] ?? k.agent}: ${k.title}`}
+          <button key={k.id} type="button" data-family-child={k.id} data-opens onClick={() => go(k.link)} data-tip={`${AGENT_NAME[k.agent] ?? k.agent}: ${k.title}`}
             className="flex h-6 max-w-[220px] cursor-pointer items-center gap-1.5 rounded-control bg-foreground/[0.05] px-2 text-foreground/80 hover:bg-foreground/[0.09] max-md:h-8">
             <span className="truncate">{AGENT_NAME[k.agent] ?? k.agent} · {k.title}</span>
             <span className={cn("shrink-0", k.state === "working" || k.state === "waiting" ? "text-tertiary" : "text-muted-foreground")}>{KIN_STATE[k.state] ?? k.state}</span>

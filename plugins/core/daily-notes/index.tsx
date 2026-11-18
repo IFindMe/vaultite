@@ -17,7 +17,7 @@ function DayBlock({ store, options }: BlockCtx) {
         <div className="flex items-center gap-1">
           <button type="button" className={nav} aria-label="Day before" data-tip="Day before" onClick={() => setDate(addDays(date, -1))}><ChevronLeft className="size-4" strokeWidth={2.5} /></button>
           <button type="button" disabled={!day?.exists} className="h-9 cursor-pointer rounded-[7px] px-1.5 text-[13px] text-muted-foreground tabular-nums hover:bg-foreground/[0.06] hover:text-foreground disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted-foreground md:h-7"
-            data-tip={day?.exists ? `Open ${date}` : undefined} onClick={(e) => day && openFile(day.path, { newTab: e.metaKey || e.ctrlKey })}>{name}</button>
+            data-tip={day?.exists ? `Open ${date}` : undefined} data-opens onClick={(e) => day && openFile(day.path, { newTab: e.metaKey || e.ctrlKey })}>{name}</button>
           <button type="button" className={nav} aria-label="Day after" data-tip="Day after" onClick={() => setDate(addDays(date, 1))}><ChevronRight className="size-4" strokeWidth={2.5} /></button>
         </div>
       }>

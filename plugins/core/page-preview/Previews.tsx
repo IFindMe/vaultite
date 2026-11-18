@@ -125,7 +125,7 @@ function Popover({ pop, level, store, onClose }: { pop: Pop; level: number; stor
       style={{ ...style, left, width: w, maxHeight: Math.max(160, Math.min(HEIGHT, room)) }}>
       <div className="flex h-8 shrink-0 items-center gap-2 border-b-[0.5px] border-border pr-1 pl-3 text-[12px] text-muted-foreground">
         <span className="min-w-0 flex-1 truncate font-medium">{stem(pop.path)}{anchor ? ` › ${anchor}` : ""}</span>
-        <button type="button" onClick={open} aria-label={`Open ${stem(pop.path)}`} data-tip={`Open (${modKey}-click: in a new tab)`}
+        <button type="button" data-opens onClick={open} aria-label={`Open ${stem(pop.path)}`} data-tip={`Open (${modKey}-click: in a new tab)`}
           className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-[5px] hover:bg-foreground/[0.06] hover:text-foreground">
           <SquareArrowOutUpRight className="size-3.5" strokeWidth={2} />
         </button>

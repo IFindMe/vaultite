@@ -140,7 +140,7 @@ function Group({ path, turns, items, open, tasks, pane, chat }: { path: string; 
   return (
     <section data-group={path || "none"}>
       {path ? (
-        <button type="button" onClick={() => jump({ path }, pane)}
+        <button type="button" data-opens onClick={() => jump({ path }, pane)}
           className="-mx-1.5 mb-1 flex h-7 max-w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-1.5 text-left hover:bg-foreground/[0.05] max-md:h-11">
           <FileText className="size-3.5 shrink-0 text-muted-foreground max-md:size-4" strokeWidth={2} />
           <span className="truncate text-[13px] font-semibold max-md:text-[15px]">{base(path)}</span>
@@ -192,7 +192,7 @@ function Row({ icon: Icon, title, place, at, muted, live, error, tint, onClick, 
   const line = "-mx-1.5 flex min-h-7 w-[calc(100%+0.75rem)] min-w-0 items-center gap-2.5 rounded-[6px] px-1.5 text-left text-[13px] max-md:min-h-11 max-md:text-[15px]"
   return (
     <div data-row={data}>
-      {onClick ? <button type="button" onClick={onClick} className={cn(line, "cursor-pointer hover:bg-foreground/[0.05]")}>{head}</button> : <div className={line}>{head}</div>}
+      {onClick ? <button type="button" data-opens onClick={onClick} className={cn(line, "cursor-pointer hover:bg-foreground/[0.05]")}>{head}</button> : <div className={line}>{head}</div>}
       {children && <div className="mb-1.5 ml-[29px] min-w-0 max-md:ml-[33px]">{children}</div>}
     </div>
   )

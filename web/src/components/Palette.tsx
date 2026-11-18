@@ -61,12 +61,12 @@ export function NoMatches({ what, query, then }: { what: string; query: string; 
 type Pointer = { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }
 type RowProps = {
   id: string; item: unknown; i: number; selected: boolean; look: unknown; draw: (selected: boolean) => ReactNode
-  act?: RowAction | null; onHover: (i: number) => void; onPick: (i: number, e: Pointer) => void
+  act?: RowAction | null; onHover: (i: number) => void; onPick: (i: number, e: Pointer) => void; onMiddle: (i: number) => boolean
 }
-const PaletteRow = memo(function PaletteRow({ id, i, selected, draw, act, onHover, onPick }: RowProps) {
+const PaletteRow = memo(function PaletteRow({ id, i, selected, draw, act, onHover, onPick, onMiddle }: RowProps) {
   const row = (
     <button id={`palette-${id}`} data-i={i} type="button" role="option" aria-selected={selected} tabIndex={-1}
-      onMouseMove={() => onHover(i)} onClick={(e) => onPick(i, e)}
+      onMouseMove={() => onHover(i)} onClick={(e) => onPick(i, e)} onAuxClick={(e) => { if (e.button === 1 && onMiddle(i)) e.preventDefault() }}
       className={cn("flex w-full cursor-pointer items-center gap-3 rounded-[8px] px-3 py-2 text-left max-md:py-[9px] [contain-intrinsic-size:auto_37px] [content-visibility:auto]", selected && "bg-foreground/[0.07]", act && "pr-11")}>
       {draw(selected)}
     </button>
@@ -110,7 +110,7 @@ const Clear = memo(function Clear({ onClear }: { onClear: () => void }) {
 const COARSE = matchMedia("(pointer: coarse)").matches
 const actOf = <T,>(action: ((item: T) => RowAction | null) | undefined, item: T) => (action ? action(item) : null)
 
-export function Palette<T extends { id: string }>({ label, placeholder, query, setQuery, select = false, items, row, action, onPick, onClose, hints, heading, section, empty, tail, start = 0, onEnd, onSelect, preview, look, complete, onKey: ownKey }: {
+export function Palette<T extends { id: string }>({ label, placeholder, query, setQuery, select = false, items, row, action, onPick, onClose, hints, heading, section, empty, tail, start = 0, onEnd, onSelect, preview, look, complete, onKey: ownKey, onMiddle }: {
   label: string; placeholder: string
   query: string; setQuery: (q: string, how?: { deleting: boolean }) => void
   complete?: string | null
@@ -120,6 +120,7 @@ export function Palette<T extends { id: string }>({ label, placeholder, query, s
   row: (item: T, selected: boolean) => ReactNode
   action?: (item: T) => RowAction | null
   onPick: (item: T | null, how: Pick) => void
+  onMiddle?: (item: T) => boolean
   onSelect?: (item: T | null) => void
   preview?: (item: T) => ReactNode | null
   onClose: () => void
@@ -170,6 +171,10 @@ export function Palette<T extends { id: string }>({ label, placeholder, query, s
   useLayoutEffect(() => { picks.current = pick })
   const [rowPick] = useState(() => (i: number, e: Pointer) => picks.current(i, e))
   const [rowHover] = useState(() => (i: number) => setSel(i))
+  const middle = (i: number) => { const it = items[i]; return !!it && !!onMiddle?.(it) }
+  const middles = useRef(middle)
+  useLayoutEffect(() => { middles.current = middle })
+  const [rowMiddle] = useState(() => (i: number) => middles.current(i))
   const onKey = (e: KeyboardEvent) => {
     if (e.nativeEvent.isComposing || ownKey?.(e)) return
     if ((e.key === "ArrowRight" || e.key === "End") && suffix) { setQuery(query + suffix); return }
@@ -206,7 +211,7 @@ export function Palette<T extends { id: string }>({ label, placeholder, query, s
         {!items.length && empty}
         {runs.map((r, k) => {
           const rows = r.rows.map((it, j) => (
-            <PaletteRow key={it.id} id={it.id} item={it} i={r.start + j} selected={r.start + j === sel} look={look} draw={(s) => row(it, s)} act={actOf(action, it)} onHover={rowHover} onPick={rowPick} />
+            <PaletteRow key={it.id} id={it.id} item={it} i={r.start + j} selected={r.start + j === sel} look={look} draw={(s) => row(it, s)} act={actOf(action, it)} onHover={rowHover} onPick={rowPick} onMiddle={rowMiddle} />
           ))
           if (!r.name) return <Fragment key={k}>{rows}</Fragment>
           return (

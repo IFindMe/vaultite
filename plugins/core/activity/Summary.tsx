@@ -31,7 +31,7 @@ function ActorRow({ a }: { a: ActorCount }) {
   )
   const cls = "flex min-h-11 w-full items-center gap-2.5 py-2"
   return term ? (
-    <button type="button" className={cn(cls, rowButton)} data-tip="Go to its terminal" onClick={() => void openTerminal(term)}>{body}</button>
+    <button type="button" data-opens className={cn(cls, rowButton)} data-tip="Go to its terminal" onClick={() => void openTerminal(term)}>{body}</button>
   ) : <div className={cls}>{body}</div>
 }
 
@@ -49,7 +49,7 @@ function FileRow({ f, exists }: { f: ActivitySummary["files"][number]; exists: b
   const cls = "flex min-h-11 w-full items-center gap-3 py-2"
   return exists ? (
     <button type="button" className={cn(cls, rowButton)} data-tip={f.path} data-path={f.path}
-      onClick={(e) => openFile(f.path, { newTab: e.metaKey || e.ctrlKey })}>{body}</button>
+      data-opens onClick={(e) => openFile(f.path, { newTab: e.metaKey || e.ctrlKey })}>{body}</button>
   ) : <div className={cls} data-tip={`${f.path} (not in the vault now)`}>{body}</div>
 }
 

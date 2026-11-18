@@ -62,7 +62,7 @@ export function NoteEmbed({ store, target, from, seen = [], fill }: { store: Sto
   const loop = seen.includes(key) || (!anchor && seen.some((k) => k === path || k.startsWith(`${path}#`)))
   const open = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); openAt(path, anchor, { newTab: e.metaKey || e.ctrlKey }) }
   const head = (
-    <button type="button" className="note-embed-head" onClick={open} data-hold-menu data-tip={anchor ? `Open ${stem(path)} at ${anchor}` : `Open ${stem(path)}`}>
+    <button type="button" data-opens className="note-embed-head" onClick={open} data-hold-menu data-tip={anchor ? `Open ${stem(path)} at ${anchor}` : `Open ${stem(path)}`}>
       <span className="truncate">{name}</span>
       <SquareArrowOutUpRight className="size-3.5 shrink-0" strokeWidth={2} />
     </button>

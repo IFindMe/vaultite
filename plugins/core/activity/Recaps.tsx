@@ -149,7 +149,7 @@ export function RecapBlock({ store, path, options }: { store: Store; path: strin
         <div className="flex items-center gap-1">
           <button type="button" className={nav} aria-label="Before" data-tip="Before" onClick={() => step(-1)}><ChevronLeft className="size-4" strokeWidth={2.5} /></button>
           <button type="button" className="h-7 cursor-pointer rounded-[7px] px-1.5 text-[13px] text-muted-foreground tabular-nums hover:bg-foreground/[0.06] hover:text-foreground"
-            data-tip={file ? `Open ${file}` : "Back to today"} onClick={(e) => (file ? openFile(file, { newTab: e.metaKey || e.ctrlKey }) : setEnd(today()))}>{label}</button>
+            data-tip={file ? `Open ${file}` : "Back to today"} data-opens={file ? "" : undefined} onClick={(e) => (file ? openFile(file, { newTab: e.metaKey || e.ctrlKey }) : setEnd(today()))}>{label}</button>
           <button type="button" className={nav} aria-label="After" data-tip="After" disabled={end >= today()} onClick={() => step(1)}><ChevronRight className="size-4" strokeWidth={2.5} /></button>
         </div>
       }>
@@ -226,7 +226,7 @@ export function RecapStats({ store, options }: { store: Store; options: { weeks?
               return (
                 <button key={d} type="button" disabled={!p} data-day={d}
                   data-tip={future ? undefined : `${fmtLongDay(d)}: ${n ? `${plural(n, "thing")}` : "nothing recorded"}`}
-                  onClick={(e) => p && openFile(p, { newTab: e.metaKey || e.ctrlKey })}
+                  data-opens={p ? "" : undefined} onClick={(e) => p && openFile(p, { newTab: e.metaKey || e.ctrlKey })}
                   className={cn("size-[15px] rounded-[3px]", p ? "cursor-pointer" : "cursor-default", future && "opacity-0")}
                   style={{ background: n ? `color-mix(in oklab, ${RECAP_TINT} ${Math.round(level * 100)}%, transparent)` : blank }} />
               )

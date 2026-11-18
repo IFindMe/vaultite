@@ -36,7 +36,7 @@ export function EventText({ e, exists, plain }: { e: ActivityEvent; exists: Set<
         if (plain || !exists.has(p)) return <span key={i} data-tip={p}>{shortName(s)}</span>
         return (
           <button key={i} type="button" data-tip={p} data-path={p}
-            onClick={(ev) => { ev.stopPropagation(); openFile(p, { newTab: ev.metaKey || ev.ctrlKey }) }}
+            data-opens onClick={(ev) => { ev.stopPropagation(); openFile(p, { newTab: ev.metaKey || ev.ctrlKey }) }}
             className="cursor-pointer font-medium text-primary hover:underline">{shortName(s)}</button>
         )
       })}
@@ -94,7 +94,7 @@ function EventRow({ e, exists }: { e: ActivityEvent; exists: Set<string> }) {
     </>
   )
   return term ? (
-    <div role="button" tabIndex={0} className={cn(rowCls, rowButton)} data-event={e.id} data-tip="Go to its terminal" data-tip-side="left"
+    <div role="button" tabIndex={0} className={cn(rowCls, rowButton)} data-event={e.id} data-opens data-tip="Go to its terminal" data-tip-side="left"
       onClick={() => void openTerminal(e.actor.terminal!)} onKeyDown={(k) => { if (k.key === "Enter") void openTerminal(e.actor.terminal!) }}>{body}</div>
   ) : <div className={rowCls} data-event={e.id}>{body}</div>
 }

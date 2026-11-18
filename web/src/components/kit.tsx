@@ -317,7 +317,7 @@ export function Row({ title, meta, right, lead, className, onOpen, href, wrap, .
   return href ? (
     <a href={href} target="_blank" rel="noreferrer" className={pressable} {...rest}>{body}</a>
   ) : onOpen ? (
-    <button type="button" onClick={onOpen} className={pressable} {...rest}>{body}</button>
+    <button type="button" data-opens onClick={onOpen} className={pressable} {...rest}>{body}</button>
   ) : (
     <div className={cn("flex min-h-11 items-center gap-3 py-2", className)} {...rest}>{body}</div>
   )

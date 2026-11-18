@@ -40,23 +40,20 @@ try {
     const l = JSON.parse(localStorage.getItem("vaultite.tabs"))
     return l
   }).then((l) => l.tabs.map((t) => desc(t.root) + (t.group ? `(${l.groups?.find((g) => g.id === t.group)?.name ?? "?"})` : "") + (t.id === l.active ? "*" : "")).join(","))
-  const is = (want) => until(async () => (await tabs()) === want, 4000).then(() => true, () => false)
+  const is = (want) => until(async () => (await tabs()) === want, 4000).then(Boolean)
   check("the tabs as saved", await is("a*,[b 0.30|c 0.70],d(Trip),e"), await tabs())
 
-  // A pane of a split: back where it sat, at its size, focused.
   await page.click("[data-tab-strip] [data-tab-id='tx']")
   await command(page, "Close pane")
   check("a split's pane closed: the split closes up", await is("a,b*,d(Trip),e"), await tabs())
   await command(page, "Reopen closed tab")
   check("⌘⇧T: the pane back in its split, at its size", await is("a,[b 0.30|c 0.70]*,d(Trip),e"), await tabs())
 
-  // The split tab itself: back whole, where it was.
-  await command(page, "Close current tab")
+  await page.hover("[data-tab-strip] [data-tab-id='tx']"); await page.click("[data-tab-strip] [data-tab-id='tx'] [data-tab-close]")
   check("the split tab closed", await is("a,d(Trip)*,e") || await is("a*,d(Trip),e"), await tabs())
   await command(page, "Reopen closed tab")
   check("⌘⇧T: the split tab back whole, in its place, shown", await is("a,[b 0.30|c 0.70]*,d(Trip),e"), await tabs())
 
-  // A tab group's only tab: its group comes back with it.
   await page.click("[data-tab-strip] [data-tab-id='td']")
   await command(page, "Close current tab")
   check("a group's last tab closed: the group goes", !(await tabs()).includes("Trip"), await tabs())
@@ -68,7 +65,7 @@ try {
   await command(page, "Close all other tabs")
   check("others closed", await is("a*"), await tabs())
   const toast = page.locator("[data-sonner-toast]", { hasText: "Closed 3 tabs" }).first()
-  const shows = (n) => until(async () => (await toast.count()) === n, 4000).then(() => true, () => false)
+  const shows = (n) => until(async () => (await toast.count()) === n, 4000).then(Boolean)
   // (in a browser ⌘⇧T is the browser's own: the toast names no keys)
   check("others closed: a toast says so, with Undo", await shows(1) && await toast.getByRole("button", { name: "Undo" }).count() === 1
     && !/Reopen with/.test(await toast.innerText()), await toast.innerText().catch(() => ""))
@@ -111,13 +108,13 @@ try {
   await command(page, "Move current tab to new window")
   const win = await popped
   await win.waitForLoadState()
-  check("a tab moved to a window of its own", await until(async () => (await windows()).join() === "1" && !(await tabs()).includes("e"), 4000).then(() => true, () => false), [await windows(), await tabs()])
+  check("a tab moved to a window of its own", await until(async () => (await windows()).join() === "1" && !(await tabs()).includes("e"), 4000).then(Boolean), [await windows(), await tabs()])
   await win.close()
-  check("its window closed: it's gone", await until(async () => !(await windows()).length, 4000).then(() => true, () => false), await windows())
+  check("its window closed: it's gone", await until(async () => !(await windows()).length, 4000).then(Boolean), await windows())
   const again = ctx.waitForEvent("page", { timeout: 5000 }).catch(() => null)
   await command(page, "Reopen closed tab")
   const back = await again
-  check("⌘⇧T: the window opens again, its tab in it", !!back && /[?&]popout=/.test(back.url()) && await until(async () => (await windows()).join() === "1", 4000).then(() => true, () => false),
+  check("⌘⇧T: the window opens again, its tab in it", !!back && /[?&]popout=/.test(back.url()) && await until(async () => (await windows()).join() === "1", 4000).then(Boolean),
     [back?.url(), await windows()])
   await back?.close()
   await ctx.close()
@@ -132,17 +129,17 @@ try {
   await P.waitForSelector("[data-tabs-button]", { timeout: 30000 })
   await wait(800)
   const count = () => P.locator("[data-tabs-button]").innerText().then((t) => Number(t.trim()))
-  check("phone: three tabs", await until(async () => (await count()) === 3, 4000).then(() => true, () => false), await count())
+  check("phone: three tabs", await until(async () => (await count()) === 3, 4000).then(Boolean), await count())
   await P.click("[data-tabs-button]")
   await P.click("[data-tabs-more]")
   await P.getByRole("menuitem", { name: /Close other tabs/ }).click()
-  check("phone: others closed", await until(async () => (await count()) === 1, 4000).then(() => true, () => false), await count())
+  check("phone: others closed", await until(async () => (await count()) === 1, 4000).then(Boolean), await count())
   await P.click("[data-tabs-more]")
   await P.getByRole("menuitem", { name: /Recently closed/ }).click()
   const item = P.getByRole("menuitem", { name: /and 1 more/ })
   check("phone: Recently closed lists the two closed together as one", await item.count() > 0, await P.getByRole("menuitem").allInnerTexts())
   if (await item.count()) await item.first().click()
-  check("phone: picked, both back", await until(async () => (await count()) === 3, 4000).then(() => true, () => false), await count())
+  check("phone: picked, both back", await until(async () => (await count()) === 3, 4000).then(Boolean), await count())
   await pctx.close()
 } finally {
   putBackWorkspaces()

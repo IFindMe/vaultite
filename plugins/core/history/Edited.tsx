@@ -12,7 +12,7 @@ export function EditedChip({ file }: { file: FileHead & { place: "bar" | "line" 
   const bar = file.place === "bar"
   const what = `${f.by} edited this ${fmtAgo(f.t)}`
   return (
-    <button type="button" onClick={() => openView(`history/${file.path}`)} data-history-edited aria-label={`${what}: open version history`} data-tip="See what changed in version history"
+    <button type="button" data-opens onClick={() => openView(`history/${file.path}`)} data-history-edited aria-label={`${what}: open version history`} data-tip="See what changed in version history"
       className={cn("flex min-w-0 shrink cursor-pointer items-center gap-1 text-muted-foreground hover:text-foreground",
         bar ? "h-7 rounded-[5px] px-1.5 text-[12px] hover:bg-foreground/[0.06]"
           : "-my-1.5 h-11 px-1 text-[13px] active:opacity-50 md:my-0 md:h-8 md:rounded-[6px] md:px-1.5 md:hover:bg-foreground/[0.06]")}>

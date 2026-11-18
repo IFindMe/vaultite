@@ -189,7 +189,7 @@ const PathBar = memo(function PathBar({ path, mode, setMode, edit, views, settle
           const at = folders.slice(0, i + 1).join("/")
           return (
             <Fragment key={at}>
-              <button type="button" onClick={() => openFolder(at)} onContextMenu={menuFor(() => folderMenu(at))}
+              <button type="button" data-opens onClick={() => openFolder(at)} onContextMenu={menuFor(() => folderMenu(at))}
                 data-tip="Open folder" data-tip-cut={`${f}\nOpen folder`} className={cn(crumb, "shrink-[1000] text-muted-foreground hover:text-foreground",
                   f.length > 2 && "min-w-[2.5em]")}>{f}</button>
               <span aria-hidden className="shrink-0 px-px text-tertiary">/</span>

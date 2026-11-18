@@ -1,5 +1,5 @@
 import { backDetail, hashChanged, historyEntry, route } from "@/core/nav"
-import { isDesktop } from "@/core/platform"
+import { isDesktop, isMac } from "@/core/platform"
 import {
   HISTORY, allPanes, beside, blankList, clean, cleanLayout, fixGroups, focusedPane, foldedAway, inGroup, isBlank, isBlankTab, isSplit, mapPane, mapPanes, mapPlaces, mapTab, mapTabs, migrate, moveOn,
   newPaneId, newTabId, panesOf, paneWith, placesIn, placesOf, putBack, settledTab, showingPlace, shownTab, spilled, spotOf, tabOf, tabOfPane, tabWith, tabWithout, vaultPath, withPlace, withoutTabs,
@@ -246,6 +246,19 @@ function walkPane(dir: -1 | 1) {
   set(withPane(cur.id, (p) => ({ ...p, to, back, fwd })))
   show(to, false)
 }
+export function navigateInNewTab(dir: -1 | 1, { pane, front = false }: { pane?: string; front?: boolean } = {}): boolean {
+  const cur = (pane && paneById(pane)) || activePane(), back = cur.back ?? [], fwd = cur.fwd ?? []
+  const to = dir < 0 ? back.at(-1) : fwd[0]
+  if (!to) return false
+  const trail = dir < 0 ? { back: back.slice(0, -1), fwd: [cur.to, ...fwd] } : { back: [...back, cur.to], fwd: fwd.slice(1) }
+  openTab(to, { background: !front, from: cur.id, trail })
+  return true
+}
+type NavClick = { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; preventDefault: () => void }
+export const navClicks = (dir: -1 | 1, pane?: string) => ({
+  onClick: (e: NavClick) => { if (isMac ? e.metaKey : e.ctrlKey) navigateInNewTab(dir, { pane, front: e.shiftKey }); else navigate(dir) },
+  onAuxClick: (e: NavClick) => { if (e.button !== 1) return; e.preventDefault(); navigateInNewTab(dir, { pane, front: e.shiftKey }) },
+})
 export const canNavigate = (p: Pane | undefined, dir: -1 | 1) => !!(dir < 0 ? p?.back : p?.fwd)?.length || (dir < 0 && !!opener(p)) || (!!p && !!ownHistory(p, dir)?.can)
 let ownHistory: (p: Pane, dir: -1 | 1) => OwnHistory | null = () => null
 export const setOwnHistory = (fn: typeof ownHistory) => { ownHistory = fn }
@@ -385,10 +398,14 @@ let lastChild: { opener: string; tab: string } | null = null
 
 /** `to` in a new tab though another may show it, after pane `from`'s tab (default: the one on screen) and those it opened,
  *  in its group; `background`: the user stays (agents'). `id`: the new pane's (a page handed it first). Returns it. */
-export function openTab(to: string, { background = false, from, id = newPaneId() }: { background?: boolean; from?: string; id?: string } = {}): string {
+export function openTab(to: string, { background = false, from, id = newPaneId(), trail = {} }: { background?: boolean; from?: string; id?: string
+  trail?: Pick<Pane, "back" | "fwd"> } = {}): string {
   const l = here(), owner = (from && tabOfPane(l, from)) || activeTab(), cur = activePane()
+  const past: Pick<Pane, "back" | "fwd"> = {}
+  if (trail.back?.length) past.back = trail.back
+  if (trail.fwd?.length) past.fwd = trail.fwd
   if (!from && !background && isBlankTab(owner)) {
-    const t: Tab = { ...tabOf(to, { pane: id, id: owner.id }), ...(owner.group && !placing ? { group: owner.group } : {}) }
+    const t: Tab = { ...tabOf(to, { pane: id, id: owner.id, ...past }), ...(owner.group && !placing ? { group: owner.group } : {}) }
     set({ ...mapTab(l, owner.id, () => t), active: t.id })
     show(to, true)
     return id
@@ -396,12 +413,12 @@ export function openTab(to: string, { background = false, from, id = newPaneId()
   const fromPane = from && placesIn(owner).some((p) => p.id === from) ? from : owner.id === activeTab().id ? cur.id : focusedPane(owner).id
   if (intoPane(owner, fromPane) && (from || !background)) {
     const behind = background && lastPlace?.opener === fromPane && placesIn(owner).some((p) => p.id === lastPlace!.place) ? lastPlace.place : fromPane
-    set(withNewPlace(owner.id, behind, { id, to, from: fromPane }, !background))
+    set(withNewPlace(owner.id, behind, { id, to, from: fromPane, ...past }, !background))
     if (background) lastPlace = { opener: fromPane, place: id }
     else show(to, true)
     return id
   }
-  const tab = tabOf(to, { pane: id, from: fromPane })
+  const tab = tabOf(to, { pane: id, from: fromPane, ...past })
   const after = background && lastChild?.opener === owner.id && l.tabs.some((t) => t.id === lastChild!.tab) ? lastChild.tab : owner.id
   const { at, group } = placeAfter(l, after)
   const placed = inGroup(tab, group)

@@ -1,7 +1,7 @@
 import { type ComponentType } from "react"
 import type { LucideIcon } from "lucide-react"
 import { Bot, Code, HardDrive, Terminal, User } from "lucide-react"
-import { dateText, isViewOpen, iso, notify, numberText, openView, useAgents } from "@vaultite"
+import { clickOpening, dateText, isViewOpen, iso, notify, numberText, openTab, openView, useAgents } from "@vaultite"
 import type { Actor, ActorKind } from "./model"
 
 type Look = { icon: LucideIcon | ComponentType<{ className?: string; strokeWidth?: number }>; tint: string }
@@ -58,9 +58,9 @@ function terminalRuns(id: string): Promise<boolean> {
   })
 }
 
-export async function openTerminal(id: string) {
+export async function openTerminal(id: string, behind = !!clickOpening()) {
   const to = `terminal/${id}`
   if (isViewOpen(to)) return openView(to)
-  if (await terminalRuns(id)) return openView(to, { newTab: true })
+  if (await terminalRuns(id)) return behind ? void openTab(`view:${to}`, { background: true }) : openView(to, { newTab: true })
   notify("That terminal has ended")
 }

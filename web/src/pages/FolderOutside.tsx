@@ -36,7 +36,7 @@ export function OutsideCrumbs({ path }: { path: string }) {
         ? <span key={c.at} aria-current="page" className={cn(crumb, "shrink-0 font-medium")}>{c.name}</span>
         : (
           <Fragment key={c.at}>
-            <button type="button" onClick={() => enter(c.at, -1)} className={cn(crumb, "shrink-[1000] cursor-pointer text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground")}>{c.name}</button>
+            <button type="button" data-opens onClick={() => enter(c.at, -1)} className={cn(crumb, "shrink-[1000] cursor-pointer text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground")}>{c.name}</button>
             <span aria-hidden className="shrink-0 px-px text-tertiary">/</span>
           </Fragment>
         ))}

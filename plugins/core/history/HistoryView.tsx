@@ -154,7 +154,7 @@ export function HistoryView({ path }: { path: string }) {
         ) : <div className="min-w-0 flex-1 @max-3xl:hidden" />}
         <aside className={cn("w-[260px] shrink-0 @max-3xl:w-full", !listing && "@max-3xl:hidden")} aria-label="Version history">
           <p className="mb-3 px-3 text-[13px] leading-[18px] text-muted-foreground md:text-[12px] md:leading-[16px]">
-            Kept on this machine as <button type="button" className="cursor-pointer font-medium text-foreground hover:underline" onClick={() => openFile(path)}>{name}</button> changes.
+            Kept on this machine as <button type="button" data-opens className="cursor-pointer font-medium text-foreground hover:underline" onClick={() => openFile(path)}>{name}</button> changes.
           </p>
           {list === null ? <ul aria-busy className="flex flex-col gap-2 px-3">{Array.from({ length: kept }, (_, i) => <li key={i}><Bar w={i % 2 ? "45%" : "60%"} /></li>)}</ul>
             : <List rows={rows} sel={sel} pick={pick} />}

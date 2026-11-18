@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { AppWindow, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, Ellipsis, FileCode2, FileWarning, Globe, History, Lock, MonitorPlay, MousePointer2, MousePointerSquareDashed, Pause, PictureInPicture2, Play, Printer, RotateCw, Scissors,
   Search, ShieldAlert, Star, Undo2, Volume2, VolumeX, WifiOff, X, type LucideIcon } from "lucide-react"
 import {
-  Button, canNavigate, cn, commandKeys, getTabLayout, ink, menuBelow, menuFor, navigate, notify, notifyError, onPaneMotion, openInSplit, openMenu, openView, allPanes, PaneControls, post, trace, typingIn, useEnabled, usePane, usePaneTopBar, useStore, useZoomTarget, webPageActions, webPages,
+  Button, canNavigate, cn, commandKeys, getTabLayout, ink, menuBelow, menuFor, navigate, navigateInNewTab, notify, notifyError, onPaneMotion, openInSplit, openMenu, openView, allPanes, PaneControls, post, trace, typingIn, useEnabled, usePane, usePaneTopBar, useStore, useZoomTarget, webPageActions, webPages,
   type MenuItem, type WebPageAction, type WebPageState, type WebPages,
 } from "@vaultite"
 import { hostOf } from "./address"
@@ -396,7 +396,7 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
     if (dir < 0) list.reverse()
     const r = el.getBoundingClientRect()
     openMenu({ x: r.left, y: r.bottom + 4, flip: r.top - 4 }, [
-      ...list.slice(0, 15).map((x): MenuItem => ({ label: x.title || x.url, icon: siteIcon(x.url), run: () => web.go(id, "go-to", String(x.i)) })),
+      ...list.slice(0, 15).map((x): MenuItem => ({ label: x.title || x.url, icon: siteIcon(x.url), run: () => web.go(id, "go-to", String(x.i)), middle: () => inNewTab(x.url) })),
       { label: "Show full history", icon: History, sep: list.length > 0, run: () => openView("web-history", { newTab: true }) },
     ])
   }
@@ -407,9 +407,9 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
         className={cn("group/bar @container/bar relative flex h-10 shrink-0 items-center gap-0.5 border-b-[0.5px] border-border px-1.5",
           barHid && "absolute inset-x-0 top-0 z-20 bg-background shadow-[0_8px_20px_-12px_rgb(0_0_0/0.45)] [transition:translate_var(--motion)_var(--ease-out)]",
           barHid && !barOut && "-translate-y-full")}>
-        <BarButton icon={ArrowLeft} label="Back" disabled={!back} onClick={() => walk(-1)} onNewTab={() => void web.go(id, "back-address").then(inNewTab)}
+        <BarButton icon={ArrowLeft} label="Back" disabled={!back} onClick={() => walk(-1)} onNewTab={(front) => (state.back ? void web.go(id, "back-address").then(inNewTab) : navigateInNewTab(-1, { pane: tab, front }))}
           onMenu={id && state.back ? (el) => void places(el, -1) : undefined} />
-        <BarButton icon={ArrowRight} label="Forward" disabled={!forward} onClick={() => walk(1)} onNewTab={() => void web.go(id, "forward-address").then(inNewTab)}
+        <BarButton icon={ArrowRight} label="Forward" disabled={!forward} onClick={() => walk(1)} onNewTab={(front) => (state.forward ? void web.go(id, "forward-address").then(inNewTab) : navigateInNewTab(1, { pane: tab, front }))}
           onMenu={id && state.forward ? (el) => void places(el, 1) : undefined} className="@max-xs/bar:hidden" />
         <BarButton icon={state.loading ? X : RotateCw} label={state.loading ? "Stop" : "Reload"} disabled={!id} onClick={() => void web.go(id, state.loading ? "stop" : "reload")}
           onNewTab={state.loading ? undefined : () => inNewTab(state.url)} />
@@ -660,14 +660,14 @@ function Progress({ loading }: { loading: boolean }) {
     style={{ background: "var(--primary)" }} />
 }
 
-function BarButton({ icon: Icon, label, onClick, onNewTab, onMenu, disabled, className }: { icon: LucideIcon; label: string; onClick: () => void; onNewTab?: () => void
+function BarButton({ icon: Icon, label, onClick, onNewTab, onMenu, disabled, className }: { icon: LucideIcon; label: string; onClick: () => void; onNewTab?: (front: boolean) => void
   onMenu?: (el: HTMLElement) => void; disabled?: boolean; className?: string }): ReactNode {
   const hold = useRef(0), held = useRef(false)
   const unhold = () => { clearTimeout(hold.current); hold.current = 0 }
   return (
     <button type="button" disabled={disabled} aria-label={label} data-tip={label} className={cn(BAR_ICON, className)}
-      onClick={(e) => { if (held.current) { held.current = false; return } if (onNewTab && (e.metaKey || e.ctrlKey)) onNewTab(); else onClick() }}
-      onAuxClick={(e) => { if (e.button === 1 && onNewTab) { e.preventDefault(); onNewTab() } }}
+      onClick={(e) => { if (held.current) { held.current = false; return } if (onNewTab && (e.metaKey || e.ctrlKey)) onNewTab(e.shiftKey); else onClick() }}
+      onAuxClick={(e) => { if (e.button === 1 && onNewTab) { e.preventDefault(); onNewTab(e.shiftKey) } }}
       onContextMenu={onMenu && ((e) => { e.preventDefault(); onMenu(e.currentTarget) })}
       onPointerDown={onMenu && ((e) => {
         if (e.button !== 0 || e.pointerType === "touch") return

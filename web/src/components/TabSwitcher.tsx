@@ -227,7 +227,7 @@ function TabCard({ store, tab, info, current, into, lifted, onPick, menu, pane, 
         <CardFace store={store} tab={tab} info={info} current={current} panes={panes} />
         <CardButtons label={info.label} closeLabel={pane ? `${info.label} pane` : info.label} current={current} tap={pane ? undefined : { "aria-pressed": picked || undefined, ...selectedAttr(picked) }}
           onOpen={(e) => { if (!swiped.current && (pane || !selectClick(e, TABS, tab.id))) onPick(e) }} onClose={() => close()}
-          panes={onPanes && panesOf(tab).length > 1 ? { n: panesOf(tab).length, open: onPanes } : undefined} />
+          panes={onPanes && panesOf(tab).length > 1 ? { n: panesOf(tab).length, open: onPanes } : undefined} middleCloses />
       </div>
     </div>
   )
@@ -247,11 +247,12 @@ function ghostOf(card: HTMLElement) {
   return g
 }
 
-function CardButtons({ label, closeLabel = label, current, tap, onOpen, onClose, panes }: {
+function CardButtons({ label, closeLabel = label, current, tap, onOpen, onClose, panes, middleCloses }: {
   label: string; closeLabel?: string; current?: boolean; tap?: Record<string, unknown>; onOpen: (e: MouseEvent) => void; onClose: () => void
-  panes?: { n: number; open: () => void } }) {
+  panes?: { n: number; open: () => void }; middleCloses?: boolean }) {
   return <>
     <button type="button" aria-current={current || undefined} aria-label={label} {...tap} onClick={onOpen}
+      onAuxClick={middleCloses ? (e) => { if (e.button === 1) { e.preventDefault(); onClose() } } : undefined}
       className="absolute inset-0 cursor-pointer rounded-[14px] active:bg-foreground/[0.06]" />
     {panes && (
       <button type="button" data-card-panes={panes.n} onClick={panes.open} onPointerDown={(e) => e.stopPropagation()} data-no-drag aria-label={`Show ${panes.n} panes`}

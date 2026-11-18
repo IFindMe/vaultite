@@ -28,6 +28,7 @@ export type MenuItem = {
   keep?: boolean
   /** A line above it. */
   sep?: boolean
+  middle?: () => void
   /** A submenu (New ▸): hovering, clicking or → opens it; its items are menu items too (`run` is then unused). */
   items?: MenuItem[]
   /** With `items`: clicking the row runs `run`, the common choice (Copy path: from the vault folder), while hovering,
@@ -482,6 +483,7 @@ function MenuList({ items, at, up, beside, again, focus, onBack, onHover }: {
               if (it.keep && again) { runOrSay(it.run, it.label); if (openState()) set({ ...openState()!, items: redraw(again) }); return }
               closeMenu({ chosen: e.currentTarget, blink: !(e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch") }); runOrSay(it.run, it.label)
             }}
+            onAuxClick={it.middle && !it.disabled ? (e) => { if (e.button !== 1) return; e.preventDefault(); closeMenu(); runOrSay(it.middle!, it.label) } : undefined}
             className={cn("relative flex h-11 w-full cursor-pointer items-center gap-3 rounded-[8px] px-3 text-left text-[17px] whitespace-nowrap hover:bg-foreground/[0.07] focus-visible:bg-foreground/[0.07] focus-visible:outline-none disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent md:h-7 md:gap-2.5 md:rounded-[4px] md:px-2.5 md:text-[13px]",
               it.danger && "text-destructive", (subAt === i || (inField && query && i === bestAt)) && "bg-foreground/[0.07]")}>
             {!trailing && it.checked !== undefined && <Check className={cn(icon, !it.checked && "invisible")} strokeWidth={2.5} />}

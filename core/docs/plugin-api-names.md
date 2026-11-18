@@ -419,7 +419,9 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `moves()`: Whether things move: nothing asks for stillness, and Web Animations are there.
 - `mutate(f)`: Change the store optimistically, after a write: f returns a new store, with new objects where it changed (never one changed in place: the store's objects are also the server's last state, which…
 - `namedIcon(name?)`: An icon by its name (`dumbbell`): one of ICONS, one a plugin adds, any other of Lucide's, or an emoji; null for none.
+- `navClicks(dir, pane?)`
 - `navigate(dir)`: Back (-1) or forward (1) in the focused pane's history.
+- `navigateInNewTab(dir, { pane, front }?)`
 - `NewFile`: A kind of file it makes, in the New submenu: `make` writes one in `folder` ("" the top) and answers its path, which opens with its name ready to type.
 - `newNoteFolder(s, from?)`: The folder every new note goes in ("" = the top), unless the vault says otherwise.
 - `newPaneId()`: A new pane's id (panes opened before tabs held panes kept their tabs' "t…" ids).
@@ -487,7 +489,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `openPlace(p, opts?)`: Open what a place says.
 - `openPluginSettings(id, key?)`: Open a plugin's settings sheet (over the sheet that's open, if any); `key`: the setting to go to (its row's `data-setting`), scrolled to and flashed once the sheet has drawn it.
 - `openSession(src, s, terminalOn, e?, machine?)`: Open a session: the terminal tab it runs in (Terminal plugin), or its conversation in a tab (not a private one's).
-- `openTab(to, { background, from, id }?)`: `to` in a new tab though another may show it, after pane `from`'s tab (default: the one on screen) and those it opened, in its group; `background`: the user stays (agents').
+- `openTab(to, { background, from, id, trail }?)`: `to` in a new tab though another may show it, after pane `from`'s tab (default: the one on screen) and those it opened, in its group; `background`: the user stays (agents').
 - `openTag(tag)`: A #tag clicked: the files that have it (the plugin that draws `tag` details: Tags), else a search for it, as in Obsidian.
 - `openTerminal(opts?)`: Open a plain terminal: on `machine` ("": this one), else the workspace's default.
 - `openView(to, opts?)`: Open a plugin's view, shown once: a pane that has it shows it (no two terminal panes fighting over its size), else a new tab or the pane to the right.

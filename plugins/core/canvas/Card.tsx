@@ -96,7 +96,7 @@ export const Card = memo(function Card({ node: n, store, canvas, selected, editi
       {n.type === "file" && !far && (
         <button type="button" data-no-drag className="absolute bottom-full left-0 mb-1 max-w-full cursor-pointer truncate text-left font-medium text-muted-foreground hover:text-foreground hover:underline"
           style={{ fontSize: `max(13px, ${px(13)})` }}
-          onClick={(e) => { e.stopPropagation(); on.current.open(n, e.metaKey || e.ctrlKey) }} data-canvas-open={file}>
+          onClick={(e) => { e.stopPropagation(); on.current.open(n, e.metaKey || e.ctrlKey) }} data-opens data-canvas-open={file}>
           {fileName(file).replace(/\.md$/i, "")}{typeof n.subpath === "string" ? n.subpath : ""}
         </button>
       )}

@@ -77,7 +77,7 @@ function Crumbs({ path }: { path: string }) {
         ? <span key={c.at} aria-current="page" onContextMenu={menuFor(() => pageMenu(c.at))} className={cn(crumb, "shrink-0 font-medium")}>{c.name}</span>
         : (
           <Fragment key={c.at}>
-            <button type="button" onClick={() => enter(c.at, -1)} onContextMenu={c.at ? menuFor(() => folderMenu(c.at)) : undefined} data-tip-cut={c.name}
+            <button type="button" data-opens onClick={() => enter(c.at, -1)} onContextMenu={c.at ? menuFor(() => folderMenu(c.at)) : undefined} data-tip-cut={c.name}
               className={cn(crumb, "shrink-[1000] cursor-pointer text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground", c.name.length > 2 && "min-w-[2.5em]")}>{c.name}</button>
             <span aria-hidden className="shrink-0 px-px text-tertiary">/</span>
           </Fragment>

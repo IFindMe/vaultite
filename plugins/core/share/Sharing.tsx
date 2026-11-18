@@ -150,7 +150,7 @@ export function SharedView() {
             : !list ? <Loading error={error} retry={reload} />
             : !list.length ? <Empty>Nothing is shared yet. To share a folder, open its menu and choose Share…</Empty>
             : folders.map((f) => (
-              <Section key={f} title={<button type="button" onClick={() => openFolder(f)} data-shared-folder={f} className="cursor-pointer hover:text-foreground">{f}</button>}>
+              <Section key={f} title={<button type="button" data-opens onClick={() => openFolder(f)} data-shared-folder={f} className="cursor-pointer hover:text-foreground">{f}</button>}>
                 <Group>{list.filter((s) => s.folder === f).map((s) => <AccessRow key={s.id} s={s} done={reload} fresh={setFresh} />)}</Group>
               </Section>
             ))}

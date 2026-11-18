@@ -90,18 +90,20 @@ export function TabSearch({ store, onClose }: { store: Store; onClose: () => voi
     onClose()
     setTimeout(r.pick, 0)
   }
-  const onKey = (e: KeyboardEvent) => {
-    if (!sameKeys(shortcutOf(e.nativeEvent), CLOSE)) return false
-    const r = rows.find((x) => x.id === selected.current)
+  const close = (r: Row | undefined) => {
     if (r?.section !== OPEN) return false
-    e.preventDefault()
     if (r.tab.pinned) notify("Pinned tabs stay open: unpin it to close it", { id: "pinned-stays" })
     else if (open.length > 1 || focusedPane(r.tab).to !== "new") closeTabMoving(r.tab.id, document.getElementById(`palette-${r.id}`))
     return true
   }
+  const onKey = (e: KeyboardEvent) => {
+    if (!sameKeys(shortcutOf(e.nativeEvent), CLOSE) || !close(rows.find((x) => x.id === selected.current))) return false
+    e.preventDefault()
+    return true
+  }
 
   return (
-    <Palette label="Search tabs" placeholder="Search tabs…" query={q} setQuery={setQ} items={rows} onClose={onClose} onPick={pick} onKey={onKey}
+    <Palette label="Search tabs" placeholder="Search tabs…" query={q} setQuery={setQ} items={rows} onClose={onClose} onPick={pick} onKey={onKey} onMiddle={close}
       onSelect={(r) => { selected.current = r?.id ?? null }}
       start={open.length > 1 ? 1 : 0} section={(r) => r.section}
       empty={<NoMatches what="No tabs match" query={query} />}

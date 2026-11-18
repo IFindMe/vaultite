@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react"
 import { ArrowLeft, ArrowRight, ArrowUpRight, Globe, Lock, RotateCw, type LucideIcon } from "lucide-react"
-import { allPanes, canNavigate, cn, getTabLayout, navigate, onLook, PaneControls, usePane } from "@vaultite"
+import { allPanes, canNavigate, cn, getTabLayout, navClicks, onLook, PaneControls, usePane } from "@vaultite"
 import { addressOf, hostOf } from "./address"
 import { framedSite } from "./framed"
 import { argOf, splitArg } from "./containers"
@@ -30,8 +30,8 @@ export default function FramedPage({ arg, setArg }: { arg: string; setArg: (arg:
   return (
     <div className="relative flex h-full min-h-0 flex-col" data-web-framed={site ? hostOf(url) : ""}>
       <div className="@container/bar relative flex h-10 shrink-0 items-center gap-0.5 border-b-[0.5px] border-border px-1.5 max-md:h-12">
-        <BarButton icon={ArrowLeft} label="Back" disabled={!canNavigate(me, -1)} onClick={() => navigate(-1)} className="max-md:hidden" />
-        <BarButton icon={ArrowRight} label="Forward" disabled={!canNavigate(me, 1)} onClick={() => navigate(1)} className="max-md:hidden @max-xs/bar:hidden" />
+        <BarButton icon={ArrowLeft} label="Back" disabled={!canNavigate(me, -1)} {...navClicks(-1, me?.id)} className="max-md:hidden" />
+        <BarButton icon={ArrowRight} label="Forward" disabled={!canNavigate(me, 1)} {...navClicks(1, me?.id)} className="max-md:hidden @max-xs/bar:hidden" />
         <BarButton icon={RotateCw} label="Reload" disabled={!site} onClick={() => setReloads((n) => n + 1)} />
         <Address url={url} live={!!site} onGo={(to) => setArg(argOf(to, container))} />
         <BarButton icon={ArrowUpRight} label="Open in your browser" onClick={() => void window.open(url, "_blank", "noopener,noreferrer")} />
@@ -89,9 +89,10 @@ function Address({ url, live, onGo }: { url: string; live: boolean; onGo: (url: 
 
 const BAR_ICON = "grid size-7 max-md:size-11 shrink-0 cursor-pointer place-items-center rounded-[6px] text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
 
-function BarButton({ icon: Icon, label, onClick, disabled, className }: { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean; className?: string }): ReactNode {
+function BarButton({ icon: Icon, label, onClick, onAuxClick, disabled, className }: { icon: LucideIcon; label: string; onClick: (e: MouseEvent) => void
+  onAuxClick?: (e: MouseEvent) => void; disabled?: boolean; className?: string }): ReactNode {
   return (
-    <button type="button" disabled={disabled} aria-label={label} data-tip={label} className={cn(BAR_ICON, className)} onClick={onClick}>
+    <button type="button" disabled={disabled} aria-label={label} data-tip={label} className={cn(BAR_ICON, className)} onClick={onClick} onAuxClick={onAuxClick}>
       <Icon className="size-4 max-md:size-5" strokeWidth={2} />
     </button>
   )

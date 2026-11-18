@@ -59,6 +59,7 @@ function pinElement(it: Item) {
   b.append(dot, el("span", "nm-label", one ? one.title : `${it.pins.length} places`))
   b.setAttribute("aria-label", one ? one.title : `${it.pins.length} places: ${it.pins.map((p) => p.title).join(", ")}`)
   b.dataset.pin = one ? one.id : ""
+  if (one) b.dataset.opens = ""
   return b
 }
 
@@ -67,6 +68,7 @@ function popupContent(it: Item, onOpen: (id: string, newTab: boolean) => void, c
   for (const p of it.pins) {
     const r = el("button", "nm-row")
     r.type = "button"
+    r.dataset.opens = ""
     const dot = el("span", "nm-row-dot")
     dot.style.setProperty("--c", p.color ?? DEFAULT_COLOR)
     const txt = el("span", "nm-row-text")
