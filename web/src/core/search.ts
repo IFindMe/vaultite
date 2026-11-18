@@ -98,11 +98,15 @@ export function useOpens(query: string): Hit[] {
     if (!q || !openers.length) return
     let on = true
     const t = setTimeout(() => void Promise.all(openers.map((p) => p.searchQuery!.opens!(q).catch(() => [])))
-      .then((all) => { if (on) setFound({ for: q, hits: all.flat().map((d) => ({ ...d, lead: true, marks: [], score: 0 })) }) }), 60)
+      .then((all) => {
+        const hits = all.flat().map((d): Hit => ({ ...d, lead: true, marks: [], score: 0 }))
+        if (on) setFound((was) => (hits.length || was.hits.length ? { for: q, hits } : was))
+      }), 60)
     return () => { on = false; clearTimeout(t) }
   }, [query, openers])
-  return found.for === query.trim() ? found.hits : []
+  return found.for === query.trim() ? found.hits : NO_HITS
 }
+const NO_HITS: Hit[] = []
 
 export function typedHits(query: string, disabled: string[], o: { complete: string | null; turn: number } = { complete: null, turn: 0 }): Hit[] {
   const q = query.trim()
