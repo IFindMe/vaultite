@@ -213,10 +213,10 @@ export default async ($: VaultTest) => {
       /isn't in/.test(await opErr("file.edit", { path: "Notes/Long read.md", old: "nowhere to be found", new: "y" })))
     await app.runOp("file.edit", { path: "Notes/Long read.md", old: "x".repeat(60), new: "y", all: true })
     check("edit_file: all replaces every one", !read("Notes/Long read.md").includes("xxxx") && read("Notes/Long read.md").split("\n").length === 3001)
-    write("Recaps/2026-11-17.md", "Recap\n")
+    write("Recaps/2020-01-02.md", "Recap\n")
     await vault.synced()
-    const found = (await app.runOp("file.read", { path: "Old/2026-11-17.md" })).params.path
-    check("read: a path from before its folder moved still finds the file", found === "Recaps/2026-11-17.md", found)
+    const found = (await app.runOp("file.read", { path: "Old/2020-01-02.md" })).params.path
+    check("read: a path from before its folder moved still finds the file", found === "Recaps/2020-01-02.md", found)
     const host = app.plugins.find((p) => p.id === "notes")!
     const tasksAddStandIn = { id: "notes.append-test", summary: "Add a line (a stand-in).", kind: "write" as const,
       params: { path: { type: "string" as const, format: "path", required: true }, line: { type: "string" as const, required: true } },
@@ -227,9 +227,9 @@ export default async ($: VaultTest) => {
       } }
     host.ops.push(tasksAddStandIn)
     try {
-      const to = (await app.runOp(tasksAddStandIn.id, { path: "Logs/Daily/2026-11-17.md", line: "- [ ] Call Alice Park" })).result
+      const to = (await app.runOp(tasksAddStandIn.id, { path: "Logs/Daily/2020-01-02.md", line: "- [ ] Call Alice Park" })).result
       check("write: a missing path is made there, not written into a file of its name elsewhere",
-        to === "Logs/Daily/2026-11-17.md" && read("Logs/Daily/2026-11-17.md") === "- [ ] Call Alice Park\n" && read("Recaps/2026-11-17.md") === "Recap\n", to)
+        to === "Logs/Daily/2020-01-02.md" && read("Logs/Daily/2020-01-02.md") === "- [ ] Call Alice Park\n" && read("Recaps/2020-01-02.md") === "Recap\n", to)
     } finally { host.ops.splice(host.ops.indexOf(tasksAddStandIn), 1) }
     const before = read("Notes/Long read.md")
     check("edit: a missing path is refused, not edited in a file of its name elsewhere",
