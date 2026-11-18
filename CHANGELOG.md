@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Desktop: an update no longer sometimes runs the app's own older server for a while, then relaunches and shows
+  "A new version of Vaultite is ready" again: a server that started up fast is no longer mistaken for one it can't talk to.
 - Companion: Talk key answers over a note come up to 2 s sooner (a spoken ask no longer waits for the note to save it,
   only a typed one does), and its close-up is taken at the screen's own resolution, not upscaled, so each ask costs fewer tokens.
 - Desktop: the left sidebar's header and bottom bar take what you drag there: Workspaces, Inbox, the Plugins button,

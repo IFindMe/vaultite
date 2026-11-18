@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process"
+import { EventEmitter } from "node:events"
 import path from "node:path"
 import type { VaultTest } from "./harness.ts"
+import { heardHello } from "../../../electron/serverhello.ts"
 
 const ROOT = path.resolve(import.meta.dirname, "../../..")
 const LIB = path.join(ROOT, "electron/inherited.ts"), CLOSE = path.join(ROOT, "electron/inheritedclose.ts")
@@ -37,4 +39,14 @@ function inherited(check: VaultTest["check"]) {
   check("desktop: a server closes the descriptors it inherited at its start, and keeps its IPC channel", closed.held === 0 && closed.env === 0, closed)
 }
 
-export default ($: VaultTest) => { inherited($.check) }
+async function hello(check: VaultTest["check"]) {
+  const child = new EventEmitter(), wait = heardHello(child)
+  const late = wait(2000)
+  setTimeout(() => child.emit("message", { type: "desktop:hello", protocol: 7 }), 30)
+  check("desktop: a server seen listening in its log before its hello came over IPC is waited for, not taken as another protocol", await late === 7)
+  check("desktop: a server's hello heard already answers at once", await wait(0) === 7)
+  const t = Date.now()
+  check("desktop: a server that never says hello speaks no protocol, once its wait is over", await heardHello(new EventEmitter())(50) === undefined && Date.now() - t >= 45)
+}
+
+export default async ($: VaultTest) => { inherited($.check); await hello($.check) }

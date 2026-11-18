@@ -14,6 +14,7 @@ import { codeRoot, commitAt, hold } from "./storehost.ts"
 import { DESKTOP_PROTOCOL, LISTENING } from "../core/desktopapp.ts"
 import { appUpdates, lookNow, mainBehind } from "./updates.ts"
 import { mainLog } from "./mainlog.ts"
+import { heardHello } from "./serverhello.ts"
 import { ServerWatch } from "./serverwatch.ts"
 import { MAC, ROOT, WIN } from "./mainbase.ts"
 import { heldPastExec, INHERITED } from "./inherited.ts"
@@ -96,6 +97,7 @@ export function logSince(file: string, from: number) {
     } finally { fs.closeSync(fd) }
   } catch { return "" }
 }
+const HELLO_WAIT_MS = 5000
 export let handingOver = false
 export function startServer(v: Known, port: number, own = false): Promise<ChildProcess> {
   const logDir = app.getPath("logs")
@@ -120,8 +122,7 @@ export function startServer(v: Known, port: number, own = false): Promise<ChildP
   logFrom.set(child, from)
   ownServer(child.pid, child)
   if (child.pid) hold(root, child.pid, "server")
-  let spoke: unknown = root === ROOT ? DESKTOP_PROTOCOL : undefined
-  child.on("message", (m: { type?: string; protocol?: unknown }) => { if (m?.type === "desktop:hello") spoke = m.protocol })
+  const hello = heardHello(child)
   child.on("message", (m: Call) => {
     if (m?.type !== "desktop:call" || typeof m.rid !== "number") return
     const reply = (r: { value?: unknown; error?: string }) => { if (child.connected) child.send({ type: "desktop:reply", rid: m.rid, ...r }) }
@@ -142,13 +143,16 @@ export function startServer(v: Known, port: number, own = false): Promise<ChildP
       clearTimeout(timer)
       clearInterval(look)
       mainLog(`${name}: server pid ${child.pid} listens (${((Date.now() - began) / 1000).toFixed(1)} s)`)
-      if (spoke === DESKTOP_PROTOCOL) return ok(child)
-      mainLog(`${name}'s server from ${root} speaks protocol ${String(spoke ?? "?")}, this app ${DESKTOP_PROTOCOL}: its own code instead`)
-      const c = commitAt(root)
-      if (c) mainBehind(c)
-      child.removeAllListeners("exit")
-      child.once("exit", () => startServer(v, port, true).then(ok, fail))
-      child.kill()
+      void (root === ROOT ? Promise.resolve(DESKTOP_PROTOCOL) : hello(HELLO_WAIT_MS)).then((spoke) => {
+        if (child.exitCode !== null || child.signalCode !== null) return
+        if (spoke === DESKTOP_PROTOCOL) return ok(child)
+        mainLog(`${name}'s server from ${root} speaks protocol ${String(spoke ?? "?")}, this app ${DESKTOP_PROTOCOL}: its own code instead`)
+        const c = commitAt(root)
+        if (c) mainBehind(c)
+        child.removeAllListeners("exit")
+        child.once("exit", () => startServer(v, port, true).then(ok, fail))
+        child.kill()
+      })
     }
     child.on("message", (m: { type?: string }) => { if (m?.type === "desktop:listening") listening() })
     const look = setInterval(() => { if (said().includes(LISTENING)) listening() }, 500)
