@@ -86,7 +86,7 @@ export function PluginParts({ plugin, on }: { plugin: Plugin; on: boolean }) {
   if (!parts.length && !commands.length) return null
   const tint = tintOfPlugin(plugin.id)
   return (
-    <div className="mb-6 grid gap-4 rounded-[12px] bg-muted p-4 sm:grid-cols-[minmax(0,14rem)_1fr]" data-plugin-parts={plugin.id}>
+    <div className="grid gap-4 rounded-card bg-foreground/[0.04] p-3 sm:grid-cols-[minmax(0,14rem)_1fr]" data-plugin-parts={plugin.id}>
       <div className="max-w-[15rem]"><PartsSketch places={new Set(parts.map((x) => x.place))} tint={tint} /></div>
       <div className="min-w-0 space-y-1.5">
         {parts.map((x) => (

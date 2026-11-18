@@ -14,6 +14,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   your Google account in every container, also where it keeps only its own login cookies.
 - Companion: Show me plays a job's tour live as a guide, waiting for you to click what opens a menu or picker
   instead of skipping it and stopping at the next step.
+- Settings: a plugin's page draws Updates, About and the rest as the same cards as its settings, with quieter section
+  titles lined up with the rows, and its preview no longer leaves a big empty box.
 - iPhone: Download on a file or image opens the share sheet (Save Image, Save to Files) instead of showing the
   file in the app's own window with no way back.
 - iPhone: a voice note shows its words as they're said (through the server's cloud recognizer, Soniox, else the

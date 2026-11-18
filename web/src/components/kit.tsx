@@ -328,12 +328,13 @@ export function List({ children }: { children: ReactNode }) {
 }
 
 const InSection = createContext(false)
-/** A labelled group inside a card ("Up next", "Lifts"). */
-export function Section({ title, children, className }: { title: ReactNode; children: ReactNode; className?: string }) {
+/** A labelled group inside a card ("Up next", "Lifts"); `grouped`: its title lines up with a Group's rows. */
+export function Section({ title, children, className, grouped }: { title: ReactNode; children: ReactNode; className?: string; grouped?: boolean }) {
   const dense = useContext(DenseRows), inner = useContext(InSection)
   return (
     <div className={className}>
-      {title !== null && <div className={cn("mb-1 text-[13px] font-semibold", dense ? "px-1 md:mb-1.5" : "text-muted-foreground", inner && "text-[12px] font-medium text-muted-foreground")}>{title}</div>}
+      {title !== null && <div className={cn("mb-1 text-[13px] font-semibold text-muted-foreground", (dense || grouped) && "px-3", dense && "md:mb-1.5 md:text-[12px]",
+        inner && "text-[12px] font-medium")}>{title}</div>}
       <InSection.Provider value>{children}</InSection.Provider>
     </div>
   )
@@ -474,13 +475,14 @@ export const Group = ({ children }: { children: ReactNode }) => (
 )
 
 export function GroupNote({ children, above, className, ...rest }: { children: ReactNode; above?: boolean; className?: string } & Record<`data-${string}`, string | boolean | undefined>) {
-  return <p {...rest} className={cn("px-1 text-[13px] leading-[18px] text-muted-foreground md:text-[12px] md:leading-[16px]", above ? "pb-1.5" : "pt-1.5", className)}>{children}</p>
+  return <p {...rest} className={cn("px-3 text-[13px] leading-[18px] text-muted-foreground md:text-[12px] md:leading-[16px]", above ? "pb-1.5" : "pt-1.5", className)}>{children}</p>
 }
 
 /** A label and its value, in a Group. */
-export function KV({ label, children }: { label: ReactNode; children: ReactNode }) {
+export function KV({ label, children, ...rest }: { label: ReactNode; children: ReactNode } & Record<`data-${string}`, string | boolean | undefined>) {
+  const dense = useContext(DenseRows)
   return (
-    <div className="flex min-h-11 items-center justify-between gap-4 py-2 text-[15px]">
+    <div {...rest} className={cn("flex min-h-11 items-center justify-between gap-4 py-2 text-[15px]", dense && "md:min-h-10 md:text-[13px] md:leading-[18px]")}>
       <span className="shrink-0">{label}</span>
       <span className="min-w-0 text-right break-words text-muted-foreground select-text">{children}</span>
     </div>

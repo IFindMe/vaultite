@@ -12,7 +12,7 @@ import { useKeptCount } from "@/core/heights"
 import { official } from "../../../core/updates.ts"
 import { CATEGORIES, categoryOf, OTHER } from "../../../core/categories.ts"
 import { cell } from "@/core/signal"
-import { Bar, List, Loading, Panel, Row, Section, SheetHead } from "@/components/kit"
+import { Bar, Group, KV, Loading, Panel, Section, SettingRow, SheetHead } from "@/components/kit"
 import { menuBelow } from "@/components/ContextMenu"
 import { confirmDialog } from "@/components/ConfirmDialog"
 import { capitalize, cn } from "@/lib/utils"
@@ -362,7 +362,7 @@ function Directory({ query, filters = GET_NONE, showInstalled, onListed, compact
     if (!notHere.length) return null
     return (
       <section className="mt-5" data-plugins-not-installed>
-        <h2 className="mb-1.5 px-1 text-[13px] font-semibold text-muted-foreground md:text-[12px]">Not installed</h2>
+        <h2 className="mb-1.5 px-3 text-[13px] font-semibold text-muted-foreground md:text-[12px]">Not installed</h2>
         <Panel className="py-0.5">
           <div className="flex flex-col [&>:where(:not(:first-child))]:border-t-[0.5px] [&>:where(:not(:first-child))]:border-border">
             {notHere.map((e) => <EntryRow key={e.id} e={e} busy={busy === e.id} act={act} />)}
@@ -456,30 +456,30 @@ function DirectorySheet({ id }: { id: string }) {
           )}
         <WebLink url={githubOf(e)} />
       </div>
-      {!ours && !here && !e.blocked && <p className={cn(NOTE, "-mt-2 mb-5 px-1")}>Installing turns it on: it runs code on the machine that serves this app, with your files. Install only plugins you trust.</p>}
+      {!ours && !here && !e.blocked && <p className={cn(NOTE, "-mt-2 mb-5 px-3")}>Installing turns it on: it runs code on the machine that serves this app, with your files. Install only plugins you trust.</p>}
       {says.length > 0 && (
-        <Section title="What it says it does" className="mb-5">
-          <List>{says.map((x) => <Row key={x} title={capitalize(x)} />)}</List>
+        <Section title="What it says it does" className="mb-6" grouped>
+          <Group>{says.map((x) => <SettingRow key={x} label={capitalize(x)} />)}</Group>
         </Section>
       )}
-      <Section title="About" className="mb-5">
-        <List>
-          {e.desktopApp && <Row title="Works in" right="The desktop app on a Mac" />}
-          <Row title="Version" right={e.installed && e.update ? `${e.version} (${e.installed} installed)` : e.version} />
-          {e.author && <Row title="Author" right={e.author} />}
-          <Row title="Source" right={e.source} />
-          {updated && <Row title="Updated" right={dateText(new Date(updated), { day: "numeric", month: "short", year: "numeric" })} />}
-          {e.stars > 0 && <Row title="Stars" right={numberText(e.stars)} />}
-          {e.fundingUrl && <Row title="Support it" right={<button type="button" onClick={() => openWebLink(e.fundingUrl!)}
-            className="cursor-pointer text-foreground/80 underline decoration-border underline-offset-2 hover:text-foreground">{new URL(e.fundingUrl).host}</button>} />}
-        </List>
+      <Section title="About" className="mb-6" grouped>
+        <Group>
+          {e.desktopApp && <KV label="Works in">The desktop app on a Mac</KV>}
+          <KV label="Version">{e.installed && e.update ? `${e.version} (${e.installed} installed)` : e.version}</KV>
+          {e.author && <KV label="Author">{e.author}</KV>}
+          <KV label="Source">{e.source}</KV>
+          {updated && <KV label="Updated">{dateText(new Date(updated), { day: "numeric", month: "short", year: "numeric" })}</KV>}
+          {e.stars > 0 && <KV label="Stars">{numberText(e.stars)}</KV>}
+          {e.fundingUrl && <KV label="Support it"><button type="button" onClick={() => openWebLink(e.fundingUrl!)}
+            className="cursor-pointer text-foreground/80 underline decoration-border underline-offset-2 hover:text-foreground">{new URL(e.fundingUrl).host}</button></KV>}
+        </Group>
       </Section>
       {e.readme && (
-        <Section title="From its readme" className="mb-5">
-          <p className="px-1 text-[15px] leading-[21px] md:text-[14px] md:leading-[20px]" data-browse-readme>{snippet(e.readme)}</p>
+        <Section title="From its readme" className="mb-6" grouped>
+          <p className="px-3 text-[15px] leading-[21px] md:text-[14px] md:leading-[20px]" data-browse-readme>{snippet(e.readme)}</p>
         </Section>
       )}
-      {!here && <p className={cn(NOTE, "px-1")}>Its preview shows once it's installed and on: nothing of a plugin from GitHub runs before then.</p>}
+      {!here && <p className={cn(NOTE, "px-3")}>Its preview shows once it's installed and on: nothing of a plugin from GitHub runs before then.</p>}
     </div>
   )
 }
@@ -519,14 +519,14 @@ function HostedSheet({ host, id }: { host: string; id: string }) {
           )}
         {e.url && <WebLink url={e.url} />}
       </div>
-      {alt && !alt.on && <p className={cn(NOTE, "-mt-2 mb-5 px-1")}>Vaultite's {alt.name} does its job, and agents can read what it draws.</p>}
+      {alt && !alt.on && <p className={cn(NOTE, "-mt-2 mb-5 px-3")}>Vaultite's {alt.name} does its job, and agents can read what it draws.</p>}
       {(e.author || e.stat || !!e.badges?.length) && (
-        <Section title="About" className="mb-5">
-          <List>
-            {e.author && <Row title="Author" right={e.author} />}
-            {e.stat && <Row title="Used by" right={e.stat} />}
-            {e.badges?.map((b) => <Row key={b.text} title={<span className={cn(b.tone && TONES[b.tone])}>{b.text}</span>} meta={b.tip} wrap />)}
-          </List>
+        <Section title="About" className="mb-6" grouped>
+          <Group>
+            {e.author && <KV label="Author">{e.author}</KV>}
+            {e.stat && <KV label="Used by">{e.stat}</KV>}
+            {e.badges?.map((b) => <SettingRow key={b.text} label={<span className={cn(b.tone && TONES[b.tone])}>{b.text}</span>} sub={b.tip} />)}
+          </Group>
         </Section>
       )}
     </div>

@@ -365,7 +365,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `keysText(s, mac?)`: A Mac's key glyphs in text (a manifest's "⌥⌘F", "⌘-click") as this computer names them: "Ctrl+Alt+F", "Ctrl-click".
 - `kindFolder(folder, disabled?)`: Whether a plain Markdown file in `folder` would be a kind's (People/, Logs/Gym/): such a folder holds only that kind, so another sort of note goes where new notes go instead.
 - `kindIcon(path)`: The icon for a file that isn't a note (notes take their plugin's).
-- `KV({ label, children })`: A label and its value, in a Group.
+- `KV({ label, children, … })`: A label and its value, in a Group.
 - `laidOut(el)`: Where an element is laid out, without the slide a drag's preview gives it (core/slide.ts): hits are worked out on that, so what makes way doesn't move what's under the pointer.
 - `landDictation(here)`: Answer the helper when it lands a session's words (`here`: what has this window's keyboard).
 - `Layout`: A block's place on a dashboard's grid: COMMON's `wide` and `stack`.
@@ -639,7 +639,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `SearchPage({ store, query, setQuery })`
 - `secretDialog(opts, ended?)`: Ask for a secret (opts.field: hidden text, or a file); null when cancelled or `ended` (the asker stopped waiting).
 - `SecretKeeper`: The user's passwords (the desktop app's, web-viewer's passwords.ts), for an agent's ask: what's set up there.
-- `Section({ title, children, className })`: A labelled group inside a card ("Up next", "Lifts").
+- `Section({ title, children, className, grouped })`: A labelled group inside a card ("Up next", "Lifts"); `grouped`: its title lines up with a Group's rows.
 - `seenArea(el)`: Where on screen a row can be seen: the window, cut by every box around it that clips, below the sticky heading of its panel (rows pass under it), clear of a fading edge.
 - `Segment`: A body in pieces: blocks, embeds and the Markdown between (blank-only text dropped).
 - `Segmented({ value, options, onChange, label, big, small, className })`: A choice of a few, side by side.
