@@ -15,6 +15,7 @@ import { AX_TREE, BOX, DESCRIBED, RESOLVED, type DomNode } from "./cdpwire.ts"
 import { messageOf } from "./messageof.ts"
 import { ACT, ANSWER, ASKER, AT, BY, PAGE_TEXT, WAIT, type Act, type Answer, type Asker, type By, type Field, type Upload, type Wait } from "./agentwire.ts"
 import { forgetSteps, noteStep } from "./pagesteps.ts"
+import { fileInputNear } from "./fileinput.ts"
 
 export const THUMB_WIDTH = 320
 
@@ -376,11 +377,9 @@ async function step(p: EnginePage, a: Act) {
       break
     }
     case "upload": {
-      const n = await nodeOf(p, need(a.ref, "a ref"))
-      const d = await describe(p, n.id)
-      if (d.tag !== "input" || d.attrs.type !== "file") throw new Error("upload is for a file input (<input type=file>): its ref, from the snapshot")
+      const n = await nodeOf(p, need(a.ref, "a ref")), input = await fileInputNear(p.wc, n.id)
       await pointTo(p, actor.get(p.wc) ?? "", n.x, n.y, true)
-      await cdp(p.wc, "DOM.setFileInputFiles", { backendNodeId: n.id, files: uploadFiles(a.files) })
+      await cdp(p.wc, "DOM.setFileInputFiles", { objectId: input, files: uploadFiles(a.files) })
       break
     }
     case "paste": {

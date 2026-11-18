@@ -8,6 +8,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 - Pictures of a page (vau html picture): on Windows they use the installed Chrome or Edge, so they work on Windows on Arm,
   and a page that fails to open says so instead of "nothing on the page matches".
+- Companion and agents: they attach a file from the vault to a web page (a screenshot to a Reddit reply), through
+  the page's own picker button too, where the site hides its file input.
 - Companion: filling in posts, messages or forms for you to review and send happens in your browser in front of you,
   never as a background job; and a question you ask it always gets words, even when it also acts.
 - Terminal: a full-screen program's terminal (vim, htop, less) no longer opens blank now and then: its picture failed

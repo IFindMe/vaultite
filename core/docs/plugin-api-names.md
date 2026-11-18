@@ -1010,6 +1010,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `OpsHost`: What the core gives plugins for operations and events (the App sets it for its vault: core/app.ts `host`).
 - `outliving(cmd, args, name)`: Under a systemd unit (`vau service` on Linux) restarting it kills its whole cgroup, detached children too (launchd leaves a new session alone): what a process that must outlive the server runs as,…
 - `outsidePath(p)`: An outside path the app may read (its bytes, its info), or a 404.
+- `pageFiles(vaultOrMachinePaths, absInVault, refusal?)`
 - `pageText(type, body)`: A page's bytes as text, in the charset its header (`type`) or its <meta> names, else UTF-8.
 - `parseCsv(text)`: Rows of fields.
 - `parseDate(text, fmt, opts?)`: The date `text` names in a moment.js format (a week's first day), or null if the format doesn't write it ("2026-13-01" in YYYY-MM-DD); `loose`: what the text starts with, read as moment does.

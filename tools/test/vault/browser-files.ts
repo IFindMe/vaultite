@@ -138,4 +138,16 @@ export default async ($: VaultTest) => {
     tell({ tab: 4 })
     check("desktop events reach a listener till it stops", JSON.stringify(heard) === JSON.stringify([["live:state", { tab: 3 }]]), heard)
   }
+  {
+    const { pageFiles } = await import("../../../core/pagefiles.ts")
+    write("Attachments/Lighthouse.png", "PNGish")
+    const got = await pageFiles(["Attachments/Lighthouse.png"], (f) => vault.abs(f))
+    const why = (p: Promise<unknown>) => p.then(() => "", (e: Error) => e.message)
+    check("page upload: a vault file goes by its name and bytes; none, or one not there, says so",
+      got[0]?.name === "Lighthouse.png" && Buffer.from(got[0].data, "base64").toString() === "PNGish" &&
+      /needs `files`/.test(await why(pageFiles([], (f) => vault.abs(f)))) && /no file Attachments\/Nowhere.png/.test(await why(pageFiles("Attachments/Nowhere.png", (f) => vault.abs(f)))), got)
+    const [st, body] = await api("POST", "ops/companion.act", { action: "upload", app: "TextEdit", files: ["Attachments/Lighthouse.png"] })
+    const [st2, body2] = await api("POST", "ops/companion.act", { action: "upload", el: "e8" })
+    check("companion upload: only into a web page, and only with files", st === 400 && /web page's file input/.test(body.error) && st2 >= 400 && /needs `files`/.test(body2.error), [st, body, st2, body2])
+  }
 }
