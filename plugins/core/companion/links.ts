@@ -39,7 +39,7 @@ const SeenThere = z.looseObject({ running: z.boolean(), state: z.string().option
   typed: z.number().optional(), quiet: z.number().optional(), asks: z.array(z.string()).optional(), diff: z.string().optional(), unreachable: z.string().optional(), onMain: z.boolean().optional(),
   waits: z.looseObject({ kind: z.enum(["permission", "question", "stuck"]), question: z.string(), choices: z.array(z.string()) }).optional(),
   turn: z.looseObject({ text: z.string(), files: z.array(z.string()), at: z.number(), final: z.boolean(), session: z.string().optional(), prompt: z.string().optional(), background: z.number().optional() }).nullable().optional(),
-  exit: z.looseObject({ code: z.number(), signal: z.number(), lost: z.boolean().optional() }).optional(),
+  exit: z.looseObject({ code: z.number(), signal: z.number(), lost: z.boolean().optional(), left: z.enum(["working", "idle"]).optional() }).optional(),
   context: z.looseObject({ tokens: z.number(), window: z.number() }).optional(),
   marks: z.looseObject({ whole: z.string(), each: z.array(z.string()) }).optional() })
 

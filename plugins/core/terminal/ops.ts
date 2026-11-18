@@ -380,7 +380,9 @@ code when it waited for that (1 when it was lost: its terminal server went away)
     help: `The text goes as typed (a long or multi-line one as a paste, so it arrives whole). Into an agent, with Enter, it
 answers whether the agent took it (submitted: it started working on it), and when not why, as far as its screen says:
 it was waiting on a question (what you typed went to that), or the text still sits in its input (vim mode, a survey or
-a dialog took the Enter). wait then waits as vau terminal wait does with nothing in for (its turn over: idle, blocked,
+a dialog took the Enter). Into an agent's terminal whose agent has left (quit or crashed: its shell is at its prompt)
+nothing is typed, as it would run as commands there: start the agent again (vau terminal start --agent --session), or
+shell to type it into the shell. wait then waits as vau terminal wait does with nothing in for (its turn over: idle, blocked,
 done or error, told after this text; else the terminal's end), at most timeout seconds.
 
   vau terminal send k3j2h1g0 "npm test"
@@ -394,13 +396,14 @@ done or error, told after this text; else the terminal's end), at most timeout s
       enter: { type: "boolean", default: true, description: "press Enter after it (--no-enter: don't)" },
       wait: { type: "boolean", description: "then wait for its agent's turn to end (or the terminal's end), and say how it went" },
       timeout: { type: "number", minimum: 0, maximum: 3600, default: 600, description: "with wait, seconds to wait at most" },
+      shell: { type: "boolean", description: "into an agent's terminal its agent has left: type it into its shell anyway, to run as a command" },
     },
     args: ["id", "text"],
-    run: async ({ id, text, enter, wait, timeout }, ctx) => {
+    run: async ({ id, text, enter, wait, timeout, shell }, ctx) => {
       const [t, machine] = await target(plugin, ctx, id)
       if (!text && !enter) throw new OpError("give the text to type")
-      if (machine) return Typed.parse(await there(plugin, ctx, machine, "terminal.send", { id: t, text: text ?? "", enter, ...(wait ? { wait, timeout } : {}) }, wait ? Number(timeout) + 30 : 15))
-      const r = Answer.parse(await ctx.api("POST", `terminals/${encodeURIComponent(t)}/send`, { text: text ?? "", enter, confirm: true }))
+      if (machine) return Typed.parse(await there(plugin, ctx, machine, "terminal.send", { id: t, text: text ?? "", enter, ...(wait ? { wait, timeout } : {}), shell: shell || undefined }, wait ? Number(timeout) + 30 : 15))
+      const r = Answer.parse(await ctx.api("POST", `terminals/${encodeURIComponent(t)}/send`, { text: text ?? "", enter, confirm: true, shell: shell || undefined }))
       return Typed.parse(wait ? { ...r, ...Answer.parse(await ctx.api("POST", `terminals/${encodeURIComponent(t)}/wait`, { timeout })) } : r)
     },
     text: (r, p) => `Typed into ${r.id}${p.text ? `: ${p.text.length > 60 ? `${p.text.slice(0, 60)}…` : p.text}` : ""}${r.enter ? " (Enter)" : ""}.` +

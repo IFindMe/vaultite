@@ -5,7 +5,7 @@ import { gist, type Job, landTask, linkOf, messageOf, prunedLine, resumeOf, term
 import { type Clock, type JobEvent, stuckLine, untell } from "./joblife.ts"
 import { COMPANION, THEM } from "./jobtold.ts"
 import { plainWords } from "./jobword.ts"
-import type { workerLinks } from "./links.ts"
+import type { Link, workerLinks } from "./links.ts"
 import type { Moment } from "./types.ts"
 import type { JobDeps, Seen } from "./workers.ts"
 import type { JobLogRow } from "./rows.ts"
@@ -25,6 +25,7 @@ export function jobTell(o: TellDeps) {
   async function wake(ctx: OpCtx, j: Job, prompt = "") {
     const s = await seenOf(j).catch(() => null)
     if (!s || s.running) return false
+    if (!j.exited && !s.unreachable && await ended(j, s)) changed()
     if (!j.session) throw new OpError(`${j.id}'s terminal ended and its conversation isn't known: hand it off again`, 409)
     await startIn(ctx, j, prompt, j.session)
     return true
@@ -60,36 +61,43 @@ export function jobTell(o: TellDeps) {
     text = await link.carry(j.pruned ? `${prunedLine(j.where)} ${text}` : text)
     delete j.pruned
     const s = await seenOf(j).catch(() => null)
-    if (s && !s.running) {
-      if (!j.exited) await ended(j, s)
-      changed()
-      if (!await wake(ctx, j, text)) throw new OpError(`${j.id}'s terminal can't be reached now: try again (${linkOf(j)})`, 502)
-      toldFrom(j, by, text)
-    } else {
-      const stuckWhy = s ? stuck(j, s) : ""
-      if (stuckWhy) throw unreached(j, stuckWhy)
-      if (s?.state === "blocked" && s.kind === "permission") throw new OpError(`${j.id} waits on a permission in its terminal (${s.msg ?? "open it"}): only the user answers it (its notification, or job-answer on their words; ${linkOf(j)})`, 409)
-      const was = { state: j.state, turn: j.turn, now: j.now, at: j.at }
-      toldNow(j, `Told: ${gist(shown, 120)}`)
-      const x = j.state === was.state ? undefined : j.log.at(-1)
-      sending.add(j.id)
-      const sent = Date.now()
-      const back = () => {
-        const b = untell(j, x, was), t = Date.now()
-        if (b) jobLog.append(t, [{ t, job: j.id, ev: "untold", ...b }])
-        changed()
-      }
-      const r = await link[how](ctx, j.terminal, text).catch((e) => { back(); throw e }).finally(() => sending.delete(j.id))
-      if (r.submitted === false) { back(); throw new OpError(`it didn't take it: ${r.why ?? "its input kept the text"} (${linkOf(j)})`, 409) }
-      if (r.submitted !== true) {
-        const after = await seenOf(j).catch(() => null)
-        if (after?.running && after.state === "working" && after.quiet !== undefined && after.quiet >= Date.now() - sent) { back(); throw unreached(j, "drew nothing on its screen once it was sent (it seems stuck)") }
-      }
-      toldFrom(j, by, text)
-      void refresh(j).catch((e) => log.error("jobs", e))
-      return
-    }
+    if (s?.running !== false && !await typedOrGone(ctx, j, s, text, shown, by, how)) return
+    if (!await wake(ctx, j, text)) throw new OpError(`${j.id}'s terminal can't be reached now: try again (${linkOf(j)})`, 502)
+    toldFrom(j, by, text)
     toldNow(j, `Told: ${gist(shown, 120)}`)
+  }
+  async function typedOrGone(ctx: OpCtx, j: Job, s: Seen | null, text: string, shown: string, by: string, how: "tell" | "land") {
+    if (s) takes(j, s)
+    const was = { state: j.state, turn: j.turn, now: j.now, at: j.at }
+    toldNow(j, `Told: ${gist(shown, 120)}`)
+    const x = j.state === was.state ? undefined : j.log.at(-1)
+    sending.add(j.id)
+    const sent = Date.now()
+    const back = () => {
+      const b = untell(j, x, was), t = Date.now()
+      if (b) jobLog.append(t, [{ t, job: j.id, ev: "untold", ...b }])
+      changed()
+    }
+    let r: Awaited<ReturnType<Link["tell"]>>
+    try { r = await links.of(j.where)[how](ctx, j.terminal, text) } catch (e) {
+      back()
+      if ((await seenOf(j).catch(() => null))?.running === false) return true
+      throw e
+    } finally { sending.delete(j.id) }
+    if (r.submitted === false) { back(); throw new OpError(`it didn't take it: ${r.why ?? "its input kept the text"} (${linkOf(j)})`, 409) }
+    if (r.submitted !== true && await drewNothing(j, sent)) { back(); throw unreached(j, "drew nothing on its screen once it was sent (it seems stuck)") }
+    toldFrom(j, by, text)
+    void refresh(j).catch((e) => log.error("jobs", e))
+    return false
+  }
+  function takes(j: Job, s: Seen) {
+    const stuckWhy = stuck(j, s)
+    if (stuckWhy) throw unreached(j, stuckWhy)
+    if (s.state === "blocked" && s.kind === "permission") throw new OpError(`${j.id} waits on a permission in its terminal (${s.msg ?? "open it"}): only the user answers it (its notification, or job-answer on their words; ${linkOf(j)})`, 409)
+  }
+  async function drewNothing(j: Job, sent: number) {
+    const after = await seenOf(j).catch(() => null)
+    return !!after?.running && after.state === "working" && after.quiet !== undefined && after.quiet >= Date.now() - sent
   }
   function toldFrom(j: Job, by: string, text: string) {
     (j.tells ??= []).push({ at: Date.now(), by, text: text.replace(/\s+/g, " ").trim().slice(0, 300) })

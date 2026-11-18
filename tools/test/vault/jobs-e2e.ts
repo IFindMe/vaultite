@@ -4,7 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import type { Any, VaultTest } from "./harness.ts"
 import { waitFor } from "../lib.ts"
-import { request, socket } from "../fakes.ts"
+import { agentLine, request, socket } from "../fakes.ts"
 import { jobSite } from "./jobsite.ts"
 
 export default async ($: VaultTest) => {
@@ -41,7 +41,7 @@ export default async ($: VaultTest) => {
     fs.mkdirSync(personal, { recursive: true })
     fs.writeFileSync(pj, JSON.stringify({ numStartups: 2, projects: { "/elsewhere": { allowedTools: ["Bash"] } } }))
     const trusted = () => JSON.parse(fs.readFileSync(pj, "utf8")).projects?.[real]?.hasTrustDialogAccepted === true
-    cc["agent:claude"] = async (start: Any) => { said.push({ ...start, trusted: trusted() }); return { command: script(/git -C \S+ worktree add \S+ -b \S+ [0-9a-f]+/.exec(start.prompt ?? "")?.[0] ?? "false x x x /nowhere"), cwd: null } }
+    cc["agent:claude"] = async (start: Any) => { said.push({ ...start, trusted: trusted() }); return { command: agentLine(script(/git -C \S+ worktree add \S+ -b \S+ [0-9a-f]+/.exec(start.prompt ?? "")?.[0] ?? "false x x x /nowhere")), cwd: null } }
     let turn: Any = null
     cc["agent-turn:claude"] = async () => turn
     let card: Any = null

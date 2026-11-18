@@ -32,6 +32,8 @@ export function socket(sent: (data: string) => void = () => {}): WebSocket {
   return ws
 }
 
+/** A coding agent's stand-in: its line run as a program in front of its shell, as an agent is (a shell at its prompt is one gone). */
+export const agentLine = (line: string) => `sh -c '${line.replaceAll("'", "'\\''")}'`
 export const moment = (o: Partial<Moment> = {}): Moment => ({ seq: 1, t: 0, kind: "ask", ...o })
 
 export const where = (o: Partial<Where> = {}): Where =>

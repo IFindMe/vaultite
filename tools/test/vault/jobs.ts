@@ -4,7 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import type { Any, VaultTest } from "./harness.ts"
 import { waitFor } from "../lib.ts"
-import { request, where } from "../fakes.ts"
+import { agentLine, request, where } from "../fakes.ts"
 import type { JobEvent } from "../../../plugins/core/companion/joblife.ts"
 import { portOf } from "../../../core/listening.ts"
 import { jobSite } from "./jobsite.ts"
@@ -530,7 +530,7 @@ export default async ($: VaultTest) => {
     const cc = app.plugins.find((p) => p.id === "claude-code")!.services, was = { ...cc }
     const agent = request({ host: "127.0.0.1:8793", "x-vaultite-client": "cli", "x-vaultite-agent": "claude-code" }, { remote: "127.0.0.1" })
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), "jobs-stuck-")), started: Any[] = [], ids = new Set<string>()
-    cc["agent:claude"] = async (start: Any) => { started.push(start); return { command: "stty -icanon -echo 2>/dev/null; sleep 0.3; printf '\\033]7501;state=working\\033\\\\'; IFS= read -r k; echo \"$k\" >> told.txt; printf '\\033]7501;state=working\\033\\\\'; sleep 600", cwd: null } }
+    cc["agent:claude"] = async (start: Any) => { started.push(start); return { command: agentLine("stty -icanon -echo 2>/dev/null; sleep 0.3; printf '\\033]7501;state=working\\033\\\\'; IFS= read -r k; echo \"$k\" >> told.txt; printf '\\033]7501;state=working\\033\\\\'; sleep 600"), cwd: null } }
     cc["agent-turn:claude"] = async () => ({ session: "sess-stuck", text: "", files: [], at: Date.now() - 3600_000, final: false })
     const job = async (id: string) => (await api("POST", "ops/companion.job", { id }))[1]
     const stuckNow = (id: string) => waitFor(async () => { const r = await job(id); ids.add(r.terminal); return r.state === "needs you" && r.waits?.kind === "stuck" && r }, 15000, 200)

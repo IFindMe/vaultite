@@ -10,7 +10,7 @@ import { LOCAL, agentContext, agentOf, backendForNew, backendOf, backends, fallb
 import { askIn, choose, current, endOf, savedDark, screenOf, setMeta, stateHeard, terms } from "./terms.ts"
 import { end, endHere, start } from "./start.ts"
 import { starting } from "./machines.ts"
-import { listChanged, localList } from "./list.ts"
+import { agentLeft, listChanged, localList } from "./list.ts"
 
 const cleanName = (s: string) => s.replace(/[\s\p{Cc}]+/gu, " ").trim().slice(0, 80)
 
@@ -241,6 +241,9 @@ plugin.route("GET", "terminals/*/inputs", async (req) => {
   return { id, inputs: inputs.get(id) ?? [] }
 })
 
+async function notIntoLeftShell(id: string, text: string, shell: boolean) {
+  if (text && !shell && await agentLeft(id)) throw new HTTPError(409, `${id}'s agent has left it: its shell is at its prompt, where this would run as commands, so nothing was typed (start the agent again, or shell: type it into the shell)`)
+}
 plugin.route("POST", "terminals/*/send", async (req) => {
   await owner(req)
   const id = localId(req)
@@ -255,6 +258,7 @@ plugin.route("POST", "terminals/*/send", async (req) => {
   const text = typeof req.body?.text === "string" ? unmarked(req.body.text) : ""
   const enter = req.body?.enter !== false
   if (!text && !enter) throw new HTTPError(400, "send needs a text (or enter)")
+  await notIntoLeftShell(id, text, req.body?.shell === true)
   const before = current(id), since = Date.now()
   await sendText(b, id, text, enter, by)
   return { id, sent: text.length, enter, ...(req.body?.confirm && enter && text && (agentOf(id) || before) ? await submitted(b, id, text, before, since) : {}) }

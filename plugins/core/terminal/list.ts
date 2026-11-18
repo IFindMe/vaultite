@@ -8,10 +8,10 @@ import { progName } from "./shells.ts"
 import type { Kind, SessionState } from "./osc7501.ts"
 import { nowOf } from "./state.ts"
 import { SPARE, WIN, plugin, sessions } from "./shared.ts"
-import { agentOf, backends, fromReq, ours, ownedBy } from "./backends.ts"
+import { agentOf, backends, findShell, fromReq, ours, ownedBy } from "./backends.ts"
 import { FRONT_AGE, frontSeen, metas, nameOf, noteOf, oldMeta, progressOf, sight, terms, watchAsks, watching } from "./terms.ts"
 import { makeSpare } from "./start.ts"
-import { allowed, terminalMachines } from "./machines.ts"
+import { allowed, starting, terminalMachines } from "./machines.ts"
 import { lastInput, pageInput } from "./routes.ts"
 const SHELLS = new Set(["zsh", "bash", "fish", "sh", "dash", "-zsh", "-bash", "-sh", "login", "pwsh", "powershell", "cmd", "wsl", ""])
 const VERSION = /^\d+(\.\d+)+$/
@@ -35,6 +35,14 @@ export async function inFront(x: Shell): Promise<string | null> {
   const script = SHELLS.has(name) ? rest.find((a) => !a.startsWith("-")) : undefined
   return (script && !rest.includes("-c") ? path.basename(script) : name) || x.process || "shell"
 }
+export async function agentLeft(id: string) {
+  if (WIN || !agentOf(id) || starting.has(id) || terms.get(id)?.starting) return false
+  const [f, table] = await Promise.all([findShell(id), processTable(0)])
+  if (!f?.x.pid || f.x.spare || (await inFront(byName(f.x))) !== null) return false
+  const args = table.get(f.x.pid)?.args
+  return !!args && !runsAgentLine(args)
+}
+const runsAgentLine = (args: string) => / -c /.test(` ${args} `)
 /** Windows has no foreground groups: the newest program the shell started (an agent the starter runs, by its own name).
  *  A WSL distro's programs can't be seen from here: an agent's terminal reads as running its agent. */
 async function frontOnWindows(x: Shell): Promise<string | null> {
@@ -272,10 +280,11 @@ plugin.provide("terminal:of-pids", async (pids: number[]) => {
   return null
 })
 
-/** A terminal's id, title, whether something runs in it, its agent's session, when it was last typed into in a tab
- *  (`typed`) and for how long its program drew nothing (`quiet`, ms), or null when it isn't running. */
+/** A terminal's id, title, whether something runs in it, whether its agent `left` it, its agent's session, when it was last
+ *  typed into in a tab (`typed`) and for how long its program drew nothing (`quiet`, ms), or null when it isn't running. */
 plugin.provide("terminal:info", async (id: string) => {
   const s = (await localList()).find((x) => x.id === id), typed = pageInput.get(id), out = outputs.get(id)?.out
-  return s ? { id: s.id, title: s.name ?? s.title, busy: s.busy, ...(s.session ? { session: s.session } : {}), ...(typed ? { typed } : {}),
+  const t = terms.get(id), left = !!s?.agent && (!s.busy || (!!t && nowOf(t)?.from === "shell")) && await agentLeft(id)
+  return s ? { id: s.id, title: s.name ?? s.title, busy: s.busy && !left, left, ...(s.session ? { session: s.session } : {}), ...(typed ? { typed } : {}),
     quiet: out ? Math.max(0, Date.now() - out) : undefined } : null
 })

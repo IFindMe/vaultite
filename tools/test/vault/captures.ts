@@ -4,7 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import type { Any, VaultTest } from "./harness.ts"
 import { waitFor } from "../lib.ts"
-import { request, socket } from "../fakes.ts"
+import { agentLine, request, socket } from "../fakes.ts"
 
 export default async ($: VaultTest) => {
   // (the companion acting: its own tool call, not any agent's vau)
@@ -143,7 +143,7 @@ export default async ($: VaultTest) => {
     const cc = app.plugins.find((p) => p.id === "claude-code")!.services, was = { ...cc }
     const started: Any[] = []
     // (a worker that rests, then writes down what it's told)
-    cc["agent:claude"] = async (s: Any) => { started.push(s); return { command: `printf '\\033]7501;state=idle\\033\\\\'; IFS= read -r l; echo "$l" > told.txt; sleep 600`, cwd: null } }
+    cc["agent:claude"] = async (s: Any) => { started.push(s); return { command: agentLine(`printf '\\033]7501;state=idle\\033\\\\'; IFS= read -r l; echo "$l" > told.txt; sleep 600`), cwd: null } }
     cc["agent-turn:claude"] = async () => null
     const cScreen = await import("../../../plugins/core/companion/screensocket.ts")
     const { matchSocket } = await import("../../../core/plugins.ts")

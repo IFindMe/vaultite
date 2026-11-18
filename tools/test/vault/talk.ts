@@ -3,7 +3,7 @@ import os from "node:os"
 import path from "node:path"
 import type { Any, VaultTest } from "./harness.ts"
 import { waitFor } from "../lib.ts"
-import { request, socket } from "../fakes.ts"
+import { agentLine, request, socket } from "../fakes.ts"
 
 export default async ($: VaultTest) => {
   // (the companion acting: its own tool call, not any agent's vau)
@@ -36,8 +36,7 @@ export default async ($: VaultTest) => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "talk-"))
     const cc = app.plugins.find((p) => p.id === "claude-code")!.services, was = { ...cc }
     const osc = (s: string) => `printf '\\033]7501;state=${s}\\033\\\\'`
-    // (a stand-in worker: rests, then each line typed in is a turn)
-    cc["agent:claude"] = async () => ({ command: `sleep 0.3; ${osc("working")}; sleep 0.5; ${osc("idle")}; while IFS= read -r l; do ${osc("working")}; echo "$l" >> told.txt; sleep 1.5; ${osc("idle")}; done`, cwd: null })
+    cc["agent:claude"] = async () => ({ command: agentLine(`sleep 0.3; ${osc("working")}; sleep 0.5; ${osc("idle")}; while IFS= read -r l; do ${osc("working")}; echo "$l" >> told.txt; sleep 1.5; ${osc("idle")}; done`), cwd: null })
     let turn: Any = null
     cc["agent-turn:claude"] = async () => turn
     const told = () => (fs.existsSync(path.join(tmp, "told.txt")) ? fs.readFileSync(path.join(tmp, "told.txt"), "utf8") : "")

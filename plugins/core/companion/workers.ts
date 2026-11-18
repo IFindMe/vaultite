@@ -36,7 +36,7 @@ export type JobDeps = {
 }
 export type Seen = { running: boolean; state?: string; kind?: string; msg?: string; title?: string; typed?: number; quiet?: number; asks?: string[]; waits?: Omit<Waits, "at">
   turn?: { text: string; files: string[]; at: number; final: boolean; session?: string; prompt?: string; background?: number } | null; diff?: string
-  exit?: { code: number; signal: number; lost?: boolean }
+  exit?: { code: number; signal: number; lost?: boolean; left?: Left }
   unreachable?: string
   context?: { tokens: number; window: number }
   onMain?: boolean
@@ -56,7 +56,9 @@ export type JobCore = {
 const APP = whoOf("app/companion", null)
 const Answered = Relayed.omit({ machine: true })
 const SIGHUP = 1
-const crashed = (x: Seen["exit"]) => !!x && (!!x.lost || x.code !== 0 || (x.signal !== 0 && x.signal !== SIGHUP))
+export type Left = "working" | "idle"
+const leftAt = (was: { state?: string; from?: string } | null): Left => (was?.from === "shell" || was?.state === "working" || was?.state === "blocked" ? "working" : "idle")
+const crashed = (x: Seen["exit"]) => !!x && (!!x.lost || x.left === "working" || x.code !== 0 || (x.signal !== 0 && x.signal !== SIGHUP))
 const pace: Pace = { ...PACE }
 export const paced = (p: Partial<Pace>) => void Object.assign(pace, p)
 const unanswered = new Map<string, number>()
@@ -95,10 +97,11 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
   }
 
   async function seenHere(id: string, o: Read = {}): Promise<Seen> {
-    const running = await plugin.ask<boolean>("terminal:runs", false, id)
-    const st = await plugin.ask<{ state?: string; kind?: string; msg?: string } | null>("terminal:state", null, id)
-    const info = running ? await plugin.ask<{ title?: string; typed?: number; quiet?: number } | null>("terminal:info", null, id) : null
-    const exit = running ? null : await plugin.ask<Seen["exit"] | null>("terminal:ended", null, id)
+    const runs = await plugin.ask<boolean>("terminal:runs", false, id)
+    const said = await plugin.ask<{ state?: string; kind?: string; msg?: string; from?: string } | null>("terminal:state", null, id)
+    const info = runs ? await plugin.ask<{ title?: string; typed?: number; quiet?: number; left?: boolean } | null>("terminal:info", null, id) : null
+    const left = info?.left ? leftAt(said) : null, running = runs && !left, st = left ? null : said
+    const exit = left ? { code: 0, signal: 0, left } : running ? null : await plugin.ask<Seen["exit"] | null>("terminal:ended", null, id)
     const unreachable = running || exit ? null : await plugin.ask<string | null>("terminal:trouble", null, id).catch(() => null)
     if (unreachable) return { running: false, unreachable }
     const agent = parseTerminal(id)?.agent ?? ""
@@ -112,7 +115,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     const waits = blocked ? await waitsOf(id, st, asking?.questions) : null
     return { running, ...(st?.state ? { state: st.state } : {}), ...(st?.kind ? { kind: st.kind } : {}), ...(st?.msg ? { msg: st.msg } : {}), ...(info?.title ? { title: info.title } : {}),
       ...(info?.typed ? { typed: info.typed } : {}),  quiet: info?.quiet, ...(asks.length ? { asks } : {}), ...(waits ? { waits } : {}), ...(context?.tokens ? { context } : {}),
-      ...(exit ? { exit: { code: exit.code, signal: exit.signal, ...(exit.lost ? { lost: true } : {}) } } : {}),
+      ...(exit ? { exit: { code: exit.code, signal: exit.signal, ...(exit.lost ? { lost: true } : {}), left: exit.left } } : {}),
       ...(o.turn ? { turn: turn ? { text: str(turn.text), files: turn.files ?? [], at: turn.at ?? 0, final: turn.final !== false && !!turn.text, ...(turn.session ? { session: turn.session } : {}),
         ...(turn.prompt ? { prompt: turn.prompt } : {}), ...(turn.background ? { background: turn.background } : {}) } : null } : {}),
       ...(o.turn && o.cwd && o.base ? { diff: await changesOf(o.cwd, o.base, o.tree ?? "", [turn?.text, o.said].filter(Boolean).join("\n")) } : {}),
@@ -224,6 +227,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
   async function finish(j: Job) {
     const s = await seenOf(j, true).catch(() => null)
     if (!s) return false
+    if (!s.running) return j.exited ? false : await ended(j, s)
     const t = s.turn
     const r = resultOf(j, s), now = Date.now()
     // (Claude Code rests a moment before its first step; a cloud session's list says idle then too, and between steps)
@@ -289,8 +293,8 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     return j.land.merged === true
   }
   async function ended(j: Job, s: Seen) {
-    if (!live(j.state)) { j.exited = Date.now(); move(j, "ended"); resumable(j); return true }
-    if (waitsLive(j.going)) { j.exited = Date.now(); resumable(j); return true }
+    if (!live(j.state)) { j.exited = Date.now(); move(j, "ended"); await resumable(j, s); return true }
+    if (waitsLive(j.going)) { j.exited = Date.now(); await resumable(j, s); return true }
     const r = await seenOf(j, true).catch(() => null)
     if (!r) return false
     const t = j.exited = Date.now()
@@ -304,12 +308,16 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
       setGoing(j, y.going, "ended", t)
       if (y.ev) move(j, y.ev, t)
     }
-    resumable(j)
+    await resumable(j, s)
     return true
   }
-  function resumable(j: Job) {
+  async function resumable(j: Job, s?: Seen) {
     const to = j.state === "stopped" ? "" : resumeOf(j)
-    if (to) j.terminal = to
+    if (!to || to === j.terminal) return
+    if (s?.exit?.left && !d.onScreen?.(linkOf(j))) {
+      try { await links.of(j.where).end(appCtx(), j.terminal) } catch (e) { log.error(`jobs: ${j.id}: the shell its agent left: ${messageOf(e)}`) }
+    }
+    j.terminal = to
   }
 
   async function tidy(j: Job) {
@@ -321,7 +329,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     if (!t?.running || t.turn?.background || !resumeOf(j) || d.onScreen?.(linkOf(j))) return false
     await links.of(j.where).end(appCtx(), j.terminal)
     j.exited = j.closed = Date.now()
-    resumable(j)
+    await resumable(j)
     return true
   }
   async function prune(j: Job) {

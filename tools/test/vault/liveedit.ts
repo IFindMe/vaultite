@@ -4,7 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import type { Any, VaultTest } from "./harness.ts"
 import { waitFor } from "../lib.ts"
-import { job as aJob, moment, plugin, request, socket, where } from "../fakes.ts"
+import { agentLine, job as aJob, moment, plugin, request, socket, where } from "../fakes.ts"
 import type { FileEdit } from "../../../plugins/core/claude-code/edits.ts"
 import type { current } from "../../../plugins/core/terminal/terms.ts"
 
@@ -151,7 +151,7 @@ export default async ($: VaultTest) => {
       `case "$l" in *"Live edit L1:"*) perl -pi -e 's/Hello/Hi/' index.html;; *"Live edit L2:"*) perl -pi -e 's/Hello/Howdy/' index.html;; esac; ` +
       `while [ ! -e '${go}' ]; do sleep 0.05; done; rm -f '${go}'; ${osc("idle")}; done`
     const starts: Any[] = []
-    cc["agent:claude"] = async (start: Any) => { starts.push(start); return { command: script, cwd: null } }
+    cc["agent:claude"] = async (start: Any) => { starts.push(start); return { command: agentLine(script), cwd: null } }
     let context: Any = null
     cc["agent-context:claude"] = async () => context
     let turn: Any = null
