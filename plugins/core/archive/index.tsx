@@ -18,7 +18,7 @@ export async function setArchived(path: string, on: boolean) {
   try {
     const r = await op<Moved>(on ? "archive.add" : "archive.restore", { path })
     await reload()
-    notify(`${on ? "Archived" : "Unarchived"} ${name(path)}`, { action: { label: "Undo", run: () => void setArchived(r.path, !on) } })
+    notify(`${on ? "Archived" : "Unarchived"} ${name(path)}`, { action: { label: "Undo", run: () => setArchived(r.path, !on) } })
   } catch (e) { notifyError(e, on ? "Couldn't archive" : "Couldn't unarchive") }
 }
 
@@ -28,7 +28,7 @@ async function setManyArchived(paths: string[], on: boolean) {
     try { moved.push((await op<Moved>(on ? "archive.add" : "archive.restore", { path })).path) } catch (e) { notifyError(e, on ? "Couldn't archive" : "Couldn't unarchive") }
   }
   await reload()
-  if (moved.length) notify(`${on ? "Archived" : "Unarchived"} ${plural(moved.length, "item")}`, { action: { label: "Undo", run: () => void setManyArchived(moved, !on) } })
+  if (moved.length) notify(`${on ? "Archived" : "Unarchived"} ${plural(moved.length, "item")}`, { action: { label: "Undo", run: () => setManyArchived(moved, !on) } })
 }
 
 async function tidy() {
@@ -47,14 +47,14 @@ async function tidy() {
 }
 
 const item = (path: string, on: boolean): FileMenuItem[] => [{ label: on ? "Unarchive" : "Archive", icon: on ? ArchiveRestore : Archive, section: "away",
-  run: () => void setArchived(path, !on), many: (paths) => void setManyArchived(paths, !on) }]
+  run: () => setArchived(path, !on), many: (paths) => void setManyArchived(paths, !on) }]
 
 export default definePlugin({
   fileMenu: (path) => (can(path) ? item(path, archived(path)) : []),
   folderMenu: (path) => (canFolder(path) ? item(path, inArchive(path)) : []),
   commands: [
-    { id: "archive:archive", name: "Archive the current file", when: () => can(currentFile()) && !archived(currentFile()), run: () => void setArchived(currentFile(), true) },
-    { id: "archive:unarchive", name: "Unarchive the current file", when: () => can(currentFile()) && archived(currentFile()), run: () => void setArchived(currentFile(), false), icon: ArchiveRestore },
-    { id: "archive:tidy", name: "Move archived files into archive folders", run: () => void tidy(), icon: FolderArchive },
+    { id: "archive:archive", name: "Archive the current file", when: () => can(currentFile()) && !archived(currentFile()), run: () => setArchived(currentFile(), true) },
+    { id: "archive:unarchive", name: "Unarchive the current file", when: () => can(currentFile()) && archived(currentFile()), run: () => setArchived(currentFile(), false), icon: ArchiveRestore },
+    { id: "archive:tidy", name: "Move archived files into archive folders", run: () => tidy(), icon: FolderArchive },
   ],
 })

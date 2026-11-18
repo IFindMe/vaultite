@@ -27,8 +27,8 @@ export function chatMenu(id: string, { terminal = true }: { terminal?: boolean }
   if (!id || id === NEW) return []
   const k = known.get(id)
   return [
-    ...(terminal && terminalOk(id) ? [{ label: k?.tui ? "Show terminal" : "Open in terminal", icon: SquareTerminal, disabled: k ? !k.ready : false, run: () => void toTerminal(id) }] : []),
-    { label: "Copy session id", icon: Copy, run: () => void copyText(splitMachine(id)[0]).then(() => notify("Session id copied")) },
-    ...(k?.running ? [{ label: "Stop session", icon: Square, sep: true, run: () => void op("claude-code.chat-stop", { id }).then(() => notify("Stopped: a message resumes it"), (err) => notifyError(err, "Couldn't stop it")) } satisfies MenuItem] : []),
+    ...(terminal && terminalOk(id) ? [{ label: k?.tui ? "Show terminal" : "Open in terminal", icon: SquareTerminal, disabled: k ? !k.ready : false, run: () => toTerminal(id) }] : []),
+    { label: "Copy session id", icon: Copy, run: () => copyText(splitMachine(id)[0]).then(() => notify("Session id copied")) },
+    ...(k?.running ? [{ label: "Stop session", icon: Square, sep: true, run: () => op("claude-code.chat-stop", { id }).then(() => notify("Stopped: a message resumes it"), (err) => notifyError(err, "Couldn't stop it")) } satisfies MenuItem] : []),
   ]
 }

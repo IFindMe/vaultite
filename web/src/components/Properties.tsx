@@ -149,7 +149,7 @@ function TypeButton({ k, v, types, readOnly, stamp }: { k: string; v: unknown; t
   const open = (e: MouseEvent) => menuBelow(e, [
     { label: `The type of ${k} in every file`, caption: true, run: () => {} },
     ...PROP_TYPES.map((t) => ({ label: LABELS[t], icon: ICONS[t], checked: declared === t, run: () => { if (declared !== t) void set(t) } })),
-    ...(own ? [{ label: "No type: each value its own", sep: true, run: () => void set("none") }] : []),
+    ...(own ? [{ label: "No type: each value its own", sep: true, run: () => set("none") }] : []),
   ])
   return (
     <button type="button" aria-label={label} data-tip={label} data-prop-type={declared ?? ""} onClick={open}

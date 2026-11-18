@@ -66,9 +66,9 @@ function Status() {
     ...(s.mode === "off" ? [] : liveAgents()).filter((x) => x.path || x.pane || x.ui).map((x, i) => ({ label: `Go to ${x.name}`, icon: Crosshair, run: () => follow(x), sep: i === 0 })),
     ...(a ? followItems(a.name) : []),
     { label: `Ask ${s.name}`, icon: MessageCirclePlus, run: () => ask(), sep: true },
-    { label: "Show its page", icon: MessagesSquare, run: () => void op("companion.page").catch((e) => notifyError(e, "Couldn't open its page")) },
-    { label: "Show its chat", icon: MessagesSquare, run: () => void showSession() },
-    { label: "Restart its session", icon: Power, run: () => void op("companion.stop").then(() => setMode(s.mode === "off" ? "quiet" : s.mode)) },
+    { label: "Show its page", icon: MessagesSquare, run: () => op("companion.page").catch((e) => notifyError(e, "Couldn't open its page")) },
+    { label: "Show its chat", icon: MessagesSquare, run: () => showSession() },
+    { label: "Restart its session", icon: Power, run: () => op("companion.stop").then(() => setMode(s.mode === "off" ? "quiet" : s.mode)) },
   ]
   const unseen = s.mode === "off" ? 0 : unread(a?.name ?? s.name).length
   const tip = [`${s.name}, companion${word ? `: ${word}` : ""}${unseen ? `, ${unseen} unread` : ""}`, ...others.map((x) => `${x.name}: ${x.state === "watching" ? "idle" : x.state}`)].join(", ")
@@ -111,7 +111,7 @@ function Background() {
 
 const doItItem = (view: Parameters<NonNullable<typeof loaded>["taskHere"]>[0], path?: string): MenuItem[] => {
   const task = path && !share ? loaded?.taskHere(view, path) : null
-  return task ? [{ label: "Do it", icon: Play, run: () => void doTask(task) }] : []
+  return task ? [{ label: "Do it", icon: Play, run: () => doTask(task) }] : []
 }
 
 export default definePlugin({
@@ -128,10 +128,10 @@ export default definePlugin({
   commands: share ? (comments() ? [COMMENT] : []) : [
     { id: "companion:ask", name: "Ask the companion", label: "Ask", keys: ["Mod+Shift+K"], run: () => ask(), icon: MessageCirclePlus },
     COMMENT,
-    ...MODES.map((m) => ({ id: `companion:${m.mode}`, name: `Companion: ${m.label}`, when: () => getState().mode !== m.mode, run: () => void setMode(m.mode) })),
+    ...MODES.map((m) => ({ id: `companion:${m.mode}`, name: `Companion: ${m.label}`, when: () => getState().mode !== m.mode, run: () => setMode(m.mode) })),
     { id: "companion:session", name: "Show the companion's chat", words: "session talk history conversations", run: () => showSession(), icon: MessagesSquare },
-    { id: "companion:page", name: "Show the companion's page", words: "conversation usage jobs", run: () => void op("companion.page").catch((e) => notifyError(e, "Couldn't open its page")), icon: MessagesSquare },
-    { id: "companion:undo-edit", name: "Undo the companion's last edit", when: () => canUndoEdit(), run: () => void undoEdit(), icon: Undo2 },
+    { id: "companion:page", name: "Show the companion's page", words: "conversation usage jobs", run: () => op("companion.page").catch((e) => notifyError(e, "Couldn't open its page")), icon: MessagesSquare },
+    { id: "companion:undo-edit", name: "Undo the companion's last edit", when: () => canUndoEdit(), run: () => undoEdit(), icon: Undo2 },
   ],
   editorMenu: ({ view, path }) => [
     ...doItItem(view, path),

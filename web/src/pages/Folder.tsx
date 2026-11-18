@@ -15,6 +15,7 @@ import { useVirtual } from "@/core/virtual"
 import { useFocusedFile } from "@/core/workspace"
 import { menuBelow, menuFor, type MenuItem } from "@/components/ContextMenu"
 import { copyPathItem, fileMenu, filesMenu, folderMenu, grouped, openFolderHereItem, openItem, pluginFileGroups, remove } from "@/components/FileActions"
+import { runOrSay } from "@/core/commands"
 import { askMove, canMoveInto, fixed, folderItems, moveManyInto, newNote, treeShownItems, type FolderItem } from "@/components/FileTree"
 import { ROW, SidebarRow } from "@/components/Sidebar"
 import type { SwipeAction } from "@/components/SwipeRow"
@@ -44,7 +45,7 @@ async function newFolderIn(folder: string) {
   if (!s) return
   try { naming.set({ path: await createFolder(folder, freeName(s.files, folder, "New folder", "")), fresh: true }) } catch (e) { notifyError(e, "Couldn't make the folder") }
 }
-const newItems = (path: string): MenuItem[] => [{ label: "New note", icon: FilePlus, run: () => void newNote(path) }, { label: "New folder", icon: FolderPlus, run: () => void newFolderIn(path) }]
+const newItems = (path: string): MenuItem[] => [{ label: "New note", icon: FilePlus, run: () => newNote(path) }, { label: "New folder", icon: FolderPlus, run: () => newFolderIn(path) }]
 const rootItems = () => newItems("")
 
 function pageMenu(path: string): MenuItem[] {
@@ -175,7 +176,7 @@ function VaultFolderPage({ store, path }: { store: Store; path: string }) {
   useSelectable(SELECT, { menu: (keys) => filesMenu(keys, { newTab: (p) => openFile(p, { newTab: true, pane }) }), noun: ["item", "items"] })
   const swipe = (n: FolderItem): SwipeAction[] => {
     if (fixed(n.path) && !inTrash(n.path)) return []
-    if (inTrash(n.path)) return [{ label: "Restore", icon: RotateCcw, run: () => void restoreFile(n.path).catch((e) => notifyError(e, "Couldn't restore")), removes: true }, { label: "Delete", icon: Trash2, run: () => remove(n.path), danger: true }]
+    if (inTrash(n.path)) return [{ label: "Restore", icon: RotateCcw, run: () => restoreFile(n.path).catch((e) => notifyError(e, "Couldn't restore")), removes: true }, { label: "Delete", icon: Trash2, run: () => remove(n.path), danger: true }]
     return [{ label: "Move", icon: n.folder ? FolderInput : FileInput, run: () => askMove(n.path) }, { label: "Delete", icon: Trash2, run: () => remove(n.path), danger: true, removes: true }]
   }
   const press = (e: PointerEvent<HTMLElement>, n: FolderItem) => {
@@ -280,7 +281,7 @@ function PhoneHead({ path, view }: { path: string; view: FolderView }) {
           className="relative mb-1 grid size-9 shrink-0 cursor-pointer place-items-center rounded-full bg-muted text-primary after:absolute after:-inset-1 active:opacity-60">
           <next.icon className="size-[18px]" strokeWidth={2.25} />
         </button>
-        <button type="button" onClick={() => void newNote(path)} aria-label="New note"
+        <button type="button" onClick={() => void runOrSay(() => newNote(path), "Create new note")} aria-label="New note"
           className="mb-1 flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-muted px-3.5 text-[15px] font-medium text-primary active:opacity-60">
           <FilePlus className="size-[18px]" strokeWidth={2.25} />New note
         </button>
@@ -294,7 +295,7 @@ function Empty({ path, desk }: { path: string; desk: boolean }) {
     <div data-folder-empty className="flex flex-col items-center gap-2 py-20 text-center">
       <FolderOpen className="size-10 text-tertiary" strokeWidth={1.5} />
       <p className="text-[15px] text-muted-foreground">This folder is empty</p>
-      {desk && <button type="button" onClick={() => void newNote(path)} className="cursor-pointer rounded-[6px] px-2 py-1 text-[13px] font-medium text-primary hover:bg-primary/10">New note</button>}
+      {desk && <button type="button" onClick={() => void runOrSay(() => newNote(path), "Create new note")} className="cursor-pointer rounded-[6px] px-2 py-1 text-[13px] font-medium text-primary hover:bg-primary/10">New note</button>}
     </div>
   )
 }

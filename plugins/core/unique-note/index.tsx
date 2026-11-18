@@ -20,5 +20,5 @@ async function create() {
 }
 
 export default definePlugin({
-  commands: [{ id: "unique-note:new", name: "Create new unique note", run: () => void create() }],
+  commands: [{ id: "unique-note:new", name: "Create new unique note", run: () => create() }],
 })

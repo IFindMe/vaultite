@@ -36,11 +36,11 @@ export function sessionMenu(c: CloudSession, here: boolean): MenuItem[] {
   const diff = diffUrl(c)
   return [
     { label: "Open in a new tab", icon: Globe, run: () => openSession(c, true) },
-    ...(here ? [{ label: "Continue in a terminal", icon: SquareTerminal, run: () => void teleport(c) }] : []),
+    ...(here ? [{ label: "Continue in a terminal", icon: SquareTerminal, run: () => teleport(c) }] : []),
     ...(diff ? [{ label: c.pr ? `Open pull request #${c.pr.number}` : "Open the branch's changes", icon: GitPullRequestArrow, run: () => openGitHub(diff) }] : []),
     ...(canAct() ? [{ label: "Rename…", icon: Pencil, sep: true, run: () => rename(c) }] : []),
-    { label: "Copy link", icon: Copy, sep: !canAct(), run: () => void copyText(c.url).then(() => notify("Copied the link", { id: "copied" }), (e) => notifyError(e)) },
-    ...(canAct() ? [{ label: "Archive", icon: Archive, sep: true, run: () => void archive(c) }] : []),
+    { label: "Copy link", icon: Copy, sep: !canAct(), run: () => copyText(c.url).then(() => notify("Copied the link", { id: "copied" }), (e) => notifyError(e)) },
+    ...(canAct() ? [{ label: "Archive", icon: Archive, sep: true, run: () => archive(c) }] : []),
   ]
 }
 
@@ -54,7 +54,7 @@ function Row({ c, open, tab, named }: { c: CloudSession; open: boolean; tab: str
       label={c.title} open={open} active={tab.endsWith(c.url)} tip={`${c.title} (${status})${account ? `, ${account.label}` : ""}`} data-cloud={c.id} data-state={c.state}
       data-status={statusOf(c)} data-leaving={leaving.has(c.id) ? "" : undefined}
       className={needsYou(c) || c.unread ? "font-semibold" : undefined} more onContextMenu={menuFor(() => sessionMenu(c, here))}
-      swipe={canAct() ? () => [{ label: "Archive", icon: Archive, removes: true, run: () => void archive(c) }] : undefined}
+      swipe={canAct() ? () => [{ label: "Archive", icon: Archive, removes: true, run: () => archive(c) }] : undefined}
       onClick={(e) => openSession(c, e.metaKey || e.ctrlKey || e.button === 1)}>
       <span className="mr-1 shrink-0 truncate text-[11px] font-normal text-tertiary group-hover/row:hidden">{fmtAgo(c.updated, { short: true })}</span>
     </SidebarRow>
@@ -111,7 +111,7 @@ export function accountsMenu(e: MouseEvent, s: CloudState, shown: CloudAccount[]
     { label: "All accounts", checked: !picked, run: () => pick(null) },
     ...shown.map((a) => ({ label: a.label, checked: a.id === picked?.id, run: () => pick(a) })),
     { label: "Accounts shown", sep: true, run: () => {}, items: s.accounts.map((a) => ({ label: a.label, checked: !hidden?.includes(a.label), keep: true,
-      run: () => void setHidden(a.label, !hidden?.includes(a.label)).catch((err) => notifyError(err, "Couldn't save that")) })) },
+      run: () => setHidden(a.label, !hidden?.includes(a.label)).catch((err) => notifyError(err, "Couldn't save that")) })) },
   ])
 }
 

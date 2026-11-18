@@ -41,7 +41,7 @@ function sourceItems(found: Sources | Error | null, here: string): MenuItem[] {
   for (const s of found.sources) {
     if (s.kind !== "live") continue
     out.push({ label: `Live: ${s.label}`, icon: Radio, caption: true, run: () => {} })
-    if (canReveal()) for (const f of s.folders ?? []) out.push({ label: f.label, icon: FolderOpen, hint: showLabel, run: () => void openOnComputer(f.path) })
+    if (canReveal()) for (const f of s.folders ?? []) out.push({ label: f.label, icon: FolderOpen, hint: showLabel, run: () => openOnComputer(f.path) })
   }
   return out.length ? out : [{ label: "It reads no files.", caption: true, run: () => {} }]
 }

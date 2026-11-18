@@ -306,7 +306,7 @@ export async function sendTo(n: number, what: Sent, place?: Place) {
     apply(l, true)
     emit()
     const back = undoOf(what, r)
-    notify(movedText(what, n, r), back ? { action: { label: "Undo", run: () => void bringBack(n, from, back, placeOf(what, before)) } } : undefined)
+    notify(movedText(what, n, r), back ? { action: { label: "Undo", run: () => bringBack(n, from, back, placeOf(what, before)) } } : undefined)
   } catch (e) {
     if (gone) apply(before, true)
     notifyError(e, "open" in what ? "Couldn't open it there" : "Couldn't move it")
@@ -512,7 +512,7 @@ export function remove(n: number) {
     followMoves()
     if (here) { const m = current(), k = kept.get(m), d = local[m - 1]; apply(k && layoutKey(k) === layoutKey(d?.layout) ? k : d?.layout ?? null, false, true) }
     emit(); sidebarsChanged()
-    notify(`Deleted ${was.name || `workspace ${n}`}`, { action: { label: "Undo", run: () => void restore(n, was, here) } })
+    notify(`Deleted ${was.name || `workspace ${n}`}`, { action: { label: "Undo", run: () => restore(n, was, here) } })
   }).catch((e) => { notifyError(e, "Couldn't delete it") }).finally(() => { moving = false })
 }
 async function restore(n: number, was: Def, here: boolean) {
@@ -524,8 +524,8 @@ async function restore(n: number, was: Def, here: boolean) {
 }
 
 const moveItems = (n: number): MenuItem[] => [
-  ...(n > 1 ? [{ label: "Move up", icon: ArrowUp, run: () => void reorder(n, n - 1) }] : []),
-  ...(now(n + 1) ? [{ label: "Move down", icon: ArrowDown, run: () => void reorder(n, n + 1) }] : []),
+  ...(n > 1 ? [{ label: "Move up", icon: ArrowUp, run: () => reorder(n, n - 1) }] : []),
+  ...(now(n + 1) ? [{ label: "Move down", icon: ArrowDown, run: () => reorder(n, n + 1) }] : []),
 ].map((m, i) => (i ? m : { ...m, sep: true }))
 
 export function slotMenu(n: number, rename: (() => void) | null = () => setRenaming(n)): MenuItem[] {

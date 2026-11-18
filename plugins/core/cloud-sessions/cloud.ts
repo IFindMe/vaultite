@@ -108,7 +108,7 @@ export async function archive(c: CloudSession) {
   const act = webPages?.cloudAct
   if (!act) return
   const ok = await leaving.remove(c.id, () => act("archive", c.id), "Couldn't archive it")
-  if (ok) notify(`Archived “${c.title}”`, { action: { label: "Undo", run: () => void unarchive(c) } })
+  if (ok) notify(`Archived “${c.title}”`, { action: { label: "Undo", run: () => unarchive(c) } })
 }
 async function unarchive(c: CloudSession) {
   leaving.back([c.id])

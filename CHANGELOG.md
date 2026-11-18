@@ -29,6 +29,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   (never "Nothing scheduled." or "Couldn't find the daily note."), keeps what it already showed, and asks again by
   itself (soon after, and as the connection comes back). Search says it's still looking in files, or why it couldn't;
   Agents keeps its list and says which source it can't reach; a proxy's "Bad Gateway" reads as the server not answering.
+  A command or menu item that fails (New note while the server is stalled) says what failed instead of nothing.
 - Browser: sign-ins work in the user's own tabs. claude.ai's Authorize (Claude Code's login) and other buttons that
   wait for the page to have focus take the first click even while a toast or an agent's card is over the page; a tab
   opened from another app's link takes the keyboard; a popup, a new tab or a blocked popup's Open stays in its opener's

@@ -37,7 +37,7 @@ const pref = (k: Flag) => ({ get: () => getPrefs()[k], set: (on: boolean) => set
 type EditorFlag = { [K in keyof EditorSettings]: EditorSettings[K] extends boolean ? K : never }[keyof EditorSettings]
 const editor = (k: EditorFlag) => ({
   section: "editor", get: () => editorSettings()[k], set: (on: boolean) => setEditor({ [k]: on }),
-  reset: { shown: () => editorSet(k), run: () => void setEditor({ [k]: null }) },
+  reset: { shown: () => editorSet(k), run: () => setEditor({ [k]: null }) },
 })
 const files = (k: "showHidden" | "showArchived" | "autoReveal", sub: string) => ({ plugin: { id: "files", key: k }, sub: () => sub, ...pref(k) })
 

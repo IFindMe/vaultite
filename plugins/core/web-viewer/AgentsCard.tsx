@@ -101,10 +101,10 @@ function Lines({ page: p, more = 0 }: { page: AgentPage; more?: number }) {
 
 function Bar({ page: p, shot, more, open, setOpen }: { page: AgentPage; shot: string | null | undefined; more: number; open: boolean; setOpen: (on: boolean) => void }) {
   const menu = (e: MouseEvent) => menuBelow(e, [
-    { label: p.paused ? "Resume" : "Pause", icon: p.paused ? Play : Pause, run: () => void pauseAgents(p.id, !p.paused) },
-    ...(p.tab && p.own ? [{ label: "Move to background", icon: MousePointer2, run: () => void toBackground(p) }] : []),
+    { label: p.paused ? "Resume" : "Pause", icon: p.paused ? Play : Pause, run: () => pauseAgents(p.id, !p.paused) },
+    ...(p.tab && p.own ? [{ label: "Move to background", icon: MousePointer2, run: () => toBackground(p) }] : []),
     { label: "Show agents in the browser", icon: AppWindow, run: () => openView("agent-runs", { newTab: true }) },
-    ...(p.own ? [{ label: "Close page", icon: X, sep: true, danger: true, run: () => void closeAgentPage(p.id) }] : []),
+    ...(p.own ? [{ label: "Close page", icon: X, sep: true, danger: true, run: () => closeAgentPage(p.id) }] : []),
   ])
   return (
     <div className="flex h-12 items-center gap-2 pr-1 pl-2" data-agent-picked={p.id}>

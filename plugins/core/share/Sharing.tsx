@@ -49,9 +49,9 @@ function AccessRow({ s, title, done, fresh }: { s: Shared; title?: string; done:
   }
   const menu = (): MenuItem[] => [
     ...ROLES.map((r) => ({ label: r.label, checked: s.role === r.value, run: () => { if (s.role !== r.value) void change({ role: r.value }) } })),
-    { label: s.expired ? "Turn on for 30 days" : "Keep for 30 more days", icon: CalendarPlus, sep: true, run: () => void change({ days: 30 }) },
-    { label: "New link…", icon: Link2, run: () => void relink() },
-    { label: "Remove access", icon: UserMinus, danger: true, sep: true, run: () => void remove() },
+    { label: s.expired ? "Turn on for 30 days" : "Keep for 30 more days", icon: CalendarPlus, sep: true, run: () => change({ days: 30 }) },
+    { label: "New link…", icon: Link2, run: () => relink() },
+    { label: "Remove access", icon: UserMinus, danger: true, sep: true, run: () => remove() },
   ]
   return (
     <Row title={title ?? s.guest} data-share-row={s.id} data-share-here={s.here ? "" : undefined} meta={accessMeta(s)}

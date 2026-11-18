@@ -42,14 +42,14 @@ async function hideRule(rule: string, quiet = false) {
   void tellRules([...allRules(noteRules(), settings.get().hide ?? []), rule])
   try {
     await op("web-viewer.block", { rule })
-    if (!quiet) notify(`Hidden on ${siteOfRule(rule)}`, { action: { label: "Undo", run: () => void showRule(rule, true) } })
+    if (!quiet) notify(`Hidden on ${siteOfRule(rule)}`, { action: { label: "Undo", run: () => showRule(rule, true) } })
   } catch (e) { notifyError(e, "Couldn't hide it") }
 }
 async function showRule(rule: string, quiet = false) {
   void tellRules(allRules(noteRules(), settings.get().hide ?? []).filter((r) => r !== rule))
   try {
     await op("web-viewer.unblock", { rule })
-    if (!quiet) notify(`Showing it again on ${siteOfRule(rule)}`, { action: { label: "Undo", run: () => void hideRule(rule, true) } })
+    if (!quiet) notify(`Showing it again on ${siteOfRule(rule)}`, { action: { label: "Undo", run: () => hideRule(rule, true) } })
   } catch (e) { notifyError(e, "Couldn't show it again") }
 }
 const siteOfRule = (rule: string) => rule.slice(0, rule.indexOf("##")).split(",").find((s) => s && !s.startsWith("~")) || "every site"
@@ -71,11 +71,11 @@ function hiddenItems(id: number, site: string, note: ElementRule[], hide: string
     void settings.set({ hide: next.length ? next : null }).catch((e) => notifyError(e, "Couldn't change it"))
   }
   return [
-    { label: "Block an element…", icon: MousePointerSquareDashed, sep: true, run: () => void pickElement(id, site) },
+    { label: "Block an element…", icon: MousePointerSquareDashed, sep: true, run: () => pickElement(id, site) },
     ...presets.map((p): MenuItem => ({ label: p.name, icon: EyeOff, checked: hide.includes(p.id), keep: true, run: () => setPreset(p.id, !(settings.get().hide ?? []).includes(p.id)) })),
     ...(mine.length ? [{ label: `Hidden on ${site}`, icon: EyeOff, hint: numberText(mine.length), run: () => {}, items: [
       { caption: true, label: "Click one to show it again", run: () => {} },
-      ...mine.map((r): MenuItem => ({ label: r.rule.slice(r.rule.indexOf("##") + 2), checked: true, run: () => void showRule(r.rule) })),
+      ...mine.map((r): MenuItem => ({ label: r.rule.slice(r.rule.indexOf("##") + 2), checked: true, run: () => showRule(r.rule) })),
       { label: "Open the list", icon: FileText, sep: true, run: () => openFile(BLOCKED) },
     ] }] : []),
   ]
@@ -85,11 +85,11 @@ function styleItems(url: string, styles: SiteStyle[], unstyled: string[]): MenuI
   const host = siteName(url)
   if (!host) return []
   const style = styleOf(styles, host)
-  if (!style) return [{ label: "Style this site…", icon: Paintbrush, sep: true, run: () => void editStyle(host) }]
+  if (!style) return [{ label: "Style this site…", icon: Paintbrush, sep: true, run: () => editStyle(host) }]
   const on = !unstyled.includes(style.site)
   return [
     { label: `Style for ${style.site}`, icon: Paintbrush, checked: on, sep: true, run: () => setStyled(style.site, !on) },
-    { label: "Edit its style…", icon: FileText, run: () => void editStyle(style.site) },
+    { label: "Edit its style…", icon: FileText, run: () => editStyle(style.site) },
   ]
 }
 
@@ -134,7 +134,7 @@ export function ShieldsButton({ id, url, loading }: { id: number; url: string; l
   const menu = (): MenuItem[] => [
     { caption: true, label: !on ? "Shields are off for every site" : !up ? `Nothing is blocked on ${site}`
       : count ? `${numberText(count)} ${count === 1 ? "request" : "requests"} blocked on this page` : "Nothing blocked on this page", run: () => {} },
-    on ? { label: `Shields for ${site}`, icon: Shield, checked: up, run: () => void setDown(up) } : { label: "Shields", icon: Shield, checked: false, run: () => void turnOn() },
+    on ? { label: `Shields for ${site}`, icon: Shield, checked: up, run: () => setDown(up) } : { label: "Shields", icon: Shield, checked: false, run: () => turnOn() },
     ...hiddenItems(id, site, note, s.hide ?? []),
     ...styleItems(url, styles, s.unstyled ?? []),
     ...darkItems(url, s.darkPagesOff ?? []),

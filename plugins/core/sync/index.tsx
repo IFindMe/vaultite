@@ -156,9 +156,9 @@ export default definePlugin({
   commands: [{ id: "sync:downloads", name: "Show downloads on this phone", icon: HardDriveDownload, when: () => !!phoneLocal, run: () => openView("phone-downloads", { newTab: true }) }],
   fileMarks: () => marks(),
   fileMenu: (path) => (phoneSync() ? [kept(path)
-    ? { label: "Don't keep on this phone", icon: Smartphone, section: "actions", run: () => void keepOnPhone(path, true) }
-    : { label: "Keep on this phone", icon: Smartphone, section: "actions", run: () => void keepOnPhone(path) }] : []),
+    ? { label: "Don't keep on this phone", icon: Smartphone, section: "actions", run: () => keepOnPhone(path, true) }
+    : { label: "Keep on this phone", icon: Smartphone, section: "actions", run: () => keepOnPhone(path) }] : []),
   folderMenu: (path) => (phoneSync() ? [kept(path)
-    ? { label: "Don't keep on this phone", icon: Smartphone, section: "actions", run: () => void keepOnPhone(path, true) }
-    : { label: "Keep on this phone", icon: Smartphone, section: "actions", run: () => void keepOnPhone(path) }] : []),
+    ? { label: "Don't keep on this phone", icon: Smartphone, section: "actions", run: () => keepOnPhone(path, true) }
+    : { label: "Keep on this phone", icon: Smartphone, section: "actions", run: () => keepOnPhone(path) }] : []),
 })

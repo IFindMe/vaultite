@@ -82,13 +82,13 @@ export const containerItems = (c: Container, canLock: boolean): MenuItem[] => {
   return [
   { label: "Rename…", icon: Pencil, run: () => askName(`Rename ${c.name}`, c.name, (name) => void updateContainer(c.id, { name })) },
   { label: "Colour", icon: dotIcon(colorOf(c)), run: () => {}, items: colorItems(c.color, (color) => void updateContainer(c.id, { color })) },
-  ...(canLock || c.lock ? [{ label: "Lock with Touch ID", icon: Fingerprint, checked: !!c.lock, keep: true, run: () => void updateContainer(c.id, { lock: !c.lock }) }] : []),
+  ...(canLock || c.lock ? [{ label: "Lock with Touch ID", icon: Fingerprint, checked: !!c.lock, keep: true, run: () => updateContainer(c.id, { lock: !c.lock }) }] : []),
   { label: "Agent access", icon: Bot, hint: AGENTS.find((a) => a.v === c.agents)?.label, run: () => {},
-    items: AGENTS.map((a) => ({ label: a.label, checked: c.agents === a.v, run: () => void updateContainer(c.id, { agents: a.v }) })) },
-  ...(c.agents === "act" ? [{ label: "Passwords for agents…", icon: KeyRound, run: () => void passwordsForAgents() }] : []),
-  ...(i > 0 ? [{ label: "Move up", icon: ArrowUp, sep: true, run: () => void moveContainer(c.id, list[i - 1].id) }] : []),
-  ...(i >= 0 && i < list.length - 1 ? [{ label: "Move down", icon: ArrowDown, sep: i === 0, run: () => void moveContainer(c.id, list[i + 2]?.id ?? null) }] : []),
-  { label: `Delete ${c.name}…`, icon: Trash2, danger: true, sep: true, run: () => void deleteContainer(c) },
+    items: AGENTS.map((a) => ({ label: a.label, checked: c.agents === a.v, run: () => updateContainer(c.id, { agents: a.v }) })) },
+  ...(c.agents === "act" ? [{ label: "Passwords for agents…", icon: KeyRound, run: () => passwordsForAgents() }] : []),
+  ...(i > 0 ? [{ label: "Move up", icon: ArrowUp, sep: true, run: () => moveContainer(c.id, list[i - 1].id) }] : []),
+  ...(i >= 0 && i < list.length - 1 ? [{ label: "Move down", icon: ArrowDown, sep: i === 0, run: () => moveContainer(c.id, list[i + 2]?.id ?? null) }] : []),
+  { label: `Delete ${c.name}…`, icon: Trash2, danger: true, sep: true, run: () => deleteContainer(c) },
   ]
 }
 export function containerMenu(container: string | null, url: string, pick: (id: string | null) => void, manage: () => void): MenuItem[] {
@@ -100,8 +100,8 @@ export function containerMenu(container: string | null, url: string, pick: (id: 
     { label: "No container", icon: Box, checked: !here, hint: who(null), run: () => { if (here) pick(null) } },
     ...list.map((c) => ({ label: c.name, icon: dotIcon(colorOf(c)), checked: c.id === here?.id, hint: who(c.id), run: () => { if (c.id !== here?.id) pick(c.id) } })),
     ...(site && here ? [{ label: `Always open ${site} here`, icon: Pin, checked: rule === here.id, sep: true,
-      run: () => void setSiteRule(site, rule === here.id ? null : here.id) }] : []),
-    ...(site && !here && rule ? [{ label: `Stop opening ${site} in ${containerById(rule)?.name ?? rule}`, icon: PinOff, sep: true, run: () => void setSiteRule(site, null) }] : []),
+      run: () => setSiteRule(site, rule === here.id ? null : here.id) }] : []),
+    ...(site && !here && rule ? [{ label: `Stop opening ${site} in ${containerById(rule)?.name ?? rule}`, icon: PinOff, sep: true, run: () => setSiteRule(site, null) }] : []),
     { label: "New container…", icon: Plus, sep: true, run: () => newContainer((c) => pick(c.id)) },
     ...(here ? [{ label: sitesTitle(here.id), icon: Globe, run: () => showSites(here.id) }] : []),
     { label: "Manage containers…", icon: Settings2, run: manage },

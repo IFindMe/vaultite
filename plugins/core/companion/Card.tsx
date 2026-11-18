@@ -65,8 +65,8 @@ export const Card = memo(function Card({ n, x, y, folded, open, cap, onHeight, o
   }
   const words = n.text ?? n.replace ?? ""
   const items = (): MenuItem[] => [
-    ...(words ? [{ label: "Copy text", icon: Copy, run: () => void copyText(words) }] : []),
-    ...(!share && n.by === "user" ? [{ label: "Delete", icon: Trash2, danger: true, sep: !!words, run: () => void confirmDialog({ title: "Delete this comment?", body: "It won't be kept with the resolved ones.", confirm: "Delete", danger: true })
+    ...(words ? [{ label: "Copy text", icon: Copy, run: () => copyText(words) }] : []),
+    ...(!share && n.by === "user" ? [{ label: "Delete", icon: Trash2, danger: true, sep: !!words, run: () => confirmDialog({ title: "Delete this comment?", body: "It won't be kept with the resolved ones.", confirm: "Delete", danger: true })
       .then((ok) => ok && answer(n.id, "reject")) }] : []),
   ]
   const replyTint = (r: Reply) => (r.by === "agent" ? (n.by ? tintOf(r.name ?? n.ask ?? n.agent) : tint) : r.by === "guest" && r.name === n.agent ? tint : "var(--muted-foreground)")

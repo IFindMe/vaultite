@@ -134,11 +134,11 @@ export function ExtensionsView({ openPage }: { openPage: (url: string) => void }
     run(x.id, async () => { await engine("ext:settings-from", x.id, from.browser, from.profile); notify(`${x.name} has ${from.browser}'s settings`) }, "Couldn't bring its settings")
   }
   const menu = (x: Ext) => (e: MouseEvent<HTMLButtonElement>) => menuBelow(e, [
-    ...(x.options ? [{ label: "Options", icon: Settings2, run: () => void engine("ext:options", x.id) }] : []),
+    ...(x.options ? [{ label: "Options", icon: Settings2, run: () => engine("ext:options", x.id) }] : []),
     ...x.settingsFrom.map((f) => ({ label: `Settings from ${f.browser}${x.settingsFrom.filter((g) => g.browser === f.browser).length > 1 ? ` (${f.name})` : ""}`,
-      icon: ArrowDownToLine, run: () => void bring(x, f) })),
+      icon: ArrowDownToLine, run: () => bring(x, f) })),
     { label: x.pinned ? "Unpin from the bar" : "Pin to the bar", icon: x.pinned ? PinOff : Pin, run: () => pin(x) },
-    ...(x.managed ? [] : [{ label: "Remove", icon: Trash2, danger: true, sep: true, run: () => void remove(x) }]),
+    ...(x.managed ? [] : [{ label: "Remove", icon: Trash2, danger: true, sep: true, run: () => remove(x) }]),
   ])
   const line = "truncate text-[13px] leading-[18px] md:text-[12px] md:leading-[16px]"
   return (

@@ -5,7 +5,7 @@ import { getStore, onState, reload, useStore, vaultName as vaultNameOf, type Sto
 import { share } from "@/core/share"
 import { setOpenWidth, setRoom } from "@/core/room"
 import { SharedWith } from "@/components/SharedWith"
-import { commandKeys, runCommandLink, useCommands } from "@/core/commands"
+import { commandKeys, runCommandById, runCommandLink, useCommands } from "@/core/commands"
 import { isDesktop, isMac, isWindows, useDesktop } from "@/core/platform"
 import { loadActions } from "@/core/actions"
 import { currentEditor, keysInEditor } from "@/core/editors"
@@ -353,7 +353,7 @@ export default function App() {
     { id: "palette:open", name: "Open command palette", keys: ["Mod+P"], run: () => setPalette((p) => (p === "commands" ? null : "commands")), icon: CommandIcon },
     { id: "icon:search", name: "Search icons", run: () => pickIcon({ title: "Search icons", onPick: (n) => copyText(n).then(() => notify(`Copied ${n}: use it as an icon:`, { id: "copied" }), notifyError) }), icon: Smile },
     // ⌘N, ⌘T, ⌘W are the browser's: only the desktop app can bind them.
-    { id: "file:new", name: "Create new note", keys: desktopApp ? ["Mod+N"] : ["Mod+Alt+N"], run: () => void newNote(), fromLink: true, label: "New note", icon: FilePlus },
+    { id: "file:new", name: "Create new note", keys: desktopApp ? ["Mod+N"] : ["Mod+Alt+N"], run: () => newNote(), fromLink: true, label: "New note", icon: FilePlus },
     { id: "sidebar:toggle", name: "Show left sidebar", keys: ["Mod+\\"],
       run: () => (isDesktop() ? setPrefs({ sidebar: !getPrefs().sidebar }) : openDrawer(drawerOut() === "left" ? null : "left")), icon: PanelLeft,
       nameWhenOn: "Hide left sidebar", on: () => (isDesktop() ? getPrefs().sidebar : drawerOut() === "left") },
@@ -661,7 +661,7 @@ export default function App() {
 
       {!desktop && (
         <PhoneBar system={APP_PAGES} active={active} listOpen={detail === "tabs"}
-          onSearch={() => setSearching(true)} onCommands={() => setPalette("commands")} onNewNote={() => void newNote()} />
+          onSearch={() => setSearching(true)} onCommands={() => setPalette("commands")} onNewNote={() => { runCommandById("file:new") }} />
       )}
       {!desktop && store && <PullActions />}
       {!desktop && store && <Suspense><PhoneDrawers store={store} file={filePath} tab={targetOf(tab)} vaultName={vaultName} vaultMenu={vaultMenu} /></Suspense>}

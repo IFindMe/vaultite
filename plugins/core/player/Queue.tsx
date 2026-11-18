@@ -97,7 +97,7 @@ function QueueRow({ e, place }: { e: Entry; place?: Place }) {
   ]
   const menu = menuFor(() => [
     { label: "Open", run: () => openFile(e.note) },
-    ...(e.source && /^https?:/.test(e.source) ? [{ label: "Open the page", icon: Globe, run: () => void window.open(e.source, "_blank", "noopener") }] : []),
+    ...(e.source && /^https?:/.test(e.source) ? [{ label: "Open the page", icon: Globe, run: () => window.open(e.source, "_blank", "noopener") }] : []),
     ...(e.media ? [{ label: place?.done ? "Mark as unplayed" : "Mark as played", icon: place?.done ? RotateCcw : CheckCheck, run: () => markDone(e.media!, !place?.done) }] : []),
     { label: "Done", icon: Check, run: done },
   ])

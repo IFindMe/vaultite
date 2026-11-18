@@ -101,7 +101,7 @@ export default definePlugin({
   views: { dictations: { icon: AudioLines, title: () => "Dictations", render: () => <DictationsView /> } },
   commands: [
     { id: "dictation:start", name: "Dictate", nameWhenOn: "Stop dictating", keys: ["Mod+J"], on: listening, when: () => !!dictationSource,
-      run: () => void pressDictation(begin), icon: Mic, label: "Dictate", words: "voice speech microphone talk" },
+      run: () => pressDictation(begin), icon: Mic, label: "Dictate", words: "voice speech microphone talk" },
     { id: "dictation:history", name: "Show dictations", icon: AudioLines, words: "dictation history transcripts said voice lost copy paste last", run: () => openView("dictations") },
     { id: "dictation:history-split", desktop: true, name: "Open dictations in right split", icon: AudioLines, run: () => openView("dictations", { split: true }) },
   ],

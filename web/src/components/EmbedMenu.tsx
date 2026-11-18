@@ -38,7 +38,7 @@ function embedItems(store: Store, target: string, edit?: EmbedEdit | null, from 
   const sized = image || (!!path && !note && kindOf(path) !== "audio")
   const anchor = note ? splitAnchor(target)[1] : ""
   const own: MenuItem[] = [
-    ...(image ? [{ label: "Copy image", icon: Copy, run: () => void copyImage(path ? rawUrl(path) : target) }] : []),
+    ...(image ? [{ label: "Copy image", icon: Copy, run: () => copyImage(path ? rawUrl(path) : target) }] : []),
     ...(edit?.writable ? [
       ...(sized ? [{ label: "Reset size", icon: Scaling, disabled: !edit.size, run: () => edit.resize(null) }] : []),
       { label: "Remove embed", icon: Eraser, run: edit.remove },
@@ -53,7 +53,7 @@ function embedItems(store: Store, target: string, edit?: EmbedEdit | null, from 
 }
 
 export function mediaItems(path: string, outside: boolean): MenuItem[] {
-  const copy: MenuItem[] = kindOf(path) === "image" ? [{ label: "Copy image", icon: Copy, run: () => void copyImage(rawUrl(path)) }] : []
+  const copy: MenuItem[] = kindOf(path) === "image" ? [{ label: "Copy image", icon: Copy, run: () => copyImage(rawUrl(path)) }] : []
   if (outside) return grouped([copy, [copyToVaultItem(path), ...openHereItem(path), ...revealItem(path)]])
   return fileMenu(path, { phone: !isDesktop(), top: [[...copy, ...openHereItem(path), { label: "Download", icon: Download, run: () => download(path) }]] })
 }

@@ -153,7 +153,7 @@ export async function removeBundle(b: BundleInfo) {
   try {
     const copy = await bundleText(b, { all: true }).catch(() => null)
     await deleteBundle(b)
-    notify(`Deleted ${b.name}`, copy ? { action: { label: "Undo", run: () => void importText(copy).catch((e) => notifyError(e, "Couldn't bring it back")) } } : {})
+    notify(`Deleted ${b.name}`, copy ? { action: { label: "Undo", run: () => importText(copy).catch((e) => notifyError(e, "Couldn't bring it back")) } } : {})
   } catch (e) { notifyError(e, "Couldn't delete it") }
 }
 

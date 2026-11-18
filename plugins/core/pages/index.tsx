@@ -105,7 +105,7 @@ export default definePlugin({
   viewMenu: (target) => {
     const p = viewPin(target)
     if (!p) return []
-    return [isPinned(p.key) ? { label: "Unpin", icon: PinOff, run: () => void pinNoted(p.key, false) } : { label: "Pin", icon: Pin, run: () => void pinNoted(p.key, true, p.label) }]
+    return [isPinned(p.key) ? { label: "Unpin", icon: PinOff, run: () => pinNoted(p.key, false) } : { label: "Pin", icon: Pin, run: () => pinNoted(p.key, true, p.label) }]
   },
   search: (store) => shownPinned(store).map(({ key }) => ({
     id: `page-${key}`, title: pinName(key), meta: "Page", kind: "Page", icon: iconAt(key).icon, tint: iconAt(key).tint ?? "var(--primary)",

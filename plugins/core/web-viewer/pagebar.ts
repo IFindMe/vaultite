@@ -9,8 +9,8 @@ export const marksBarShown = () => settings.get().bookmarksBar === "shown"
 export const setMarksBarShown = (shown: boolean) => settings.set({ bookmarksBar: shown ? "shown" : null })
 
 export const pageBarItem = (sep = false): MenuItem => (barHidden()
-  ? { label: "Always show page bar", icon: PanelTopOpen, sep, run: () => void setBarHidden(false) }
-  : { label: "Hide page bar", icon: PanelTopClose, sep, run: () => void setBarHidden(true) })
+  ? { label: "Always show page bar", icon: PanelTopOpen, sep, run: () => setBarHidden(false) }
+  : { label: "Hide page bar", icon: PanelTopClose, sep, run: () => setBarHidden(true) })
 
 export const barItems = (sep = false): MenuItem[] => {
   const marks = barHidden() ? [] : commandItems("web:bookmarks-bar")

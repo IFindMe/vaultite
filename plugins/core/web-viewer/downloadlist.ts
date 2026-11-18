@@ -21,18 +21,18 @@ function statusText(d: WebDownload) {
 }
 const fraction = (d: WebDownload) => (d.total ? d.received / d.total : -1)
 
-const copyLink = (d: WebDownload): MenuItem => ({ label: "Copy download link", icon: Copy, run: () => void copyText(d.url) })
-const forget = (d: WebDownload): MenuItem => ({ label: "Remove from list", icon: Trash2, sep: true, run: () => void act(d.id, "forget", "Couldn't remove it from the list") })
+const copyLink = (d: WebDownload): MenuItem => ({ label: "Copy download link", icon: Copy, run: () => copyText(d.url) })
+const forget = (d: WebDownload): MenuItem => ({ label: "Remove from list", icon: Trash2, sep: true, run: () => act(d.id, "forget", "Couldn't remove it from the list") })
 const retry = (d: WebDownload): MenuItem => ({ label: d.resumable ? "Resume" : "Download again", icon: RotateCw,
-  run: () => void act(d.id, d.resumable ? "resume" : "retry", `Couldn't download ${d.name} again`) })
+  run: () => act(d.id, d.resumable ? "resume" : "retry", `Couldn't download ${d.name} again`) })
 
 function rowOf(d: WebDownload): MenuItem {
   const base = { label: d.name, hint: statusText(d) }
   if (going(d)) {
     const paused = d.state === "paused"
     return { ...base, icon: paused ? Pause : ArrowDown, progress: fraction(d), run: () => {}, items: [
-      paused ? { label: "Resume", icon: Play, run: () => void act(d.id, "resume", `Couldn't resume ${d.name}`) }
-        : { label: "Pause", icon: Pause, run: () => void act(d.id, "pause", `Couldn't pause ${d.name}`) },
+      paused ? { label: "Resume", icon: Play, run: () => act(d.id, "resume", `Couldn't resume ${d.name}`) }
+        : { label: "Pause", icon: Pause, run: () => act(d.id, "pause", `Couldn't pause ${d.name}`) },
       { label: "Cancel download", icon: X, run: () => { cancelledHere.add(d.id); void act(d.id, "cancel", `Couldn't cancel ${d.name}`) } },
       copyLink(d),
     ] }
@@ -41,7 +41,7 @@ function rowOf(d: WebDownload): MenuItem {
     const open = () => void act(d.id, "open", `Couldn't open ${d.name}`)
     return { ...base, icon: Check, split: true, run: open, items: [
       { label: "Open", icon: ExternalLink, run: open },
-      { label: showLabel, icon: FolderOpen, run: () => void act(d.id, "show", `Couldn't show ${d.name}`) },
+      { label: showLabel, icon: FolderOpen, run: () => act(d.id, "show", `Couldn't show ${d.name}`) },
       copyLink(d), forget(d),
     ] }
   }
@@ -53,8 +53,8 @@ function rows(): MenuItem[] {
   const l = list.get()
   return [
     ...(l.length ? l.slice(0, 10).map(rowOf) : [{ caption: true, label: "Nothing downloaded yet. What pages download goes to your Downloads folder.", run: () => {} }]),
-    { label: "Open Downloads folder", icon: FolderOpen, sep: true, run: () => void act(null, "folder", "Couldn't open the Downloads folder") },
-    ...(l.some((d) => !going(d)) ? [{ label: "Clear list", icon: Eraser, run: () => void act(null, "clear", "Couldn't clear the list") }] : []),
+    { label: "Open Downloads folder", icon: FolderOpen, sep: true, run: () => act(null, "folder", "Couldn't open the Downloads folder") },
+    ...(l.some((d) => !going(d)) ? [{ label: "Clear list", icon: Eraser, run: () => act(null, "clear", "Couldn't clear the list") }] : []),
   ]
 }
 

@@ -24,11 +24,11 @@ export const groupOf = (v: unknown): FolderGroup => GROUPS.find((o) => o.value =
 
 function sortItems(): MenuItem[] {
   const { fileSort } = getPrefs()
-  return SORTS.flatMap((g, k) => g.map((o, i) => ({ label: o.label, checked: fileSort === o.value, sep: k > 0 && i === 0, run: () => void setPrefs({ fileSort: o.value }) })))
+  return SORTS.flatMap((g, k) => g.map((o, i) => ({ label: o.label, checked: fileSort === o.value, sep: k > 0 && i === 0, run: () => setPrefs({ fileSort: o.value }) })))
 }
 function groupItems(): MenuItem[] {
   const by = groupOf(getPrefs().folderGroup)
-  return GROUPS.map((o) => ({ label: o.label, checked: by === o.value, run: () => void setPrefs({ folderGroup: o.value }) }))
+  return GROUPS.map((o) => ({ label: o.label, checked: by === o.value, run: () => setPrefs({ folderGroup: o.value }) }))
 }
 export function viewMenuItems(): MenuItem[] {
   const v = shownView(getPrefs().folderView, isDesktop())

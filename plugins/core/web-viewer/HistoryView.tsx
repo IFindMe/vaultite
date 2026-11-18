@@ -174,7 +174,7 @@ function HistoryRow({ row: r, openPage, filter, leaving, siteRows }: { row: Row;
   const host = hostOf(r.url)
   const own = (): MenuItem[] => [
     { label: "Open", icon: Globe, run: () => openPage(r.url) },
-    { label: "Copy link", icon: Copy, run: () => void navigator.clipboard.writeText(r.url) },
+    { label: "Copy link", icon: Copy, run: () => navigator.clipboard.writeText(r.url) },
     { label: `More from ${host}`, icon: Search, run: () => filter(host) },
     { label: "Remove from history", icon: Trash2, danger: true, sep: true, run: () => removeRows([r]) },
     { label: `Remove all of ${host}`, icon: Trash2, danger: true, run: () => forgetSite(r.host || host, siteRows(r.host || host)) },

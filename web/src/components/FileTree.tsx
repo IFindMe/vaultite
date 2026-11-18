@@ -502,7 +502,7 @@ export const FileTree = memo(function FileTree({ store, active, compact = true, 
       ]
     }
     const locked = !n.path || isProtected(n.path)
-    const kinds = pluginNewFiles(disabled).map((nf): MenuItem => ({ label: nf.label, icon: nf.icon, run: () => void newOf(nf, here).catch((e) => notifyError(e, `Couldn't make it`)) }))
+    const kinds = pluginNewFiles(disabled).map((nf): MenuItem => ({ label: nf.label, icon: nf.icon, run: () => newOf(nf, here).catch((e) => notifyError(e, `Couldn't make it`)) }))
     const plug = n.path ? pluginFileGroups(n.path, undefined, n.folder) : noGroups
     return grouped([
       file ? [

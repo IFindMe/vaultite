@@ -42,6 +42,9 @@ await section("rules on past mistakes", () => {
   check("comment-lines counts each line, not directives", rulesOf("core/x.ts", "// a\n// b\n// oxlint-disable-next-line no-console -- why\nconst a = 1").filter((r) => r === "vaultite(comment-lines)").length === 2)
   check("a trailing comment doesn't join the lines above", !rulesOf("core/x.ts", "// a\n// b\nconst a = 1 // c").includes("vaultite(comment-length)"))
   fires("vaultite(no-title-attr)", "web/src/components/X.tsx", "export const X = () => <button title=\"Close\" />", "export const X = () => <button data-tip=\"Close\" />")
+  fires("vaultite(no-void-run)", "web/src/App.tsx",
+    "registerCommands([{ id: \"file:new\", name: \"Create new note\", run: () => void newNote() }])",
+    "registerCommands([{ id: \"file:new\", name: \"Create new note\", run: () => newNote() }])")
   fires("vaultite(git-env)", "tools/test/x.ts", "execFileSync(\"git\", [\"init\"], { cwd: dir })", "execFileSync(\"git\", [\"init\"], { cwd: dir, env: gitEnv() })")
   fires("typescript(no-explicit-any)", "core/x.ts", "let a: any = 1", "let a: number = 1")
 })

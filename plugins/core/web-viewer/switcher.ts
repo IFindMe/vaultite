@@ -45,7 +45,7 @@ export function switcherSearch(openPage: (url: string, container?: string | null
         const c = containerById(t.container)
         return {
           id: `web-tab-${t.id}`, title: titleOf(t.url) || extensionPageName(t.url) || hostOf(t.url), meta: ["Switch to tab", c?.name, bare(t.url)].filter(Boolean).join(" · "),
-          kind: "Tab", icon: siteIcon(t.url, c ? colorOf(c) : undefined), tint: TINT, run: () => void selectPane(t.id), text: t.url, recent: 0, weight: 9,
+          kind: "Tab", icon: siteIcon(t.url, c ? colorOf(c) : undefined), tint: TINT, run: () => selectPane(t.id), text: t.url, recent: 0, weight: 9,
         }
       }),
     },

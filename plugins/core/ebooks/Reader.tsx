@@ -158,7 +158,7 @@ function Pages({ url, path }: { url: string; path: string }) {
   }, [url, path])
   const contents = (e: React.MouseEvent<HTMLButtonElement>) => {
     const flat = (items: TocItem[], depth: number): { label: string; run: () => void }[] =>
-      items.flatMap((t) => [{ label: `${"    ".repeat(depth)}${t.label.trim()}`, run: () => void view.current?.goTo(t.href) }, ...flat(t.subitems ?? [], depth + 1)])
+      items.flatMap((t) => [{ label: `${"    ".repeat(depth)}${t.label.trim()}`, run: () => view.current?.goTo(t.href) }, ...flat(t.subitems ?? [], depth + 1)])
     menuBelow(e, flat(toc, 0))
   }
   const side = "absolute top-1/2 z-[1] grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"

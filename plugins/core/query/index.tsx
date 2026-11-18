@@ -40,7 +40,7 @@ export default definePlugin({
     { label: "New base", icon: Database, make: (from) => newBase(from) },
   ],
   commands: [
-    { id: "query:new-base", name: "New base", run: () => void newBase().then((p) => openNew(p)) },
+    { id: "query:new-base", name: "New base", run: () => newBase().then((p) => openNew(p)) },
   ],
   slash: () => [{
     id: "query:base", title: "Base", section: "Database", keywords: "base bases database table query obsidian", detail: "A base, inline",

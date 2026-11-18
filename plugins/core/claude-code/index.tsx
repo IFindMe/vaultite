@@ -48,7 +48,7 @@ export default definePlugin(agentPlugin(SRC, {
   agentRuns: useChatRuns,
   commands: [
     { id: "claude-code:chat", name: "New Claude Code chat", words: "new", icon: ClaudeIcon, run: () => newChat() },
-    { id: "terminal:claude-where", name: "Open Claude Code in an account or on a machine…", run: () => void chooseWhere() },
+    { id: "terminal:claude-where", name: "Open Claude Code in an account or on a machine…", run: () => chooseWhere() },
   ],
   demo: {
     plan: { name: "Max 5x", monthly: 100 },

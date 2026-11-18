@@ -534,7 +534,7 @@ export function agentPlugin(src: AgentSource, o: Omit<PluginDef, "blocks"> & {
       commands: [
         ...(def.commands ?? []),
         { ...opens.open, words: "new", when, run: () => openAgent(src.agent), icon: src.icon },
-        ...(opens.where ? [{ ...opens.where, when, run: () => void choosePlace({ agent: src.agent }) }] : []),
+        ...(opens.where ? [{ ...opens.where, when, run: () => choosePlace({ agent: src.agent }) }] : []),
         { ...opens.split, words: "new", desktop: true, when, run: () => openAgent(src.agent, { split: true }) },
       ],
     } : {}),

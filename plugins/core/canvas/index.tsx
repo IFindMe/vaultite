@@ -41,7 +41,7 @@ export default definePlugin({
   formats: { canvas: format },
   newFiles: [{ label: "New canvas", icon: LayoutDashboard, make: newCanvas }],
   commands: [
-    { id: "canvas:new", name: "New canvas", run: () => void newCanvas().then((p) => openNew(p)) },
+    { id: "canvas:new", name: "New canvas", run: () => newCanvas().then((p) => openNew(p)) },
     ...([["left", "ArrowLeft", -1, 0], ["right", "ArrowRight", 1, 0], ["up", "ArrowUp", 0, -1], ["down", "ArrowDown", 0, 1]] as const).map(([dir, key, x, y]) => ({
       id: `canvas:pan-${dir}`, name: `Pan the canvas ${dir}`, keys: [key],
       when: () => { const b = focusedBoard(); return !!b && !b.selected() }, run: () => { const b = focusedBoard(); if (b) b.pan(x * panStep(b), y * panStep(b)) },

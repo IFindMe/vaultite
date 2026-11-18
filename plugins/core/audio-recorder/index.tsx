@@ -18,7 +18,7 @@ export default definePlugin({
     { id: "audio-recorder:toggle", name: "Start recording audio", run: () => (recording() ? stop() : void start()), icon: Mic,
       nameWhenOn: "Stop recording audio", on: recording },
     { id: "audio-recorder:transcribe", name: "Transcribe audio", when: canTranscribe, run: transcribeHere, icon: Captions },
-    { id: "audio-recorder:voice-note", name: "Record a voice note for your inbox", when: () => idle() && pluginOn("inbox"), run: () => void voiceNote(), icon: Mic },
+    { id: "audio-recorder:voice-note", name: "Record a voice note for your inbox", when: () => idle() && pluginOn("inbox"), run: () => voiceNote(), icon: Mic },
   ],
   slash: () => [recording()
     ? { id: "audio-recorder:stop", title: "Stop recording", section: "Media", keywords: "record audio voice memo stop", icon: Square,
@@ -29,9 +29,9 @@ export default definePlugin({
     if (/\.md$/i.test(path) && !path.startsWith(".")) {
       return recording()
         ? [{ label: "Stop recording", icon: Square, run: stop }]
-        : [{ label: "Record audio", icon: Mic, section: "more", run: () => void start(path) }]
+        : [{ label: "Record audio", icon: Mic, section: "more", run: () => start(path) }]
     }
-    if (isAudio(path) && canTranscribe()) return [{ label: "Transcribe audio", icon: Mic, run: () => void transcribe(path) }]
+    if (isAudio(path) && canTranscribe()) return [{ label: "Transcribe audio", icon: Mic, run: () => transcribe(path) }]
     return []
   },
   background: () => <Background />,

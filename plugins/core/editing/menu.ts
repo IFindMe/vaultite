@@ -80,7 +80,7 @@ function menuItems(view: EditorView, at: { x: number; y: number }, link: ReturnT
     [
       ...(text && editable ? [{ label: "Cut", icon: Scissors, hint: keyHint("Mod+X"), run: () => cut(view, text) }] : []),
       ...(text ? [{ label: "Copy", icon: Copy, hint: keyHint("Mod+C"), run: () => { copyText(text).catch((e) => notifyError(e)) } }] : []),
-      ...(editable ? [{ label: "Paste", icon: ClipboardPaste, hint: keyHint("Mod+V"), run: () => void paste(view) }] : []),
+      ...(editable ? [{ label: "Paste", icon: ClipboardPaste, hint: keyHint("Mod+V"), run: () => paste(view) }] : []),
       ...command(view, ["editor:paste-plain-text", "Paste as plain text", ClipboardType]),
       { label: "Select all", icon: TextSelect, hint: keyHint("Mod+A"), run: () => selectAllIn(view) },
     ],
@@ -94,7 +94,7 @@ function menuItems(view: EditorView, at: { x: number; y: number }, link: ReturnT
 
 function blockLinkItem(view: EditorView): MenuItem[] {
   const here = linkableHere(view)
-  return here ? [{ label: here.heading !== undefined ? "Copy link to heading" : "Copy link to block", icon: Link2, run: () => void copyBlockLink(view) }] : []
+  return here ? [{ label: here.heading !== undefined ? "Copy link to heading" : "Copy link to block", icon: Link2, run: () => copyBlockLink(view) }] : []
 }
 
 function spellItems(view: EditorView, { word, suggestions }: Spelled, pos: number): MenuItem[] {
@@ -112,7 +112,7 @@ function spellItems(view: EditorView, { word, suggestions }: Spelled, pos: numbe
   // (macOS's checker gives Electron no guesses, only that the word is misspelled)
   return [
     ...suggestions.slice(0, 5).map(fix),
-    { label: "Add to dictionary", icon: BookPlus, run: () => void learn() },
+    { label: "Add to dictionary", icon: BookPlus, run: () => learn() },
   ]
 }
 

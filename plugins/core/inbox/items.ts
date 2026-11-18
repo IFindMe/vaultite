@@ -95,7 +95,7 @@ export async function markManyDone(list: InboxItem[], done = true, pinned: boole
   const ok = list.flatMap((was, i) => { const x = all[i]; return x.status === "fulfilled" ? [{ was, now: x.value }] : [] })
   const now = ok.map((x) => x.now)
   if (now.length) notify(done ? `Settled ${plural(now.length, "result")}` : `Put back ${plural(now.length, "result")} to review`,
-    { action: { label: "Undo", run: () => void markManyDone(now, !done, done ? ok.map((x) => !!x.was.pinned) : []) } })
+    { action: { label: "Undo", run: () => markManyDone(now, !done, done ? ok.map((x) => !!x.was.pinned) : []) } })
 }
 
 function tellHeld(e: InboxEvent) {
@@ -111,7 +111,7 @@ export function markManyEventsDone(all: InboxEvent[], done = true) {
   if (!evs.length) return
   void markEventsDone(evs.map((e) => e.id), done)
   notify(evs.length === 1 ? (done ? `Settled “${evs[0].title}”` : `Back in the inbox: “${evs[0].title}”`) : (done ? `Settled ${plural(evs.length, "item")}` : `Put back ${plural(evs.length, "item")} in the inbox`),
-    { action: { label: "Undo", run: () => void (done ? unsettle(evs) : markEventsDone(evs.map((e) => e.id), true)) } })
+    { action: { label: "Undo", run: () => (done ? unsettle(evs) : markEventsDone(evs.map((e) => e.id), true)) } })
 }
 
 export const reopen = (r: InboxItem) => change(r, { status: "new", archived: false })

@@ -119,10 +119,10 @@ async function pickTemplate(how: "new" | "insert", made: string[] = []) {
 
 export default definePlugin({
   commands: [
-    { id: "templates:new", name: "New note from template", run: () => void pickTemplate("new"), icon: FilePlus2 },
-    { id: "templates:insert", name: "Insert template", when: () => !!activeFile(), run: () => void pickTemplate("insert") },
-    { id: "templates:insert-current-date", name: "Insert current date", when: () => !!activeFile(), run: () => void insertNow("date"), icon: CalendarDays },
-    { id: "templates:insert-current-time", name: "Insert current time", when: () => !!activeFile(), run: () => void insertNow("time"), icon: Clock },
+    { id: "templates:new", name: "New note from template", run: () => pickTemplate("new"), icon: FilePlus2 },
+    { id: "templates:insert", name: "Insert template", when: () => !!activeFile(), run: () => pickTemplate("insert") },
+    { id: "templates:insert-current-date", name: "Insert current date", when: () => !!activeFile(), run: () => insertNow("date"), icon: CalendarDays },
+    { id: "templates:insert-current-time", name: "Insert current time", when: () => !!activeFile(), run: () => insertNow("time"), icon: Clock },
   ],
   slash: (s) => {
     void templatesFolder()

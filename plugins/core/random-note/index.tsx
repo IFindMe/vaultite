@@ -22,5 +22,5 @@ async function openRandom() {
 }
 
 export default definePlugin({
-  commands: [{ id: "random-note:open", name: "Open random note", when: () => notes().length > 0, run: () => void openRandom() }],
+  commands: [{ id: "random-note:open", name: "Open random note", when: () => notes().length > 0, run: () => openRandom() }],
 })

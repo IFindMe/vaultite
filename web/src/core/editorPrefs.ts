@@ -56,7 +56,7 @@ export function showPropertiesAs(v: PropertiesShown) {
   if (v === editorSettings().propertiesInDocument) return
   const was = editorSet("propertiesInDocument") ? editorSettings().propertiesInDocument : null
   void setEditor({ propertiesInDocument: v })
-  if (v === "hidden") notify("Properties hidden in every note", { id: "properties-shown", action: { label: "Undo", run: () => void setEditor({ propertiesInDocument: was }) } })
+  if (v === "hidden") notify("Properties hidden in every note", { id: "properties-shown", action: { label: "Undo", run: () => setEditor({ propertiesInDocument: was }) } })
 }
 
 export function useEditorSettings(store?: Store | null): EditorSettings {

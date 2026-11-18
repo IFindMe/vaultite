@@ -104,7 +104,7 @@ function useRestore(path: string, now: string | null | undefined, load: () => vo
         undo = async () => { if (r.was) await op("history.restore", { path, t: r.was }) }
       }
       done()
-      notify(`Restored the version from ${whenOf(v.t)}`, { action: { label: "Undo", run: () => void undo().then(load, (e) => notifyError(e, "Couldn't undo it")) } })
+      notify(`Restored the version from ${whenOf(v.t)}`, { action: { label: "Undo", run: () => undo().then(load, (e) => notifyError(e, "Couldn't undo it")) } })
       load()
     } catch (e) { notifyError(e, "Couldn't restore it") } finally { setRestoring(false) }
   }

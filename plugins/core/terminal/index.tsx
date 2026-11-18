@@ -114,7 +114,7 @@ export default definePlugin({
       pinAs: pinOfTerminal,
       resolve: runningResume,
       onClose: (arg) => tabClosed(arg || "main"),
-      tabMenu: (arg) => [{ label: "End session", icon: SquareX, danger: true, run: () => void endForGood(arg || "main") }],
+      tabMenu: (arg) => [{ label: "End session", icon: SquareX, danger: true, run: () => endForGood(arg || "main") }],
       render: ({ arg, focused, close }) => (
         <Suspense fallback={null}>
           <TerminalView key={arg} id={arg || "main"} focused={focused} close={close} />
@@ -128,12 +128,12 @@ export default definePlugin({
   textSizes: { terminal: { label: "Terminal", sub: "Terminals' text: more or fewer columns", points: TERMINAL_POINTS } },
   background: () => <><SessionNames /><AskBox /></>,
   commands: [
-    { id: "terminal:open", name: "Open terminal", words: "new", run: () => void openTerminal(), icon: SquareTerminal },
-    { id: "terminal:open-here", name: "Open terminal on this machine", words: "new", keys: ["Ctrl+`"], run: () => void openTerminal({ machine: "" }), icon: SquareTerminal },
-    { id: "terminal:open-split", desktop: true, name: "Open terminal in right split", words: "new", run: () => void openTerminal({ split: true }) },
+    { id: "terminal:open", name: "Open terminal", words: "new", run: () => openTerminal(), icon: SquareTerminal },
+    { id: "terminal:open-here", name: "Open terminal on this machine", words: "new", keys: ["Ctrl+`"], run: () => openTerminal({ machine: "" }), icon: SquareTerminal },
+    { id: "terminal:open-split", desktop: true, name: "Open terminal in right split", words: "new", run: () => openTerminal({ split: true }) },
     { id: "terminal:ask", name: "Ask an agent in the background…", when: () => aiOn() && canRunAgents(), run: openAsk, icon: MessageSquareText, label: "Ask" },
-    { id: "terminal:open-where", name: "Open a terminal or an agent on a machine…", when: severalMachines, run: () => void choosePlace(), icon: Server },
-    { id: "terminal:home", name: "Choose where terminals and agents open in this workspace…", when: severalMachines, run: () => void chooseDefaultPlace(), icon: Server },
+    { id: "terminal:open-where", name: "Open a terminal or an agent on a machine…", when: severalMachines, run: () => choosePlace(), icon: Server },
+    { id: "terminal:home", name: "Choose where terminals and agents open in this workspace…", when: severalMachines, run: () => chooseDefaultPlace(), icon: Server },
     { id: "terminal:open-list", name: "Open terminals in a tab", run: () => openTab("view:terminals") },
     { id: "terminal:instructions", name: "Show what agents in terminals are told", when: aiOn, run: showInstructions, icon: FileText },
     // Off a Mac ⌃F is the shell's (forward a character): ⌃⇧F, as terminals there have it.

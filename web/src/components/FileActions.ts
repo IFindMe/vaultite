@@ -164,7 +164,7 @@ export function pluginFileGroups(path: string, skip?: string, folder = false): P
       }
     } catch {}
   }
-  for (const a of fileActions(path, skip)) if (a.menu) by.get("actions")!.push({ label: a.label, icon: actionIcon(a), run: () => void runAction(a) })
+  for (const a of fileActions(path, skip)) if (a.menu) by.get("actions")!.push({ label: a.label, icon: actionIcon(a), run: () => runAction(a) })
   const { navigate, share, more, away, ...rest } = Object.fromEntries(by)
   return { navigate, share, more, away, rest: Object.values(rest) }
 }
@@ -212,7 +212,7 @@ export function folderMenu(folder: string, opts: { skip?: string; open?: boolean
   if (opts.short) {
     const more = grouped([locked ? [] : [{ label: "Move folder to…", icon: FolderInput, run: () => askMove(folder) }], plug.navigate, ...plug.rest, plug.more, [...plug.away, ...del]])
     return grouped([
-      locked ? [] : [{ label: "New note", icon: FilePlus, run: () => void newNote(folder) }, ...(opts.newFolder ? [{ label: "New folder", icon: FolderPlus, run: opts.newFolder }] : [])],
+      locked ? [] : [{ label: "New note", icon: FilePlus, run: () => newNote(folder) }, ...(opts.newFolder ? [{ label: "New folder", icon: FolderPlus, run: opts.newFolder }] : [])],
       plug.share,
       [copyPathItem(folder, { folder: true }), ...(isPopout() ? [] : [{ label: "Reveal in file tree", icon: FolderTree, run: () => revealInTree(folder, { scroll: true, flash: true, open: true }) }]), ...computer,
         ...(more.length ? [{ label: "More folder actions", icon: Ellipsis, run: () => {}, items: more }] : [])],
@@ -220,7 +220,7 @@ export function folderMenu(folder: string, opts: { skip?: string; open?: boolean
   }
   return grouped([
     opts.open === false || inTrash(folder) ? [] : [openFolderItem(folder, { pane: opts.pane })],
-    locked ? [] : [{ label: "New note", icon: FilePlus, run: () => void newNote(folder) }, ...(opts.newFolder ? [{ label: "New folder", icon: FolderPlus, run: opts.newFolder }] : [])],
+    locked ? [] : [{ label: "New note", icon: FilePlus, run: () => newNote(folder) }, ...(opts.newFolder ? [{ label: "New folder", icon: FolderPlus, run: opts.newFolder }] : [])],
     locked ? [] : [...(opts.rename ? [renameItem(folder, opts.rename)] : []), { label: "Move folder to…", icon: FolderInput, run: () => askMove(folder) }],
     plug.navigate,
     plug.share,
@@ -290,8 +290,8 @@ export function filesMenu(paths: string[], opts: { newTab?: (path: string) => vo
   const files = roots.filter((p) => !folders.has(p))
   if (roots.every(inTrash)) {
     return [
-      { label: "Restore", icon: RotateCcw, run: () => void restoreMany(roots) },
-      { label: "Delete permanently", icon: Trash2, danger: true, sep: true, run: () => void deleteManyForGood(roots) },
+      { label: "Restore", icon: RotateCcw, run: () => restoreMany(roots) },
+      { label: "Delete permanently", icon: Trash2, danger: true, sep: true, run: () => deleteManyForGood(roots) },
     ]
   }
   const locked = roots.some((p) => p === ".trash" || inTrash(p) || isProtected(p))
@@ -301,9 +301,9 @@ export function filesMenu(paths: string[], opts: { newTab?: (path: string) => vo
     files.length ? [{ label: files.length === 1 ? "Open in new tab" : `Open ${files.length} in new tabs`, icon: SquareArrowOutUpRight, run: () => files.forEach(open) }] : [],
     locked ? [] : [{ label: "Move to…", icon: files.length === roots.length ? FileInput : FolderInput, run: () => askMoveMany(roots) }],
     plug.items,
-    [{ label: "Copy paths", icon: Copy, run: () => void copied(roots.join("\n"), "paths") },
-      ...(files.length === roots.length ? [{ label: "Copy links", icon: Link, run: () => void copied(files.map((f) => linkTo(f)).join("\n"), "links") }] : [])],
-    [...plug.away, ...(locked ? [] : [{ label: "Delete", icon: Trash2, danger: true, run: () => void trashMany(roots) }])],
+    [{ label: "Copy paths", icon: Copy, run: () => copied(roots.join("\n"), "paths") },
+      ...(files.length === roots.length ? [{ label: "Copy links", icon: Link, run: () => copied(files.map((f) => linkTo(f)).join("\n"), "links") }] : [])],
+    [...plug.away, ...(locked ? [] : [{ label: "Delete", icon: Trash2, danger: true, run: () => trashMany(roots) }])],
   ])
 }
 

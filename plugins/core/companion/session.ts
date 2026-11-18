@@ -45,13 +45,13 @@ export async function showContext(name = getState().name) {
   const asked = r.moments.findLast((m) => m.kind === "ask" || m.kind === "point"), quick = main(name) ? r.summoned?.id : null
   if (quick && (!s || asked?.summoned)) openView(sessionView(quick), { newTab: true })
   else if (s) openView(sessionView(s.id), { newTab: true })
-  else notify(`${name} isn't running`, { action: { label: "Start", run: () => void (main(name) ? setMode(getState().mode === "off" ? "quiet" : getState().mode) : start(name)) } })
+  else notify(`${name} isn't running`, { action: { label: "Start", run: () => (main(name) ? setMode(getState().mode === "off" ? "quiet" : getState().mode) : start(name)) } })
 }
 
 async function stop(name: string) {
   try {
     await op("companion.stop", as(name))
-    notify(`${name} stopped`, { action: { label: "Start", run: () => void start(name) } })
+    notify(`${name} stopped`, { action: { label: "Start", run: () => start(name) } })
   } catch (e) { notifyError(e) }
 }
 
@@ -64,7 +64,7 @@ async function fresh(name: string) {
 
 export const followItems = (name: string): MenuItem[] => getState().follows.filter((f) => f.agent === name).map((f, i) => ({
   label: `Stop following ${f.title || f.ui || f.pane || f.group}`, icon: EyeOff, sep: i === 0,
-  run: () => void op("companion.unfollow", { id: f.id }).catch((e) => notifyError(e, "Couldn't stop following it")) }))
+  run: () => op("companion.unfollow", { id: f.id }).catch((e) => notifyError(e, "Couldn't stop following it")) }))
 
 export function agentMenu(a: Agent): MenuItem[] {
   const how = howText(a), fold = foldable(a)
@@ -72,10 +72,10 @@ export function agentMenu(a: Agent): MenuItem[] {
     ...(fold ? [{ label: "Fold its answer into a bubble", icon: MessageCircle, run: fold }] : []),
     ...(main(a.name) ? [{ ...modeItem(), sep: !!fold }] : []),
     ...(how ? [{ label: how, caption: true, run: () => {}, sep: main(a.name) }] : []),
-    { label: main(a.name) ? "Show its chat" : "Show its session", icon: (a.runs ?? "").split("_")[0] === "claude" ? MessageSquare : SquareTerminal, run: () => void showSession(a.name), sep: main(a.name) && !how },
-    ...(canUndoEdit(a.name) ? [{ label: "Undo its last edit", icon: Undo2, run: () => void undoEdit(a.name) }] : []),
+    { label: main(a.name) ? "Show its chat" : "Show its session", icon: (a.runs ?? "").split("_")[0] === "claude" ? MessageSquare : SquareTerminal, run: () => showSession(a.name), sep: main(a.name) && !how },
+    ...(canUndoEdit(a.name) ? [{ label: "Undo its last edit", icon: Undo2, run: () => undoEdit(a.name) }] : []),
     ...followItems(a.name),
-    { label: "Start fresh", icon: RotateCcw, run: () => void fresh(a.name), disabled: a.state === "starting", sep: true },
-    { label: "Stop", icon: Power, danger: true, run: () => void stop(a.name) },
+    { label: "Start fresh", icon: RotateCcw, run: () => fresh(a.name), disabled: a.state === "starting", sep: true },
+    { label: "Stop", icon: Power, danger: true, run: () => stop(a.name) },
   ]
 }

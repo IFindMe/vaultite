@@ -51,7 +51,7 @@ export default definePlugin({
     { id: "ai-import:import", name: "Import from ChatGPT or Claude…", run: pickExport },
     { id: "ai-import:apply", name: "Add ticked memories", when: () => isReview(activeFile()?.path ?? ""), run: () => { const p = activeFile()?.path; if (p) void applyReview(p) } },
   ],
-  fileMenu: (path) => (isReview(path) ? [{ label: "Add ticked memories", icon: Brain, section: "actions", run: () => void applyReview(path) }] : []),
+  fileMenu: (path) => (isReview(path) ? [{ label: "Add ticked memories", icon: Brain, section: "actions", run: () => applyReview(path) }] : []),
   blocks: {
     "memory-review": ({ path, body }) => <ReviewCard path={path} body={body} />,
   },

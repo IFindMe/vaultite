@@ -183,7 +183,7 @@ export function AddressBar({ url, tab, blank, draft, setDraft, lead, trail, inpu
       const t = clip.trim().replace(/\s+/g, " "), to = t ? addressOf(t, search) : null, words = !!to && to === searchUrl(t, search)
       openMenu(at, [
         { label: "Cut", disabled: !chosen, run: () => { void navigator.clipboard.writeText(chosen); put("") } },
-        { label: "Copy", disabled: !chosen, run: () => void navigator.clipboard.writeText(chosen) },
+        { label: "Copy", disabled: !chosen, run: () => navigator.clipboard.writeText(chosen) },
         { label: "Paste", disabled: !clip, run: () => put(clip) },
         { label: words ? "Paste and search" : "Paste and go", disabled: !to, run: () => { if (to) go(to, "typed", "here", guessedHttps(t)) } },
         { label: "Select all", sep: true, run: () => { el.focus(); el.select() } },

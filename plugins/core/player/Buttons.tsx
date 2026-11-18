@@ -50,7 +50,7 @@ export function Keep({ path }: { path: string }) {
   const k = keptOf(useKept(), path)
   if (k?.done) return (
     <button type="button" className={cn(btn, "text-primary")} aria-label="On this iPhone" data-tip="On this iPhone"
-      onClick={(e) => menuBelow(e, [{ label: "Remove from this iPhone", danger: true, run: () => void unkeep(path) }])}>
+      onClick={(e) => menuBelow(e, [{ label: "Remove from this iPhone", danger: true, run: () => unkeep(path) }])}>
       <CircleCheck className="size-5 md:size-4" strokeWidth={2} />
     </button>
   )

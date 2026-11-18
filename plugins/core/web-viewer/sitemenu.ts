@@ -14,7 +14,7 @@ function macItems(p: PagePermissions): MenuItem[] {
   return (["camera", "microphone"] as const).flatMap((k): MenuItem[] => p.mac[k] === "granted" ? [] : [{
     label: p.mac[k] === "not-determined" ? `Let Vaultite use the ${k}…` : `macOS blocks Vaultite's ${k}: open Settings…`,
     icon: Settings2, sep: true,
-    run: () => void Promise.resolve(engine("permissions:mac", k)).catch((e) => notifyError(e, "Couldn't ask macOS")),
+    run: () => Promise.resolve(engine("permissions:mac", k)).catch((e) => notifyError(e, "Couldn't ask macOS")),
   }])
 }
 
@@ -29,7 +29,7 @@ export function siteItems(p: Shown, reload: () => void): MenuItem[] {
     ...macItems(p),
     ...(changed ? [{ label: "Reload to use the new settings", icon: RotateCcw, sep: true, run: reload }] : []),
     { label: "Reset permissions", icon: RotateCcw, sep: !changed, disabled: p.kinds.every((k) => k.choice === k.default),
-      run: () => void Promise.resolve(engine("permissions:clear", p.profile, p.site)).then(reload, (e) => notifyError(e, "Couldn't reset them")) },
+      run: () => Promise.resolve(engine("permissions:clear", p.profile, p.site)).then(reload, (e) => notifyError(e, "Couldn't reset them")) },
     { label: "Site permissions…", icon: Settings2, run: () => openPluginSettings("web-viewer", "permissions") },
   ]
 }

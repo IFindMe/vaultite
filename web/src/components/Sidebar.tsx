@@ -316,7 +316,7 @@ export function headerMenu(): MenuItem[] {
   const menu = panelMenu()
   if (!all.length) return menu
   const items: MenuItem[] = all.map((x) => ({ label: x.plugin.name, icon: x.plugin.icon, checked: shown.has(x.key), keep: true,
-    run: () => void setHeaderItemShown(x.key, !shown.has(x.key)) }))
+    run: () => setHeaderItemShown(x.key, !shown.has(x.key)) }))
   const at = menu.findIndex((m) => m.label === "Customize sidebars…")
   const header: MenuItem = { label: "Header", icon: PanelTop, sep: true, run: () => {}, items }
   return at < 0 ? [...menu, header] : [...menu.slice(0, at), header, { ...menu[at], sep: false }, ...menu.slice(at + 1)]

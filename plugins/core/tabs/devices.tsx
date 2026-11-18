@@ -60,7 +60,7 @@ function rename(d: Device, label: string) {
 export function deviceItems(d: Device, renaming: () => void, { manage = false } = {}): MenuItem[] {
   const here = d.id === DEVICE
   return [
-    ...(d.live && !here && d.tabs.length ? [{ label: "Close all its tabs", icon: X, run: () => void closeOn(d) }] : []),
+    ...(d.live && !here && d.tabs.length ? [{ label: "Close all its tabs", icon: X, run: () => closeOn(d) }] : []),
     { label: "Rename…", icon: Pencil, run: renaming },
     ...(manage ? [{ label: "Show all devices", icon: MonitorSmartphone, run: () => openView("devices", { newTab: true }) }] : []),
     ...(!here ? [{ label: "Forget this device", run: () => forget(d), sep: true }] : []),
@@ -72,7 +72,7 @@ export function tabItems(d: Device, t: DeviceTab): MenuItem[] {
     { label: "Open here", run: () => openHere(t) },
     ...(d.live ? [
       { label: "Move here", icon: ArrowDownToLine, run: () => bringHere(d, t) },
-      { label: `Close on ${deviceName(d)}`, icon: X, run: () => void closeOn(d, [t]) },
+      { label: `Close on ${deviceName(d)}`, icon: X, run: () => closeOn(d, [t]) },
     ] : []),
   ]
 }

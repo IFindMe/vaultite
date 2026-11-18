@@ -106,7 +106,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       }}
       onSelect={(c) => setSetting(!c ? null : isSetting(c) ? "switch" : c.value ? "choice" : null)}
       section={(c) => (c.plugin === "off" ? "Plugins that are off" : c.plugin === "on" ? "Plugins that are on" : c.group)}
-      action={(c) => (c.plugin ? null : { label: c.pinned ? "Unpin" : "Pin to the top", icon: Pin, on: !!c.pinned, run: () => void pinCommand(c.id, !c.pinned) })}
+      action={(c) => (c.plugin ? null : { label: c.pinned ? "Unpin" : "Pin to the top", icon: Pin, on: !!c.pinned, run: () => pinCommand(c.id, !c.pinned) })}
       empty={<NoMatches what="No command matches" query={q} />}
       hints={setting
         ? [["ArrowUp ArrowDown", "to navigate"], ["Enter", setting === "switch" ? "to switch" : "to choose"], ["Mod+Enter", "to open in Settings"], ["Escape", "to dismiss"]]

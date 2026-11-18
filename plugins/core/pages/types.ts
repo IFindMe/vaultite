@@ -84,10 +84,10 @@ export function pinNoted(path: string, on: boolean, label?: string) {
   const list = currentPins()
   if (!on) {
     const after = list[list.indexOf(path) + 1] ?? null
-    notify(`Unpinned ${name}`, { action: { label: "Undo", run: () => void pin(path, true, after) } })
+    notify(`Unpinned ${name}`, { action: { label: "Undo", run: () => pin(path, true, after) } })
     return pin(path, false)
   }
-  notify(`Pinned ${name}`, { action: { label: "Undo", run: () => void pin(path, false) } })
+  notify(`Pinned ${name}`, { action: { label: "Undo", run: () => pin(path, false) } })
   return pin(path, true, undefined, label)
 }
 
@@ -110,8 +110,8 @@ export async function pinManyNoted(keys: string[], on: boolean) {
 
 export function pinItems(path: string): { label: string; icon: LucideIcon; run: () => void; section: string; many: (paths: string[]) => void }[] {
   return [isPinned(path)
-    ? { label: "Unpin", icon: PinOff, section: "navigate", run: () => void pinNoted(path, false), many: (paths: string[]) => void pinManyNoted(paths, false) }
-    : { label: "Pin", icon: Pin, section: "navigate", run: () => void pinNoted(path, true), many: (paths: string[]) => void pinManyNoted(paths, true) }]
+    ? { label: "Unpin", icon: PinOff, section: "navigate", run: () => pinNoted(path, false), many: (paths: string[]) => void pinManyNoted(paths, false) }
+    : { label: "Pin", icon: Pin, section: "navigate", run: () => pinNoted(path, true), many: (paths: string[]) => void pinManyNoted(paths, true) }]
 }
 
 export function movePinned(from: string, to: string) {

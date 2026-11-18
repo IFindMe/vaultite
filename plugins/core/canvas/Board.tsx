@@ -662,7 +662,7 @@ export default function Board({ store, text, editable, onChange, place, path }: 
         items.push({ label: "Open in browser", icon: ArrowUpRight, run: () => openNode(n) })
         items.push({ label: "Copy address", icon: Copy, run: () => { void navigator.clipboard.writeText(String(n.url ?? "")) } })
       }
-      if (editable && n.type === "text") items.push({ label: "Convert to file", icon: FilePlus2, run: () => void convertToFile(n) })
+      if (editable && n.type === "text") items.push({ label: "Convert to file", icon: FilePlus2, run: () => convertToFile(n) })
     }
     if (editable) {
       items.push({ label: "Colour", icon: Palette, sep: items.length > 0, run: () => {}, items: colourItems() })
@@ -693,7 +693,7 @@ export default function Board({ store, text, editable, onChange, place, path }: 
       { label: "Add note or file", icon: FileText, run: () => addFile(p) },
       { label: "Add web page", icon: Globe, run: () => addLink(p) },
       { label: "Add group", icon: GroupIcon, run: () => { setSel(new Set()); addNode({ type: "group", label: "Group", x: Math.round(p.x - 250), y: Math.round(p.y - 180), width: 500, height: 360 }, { edit: true }) } },
-      { label: "Paste", icon: ClipboardPaste, sep: true, run: () => void pasteFromMenu(p) },
+      { label: "Paste", icon: ClipboardPaste, sep: true, run: () => pasteFromMenu(p) },
     ] : []),
     { label: "Zoom to fit", icon: Maximize, sep: editable, run: fitAll },
     { label: "Zoom to 100%", run: zoomTo100 },

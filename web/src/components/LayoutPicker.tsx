@@ -68,7 +68,7 @@ function menuOf(b: BundleInfo, current: boolean, open: ApplyOptions["open"]): Me
     ...(b.source === "vault" ? [
       { label: "Share…", icon: Share, run: () => openDetail(`bundle-share/${b.id}`) },
       ...(b.from ? [{ label: "Check for updates…", icon: RefreshCw, run: () => openImport(place(b.from!)) }] : []),
-      { label: "Delete", icon: Trash2, danger: true, sep: true, run: () => void removeBundle(b) },
+      { label: "Delete", icon: Trash2, danger: true, sep: true, run: () => removeBundle(b) },
     ] : []),
   ]
 }

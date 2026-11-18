@@ -242,8 +242,25 @@ const gitEnv = defineRule({
   },
 })
 
+const noVoidRun = defineRule({
+  meta: {
+    type: "problem",
+    docs: { description: "Disallow `run: () => void x()`: it drops the promise its runner reports a failure from." },
+    messages: { drop: "`void` drops the promise, so a failure says nothing and the user taps again. Return it (`run: () => x()`): commands and menus run it through runOrSay (web/src/core/commands.ts), which says what failed." },
+  },
+  createOnce(context) {
+    return {
+      Property(node) {
+        const { key, value } = node
+        if (key.type !== "Identifier" || key.name !== "run" || value.type !== "ArrowFunctionExpression" || !value.expression) return
+        if (value.body.type === "UnaryExpression" && value.body.operator === "void") context.report({ node: value.body, messageId: "drop" })
+      },
+    }
+  },
+})
+
 export default eslintCompatPlugin({
   meta: { name: "vaultite" },
   rules: { "no-cast": noCast, "no-sleep": noSleep, "no-node-module-mock": noNodeModuleMock, "no-unchecked-json": noUncheckedJson, "disable-reason": disableReason,
-    "comment-lines": commentLines, "comment-length": commentLength, "no-title-attr": noTitleAttr, "git-env": gitEnv },
+    "comment-lines": commentLines, "comment-length": commentLength, "no-title-attr": noTitleAttr, "git-env": gitEnv, "no-void-run": noVoidRun },
 })

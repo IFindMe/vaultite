@@ -64,7 +64,7 @@ export default function AllTabs({ store }: { store: Store }) {
   const desks = desksOf(here, () => true, naming)
   const shown = query ? desksOf(here, matches, naming) : desks
   const total = desks.reduce((sum, d) => sum + d.count, 0)
-  const moves = (n: number, t: Tab): MenuItem[] => desks.flatMap((d) => (d.n === n ? [] : [{ label: `Move to ${label(d.n)}`, run: () => void moveBetween(n, d.n, t.id) }]))
+  const moves = (n: number, t: Tab): MenuItem[] => desks.flatMap((d) => (d.n === n ? [] : [{ label: `Move to ${label(d.n)}`, run: () => moveBetween(n, d.n, t.id) }]))
   const fold = (at: Where, g: TabGroup) => {
     if (at.thisWindow) foldGroupMoving(g.id)
     else if (at.otherWorkspace) foldIn(at.n, g.id)

@@ -44,13 +44,13 @@ const references = definePlugin({
   settingsPanel: () => <LazySources />,
   settingsPanelFirst: true,
   slash: () => [{ id: "references:cite", title: "Citation", section: "Insert", keywords: "cite reference zotero bibliography pandoc", detail: "[@key]",
-    run: () => void startCiting() }],
+    run: () => startCiting() }],
   commands: [
-    { id: "references:cite", name: "Insert citation", when: inNote, run: () => void startCiting(), icon: Quote },
-    { id: "references:zotero", name: "Cite from Zotero", when: () => inNote() && isDesktop(), run: () => void citeFromZotero(), icon: Quote },
+    { id: "references:cite", name: "Insert citation", when: inNote, run: () => startCiting(), icon: Quote },
+    { id: "references:zotero", name: "Cite from Zotero", when: () => inNote() && isDesktop(), run: () => citeFromZotero(), icon: Quote },
     { id: "references:add", name: "Add a reference by DOI, arXiv or ISBN", run: addByIdentifier, icon: FilePlus2 },
     { id: "references:show", name: "Show references", fromLink: true, run: () => { showPanel("references:references") }, icon: BookBookmark },
-    { id: "references:refresh", name: "Read the reference library again", run: () => void post("references/refresh", {}).then(() => { forgetFormatted(); notify("Read the library again") }, (e) => notifyError(e, "Couldn't read the library")), icon: RefreshCw },
+    { id: "references:refresh", name: "Read the reference library again", run: () => post("references/refresh", {}).then(() => { forgetFormatted(); notify("Read the library again") }, (e) => notifyError(e, "Couldn't read the library")), icon: RefreshCw },
   ],
   preview: () => (
     <Panel title="References" icon={BookBookmark} tint="var(--orange)">

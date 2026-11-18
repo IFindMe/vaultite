@@ -24,6 +24,7 @@
     "vaultite/comment-lines": "warn",
     "vaultite/comment-length": "warn",
     "vaultite/git-env": "warn",
+    "vaultite/no-void-run": "warn",
     "vaultite/no-node-module-mock": "warn",
     "vaultite/no-unchecked-json": "warn",
     "typescript/no-explicit-any": "warn",

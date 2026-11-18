@@ -69,9 +69,9 @@ export function DictationsView() {
   const rows = useKeptCount(text ? null : "dictation:history", data ? Math.min(12, shown.length) : undefined, 6)
   const keep = settings.use().history !== false
   const more = (e: React.MouseEvent) => menuBelow(e, [
-    ...(data?.here ? [{ label: "Keep dictations", checked: keep, run: () => void settings.set({ history: !keep }) }] : []),
+    ...(data?.here ? [{ label: "Keep dictations", checked: keep, run: () => settings.set({ history: !keep }) }] : []),
     { label: "Dictation settings", icon: Settings, run: () => openPluginSettings("dictation", "history") },
-    ...(data?.here ? [{ label: "Clear dictations…", icon: Trash2, danger: true, sep: true, run: () => void askClear(again) }] : []),
+    ...(data?.here ? [{ label: "Clear dictations…", icon: Trash2, danger: true, sep: true, run: () => askClear(again) }] : []),
   ])
   return (
     <div className="mx-auto max-w-[760px] pb-16" data-dictations>

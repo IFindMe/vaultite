@@ -29,7 +29,7 @@ export function NoteKeys() {
     label: "Editing keys", scroll: true, owns: editingIn,
     keys: () => ids.flatMap((id) => {
       const Icon = ICONS[id], c = offeredCommand(id)
-      return Icon && c ? [{ name: LABELS[id] ?? c.name, label: <Icon className="size-[18px]" strokeWidth={2} />, run: () => void c.run() }] : []
+      return Icon && c ? [{ name: LABELS[id] ?? c.name, label: <Icon className="size-[18px]" strokeWidth={2} />, run: () => c.run() }] : []
     }),
   }), [ids]))
   return null

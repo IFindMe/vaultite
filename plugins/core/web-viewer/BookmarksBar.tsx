@@ -97,8 +97,8 @@ export function BookmarksBar({ open, page }: { open: Open; page: { url: string; 
   const markMenu = (b: Bookmark, el: HTMLElement): MenuItem[] => [
     { label: "Open in new tab", icon: ExternalLink, run: () => open(b.url, "front") },
     { label: "Edit…", icon: Pencil, sep: true, run: () => openBookmark(b.url, b.title, el.getBoundingClientRect()) },
-    { label: "Copy link", icon: Link, run: () => void copyText(b.url) },
-    { label: "Delete", icon: Trash2, danger: true, run: () => void removeBookmark(b.url) },
+    { label: "Copy link", icon: Link, run: () => copyText(b.url) },
+    { label: "Delete", icon: Trash2, danger: true, run: () => removeBookmark(b.url) },
     ...barMenu().map((m, i) => (i ? m : { ...m, sep: true })),
   ]
   const folderMenu = (f: string): MenuItem[] => {
@@ -107,7 +107,7 @@ export function BookmarksBar({ open, page }: { open: Open; page: { url: string; 
       ...(n ? [{ label: `Open all (${n})`, icon: ExternalLink, run: () => openAll(f, open) }] : []),
       { label: "New folder…", icon: FolderPlus, sep: n > 0, run: () => newFolder(f) },
       { label: "Rename…", icon: Pencil, run: () => renameFolder(f) },
-      { label: "Delete", icon: Trash2, danger: true, run: () => void removeFolder(f) },
+      { label: "Delete", icon: Trash2, danger: true, run: () => removeFolder(f) },
       ...barItems(true),
     ]
   }

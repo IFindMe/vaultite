@@ -257,10 +257,10 @@ export default definePlugin({
         if (a?.asking) return { icon: Hand, label: `${a.by} needs you`, tint: "var(--purple)", run: () => {} }
         if (a && (a.own || (working(a) && !s))) {
           return { icon: MousePointer2, label: a.paused ? `${a.by}: paused here, click to resume` : `${a.by} is using this tab: click to pause`, tint: a.paused ? undefined : "var(--purple)",
-            run: () => void pauseAgents(a.id, !a.paused) }
+            run: () => pauseAgents(a.id, !a.paused) }
         }
         if (s && !s.playing && !s.muted && s.paused) return { icon: Play, label: "Play", run: () => pauseSound(s, false) }
-        return s ? { icon: s.muted ? VolumeX : Volume2, label: s.muted ? "Unmute tab" : "Mute tab", run: () => void webPages?.go(s.id, s.muted ? "unmute" : "mute") } : null
+        return s ? { icon: s.muted ? VolumeX : Volume2, label: s.muted ? "Unmute tab" : "Mute tab", run: () => webPages?.go(s.id, s.muted ? "unmute" : "mute") } : null
       },
       archives: (arg, tab) => !soundOf(arg, tab)?.playing && !typedIn(tab),
       onTabClose: (_arg, tab, moved) => {
@@ -271,7 +271,7 @@ export default definePlugin({
       tabMenu: (arg, tab) => {
         const { url } = splitArg(arg), sound = soundOf(arg, tab)
         return [
-          ...(/^https?:\/\//i.test(url) ? [{ label: "Duplicate tab", icon: CopyPlus, run: () => void duplicate(arg, tab) }] : []),
+          ...(/^https?:\/\//i.test(url) ? [{ label: "Duplicate tab", icon: CopyPlus, run: () => duplicate(arg, tab) }] : []),
           ...(sound ? [...pauseItems(sound), muteItem(sound)] : []),
           ...(/^https?:\/\//i.test(url) ? webPageActions({ url, title: titleOf(url) ?? "" }) : []),
         ]
@@ -329,14 +329,14 @@ export default definePlugin({
       when: () => agentPages.get().length > 0, on: agentsCardShown, run: () => showAgentsCard(!agentsCardShown()) },
     // Windows sets the default browser only in its own Settings.
     { id: "web:default-browser", name: "Make Vaultite the default browser", desktop: true, when: () => !!webPages?.engine && !isWindows, icon: Globe,
-      run: () => void Promise.resolve(webPages?.engine?.("browser:make-default")).then((yes) => notify(yes ? "Vaultite is the default browser: links from other apps open here" : "Confirm it in the box macOS shows"), (e) => notifyError(e, "Couldn't make it the default browser")) },
-    { id: "web:lock", name: "Lock containers", desktop: true, when: () => !!webPages?.engine && containers().some((c) => c.lock), run: () => void webPages?.engine?.("lock:lock"), icon: Lock },
+      run: () => Promise.resolve(webPages?.engine?.("browser:make-default")).then((yes) => notify(yes ? "Vaultite is the default browser: links from other apps open here" : "Confirm it in the box macOS shows"), (e) => notifyError(e, "Couldn't make it the default browser")) },
+    { id: "web:lock", name: "Lock containers", desktop: true, when: () => !!webPages?.engine && containers().some((c) => c.lock), run: () => webPages?.engine?.("lock:lock"), icon: Lock },
     { id: "web:page-bar", name: "Hide page bar", nameWhenOn: "Always show page bar", desktop: true, when: () => !!webPages, on: barHidden,
-      run: () => void setBarHidden(!barHidden()), icon: PanelTopClose },
+      run: () => setBarHidden(!barHidden()), icon: PanelTopClose },
     { id: "web:bookmarks-bar", name: "Always show bookmarks bar", keys: ["Mod+Shift+B"], desktop: true, when: () => !!webPages, on: marksBarShown,
-      run: () => void setMarksBarShown(!marksBarShown()), icon: Bookmark },
+      run: () => setMarksBarShown(!marksBarShown()), icon: Bookmark },
     { id: "web:open-container", name: "New tab in container…", desktop: true, when: () => !!webPages, run: askContainer, icon: Box },
-    { id: "web:fill-login", name: "Fill login", desktop: true, when: () => !!webPages?.engine && hasLoginForm(focusedPageId()), run: () => void fillLoginIn(focusedPageId()), icon: KeyRound },
+    { id: "web:fill-login", name: "Fill login", desktop: true, when: () => !!webPages?.engine && hasLoginForm(focusedPageId()), run: () => fillLoginIn(focusedPageId()), icon: KeyRound },
     { id: "web:clip", name: "Clip current web page", when: () => !!focusedPage(), run: () => focusedPage()?.clip(), icon: Scissors },
     { id: "web:browser", name: "Open current web page in another browser", when: () => !!focusedPage(), run: () => { const p = focusedPage(); if (p) void webPages?.external(p.url()) }, icon: ExternalLink },
     { id: "web:address", name: "Edit current web page's address", keys: ["Mod+L"], when: () => !!focusedPage(),
@@ -348,11 +348,11 @@ export default definePlugin({
       run: () => openView("passwords", { newTab: !isViewOpen("view:passwords") }) },
     { id: "web:downloads", name: "Show downloads", desktop: true, when: () => !!webPages?.download, run: () => showDownloads(), icon: Download },
     { id: "web:history", name: "Show history", keys: isMac ? ["Mod+Y"] : ["Mod+H"], desktop: true, when: () => !!webPages?.engine, run: () => openView("web-history", { newTab: !isViewOpen("view:web-history") }), icon: History },
-    { id: "web:clear-history", name: "Clear browsing history…", desktop: true, when: () => !!webPages?.engine, run: () => void import("./HistoryView").then((m) => m.askClear()), icon: Eraser },
+    { id: "web:clear-history", name: "Clear browsing history…", desktop: true, when: () => !!webPages?.engine, run: () => import("./HistoryView").then((m) => m.askClear()), icon: Eraser },
     { id: "web:block-element", name: "Block an element on this page", when: () => !!webPages?.engine && /^https?:\/\//i.test(focusedPage()?.url() ?? ""),
-      run: () => void pickElement(focusedPageId()), icon: MousePointerSquareDashed },
+      run: () => pickElement(focusedPageId()), icon: MousePointerSquareDashed },
     { id: "web:edit-style", name: "Edit this site's style", when: () => !!webPages?.engine && !!hostOf(focusedPage()?.url() ?? ""),
-      run: () => void editStyle(focusedPage()?.url() ?? ""), icon: Paintbrush },
+      run: () => editStyle(focusedPage()?.url() ?? ""), icon: Paintbrush },
     { id: "web:player", name: "Open current web page as player", nameWhenOn: "Bring current web page back from player", keys: ["Mod+Alt+P"], icon: MonitorPlay,
       when: () => !!webPages?.player && /^https?:\/\//i.test(focusedPage()?.url() ?? ""), on: () => !!focusedPage()?.inPlayer(),
       run: () => setPlayer(focusedPageId(), !focusedPage()?.inPlayer()) },
@@ -366,8 +366,8 @@ export default definePlugin({
     { id: "web:source", name: "View current web page's source", keys: [isMac ? "Mod+Alt+U" : "Mod+U"], icon: FileCode2,
       when: () => /^https?:\/\//i.test(focusedPage()?.url() ?? ""), run: () => { const p = focusedPage(); if (p) viewSource(p.url(), p.container, p.tab) } },
     { id: "web:print", name: "Print current web page", when: () => /^https?:\/\//i.test(focusedPage()?.url() ?? ""), run: () => onPage("print"), icon: Printer },
-    { id: "web:import-brave", name: "Import from Brave…", desktop: true, when: () => browsersHere().some((s) => s.browser === "brave"), run: () => void askImport("brave"), icon: Download },
-    { id: "web:import-chrome", name: "Import from Chrome…", desktop: true, when: () => browsersHere().some((s) => s.browser === "chrome"), run: () => void askImport("chrome"), icon: Download },
+    { id: "web:import-brave", name: "Import from Brave…", desktop: true, when: () => browsersHere().some((s) => s.browser === "brave"), run: () => askImport("brave"), icon: Download },
+    { id: "web:import-chrome", name: "Import from Chrome…", desktop: true, when: () => browsersHere().some((s) => s.browser === "chrome"), run: () => askImport("chrome"), icon: Download },
   ],
   ambient: { playing: { title: "Web pages playing", sort: 55, render: () => <Playing /> }, downloads: { title: "Downloads", sort: 56, render: () => <DownloadsChip /> } },
   settingsPanel: () => <><SitesSettings /><PermissionsSection /><PasswordsSetting /></>,

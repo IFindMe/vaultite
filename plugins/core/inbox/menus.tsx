@@ -30,7 +30,7 @@ function selectionItems(store: Store, keys: string[]): MenuItem[] {
   else if (pinnable.length || live.length) out.push(pinItem([...pinnable.map(resultKey), ...live.map(eventKey)], true))
   if (soon.length) out.push(snoozeMenu(soon))
   if (later.length) out.push({ label: "Wake", icon: AlarmClockOff, run: () => snoozeKeys(later, null) })
-  if (dealt.length) out.push({ label: "Back to review", icon: RotateCcw, run: () => void markManyDone(dealt, false) })
+  if (dealt.length) out.push({ label: "Back to review", icon: RotateCcw, run: () => markManyDone(dealt, false) })
   if (gone.length) out.push({ label: "Back to inbox", icon: RotateCcw, run: () => markManyEventsDone(gone, false) })
   if (evs.some((e) => !e.read)) out.push({ label: "Mark as read", icon: MailOpen, sep: out.length > 0, run: () => markRead(evs.map((e) => e.id)) })
   if (evs.some((e) => e.read)) out.push({ label: "Mark as unread", icon: Mail, sep: out.length > 0 && !evs.some((e) => !e.read), run: () => markUnread(evs.filter((e) => e.read).map((e) => e.id)) })
@@ -72,7 +72,7 @@ export function moreMenu(e: MouseEvent, r: InboxItem) {
 }
 
 
-export const settledItems = (r: InboxItem): MenuItem[] => [resultItems(r)[0], { label: "Back to review", icon: RotateCcw, sep: true, run: () => void reopen(r) }]
+export const settledItems = (r: InboxItem): MenuItem[] => [resultItems(r)[0], { label: "Back to review", icon: RotateCcw, sep: true, run: () => reopen(r) }]
 
 export const resultItemsMenu = (r: InboxItem) => () => [{ label: "Settle", icon: Check, run: () => markDone(r) }, { ...resultItems(r)[0], sep: true }, ...resultItems(r).slice(1)]
 
@@ -88,19 +88,19 @@ export const eventItems = (e: InboxEvent, shownNew: boolean, touched?: (id: stri
   e.state === "done"
     ? { label: "Back to inbox", icon: RotateCcw, sep: true, run: () => markManyEventsDone([e], false) }
     : { label: "Settle", icon: Check, sep: true, run: () => { markManyEventsDone([e]); touched?.(e.id) } },
-  ...(e.state === "done" ? [{ label: "Delete", icon: Trash2, run: () => void forget(e.id) }] : []),
+  ...(e.state === "done" ? [{ label: "Delete", icon: Trash2, run: () => forget(e.id) }] : []),
   ...muteItem(e.account),
 ]
-const muteItem = (a: InboxEvent["account"]): MenuItem[] => (a ? [{ label: `Mute the ${a.label} account`, icon: BellOff, sep: true, run: () => void muteAccount(a) }] : [])
+const muteItem = (a: InboxEvent["account"]): MenuItem[] => (a ? [{ label: `Mute the ${a.label} account`, icon: BellOff, sep: true, run: () => muteAccount(a) }] : [])
 
 export const decisionItems = (r: InboxItem): MenuItem[] => [
   { label: "Open", icon: FileText, run: () => openFile(pathOf(r)) },
-  ...(r.default ? [{ label: `Accept the default (${r.default})`, icon: Check, sep: true, run: () => void keepDefault(r) }] : []),
+  ...(r.default ? [{ label: `Accept the default (${r.default})`, icon: Check, sep: true, run: () => keepDefault(r) }] : []),
   snoozeMenu([resultKey(r)]),
 ]
 export const decisionSwipe = (r: InboxItem): SwipeAction[] => snoozed(r.snoozed)
   ? [{ label: "Wake", icon: AlarmClockOff, run: () => snoozeKeys([resultKey(r)], null), removes: true }]
-  : [{ label: "Snooze", icon: Clock, run: snoozeAtRow([resultKey(r)]) }, ...(r.default ? [{ label: "Keep default", icon: Check, run: () => void keepDefault(r), removes: true }] : [])]
+  : [{ label: "Snooze", icon: Clock, run: snoozeAtRow([resultKey(r)]) }, ...(r.default ? [{ label: "Keep default", icon: Check, run: () => keepDefault(r), removes: true }] : [])]
 export const decisionSnooze = (r: InboxItem) => snoozeMenu([resultKey(r)])
 
 export const stop = (fn: () => void) => (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); fn() }

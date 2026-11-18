@@ -205,7 +205,7 @@ export function showNewTabSections() {
   const was = getPrefs().newTab.page
   if (!was) return
   void setNewTab({ page: null })
-  notify("New tabs show their sections", { action: { label: "Undo", run: () => void setNewTab({ page: was }) } })
+  notify("New tabs show their sections", { action: { label: "Undo", run: () => setNewTab({ page: was }) } })
 }
 const sectionsNow = () => { const { disabled, newTab } = getPrefs(); return shownSections(newTab, allSections(disabled)) }
 const moved = (list: string[], key: string, where: "up" | "down") => placeKey(list, key, anchorFor(list, key, where) ?? null)
@@ -246,11 +246,11 @@ function customizeMenu(phone: boolean, hit: { action?: string; section?: string 
   }
   out.push({ label: "Sections", icon: Layers, sep: !!out.length, run: () => {}, items: sections })
   out.push({ label: "Show a page instead…", icon: LayoutDashboard, run: () => chooseNewTabPage() })
-  out.push({ label: "New tabs open", icon: SquarePlus, run: () => {}, items: opensChoices().map((c) => ({ label: c.label, checked: c.value === newTab.opens, run: () => void setOpens(c.value) })) })
+  out.push({ label: "New tabs open", icon: SquarePlus, run: () => {}, items: opensChoices().map((c) => ({ label: c.label, checked: c.value === newTab.opens, run: () => setOpens(c.value) })) })
   if (newTab.sections || newTab.actions || newTab.icons) out.push({ label: "Reset new tab", icon: RotateCcw, sep: true, run: () => {
     const was = getPrefs().newTab
     void setNewTab({ sections: null, actions: null, icons: null, page: null })
-    notify("New tab reset", { action: { label: "Undo", run: () => void setNewTab(was) } })
+    notify("New tab reset", { action: { label: "Undo", run: () => setNewTab(was) } })
   } })
   return out
 }

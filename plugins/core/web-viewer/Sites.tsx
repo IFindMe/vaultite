@@ -150,7 +150,7 @@ function SiteRows({ logins: l, data, openPage, filter = "" }: { logins: Logins; 
   useSlide(box, useSiteOrder(box, l.prof, q || there ? [] : top.map((s) => s.site)), "y")
   const lifted = useDrag((d) => (d?.item.site?.logins === l.prof ? d.item.site.site : null))
   const machines = elsewhere.use()
-  const to = (o: Logins, copy: boolean) => (s: WebSite): MenuItem => ({ label: o.name, icon: dotIcon(o.color), run: () => void moveLogin(l, o, s, copy) })
+  const to = (o: Logins, copy: boolean) => (s: WebSite): MenuItem => ({ label: o.name, icon: dotIcon(o.color), run: () => moveLogin(l, o, s, copy) })
   const targets = (copy: boolean) => (s: WebSite): MenuItem[] => [
     ...allLogins().filter((o) => o.prof !== l.prof).map((o) => to(o, copy)(s)),
     ...(copy && webPages?.seal ? (machines ?? []).flatMap((m) => [
@@ -160,18 +160,18 @@ function SiteRows({ logins: l, data, openPage, filter = "" }: { logins: Logins; 
   ]
   const menu = (s: WebSite): MenuItem[] => there ? [{ label: `Open ${s.site}`, icon: Globe, run: () => open(`https://${s.site}/`) }] : [
     { label: `Open ${s.site}`, icon: Globe, run: () => open(`https://${s.site}/`) },
-    ...(c ? [{ label: `Always open in ${c.name}`, icon: Pin, checked: always.includes(s.site), run: () => void setSiteRule(s.site, always.includes(s.site) ? null : c.id) }] : []),
+    ...(c ? [{ label: `Always open in ${c.name}`, icon: Pin, checked: always.includes(s.site), run: () => setSiteRule(s.site, always.includes(s.site) ? null : c.id) }] : []),
     ...(signedIn(s) && webPages?.move ? [
       { label: "Move to", icon: ArrowRightLeft, sep: true, run: () => {}, items: targets(false)(s) },
       { label: "Copy to", icon: Copy, run: () => {}, items: targets(true)(s) },
     ] : []),
-    ...(signedIn(s) ? [{ label: "Sign out", icon: LogOut, danger: true, sep: true, run: () => void signOut(l, s, refresh) }] : []),
+    ...(signedIn(s) ? [{ label: "Sign out", icon: LogOut, danger: true, sep: true, run: () => signOut(l, s, refresh) }] : []),
   ]
   const row = (s: WebSite) => (
     <SidebarRow key={s.site} icon={isIn(s) ? accountIcon(s.site, s.avatar) : siteIcon(`https://${s.site}/`)} label={<SiteLabel s={s} />} open
       tip={[andList(sitesOf(s)), whoText(s), pinned(s) && c ? `always opens in ${c.name}` : ""].filter(Boolean).join(": ")}
       data-web-site={s.site} data-web-account={isIn(s) ? "" : undefined} data-leaving={pinned(s) ? undefined : leaving(s.site)} onClick={() => open(`https://${s.site}/`)} more
-      swipe={() => signedIn(s) && !there ? [{ label: "Sign out", icon: LogOut, danger: true, run: () => void signOut(l, s, refresh) }] : []}
+      swipe={() => signedIn(s) && !there ? [{ label: "Sign out", icon: LogOut, danger: true, run: () => signOut(l, s, refresh) }] : []}
       onContextMenu={menuFor(() => menu(s))}>
       {pinned(s) && <Pin aria-hidden data-web-always="" className="mr-1 size-3 shrink-0 text-tertiary group-hover/row:hidden" strokeWidth={2} />}
       {!isIn(s) && !pinned(s) && s.last ? <span className="mr-1 shrink-0 text-[11px] text-tertiary tabular-nums group-hover/row:hidden">{fmtAgo(s.last, { short: true })}</span> : null}

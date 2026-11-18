@@ -151,8 +151,8 @@ function Unlocked({ status, groups, entries }: { status: NonNullable<Status>; gr
   const here = places.find((p) => p.id === where)
   const newIn = where && where !== AGENTS && where !== bin?.id ? where : root?.id ?? ""
   const more = (): MenuItem[] => [
-    { label: "Use another file…", icon: Folder, run: () => void chooseFile() },
-    { label: "Stop using it", icon: Trash2, danger: true, sep: true, run: () => void forgetFile() },
+    { label: "Use another file…", icon: Folder, run: () => chooseFile() },
+    { label: "Stop using it", icon: Trash2, danger: true, sep: true, run: () => forgetFile() },
   ]
   const onKey = (e: KeyboardEvent) => { if (e.key === "Enter" && shown[0] && where !== AGENTS && e.target instanceof Element && e.target.matches("input")) { e.preventDefault(); openDetail(detailPath(ENTRY_DETAIL, shown[0].id)) } }
   return (
@@ -220,11 +220,11 @@ async function copyPassword(e: Row) {
 
 function EntryRow({ e, group, binned, leaving }: { e: Row; group: string; binned: boolean; leaving?: "" }) {
   const items = (): MenuItem[] => [
-    ...(e.username ? [{ label: "Copy username", icon: User, run: () => void copySecret(e.username, "username") }] : []),
-    { label: "Copy password", icon: Copy, run: () => void copyPassword(e) },
+    ...(e.username ? [{ label: "Copy username", icon: User, run: () => copySecret(e.username, "username") }] : []),
+    { label: "Copy password", icon: Copy, run: () => copyPassword(e) },
     ...(e.urls[0] ? [{ label: "Open website", icon: Globe, run: () => afterSheets(() => openWebLink(webUrl(e.urls[0]))) }] : []),
     { label: "Edit", icon: Pencil, sep: true, run: () => openDetail(detailPath(EDIT_DETAIL, e.id)) },
-    { label: binned ? "Delete for good…" : "Delete", icon: Trash2, danger: true, run: () => void removeEntry(e) },
+    { label: binned ? "Delete for good…" : "Delete", icon: Trash2, danger: true, run: () => removeEntry(e) },
   ]
   const meta = [e.username, group].filter(Boolean).join(" · ")
   return (

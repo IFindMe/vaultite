@@ -78,7 +78,7 @@ export function SessionSheet({ id }: { id: string }) {
     haptic("medium")
     if (to) leaveSheet(e.id)
     void markEventsDone([e.id], to)
-    notify(to ? `Settled “${e.title}”` : `Back in the inbox: “${e.title}”`, { action: { label: "Undo", run: () => void (to ? unsettle([e]) : markEventsDone([e.id], true)) } })
+    notify(to ? `Settled “${e.title}”` : `Back in the inbox: “${e.title}”`, { action: { label: "Undo", run: () => (to ? unsettle([e]) : markEventsDone([e.id], true)) } })
   }
   const open = () => openSession({ terminal: e.terminal, session: e.session, agent: e.source, machine: e.machine, host: e.host })
   return (

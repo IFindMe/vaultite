@@ -101,9 +101,9 @@ export async function printNote(path: string, how: "pdf" | "print") {
 
 export default definePlugin({
   commands: [
-    { id: "export-pdf:pdf", name: "Export to PDF", when: () => !!here(), run: () => void printNote(here(), "pdf") },
-    { id: "export-pdf:print", name: "Print note", when: () => !!here(), run: () => void printNote(here(), "print"), icon: Printer },
+    { id: "export-pdf:pdf", name: "Export to PDF", when: () => !!here(), run: () => printNote(here(), "pdf") },
+    { id: "export-pdf:print", name: "Print note", when: () => !!here(), run: () => printNote(here(), "print"), icon: Printer },
   ],
-  fileMenu: (path) => (isNote(path) ? [{ label: "Export to PDF", icon: FileDown, section: "more", run: () => void printNote(path, "pdf") }] : []),
+  fileMenu: (path) => (isNote(path) ? [{ label: "Export to PDF", icon: FileDown, section: "more", run: () => printNote(path, "pdf") }] : []),
   background: () => <Background />,
 })

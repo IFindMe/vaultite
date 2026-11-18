@@ -38,7 +38,7 @@ export function downloadCame(m: Extract<WebEvent, { type: "download" }>) {
   if (typeof m.gone === "number") { const id = m.gone; list.update((l) => l.filter((x) => x.id !== id)); return }
   const d = m.download
   if (!d) {
-    if (m.ok) notify(`Downloaded ${m.name}`, { action: { label: showLabel, run: () => void webPages?.reveal(m.path ?? "") } })
+    if (m.ok) notify(`Downloaded ${m.name}`, { action: { label: showLabel, run: () => webPages?.reveal(m.path ?? "") } })
     else notify(`Couldn't download ${m.name}`, { kind: "error" })
     return
   }

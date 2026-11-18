@@ -127,7 +127,7 @@ export function PinnedPages({ store, open, file, tab, panel, pane, flyout, tiles
     const shown = shownEntries(store).filter((e) => keys.includes(e.key) && e.kind !== "folder")
     return [
       ...(shown.length ? [{ label: shown.length === 1 ? "Open in new tab" : `Open ${shown.length} in new tabs`, icon: SquareArrowOutUpRight, run: () => shown.forEach((e) => openEntry(e, { newTab: true, pane })) }] : []),
-      { label: "Unpin", icon: PinOff, run: () => void pinManyNoted(keys, false) },
+      { label: "Unpin", icon: PinOff, run: () => pinManyNoted(keys, false) },
     ]
   } })
   const shownKey = pages.map((x) => x.key).join("\n")
@@ -144,8 +144,8 @@ export function PinnedPages({ store, open, file, tab, panel, pane, flyout, tiles
   const moveItems = (id: string): MenuItem[] => {
     const keys = pages.map((e) => e.key), i = keys.indexOf(id)
     return [
-      { label: tiles ? "Move left" : "Move up", icon: tiles ? ArrowLeft : ArrowUp, sep: true, disabled: i <= 0, run: () => void pin(id, true, keys[i - 1]) },
-      { label: tiles ? "Move right" : "Move down", icon: tiles ? ArrowRight : ArrowDown, disabled: i < 0 || i >= keys.length - 1, run: () => void pin(id, true, keys[i + 2] ?? null) },
+      { label: tiles ? "Move left" : "Move up", icon: tiles ? ArrowLeft : ArrowUp, sep: true, disabled: i <= 0, run: () => pin(id, true, keys[i - 1]) },
+      { label: tiles ? "Move right" : "Move down", icon: tiles ? ArrowRight : ArrowDown, disabled: i < 0 || i >= keys.length - 1, run: () => pin(id, true, keys[i + 2] ?? null) },
     ]
   }
   const current = file

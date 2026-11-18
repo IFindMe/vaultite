@@ -396,7 +396,7 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
     if (dir < 0) list.reverse()
     const r = el.getBoundingClientRect()
     openMenu({ x: r.left, y: r.bottom + 4, flip: r.top - 4 }, [
-      ...list.slice(0, 15).map((x): MenuItem => ({ label: x.title || x.url, icon: siteIcon(x.url), run: () => void web.go(id, "go-to", String(x.i)) })),
+      ...list.slice(0, 15).map((x): MenuItem => ({ label: x.title || x.url, icon: siteIcon(x.url), run: () => web.go(id, "go-to", String(x.i)) })),
       { label: "Show full history", icon: History, sep: list.length > 0, run: () => openView("web-history", { newTab: true }) },
     ])
   }
@@ -428,14 +428,14 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
           { label: bookmarked ? "Edit bookmark…" : "Bookmark this page…", icon: Star, hint: commandKeys("web:bookmark") || undefined,
             run: () => openBookmark(state.url, state.title, (starOf(id) ?? at).getBoundingClientRect()) },
           ...(id && web.find ? [{ label: "Find in page…", icon: Search, hint: commandKeys("web:find") || undefined, run: () => askFind("open") }] : []),
-          ...(id ? [{ label: "Print…", icon: Printer, run: () => void web.go(id, "print") }] : []),
+          ...(id ? [{ label: "Print…", icon: Printer, run: () => web.go(id, "print") }] : []),
           { label: "View page source", icon: FileCode2, hint: commandKeys("web:source") || undefined, run: () => viewSource(state.url, container, tab) },
-          ...(web.engine && id ? [{ label: "Block an element…", icon: MousePointerSquareDashed, run: () => void pickElement(id) }] : []),
-          { label: "Open in another browser", icon: ArrowUpRight, run: () => void web.external(state.url) },
+          ...(web.engine && id ? [{ label: "Block an element…", icon: MousePointerSquareDashed, run: () => pickElement(id) }] : []),
+          { label: "Open in another browser", icon: ArrowUpRight, run: () => web.external(state.url) },
           ...(web.player && id ? [away
             ? { label: "Bring back from player", icon: Undo2, sep: true, run: () => setPlayer(id, false) }
             : { label: "Open as player", icon: MonitorPlay, hint: commandKeys("web:player") || undefined, sep: true, run: () => setPlayer(id, true) }] : []),
-          ...(id ? [{ label: "Picture in picture", icon: PictureInPicture2, run: () => void pictureInPicture(web, id) }] : []),
+          ...(id ? [{ label: "Picture in picture", icon: PictureInPicture2, run: () => pictureInPicture(web, id) }] : []),
           ...withSep(actionItems(actions.filter((a) => a.kind !== "save"))),
           ...withSep(extensionItems(ext, at)),
           ...barItems(true),
@@ -477,10 +477,10 @@ function AgentChip({ id }: { id: number }) {
   }, [busy, page?.at])
   if (!page) return null
   const menu = (e: React.MouseEvent) => menuBelow(e, [
-    ...(page.taken ? [{ label: `Give back to ${page.by}`, icon: Play, run: () => void takeOver(id, false) }]
-      : page.held ? [{ label: "Take over", icon: MousePointer2, run: () => void takeOver(id, true) }] : []),
-    ...(page.taken ? [] : [{ label: page.paused ? "Resume agents in this tab" : "Pause agents in this tab", icon: page.paused ? Play : Pause, run: () => void pauseAgents(id, !page.paused) }]),
-    ...(page.own && page.tab ? [{ label: "Move to background", icon: MousePointer2, run: () => void toBackground(page) }] : []),
+    ...(page.taken ? [{ label: `Give back to ${page.by}`, icon: Play, run: () => takeOver(id, false) }]
+      : page.held ? [{ label: "Take over", icon: MousePointer2, run: () => takeOver(id, true) }] : []),
+    ...(page.taken ? [] : [{ label: page.paused ? "Resume agents in this tab" : "Pause agents in this tab", icon: page.paused ? Play : Pause, run: () => pauseAgents(id, !page.paused) }]),
+    ...(page.own && page.tab ? [{ label: "Move to background", icon: MousePointer2, run: () => toBackground(page) }] : []),
     { label: "Show agents in the browser", icon: AppWindow, sep: true, run: () => openView("agent-runs", { newTab: true }) },
   ])
   const label = page.paused ? "Paused" : busy ? page.what : page.by

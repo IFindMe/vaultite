@@ -26,6 +26,6 @@ async function formatFile(path: string) {
 }
 
 export default definePlugin({
-  commands: [{ id: "linter:format", name: "Format note", when: () => currentEditor()?.kind === "markdown", run: () => void formatOpen() }],
-  fileMenu: (path) => (/\.md$/i.test(path) ? [{ label: "Format note", icon: Sparkles, section: "actions", run: () => void formatFile(path) }] : []),
+  commands: [{ id: "linter:format", name: "Format note", when: () => currentEditor()?.kind === "markdown", run: () => formatOpen() }],
+  fileMenu: (path) => (/\.md$/i.test(path) ? [{ label: "Format note", icon: Sparkles, section: "actions", run: () => formatFile(path) }] : []),
 })

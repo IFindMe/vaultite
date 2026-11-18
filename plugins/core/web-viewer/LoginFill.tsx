@@ -82,7 +82,7 @@ export function LoginButton({ id, url, container, shown }: { id: number; url: st
   if (!form || !logins?.length) return null
   return (
     <button type="button" aria-label="Fill login" aria-haspopup="menu" data-tip="Fill login" data-web-login
-      onClick={(e) => menuBelow(e, logins.map((l) => ({ label: nameOf(l), hint: l.title ? l.username : undefined, run: () => void fill(id, l) })))}
+      onClick={(e) => menuBelow(e, logins.map((l) => ({ label: nameOf(l), hint: l.title ? l.username : undefined, run: () => fill(id, l) })))}
       className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[5px] text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground">
       <KeyRound className="size-3.5" strokeWidth={2} />
     </button>

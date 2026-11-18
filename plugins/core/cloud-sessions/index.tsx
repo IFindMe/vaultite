@@ -50,9 +50,9 @@ export default definePlugin({
   commands: [
     { id: "cloud-sessions:new", name: "New cloud session", when: reading, icon: Cloud, run: () => pickAccount((a) => newSession(a)) },
     { id: "cloud-sessions:open-list", name: "Open cloud sessions in a tab", when: hasCloud, icon: Cloud, run: () => openView("view:cloud", { newTab: !isViewOpen("view:cloud") }) },
-    { id: "cloud-sessions:send-note", name: "Send note to a new cloud session", when: () => reading() && !!here(), icon: Send, run: () => void sendNote(here()) },
+    { id: "cloud-sessions:send-note", name: "Send note to a new cloud session", when: () => reading() && !!here(), icon: Send, run: () => sendNote(here()) },
   ],
-  fileMenu: (path) => (isNote(path) && reading() ? [{ label: "Send to a new cloud session", icon: Send, section: "actions", run: () => void sendNote(path) }] : []),
+  fileMenu: (path) => (isNote(path) && reading() ? [{ label: "Send to a new cloud session", icon: Send, section: "actions", run: () => sendNote(path) }] : []),
   searchLive: {
     subscribe: subscribeCloud,
     docs: () => {

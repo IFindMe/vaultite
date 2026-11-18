@@ -51,10 +51,10 @@ export default definePlugin({
   commands: [
     { id: "mind-map:open", name: "Open mind map", run: () => openMap(currentFile()) },
     { id: "mind-map:open-split", desktop: true, name: "Open mind map in right split", run: () => openMap(currentFile(), true) },
-    { id: "mind-map:canvas", name: "Turn mind map into a canvas", run: () => void toCanvas(currentFile()) },
+    { id: "mind-map:canvas", name: "Turn mind map into a canvas", run: () => toCanvas(currentFile()) },
   ],
   fileMenu: (path) => (/\.md$/i.test(path) ? [{ label: "Open mind map", icon: Network, section: "more", run: () => openMap(path) },
-    { label: "Turn mind map into a canvas", icon: LayoutDashboard, section: "more", run: () => void toCanvas(path) }] : []),
+    { label: "Turn mind map into a canvas", icon: LayoutDashboard, section: "more", run: () => toCanvas(path) }] : []),
   blocks: {
     "mind-map": ({ path, options }) => {
       const depth = Math.max(1, Math.min(9, Number(options.depth) || 9))

@@ -74,7 +74,7 @@ function inContainer(s: Store, url: string, from?: string): MenuItem[] {
   const always = (path: string, c: WebContainer) => {
     const off = mine?.id === c.id
     void setProperty(path, "container", off ? undefined : c.id).then(() => notify(off ? `This note's links no longer open in ${c.name}` : `This note's links open in ${c.name}`,
-      { action: { label: "Undo", run: () => void setProperty(path, "container", note).catch((e) => notifyError(e, "Couldn't undo it")) } }),
+      { action: { label: "Undo", run: () => setProperty(path, "container", note).catch((e) => notifyError(e, "Couldn't undo it")) } }),
     (e) => notifyError(e, "Couldn't change the note"))
   }
   const dot = (c: WebContainer) => dotIcon(colorVar(c.color))

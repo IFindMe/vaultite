@@ -68,7 +68,7 @@ export default definePlugin({
     run: (put) => { const f = activeFile(); if (f) return addPhotos(f.path, put) },
   }]),
   fileMenu: (path) => (/\.md$/i.test(path) && !path.startsWith(".")
-    ? [{ label: "Add photo or video", icon: ImagePlus, section: coarse() ? "actions" : "more", run: () => void addPhotos(path) }] : []),
+    ? [{ label: "Add photo or video", icon: ImagePlus, section: coarse() ? "actions" : "more", run: () => addPhotos(path) }] : []),
   editor: () => { void load(); return import("./menu").then((m) => m.editorMenu) },
   background: () => <NoteKeys />,
 })

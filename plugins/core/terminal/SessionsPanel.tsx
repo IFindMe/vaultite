@@ -53,7 +53,7 @@ export function menuOf(s: Session, a: Agent | null): MenuItem[] {
     { label: "Copy terminal ID", icon: Copy, run: copy(s.id, "terminal ID") },
     ...(conversation ? [{ label: "Open conversation", icon: MessagesSquare, sep: true, run: () => openView(conversation, { newTab: !isViewOpen(conversation) }) }] : []),
     ...viewMenuItems(`view:terminal/${s.id}`).map((it, i) => (i ? it : { ...it, sep: true })),
-    { label: "End session", icon: X, danger: true, sep: true, run: () => void endForGood(s.id) },
+    { label: "End session", icon: X, danger: true, sep: true, run: () => endForGood(s.id) },
   ]
 }
 
@@ -139,10 +139,10 @@ function Rows({ list, open, tab, page }: { list: Session[]; open: boolean; tab: 
 
 export function newMenu(e: MouseEvent, agents: Agent[]) {
   menuBelow(e, [
-    { label: "New terminal", icon: SquareTerminal, run: () => void openTerminal() },
+    { label: "New terminal", icon: SquareTerminal, run: () => openTerminal() },
     ...agents.map((a, i) => ({ label: `New ${a.label}`, icon: a.icon, sep: i === 0, run: () => openAgent(a.name) })),
-    { label: "Choose where…", icon: Monitor, sep: true, run: () => void choosePlace() },
-    { label: "Where new ones open…", icon: Monitor, run: () => void chooseDefaultPlace() },
+    { label: "Choose where…", icon: Monitor, sep: true, run: () => choosePlace() },
+    { label: "Where new ones open…", icon: Monitor, run: () => chooseDefaultPlace() },
   ])
 }
 

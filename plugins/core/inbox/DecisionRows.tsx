@@ -37,7 +37,7 @@ function settle(r: InboxItem, fields: Partial<InboxItem>, write: () => Promise<D
   return optimistic((s) => ({ ...s, inbox: (s.inbox ?? []).map((x) => (x.id === r.id ? { ...x, ...now } : x)) }), write, "Couldn't answer it").then((out) => {
     const at = out.decided[0]?.path
     if (out.failed.length) notifyError(new Error(out.failed.join("; ")), "Answered, but couldn't tell its agent")
-    else notify(said(out), { id: `decide-${r.id}`, action: at && !out.sent.length ? { label: "Undo", run: () => void undo(at) } : undefined })
+    else notify(said(out), { id: `decide-${r.id}`, action: at && !out.sent.length ? { label: "Undo", run: () => undo(at) } : undefined })
     return out
   }, () => null)
 }
@@ -64,7 +64,7 @@ export async function acceptAll(rs: InboxItem[]) {
     () => op<{ decided: { path: string }[]; failed: string[] }>("inbox.decide", { defaults: true }), "Couldn't accept them").catch(() => null)
   if (!out) return
   const back = out.decided.map((d) => d.path)
-  notify(`Accepted ${back.length === 1 ? "its default" : `${back.length} defaults`}`, { id: "decide-all", action: waiting.length ? undefined : { label: "Undo", run: () => void Promise.all(back.map(undo)) } })
+  notify(`Accepted ${back.length === 1 ? "its default" : `${back.length} defaults`}`, { id: "decide-all", action: waiting.length ? undefined : { label: "Undo", run: () => Promise.all(back.map(undo)) } })
 }
 
 const tall = "max-md:h-11 max-md:rounded-[10px] max-md:px-4 max-md:text-[15px]"
@@ -122,9 +122,9 @@ const menuOf = (r: InboxItem, store: Store | null | undefined, snooze?: (r: Inbo
     { label: "Open", icon: FileText, run: () => openFile(pathOf(r)) },
     ...(rep ? [{ label: "Open its report", icon: FileText, run: () => openFile(pathOf(rep)) }] : []),
     ...(reachable(r) ? [{ label: "Go to session", icon: SquareTerminal, run: () => goTo(r) }] : []),
-    ...(r.default ? [{ label: `Accept the default (${r.default})`, icon: Check, sep: true, run: () => void keepDefault(r) }] : []),
+    ...(r.default ? [{ label: `Accept the default (${r.default})`, icon: Check, sep: true, run: () => keepDefault(r) }] : []),
     ...(snooze ? [snooze(r)] : []),
-    { label: "Close without answering", icon: X, sep: true, run: () => void closeIt(r) },
+    { label: "Close without answering", icon: X, sep: true, run: () => closeIt(r) },
   ]
 }
 

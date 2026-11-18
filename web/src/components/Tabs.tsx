@@ -251,7 +251,7 @@ export function tabsMenu(ids: string[], phone = false): MenuItem[] {
       ...(isPopout() && hasMainWindow() ? [{ label: "Move to main window", icon: AppWindow, sep: true, run: () => moveToMain(ids) }] : []),
       { label: "Move to new window", icon: AppWindow, sep: !(isPopout() && hasMainWindow()), run: () => popOut(ids, true), disabled: tabs.every(isBlankTab) },
     ]),
-    ...(files.length ? [{ label: files.length === 1 ? "Copy path" : "Copy paths", icon: FileText, sep: true, run: () => void copyText(files.join("\n")) }] : []),
+    ...(files.length ? [{ label: files.length === 1 ? "Copy path" : "Copy paths", icon: FileText, sep: true, run: () => copyText(files.join("\n")) }] : []),
   ]
 }
 
