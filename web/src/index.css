@@ -1055,8 +1055,9 @@ body[data-resizing] [data-status-bar] { transition: none; }
 /* A conflict in place (editor/conflicts.ts): the user's lines tinted blue under "Yours", the other version below in
    purple, each with Keep. Big enough for a finger. */
 .cm-clash { --clash: var(--blue); border-left: 3px solid var(--clash); background: color-mix(in srgb, var(--clash) 7%, transparent); padding: 6px 8px 6px 10px; }
-.cm-clash-mine { margin-top: 8px; border-radius: 6px 6px 0 0; padding-bottom: 2px; }
-.cm-clash-theirs { --clash: var(--purple); margin-bottom: 8px; border-radius: 0 0 6px 6px; }
+/* Its bar runs on through the lines between, so its left corners stay square (a marked box's bar can't). */
+.cm-clash-mine { margin-top: 8px; border-radius: 0 6px 0 0; padding-bottom: 2px; }
+.cm-clash-theirs { --clash: var(--purple); margin-bottom: 8px; border-radius: 0 0 6px 0; }
 .cm-line.cm-clash-line { box-shadow: inset 3px 0 0 var(--blue); background: color-mix(in srgb, var(--blue) 7%, transparent); padding-left: 13px; }
 .cm-clash-note, .cm-clash-bar, .cm-clash button { font-family: var(--font-sans); font-size: 13px; line-height: 18px; }
 .cm-clash-note { margin-bottom: 4px; color: var(--muted-foreground); }
@@ -1112,12 +1113,21 @@ body[data-resizing] [data-status-bar] { transition: none; }
   --pele-series-5: var(--teal); --pele-series-6: var(--yellow); --pele-series-7: var(--purple); --pele-series-8: var(--pink);
 }
 .vau-editor .cm-block-math, .vau-editor .cm-block-mermaid { padding: 8px 0; }
-/* Callouts: > [!type] Title (core/markdown.ts); each type's colour from the scheme */
-/* The bar is drawn inside the box, so the rounded corners don't bend it. */
+/* A marked box: tinted and rounded, with a bar at its start in --mark (a callout, a change in History, a plan's event).
+   The bar is a line drawn inside the box, never its left border or an inset shadow, which bend round the corners.
+   --mark-x / --mark-y: the bar's inset from the box's edge (y from its top and bottom); --mark-tint: the box's tint.
+   A bar running on past one box (rows of the editor's lines) is a border with the left corners square instead.
+   A callout's markup is Obsidian's (core/callouts.ts), so it's named here rather than given the class. */
+@layer components {
+  :where(.marked, .callout) { --mark: var(--primary); --mark-x: 5px; --mark-y: 5px; --mark-tint: 10%; position: relative;
+    border-radius: var(--radius-control); padding-left: calc(var(--mark-x) + 11px); background: color-mix(in srgb, var(--mark) var(--mark-tint), transparent); }
+  :where(.marked, .callout)::before { content: ""; position: absolute; left: var(--mark-x); top: var(--mark-y); bottom: var(--mark-y); width: 3px;
+    border-radius: 1.5px; background: var(--mark); pointer-events: none; }
+}
+/* Callouts: > [!type] Title (core/callouts.ts); each type's colour from the scheme, a marked box (above). */
 /* An Obsidian snippet's --callout-color (r, g, b) wins over the type's; unset, --callout-tint is invalid and falls back. */
-.callout { --callout: var(--blue); --callout-tint: rgb(var(--callout-color)); position: relative; margin: 0 0 14px; padding: 10px 14px 10px 22px;
-  border-radius: 10px; background: color-mix(in srgb, var(--callout-tint, var(--callout)) 9%, transparent); }
-.callout::before { content: ""; position: absolute; left: 8px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--callout-tint, var(--callout)); }
+.callout { --callout: var(--blue); --callout-tint: rgb(var(--callout-color)); --mark: var(--callout-tint, var(--callout)); --mark-x: 8px; --mark-y: 10px;
+  --mark-tint: 9%; margin: 0 0 14px; padding: 10px 14px 10px 22px; border-radius: var(--radius-card); }
 .callout[data-callout="abstract"], .callout[data-callout="tip"] { --callout: var(--teal); }
 .callout[data-callout="success"] { --callout: var(--green); }
 .callout[data-callout="question"], .callout[data-callout="warning"] { --callout: var(--orange); }

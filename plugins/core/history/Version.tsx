@@ -81,7 +81,7 @@ export function VersionPane({ path, v, text, before, restoring, onRestore, bar }
         {!shown ? <Loading className="font-sans text-[13px]" />
           : shown.kind === "lines" ? <DiffRows lines={shown.lines} />
           : shown.pieces.map((p, i) => (
-            <div key={i} data-change={p.kind === "same" ? undefined : p.kind}>
+            <div key={i} data-change={p.kind === "same" ? undefined : p.kind} className={p.kind === "same" ? undefined : "marked"}>
               <Markdown text={p.md} from={path} full />
             </div>
           ))}

@@ -94,9 +94,9 @@ function Timeline({ path, body, options, editable }: { path: string; body: strin
         return (
           <div key={event ? `event-${i}` : `${e.line}`} data-plan-item={e.text} data-plan-event={event ? "" : undefined}
             data-tip={`${hhmm(e.start)}–${hhmm(e.end)} ${e.text}${event && e.calendar ? ` · ${e.calendar}` : ""}`}
-            className={cn("absolute overflow-hidden rounded-[6px] border-l-[3px] px-2 py-0.5 text-[13px] leading-[17px]", e.done ? "opacity-55" : "", on ? "font-medium" : "")}
+            className={cn("marked absolute overflow-hidden py-0.5 pr-2 text-[13px] leading-[17px] [--mark-y:3px]", e.done ? "opacity-55" : "", on ? "font-medium" : "")}
             style={{ top: top + 1, height: Math.max(18, bottom - top - 2), left: `calc(52px + (100% - 52px) * ${l / of})`, width: `calc((100% - 52px) / ${of} - 3px)`,
-              borderColor: ink, background: `color-mix(in oklab, ${ink} ${on ? 26 : 14}%, var(--background))` }}>
+              "--mark": ink, background: `color-mix(in oklab, ${ink} ${on ? 26 : 14}%, var(--background))` }}>
             {e.done !== null && editable && (
               <button type="button" role="checkbox" aria-checked={!!e.done} aria-label={e.done ? `Not done: ${e.text}` : `Done: ${e.text}`} data-plan-tick
                 onClick={(ev) => { ev.stopPropagation(); void tick(path, e) }}

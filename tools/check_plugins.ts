@@ -13,6 +13,7 @@ import { blockProblems, iconNames, inside, listedPackage, nodeSide, PLUGIN_PACKA
 import { ICON_NAME } from "../core/pluginmeta.ts"
 import { opProblems } from "../core/ops.ts"
 import { isObj } from "../core/values.ts"
+import { bentBar, styleRules } from "./bentbar.ts"
 
 // core/plugins.ts reads VAULTITE_LOCAL as it loads: set it first, and import what imports it only after.
 const SCRATCH = fs.mkdtempSync(path.join((await import("node:os")).tmpdir(), "vaultite-check-"))
@@ -324,6 +325,12 @@ for (const f of sources.filter((f) => /\.(tsx|css)$/.test(f))) {
   fs.readFileSync(f, "utf8").split("\n").forEach((l, i) => {
     if (/\*\s*\+\s*\*/.test(l) && !/^\s*(\/\/|\/?\*)/.test(l)) problems.push(`${path.relative(ROOT, f)}:${i + 1}: \`* + *\` restyles the whole list as it changes: :where(:not(:first-child))`)
   })
+}
+
+for (const f of sources.filter((f) => /\.(tsx?|css)$/.test(f) && !f.includes(`${path.sep}tools${path.sep}`))) {
+  const text = fs.readFileSync(f, "utf8")
+  for (const { at, rule } of styleRules(text, f.endsWith(".css")))
+    if (bentBar(rule)) problems.push(`${path.relative(ROOT, f)}:${text.slice(0, at).split("\n").length}: a left bar on a box with rounded left corners bends round them: make it a marked box (class \`marked\`, its colour in --mark: web/src/index.css), or square the left corners where the bar runs on past the box`)
 }
 
 {

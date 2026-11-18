@@ -91,7 +91,7 @@ class Cells extends WidgetType {
   eq(o: Cells) { return o.tint === this.tint && o.p.c.id === this.p.c.id && o.p.c.find === this.p.c.find && o.p.c.text === this.p.c.text && o.p.table?.head === this.p.table?.head }
   toDOM() {
     const { n, c, table } = this.p, d = document.createElement("div")
-    d.className = "cm-companion-cells"
+    d.className = "cm-companion-cells marked"
     d.setAttribute("data-companion-change", c.id)
     d.style.setProperty("--c", this.tint)
     const top = d.appendChild(document.createElement("div"))
@@ -263,8 +263,8 @@ const theme = EditorView.baseTheme({
   ".cm-companion-pending .companion-dots": { color: "var(--c)" },
   "@keyframes cm-companion-breathe": { "0%, 100%": { opacity: ".65" }, "50%": { opacity: "1" } },
   "@media (prefers-reduced-motion: reduce)": { ".cm-companion-pending, .cm-companion-coming": { animation: "none" } },
-  ".cm-companion-cells": { margin: "4px 0 6px", padding: "6px 8px 8px", borderRadius: "8px", boxShadow: "inset 2px 0 0 var(--c)", fontSize: ".9em",
-    backgroundColor: "color-mix(in srgb, var(--c) 6%, transparent)", animation: "cm-companion-in .3s ease-out" },
+  ".cm-companion-cells": { "--mark": "var(--c)", "--mark-tint": "6%", margin: "4px 0 6px", padding: "6px 8px 8px", paddingLeft: "calc(var(--mark-x) + 11px)",
+    fontSize: ".9em", animation: "cm-companion-in .3s ease-out" },
   ".cm-companion-cells-top": { display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px", fontSize: "12px", color: "var(--muted-foreground)", fontFamily: "var(--font-sans)" },
   ".cm-companion-cells-top > b": { color: "var(--c)", fontWeight: "600" },
   ".cm-companion-cells-top button": { padding: "1px 8px", borderRadius: "6px", cursor: "pointer", fontWeight: "550", color: "var(--foreground)", lineHeight: "18px" },

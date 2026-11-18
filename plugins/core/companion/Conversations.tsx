@@ -213,7 +213,7 @@ function Thread({ n, picked, resolved }: { n: Note; picked: boolean; resolved: b
           </button>}
       </div>
       {n.find && (
-        <div className="line-clamp-2 rounded-[6px] border-l-2 bg-foreground/[0.035] py-1 pr-2 pl-2 text-[12px] leading-[17px] text-muted-foreground" style={{ borderColor: tint }}>
+        <div className="marked line-clamp-2 py-1 pr-2 text-[12px] leading-[17px] text-muted-foreground [--mark-tint:6%]" style={{ "--mark": tint }}>
           {suggestion ? <><span className="line-through">{cut(snippet(n.find), 120)}</span> <span className="font-medium" style={{ color: ink(tint) }}>{cut(snippet(n.replace ?? ""), 120)}</span></> : cut(snippet(n.find), 160)}
         </div>
       )}

@@ -45,6 +45,8 @@
 - Density: sizes that follow it are spacing units (`h-6.5`, `space(n)`); px for text, icons, hairlines, radii.
 - Radii come in three (index.css): `rounded-card` (a pane), `rounded-control` (tabs, chips, fields), `rounded-chip`
   (set in a card's corner: concentric, the card's radius less its inset). New UI uses them, not a literal.
+- A bar at a box's start (a callout, a change, an event) is a marked box (class `marked`, its colour in `--mark`:
+  index.css), never a left border or inset shadow on a rounded box, which bend round its corners (`npm run check`).
 - Markdown is never shown raw: `snippet(md)` or `<Markdown>`.
 - Chrome isn't text (index.css): only content selects (editors, fields, `<Markdown>`, `pre`/`code`); other text a person
   may copy opts in with `select-text`, a view inside content is `data-chrome`; chrome needs no `select-none`.

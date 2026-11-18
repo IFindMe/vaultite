@@ -3,6 +3,7 @@
 import { check, exit, section, summary } from "./test/lib.ts"
 import { compare } from "./ratchet/compare.ts"
 import { type Finding, lint } from "./ratchet/lint.ts"
+import { bentBar, styleRules } from "./bentbar.ts"
 
 const t0 = Date.now()
 const rulesOf = (file: string, text: string) => lint(new Map([[file, text]]), false).map((f) => f.rule)
@@ -46,6 +47,18 @@ await section("rules on past mistakes", () => {
 })
 
 const f = (rule: string, text: string, weight = 1, file = "a.ts"): Finding => ({ rule, file, line: 1, text, weight, message: "" })
+
+section("bent bars (npm run check)")
+const bent = (text: string, css = true) => styleRules(text, css).filter((r) => bentBar(r.rule)).length
+check("an inset shadow in a rounded box is bent", bent(".c { border-radius: 6px; box-shadow: inset 3px 0 0 var(--c); }") === 1)
+check("a marked box isn't", !bent(".c { --mark: var(--c); --mark-tint: 12%; }"))
+check("a class list with rounded and border-l-3 is bent", bent("<div className=\"rounded-[6px] border-l-[3px] px-2\" />", false) === 1)
+check("a style object with borderRadius and an inset bar is", bent("\".x\": { borderRadius: \"8px\", boxShadow: \"inset 2px 0 0 var(--c)\" },", false) === 1)
+check("square left corners aren't", !bent(".c { border-left: 3px solid; border-radius: 0 6px 6px 0; }") && !bent("<p className=\"rounded-r-[6px] border-l-2\" />", false))
+check("a hairline isn't a bar", !bent("<p className=\"rounded-tl-[8px] border-l-[0.5px]\" />", false))
+check("a quote's straight bar isn't", !bent("blockquote { border-left: 3px solid var(--notes); padding-left: 14px; }"))
+check("rules apart aren't one", !bent(".a { border-left: 3px solid; }\n.b { border-radius: 6px; }"))
+check("a comment isn't a rule", !bent("/* border-left: 3px; border-radius: 6px; */ .a { color: red; }"))
 
 section("ratchet")
 check("a new finding grows its rule", compare([], [f("r", "x")]).map((g) => g.rule).join() === "r")
