@@ -171,12 +171,19 @@ export function holdPlace(box: HTMLElement | null, off: () => number | null, opt
 const changing = new WeakMap<EditorView, Set<(c: ChangeDesc) => void>>()
 export function textChanged(view: EditorView, c: ChangeDesc) { for (const f of changing.get(view) ?? []) f(c) }
 
-export function keepOnScreen(view: EditorView, pos: number, top: (pos: number) => number | null, at: number, there?: () => void) {
+type LineTop = (pos: number) => number | null
+
+function holdLine(view: EditorView, pos: number, top: LineTop, at: (box: HTMLElement | null) => number, there?: () => void) {
   const follow = (c: ChangeDesc) => { pos = c.mapPos(pos, 1) }
   const all = changing.get(view) ?? new Set()
   changing.set(view, all.add(follow))
   const pane = view.dom.closest<HTMLElement>("[data-pane]")
-  const box = scrollingBox(view.dom) ?? (pane && /auto|scroll/.test(getComputedStyle(pane).overflowY) ? pane : null), y = inSight(box, at)
+  const box = scrollingBox(view.dom) ?? (pane && /auto|scroll/.test(getComputedStyle(pane).overflowY) ? pane : null), y = at(box)
   return holdPlace(box, () => { const t = top(pos); return t === null ? null : t - y },
     { measure: (read, write) => view.requestMeasure({ read, write }), gone: () => !view.dom.isConnected, there, done: () => all.delete(follow) })
 }
+
+export const keepOnScreen = (view: EditorView, pos: number, top: LineTop, at: number, there?: () => void) =>
+  holdLine(view, pos, top, (box) => inSight(box, at), there)
+
+export const keepInPlace = (view: EditorView, pos: number, top: LineTop, at: number) => holdLine(view, pos, top, () => at)

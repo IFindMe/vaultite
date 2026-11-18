@@ -31,7 +31,7 @@ import { getPrefs } from "@/core/prefs"
 import type { SlashItem } from "@/core/define"
 import type { LinkClick } from "@/core/links"
 import { docChanged, registerDoc } from "@/core/anchors"
-import { textChanged } from "@/core/anchor"
+import { keepInPlace, textChanged } from "@/core/anchor"
 import { registerEditor } from "@/core/editors"
 import { runShortcut } from "@/core/commands"
 import { textChanges, type Clash } from "@/core/merge"
@@ -350,18 +350,14 @@ export default function Editor({ doc, editable, config, onChange, onOpen, links,
       replace: (text) => {
         const changes = textChanges(v.state.doc.toString(), fill(text))
         if (!changes.length) return
-        // CodeMirror keeps what's read in place only while focused, so the pane is scrolled by as much as the top line moved.
+        // CodeMirror keeps what's read in place only while focused: the line on top stays where it was before the change.
         const sc = scrollingBox(v.dom)
         const h = (sc ? sc.getBoundingClientRect().top : 0) - v.documentTop
         const anchor = !v.hasFocus && h > 0 && h < v.contentHeight ? v.lineBlockAtHeight(h) : null
+        const was = anchor ? v.documentTop + anchor.top : 0
         const tr = v.state.update({ changes, annotations: [Transaction.remote.of(true), Transaction.addToHistory.of(false), hosts.of(true)] })
         v.dispatch(tr)
-        if (!anchor) return
-        const pos = tr.changes.mapPos(anchor.from, 1), was = v.documentTop + anchor.top
-        v.requestMeasure({
-          read: () => v.documentTop + v.lineBlockAt(Math.min(pos, v.state.doc.length)).top - was,
-          write: (moved) => { if (Math.abs(moved) >= 1) { if (sc) sc.scrollTop += moved; else window.scrollBy(0, moved) } },
-        })
+        if (anchor) keepInPlace(v, tr.changes.mapPos(anchor.from, 1), (p) => v.documentTop + v.lineBlockAt(p).top, was)
       },
       conflict: (text, clashes, who, open, note) => {
         const at = shownStart(v.state)

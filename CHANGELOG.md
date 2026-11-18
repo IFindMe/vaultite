@@ -14,6 +14,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Dictation: Deepgram, AssemblyAI, OpenAI and ElevenLabs recognize too (the Recognizer setting, each with its key:
   `vau dictation key --provider deepgram`), through the server so their keys never leave it; the iPhone gets Soniox's with a
   key that opens one stream, or its own recognizer when On the iPhone says so.
+- Notes: a note whose file changes while you read it (your reply kept in a report, an agent's edit) stays where you
+  were, where it could jump up a little as the blocks near its end were drawn again.
 - Inbox: a session's sheet starts with Open session, then Settle, Pin and Snooze, labelled on phones too; a report has
   Open session in its top bar. Settle shows a single tick, who delegated a session is in the line under its title, and
   a subagent that needs you is marked. Disabled buttons, such as Send with nothing typed, are now grey.
