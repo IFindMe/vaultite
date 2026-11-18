@@ -6,7 +6,7 @@ import { edgeScroller, getDrag, onDrag, rehit, startDrag, useDrag, useDragItem, 
 import { openView } from "@/core/files"
 import { openDetail } from "@/core/nav"
 import { isDesktop } from "@/core/platform"
-import { dockAtEnd, dockPanel, drawerPanels, headerItems, headingMode, hideBarItem, hidePanel, isBarItem, setHeaderItemShown, shownHeaderItems, panelsIn, setPanelDocked, setPanelHeight, sideOf, sidebarPanels, sidebars, togglePanelCollapsed, useSidebars, type PanelOf, type Side } from "@/core/plugins"
+import { dockAtEnd, dockPanel, drawerPanels, headingMode, hideBarItem, hidePanel, isBarItem, panelsIn, setPanelDocked, setPanelHeight, sideOf, sidebarPanels, sidebars, togglePanelCollapsed, useSidebars, type PanelOf, type Side } from "@/core/plugins"
 import { getPrefs, usePrefs } from "@/core/prefs"
 import { firstKeys, keyCaps, runCommandById, useCommandKeys } from "@/core/commands"
 import { useDismiss } from "@/core/focus"
@@ -30,6 +30,7 @@ import { watchHeadingPeek } from "@/core/headingpeek"
 import { useStateFor } from "@/core/statefor"
 import { SwipeRow, type SwipeAction } from "@/components/SwipeRow"
 import { closestOf } from "@/core/dom"
+import { barOf, canGoInBar, placeInBar, takeOutOfBars, type SidebarBar } from "@/core/sidebarbars"
 export { PanelFold, SidebarHeading }
 
 const PANELS = "panels"
@@ -65,7 +66,7 @@ export function SidebarPanels({ head, side = "left", ...ctx }: SidebarCtx & { he
     return same && !movesIn(item) ? null : { before, order, weak }
   }, (item, h) => {
     const keys = draggedPanels(item)
-    if (item.from !== "panel") arrive(box.current, keys, held.current.x, held.current.y)
+    if (item.from !== "panel" || !item.drawn) arrive(box.current, keys, held.current.x, held.current.y)
     dockPanel(keys, { side, before: h.before })
     closeMovedIn(item)
   }, { hint: () => { const it = getDrag()?.item; return it && intoHint(it, side) }, weak: (h) => h.weak, end: edge.stop })
@@ -225,26 +226,49 @@ export function SidebarToggle({ side, open, empty, onClick, className, style }: 
 const OWNED = "[role=menu], [aria-label='Close menu'], [data-sonner-toaster], dialog, [data-flyout], .vau-tooltips"
 const editing = (e: KeyboardEvent) => !!closestOf(e.target, ".cm-editor")
 
-function RailFlyout({ panel, ctx, open, setOpen }: { panel: SidebarPanel; ctx: SidebarCtx; open: boolean; setOpen: (v: boolean) => void }) {
+type FlyoutAt = { top: number; left?: number }
+const flyoutAt = (r: DOMRect, h: number, width: number, bar?: SidebarBar): FlyoutAt => !bar
+  ? { top: Math.max(8, Math.min(r.top - 4, innerHeight - 8 - h)) }
+  : { left: Math.max(8, Math.min(r.left - 4, innerWidth - 8 - width)), top: bar === "header" ? r.bottom + 6 : Math.max(8, r.top - 6 - h) }
+
+export function RailFlyout({ panel, ctx, open, setOpen, bar, button = !!bar }: { panel: SidebarPanel; ctx: SidebarCtx; open: boolean; setOpen: (v: boolean) => void; bar?: SidebarBar; button?: boolean }) {
   const icon = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
-  const [top, setTop] = useState(0)
+  const [at, setAt] = useState<FlyoutAt>({ top: 0 })
+  const width = panel.flyout!.width ?? 260
   useLayoutEffect(() => {
     if (!open) return
-    const place = () => {
-      if (!icon.current || !box.current) return
-      const h = Math.min(box.current.offsetHeight, innerHeight - 16)
-      setTop(Math.max(8, Math.min(icon.current.getBoundingClientRect().top - 4, innerHeight - 8 - h)))
-    }
+    const place = () => { if (icon.current && box.current) setAt(flyoutAt(icon.current.getBoundingClientRect(), Math.min(box.current.offsetHeight, innerHeight - 16), width, bar)) }
     place()
     const ro = new ResizeObserver(place)
     if (box.current) ro.observe(box.current)
     addEventListener("resize", place)
     return () => { ro.disconnect(); removeEventListener("resize", place) }
-  }, [open])
+  }, [open, bar, width])
   useDismiss(open, () => setOpen(false), { inside: OWNED, anchor: icon, hash: true, escape: (e) => !getDrag() && !editing(e) })
-  const Icon = panel.flyout!.icon
   const side = useContext(SidebarSide)
+  useAsideWhileDragging(box, open)
+  const Trigger = button ? FlyoutButton : FlyoutRow
+  return (
+    <div ref={icon}>
+      <Trigger panel={panel} at={ctx.panel} open={open} toggle={() => setOpen(!open)} tipSide={bar === "foot" ? "top" : bar ? undefined : side === "right" ? "left" : "right"} />
+      {open && createPortal(
+        <div ref={box} data-flyout={ctx.panel} role="dialog" aria-label={panel.title}
+          className={cn("fixed z-40 flex flex-col overflow-hidden rounded-[8px] border-[0.5px] border-border bg-sidebar px-2 pb-2 shadow-[0_8px_28px_rgb(0_0_0/0.16),0_1px_3px_rgb(0_0_0/0.08)] transition-opacity duration-150",
+            !panel.tall && "overflow-y-auto", "data-aside:pointer-events-none data-aside:opacity-0")}
+          style={{ ...(at.left === undefined ? { [side]: `calc(${space(RAIL)} + 6px)` } : { left: at.left }), top: at.top, width, ...(panel.tall ? { height: Math.min(560, innerHeight * 0.7) } : { maxHeight: innerHeight - 16 }) }}>
+          <PanelFold.Provider value={null}>
+            {panel.heading !== false && <SidebarHeading title={panel.heading ?? panel.title} open>{panel.actions?.({ ...ctx, open: true, flyout: true, bounded: true })}</SidebarHeading>}
+            <Guard what={`The ${panel.title} panel`}><Drawn draw={() => panel.render({ ...ctx, open: true, flyout: true, bounded: true })} /></Guard>
+          </PanelFold.Provider>
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
+function useAsideWhileDragging(box: React.RefObject<HTMLDivElement | null>, open: boolean) {
   useEffect(() => {
     if (!open) return
     return onDrag(() => {
@@ -254,24 +278,21 @@ function RailFlyout({ panel, ctx, open, setOpen }: { panel: SidebarPanel; ctx: S
       const r = el.getBoundingClientRect()
       if (d.x < r.left || d.x > r.right || d.y < r.top || d.y > r.bottom) el.setAttribute("data-aside", "")
     })
-  }, [open])
+  }, [box, open])
+}
+
+type TriggerProps = { panel: SidebarPanel; at?: string; open: boolean; toggle: () => void; tipSide?: string }
+const FlyoutRow = ({ panel, at, open, toggle }: TriggerProps) => (
+  <SidebarRow icon={panel.flyout!.icon} label={panel.title} open={false} active={open} tip={open ? null : undefined} data-flyout-icon={at} data-open={open ? "" : undefined} onClick={toggle} />
+)
+const FlyoutButton = ({ panel, at, open, toggle, tipSide }: TriggerProps) => {
+  const Icon = panel.flyout!.icon
   return (
-    <div ref={icon}>
-      <SidebarRow icon={Icon} label={panel.title} open={false} active={open} tip={open ? null : undefined} data-flyout-icon={ctx.panel}
-        data-open={open ? "" : undefined} onClick={() => setOpen(!open)} />
-      {open && createPortal(
-        <div ref={box} data-flyout={ctx.panel} role="dialog" aria-label={panel.title}
-          className={cn("fixed z-40 flex flex-col overflow-hidden rounded-[8px] border-[0.5px] border-border bg-sidebar px-2 pb-2 shadow-[0_8px_28px_rgb(0_0_0/0.16),0_1px_3px_rgb(0_0_0/0.08)] transition-opacity duration-150",
-            !panel.tall && "overflow-y-auto", "data-aside:pointer-events-none data-aside:opacity-0")}
-          style={{ [side]: `calc(${space(RAIL)} + 6px)`, top, width: panel.flyout!.width ?? 260, ...(panel.tall ? { height: Math.min(560, innerHeight * 0.7) } : { maxHeight: innerHeight - 16 }) }}>
-          <PanelFold.Provider value={null}>
-            {panel.heading !== false && <SidebarHeading title={panel.heading ?? panel.title} open>{panel.actions?.({ ...ctx, open: true, flyout: true, bounded: true })}</SidebarHeading>}
-            <Guard what={`The ${panel.title} panel`}><Drawn draw={() => panel.render({ ...ctx, open: true, flyout: true, bounded: true })} /></Guard>
-          </PanelFold.Provider>
-        </div>,
-        document.body,
-      )}
-    </div>
+    <button type="button" data-flyout-icon={at} data-open={open ? "" : undefined} aria-label={panel.title} aria-expanded={open} data-tip={open ? undefined : panel.title} data-tip-side={tipSide} onClick={toggle}
+      className={cn("grid size-7 shrink-0 cursor-pointer place-items-center rounded-[5px] transition-colors",
+        open ? "bg-foreground/[0.08] text-primary" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground")}>
+      <Icon className="size-4" strokeWidth={2} />
+    </button>
   )
 }
 
@@ -286,7 +307,7 @@ export function panelMenu(key?: string, side?: Side): MenuItem[] {
   const other: Side = here === "left" ? "right" : "left"
   const all = sidebarPanels(disabled)
   const hiddenWhileEmpty = (k: string) => { const el = document.querySelector(`[data-panel="${CSS.escape(k)}"]`); return !!el?.querySelector("[data-panel-empty]") && getComputedStyle(el).display === "none" }
-  const choice = (p: PanelOf, hint?: string): CheckItem => ({ key: p.key, label: p.panel.title, icon: panelIcon(p), hint: hint ?? (hiddenWhileEmpty(p.key) ? "Hidden while empty" : undefined) })
+  const choice = (p: PanelOf, hint?: string): CheckItem => ({ key: p.key, label: p.panel.title, icon: panelIcon(p), hint: hint ?? (hiddenWhileEmpty(p.key) ? "Hidden while empty" : barHint(p.key)) })
   const list = checklist(`panels:${here}`, {
     on: panelsIn(here, s, disabled).map((p) => choice(p)),
     off: [all.filter((p) => !sideOf(p.key, s)).map((p) => choice(p)), panelsIn(other, s, disabled).map((p) => choice(p, `${other === "left" ? "Left" : "Right"} sidebar`))],
@@ -306,20 +327,20 @@ export function panelMenu(key?: string, side?: Side): MenuItem[] {
     { label: "Panels", icon: Layers, sep: !!(own.length || open.length || fold.length || dock.length), run: () => {}, items: list },
     ...(me.tabList ? commandItems("tab:sidebar", "setting:pane-tab-bars").map((it, i) => ({ ...it, sep: i === 0 })) : []),
     { label: `Move to ${other} sidebar`, icon: other === "right" ? PanelRight : PanelLeft, sep: !me.tabList, run: () => dockAtEnd(key, other) },
-    { label: `Hide ${me.title}`, icon: EyeOff, run: () => (isBarItem(key) ? hideBarItem(key) : hidePanel(key)) },
+    ...toBars(key),
+    { label: `Hide ${me.title}`, icon: EyeOff, run: () => hideEverywhere(key) },
   ]
 }
 
-export function headerMenu(): MenuItem[] {
-  const { disabled } = getPrefs()
-  const all = headerItems(disabled), shown = new Set(shownHeaderItems(disabled).map((x) => x.key))
-  const menu = panelMenu()
-  if (!all.length) return menu
-  const items: MenuItem[] = all.map((x) => ({ label: x.plugin.name, icon: x.plugin.icon, checked: shown.has(x.key), keep: true,
-    run: () => setHeaderItemShown(x.key, !shown.has(x.key)) }))
-  const at = menu.findIndex((m) => m.label === "Customize sidebars…")
-  const header: MenuItem = { label: "Header", icon: PanelTop, sep: true, run: () => {}, items }
-  return at < 0 ? [...menu, header] : [...menu.slice(0, at), header, { ...menu[at], sep: false }, ...menu.slice(at + 1)]
+const barHint = (key: string) => { const bar = isDesktop() ? barOf(key) : null; return bar ? (bar === "header" ? "Header" : "Bottom bar") : undefined }
+const toBars = (key: string): MenuItem[] => (isDesktop() && canGoInBar(key) ? [
+  { label: "Move to header", icon: PanelTop, run: () => placeInBar(key, "header") },
+  { label: "Move to bottom bar", icon: PanelBottom, run: () => placeInBar(key, "foot") },
+] : [])
+function hideEverywhere(key: string) {
+  takeOutOfBars(key)
+  if (isBarItem(key)) hideBarItem(key)
+  else hidePanel(key)
 }
 
 export const RAIL = 11

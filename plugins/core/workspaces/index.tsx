@@ -24,7 +24,7 @@ export default definePlugin({
     { key: "pins", label: "Workspace's pinned pages" },
     { key: "panels", label: "Workspace's panels", description: "the sidebars of this workspace" },
   ],
-  header: { numbers: { render: (ctx) => <Workspaces {...ctx} /> } },
+  header: { numbers: { title: "Workspaces", view: ALL_TABS, render: (ctx) => <Workspaces {...ctx} /> } },
   background: (ctx) => (isPopout() ? null : <Background {...ctx} />),
   views: {
     [ALL_TABS]: { icon: LayoutGrid, wide: true, title: () => "Workspaces", render: ({ store }) => <AllTabs store={store} /> },

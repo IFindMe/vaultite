@@ -143,8 +143,12 @@ set is `.obsidian/appearance.json`'s when the vault has one (its base theme, the
   its right corner, the file's. Drag one from corner to corner. `fileBar`: the plugins' items in a file's top bar, in order (`["dispatch:dispatch", "companion:presence"]`;
   unset: their default places); one dragged into a sidebar (or Move to sidebar) is a panel there, in `sidebars.json`.
   `fileBarHidden`: those of them hidden (Hide in their menu, in the bar or a sidebar); docked again, or Move to top bar, shows one.
-  `sidebarHeader`: the plugins' items in the left sidebar's header, in order (`["workspaces:numbers"]`; unset: every one;
-  `[]`: none). Right-click the header to show or hide each.
+  `sidebarHeader`: what the left sidebar's header draws, in order (`["workspaces:numbers"]`; unset: every plugin's header
+  item; `[]`: none): plugins' header items (`inbox:inbox`, `workspaces:numbers`), the Plugins button (`core:plugins`) and
+  panels with a rail icon by key (`files:files`), drawn as that icon opening the panel beside it. `sidebarFoot`: the same
+  for its bottom bar, between the vault picker and Settings (unset: `["core:plugins"]`). Both are the same in every
+  workspace; one put in this workspace's sidebar (`sidebars.json` or the workspace's own) is drawn there instead. Drag
+  one between the header, the bottom bar and the sidebars, or right-click either bar to show or hide each.
   `pullActions`: the three commands a page pulled down past its top offers on a phone, by palette command id: left,
   straight down (what a plain pull runs), right (`["file:new", "switcher:open", "tab:close"]`, the default; one left
   out or empty keeps its default).

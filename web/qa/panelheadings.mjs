@@ -83,7 +83,7 @@ if (ai) {
   await until(async () => (await menus()).some((t) => /Inbox/.test(t)), 3000)
   const list = (await menus()).find((t) => /Inbox/.test(t))
   check("Panels ▸: the empty Inbox, on but out of sight, says so", /InboxHidden while empty/.test(list), list)
-  await page.getByRole("menuitem", { name: /^Move to/ }).hover()
+  await page.getByRole("menuitem", { name: /^Move to (left|right) sidebar/ }).hover()
 }
 await page.getByRole("menuitem", { name: /Fold File explorer/ }).click()
 await until(async () => (await sidebars()).collapsed?.includes("files:files"), 5000)

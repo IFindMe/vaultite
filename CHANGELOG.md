@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Desktop: the left sidebar's header and bottom bar take what you drag there: Workspaces, Inbox, the Plugins button,
+  or a panel with a rail icon (File explorer, Outline, Tags...), drawn as that icon and opening the panel beside it.
+  Drag them back into either sidebar, or right-click a bar for its list. The vault picker and Settings stay put.
 - Workspaces: the icon picker starts with the workspace's own number, picked to go back to no icon (Remove icon is gone from its menu).
 - Phone: the workspace menu (the tab list's title) has Rename, as the computer's does.
 - Workspaces: one made, renamed or recoloured on one machine (or the phone) shows on the others at once, instead of

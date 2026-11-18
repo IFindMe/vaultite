@@ -8,7 +8,7 @@ import type { Extension } from "@codemirror/state"
 import type { EditorView } from "@codemirror/view"
 import type { MenuItem } from "@/components/ContextMenu"
 import { editorOf } from "@/core/editors"
-import type { AgentDef, EditorCtx, FileBarItem, FileFormat, FileIcon, FileMark, FileRow, HostedPlugin, Manifest, NewTabSection, Plugin, PluginDef, PluginHost, ReadingBlock, ReadingDrawn, SidebarCtx, SidebarPanel, TabButton, TimelineKind, ViewDef, WebContainer, WebPageAction } from "@/core/define"
+import type { AgentDef, EditorCtx, FileBarItem, FileFormat, FileIcon, FileMark, FileRow, HeaderItem, HostedPlugin, Manifest, NewTabSection, Plugin, PluginDef, PluginHost, ReadingBlock, ReadingDrawn, SidebarCtx, SidebarPanel, TabButton, TimelineKind, ViewDef, WebContainer, WebPageAction } from "@/core/define"
 import type { Store } from "@/core/data"
 import { defaultSidebars, placePanel, sameSidebars, setCollapsed, setDocked, setHeight, setHeights, sideOf as sideIn, withoutPanel, type Place, type Side, type Sidebars } from "../../../core/sidebars.ts"
 import { getPrefs, setPrefs, usePrefs } from "@/core/prefs"
@@ -372,7 +372,8 @@ export function sidebarPanels(disabled: string[]): PanelOf[] {
   return active(disabled)
     .flatMap((p) => [...Object.entries(p.sidebar ?? {}).filter(([, panel]) => ai || !panel.ai).map(([name, panel]) => ({ key: `${p.id}:${name}`, plugin: p, panel })),
       ...Object.entries(p.sidebarFor ?? {}).flatMap(([name, make]) => named.filter((k) => k.startsWith(`${p.id}:${name}/`)).map((key) => ({ key, plugin: p, panel: panelFor(key, name, p, make) }))),
-      ...Object.entries(p.fileBar ?? {}).map(([name, item]) => ({ key: `${p.id}:${name}`, plugin: p, panel: barPanel(`${p.id}:${name}`, p, item) }))])
+      ...Object.entries(p.fileBar ?? {}).map(([name, item]) => ({ key: `${p.id}:${name}`, plugin: p, panel: barPanel(`${p.id}:${name}`, p, item) })),
+      ...Object.entries(p.header ?? {}).filter(([name]) => !p.sidebar?.[name]).map(([name, item]) => ({ key: `${p.id}:${name}`, plugin: p, panel: itemPanel(p, item) }))])
     .map((x, i) => ({ ...x, i }))
     .sort((a, b) => (a.panel.sort ?? 100) - (b.panel.sort ?? 100) || a.i - b.i)
 }
@@ -388,6 +389,13 @@ export const taskDoer = (disabled: string[]) => active(disabled).find((p) => p.d
 
 const panelInfo = () =>
   PLUGINS.flatMap((p) => Object.entries(p.sidebar ?? {}).map(([name, s]) => ({ key: `${p.id}:${name}`, sort: s.sort, hidden: s.hidden, side: s.side })))
+
+const itemPanels = new WeakMap<HeaderItem, SidebarPanel>()
+function itemPanel(p: Plugin, item: HeaderItem): SidebarPanel {
+  let panel = itemPanels.get(item)
+  if (!panel) itemPanels.set(item, panel = { title: item.title ?? p.name, heading: false, hidden: true, sort: 200, view: item.view, render: item.render })
+  return panel
+}
 
 let drawBarItem: ((item: FileBarItem, ctx: SidebarCtx) => ReactNode) | null = null
 export const setBarItemDrawer = (fn: typeof drawBarItem) => { drawBarItem = fn }
@@ -585,20 +593,11 @@ function slotItems<I extends { sort?: number }>(slot: (p: Plugin) => { [name: st
     .sort((a, b) => (a.item.sort ?? 100) - (b.item.sort ?? 100) || a.i - b.i)
 }
 export const headerItems = (disabled: string[]) => slotItems((p) => p.header, disabled)
-export function shownHeaderItems(disabled: string[], saved = getPrefs().sidebarHeader) {
-  const all = headerItems(disabled)
-  if (!saved) return all
-  return saved.flatMap((k) => all.find((x) => x.key === k) ?? [])
-}
-export function setHeaderItemShown(key: string, on: boolean, before: string | null = null) {
-  const { disabled } = getPrefs()
-  const all = headerItems(disabled).map((x) => x.key), keys = shownHeaderItems(disabled).map((x) => x.key)
-  const next = all.slice(all.indexOf(key) + 1).find((k) => keys.includes(k)) ?? null
-  return setPrefs({ sidebarHeader: on ? placeKey(keys, key, before ?? next) : keys.filter((k) => k !== key) })
-}
 function showHeaderItemsOf(p: Plugin) {
-  if (!getPrefs().sidebarHeader) return
-  for (const name of Object.keys(p.header ?? {})) void setHeaderItemShown(`${p.id}:${name}`, true)
+  const { sidebarHeader: header, sidebarFoot: foot } = getPrefs()
+  if (!header) return
+  const add = Object.keys(p.header ?? {}).map((name) => `${p.id}:${name}`).filter((k) => !header.includes(k) && !foot?.includes(k))
+  if (add.length) void setPrefs({ sidebarHeader: [...header, ...add] })
 }
 export const statusItems = (disabled: string[]) => slotItems((p) => p.status, disabled)
 export function fileBarItems(disabled: string[], saved = getPrefs().fileBar) {

@@ -7,6 +7,7 @@ import { fuzzy } from "@/core/fuzzy"
 import { INCOMING, reorder, slotAt, useSlide } from "@/core/slide"
 import { defaultPanels, dockPanel, hidePanel, panelsIn, restoreSidebars, sideOf, sidebarPanels, useSidebars, type PanelOf, type Side } from "@/core/plugins"
 import { usePrefs } from "@/core/prefs"
+import { barKeys } from "@/core/sidebarbars"
 import { useDesktop } from "@/core/platform"
 import { menuFor, rightClickBelow, type MenuItem } from "@/components/ContextMenu"
 import { FilterField, SheetHead } from "@/components/kit"
@@ -25,15 +26,15 @@ const named = (side: Side) => (side === "left" ? "Left sidebar" : "Right sidebar
 const carried = (item: DragItem) => (item.from === "row" && item.drawn && item.panel) || null
 
 export function SidebarsSheet() {
-  const { disabled, rails } = usePrefs()
+  const prefs = usePrefs(), { disabled, rails } = prefs
   const desktop = useDesktop()
   const setup = useSidebars()
   const [query, setQuery] = useState("")
-  const all = sidebarPanels(disabled)
+  const all = sidebarPanels(disabled), bars = barKeys(prefs), inBar = new Set([...bars.header, ...bars.foot])
   const lists = {
     left: panelsIn("left", setup, disabled),
     right: panelsIn("right", setup, disabled),
-    hidden: all.filter((p) => !sideOf(p.key, setup)).sort((a, b) => byTitle.compare(a.panel.title, b.panel.title)),
+    hidden: all.filter((p) => !sideOf(p.key, setup) && !inBar.has(p.key)).sort((a, b) => byTitle.compare(a.panel.title, b.panel.title)),
   }
   const shows = (p: PanelOf) => !query || !!fuzzy(query, [p.panel.title, ...(p.panel.names ?? [])].join(" "))
   const [undo, setUndo] = useState<{ run: () => void; landed: boolean } | null>(null)

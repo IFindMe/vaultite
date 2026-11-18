@@ -463,10 +463,14 @@ export type SidebarCtx = { store: Store
   /** In a phone drawer's dock (a `dockable` panel, `open` false): 44px icons in a row that wraps, a held one its menu. */
   dock?: boolean }
 
-/** Drawn at the right end of the sidebar's header (Workspaces' numbers); with the sidebar folded, at the top of the
- *  28px icon rail with `open: false`; on phones at the top of the tab list with `phone: true`. */
+/** A button in the left sidebar's header or bottom bar (`open: false` in the rail, `phone: true` atop the tab list). In a
+ *  sidebar it's its plugin's panel of that name, else drawn with `panel` set: a full row with `data-panel-handle`. */
 export type HeaderItem = {
   render: (ctx: SidebarCtx) => ReactNode
+  /** Its name in menus, the drag and as a panel: the plugin's name unless set. */
+  title?: string
+  /** The view it opens dropped on a pane, as a panel's `view`. */
+  view?: string
   /** Its place, left to right, when several plugins have one. */
   sort?: number
   /** On phones, drawn at the left of the tab list's bottom bar (where the thumb is) rather than its top row. */

@@ -1,7 +1,7 @@
 import type { MouseEvent, ReactNode } from "react"
 import { Check, CheckCheck, CircleCheck, Clock, FileText, Inbox as InboxIcon, ListTodo, Maximize2, MessageCircleQuestion, MoreHorizontal, Pin, ShieldCheck } from "lucide-react"
 import {
-  Badged, cn, fmtAgo, haptic, HeadingButton, menuFor, openFile, rightClickBelow, rowMenu, selectClick, selectedAttr, SidebarHeading, SwipeRow, useSelected, useSidebars, useStore, useTick, type SidebarCtx, type SwipeAction,
+  Badged, cn, fmtAgo, haptic, HeadingButton, menuFor, openFile, rightClickBelow, rowMenu, selectClick, selectedAttr, SidebarHeading, SwipeRow, useSelected, useStore, useTick, type SidebarCtx, type SwipeAction,
 } from "@vaultite"
 import { answerable, fixEvent, markRead, openEvent, snoozable, useEvents } from "./events"
 import type { InboxEvent } from "./types"
@@ -14,13 +14,9 @@ import { GateButtons } from "./Gate"
 import { lineOf, draftKey, EventIcon } from "./InboxRows"
 import { useCap, FoldButton } from "./Sections"
 
-const PANEL = "inbox:inbox"
-const usePanelShown = () => { const s = useSidebars(); return s.left.includes(PANEL) || s.right.includes(PANEL) }
-
 export function InboxButton({ store, open, phone }: SidebarCtx) {
   const n = useCount(store)
-  const shown = usePanelShown()
-  if (!phone && (shown || !n)) return null
+  if (!phone && !n) return null
   const label = n ? `Inbox, ${n} new` : "Inbox"
   return (
     <button type="button" data-inbox-button data-count={n} onClick={openInbox} aria-label={label} data-tip={open && !phone ? label : undefined}

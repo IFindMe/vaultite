@@ -16,5 +16,6 @@
   "fileBar": null,
   "fileBarHidden": [],
   "sidebarHeader": ["workspaces:numbers"],
+  "sidebarFoot": null,
   "pullActions": null
 }

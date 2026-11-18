@@ -84,7 +84,9 @@ const APPEARANCE: Record<string, Setting> = {
   fileBarHidden: {
     about: "the plugins' top bar items hidden, as <plugin>:<name> (history:edited): a JSON list or names separated by commas; one docked in a sidebar shows there whatever this says", parse: names },
   sidebarHeader: {
-    about: "the plugins' items in the left sidebar's header, in order, as <plugin>:<name> (workspaces:numbers, inbox:inbox): a JSON list or names separated by commas; [] for none; unset: every one", parse: names },
+    about: "what the left sidebar's header draws, in order: plugins' header items as <plugin>:<name> (workspaces:numbers, inbox:inbox), core:plugins (the Plugins button) and panels that have a rail icon, by key (files:files), drawn as that icon: a JSON list or names separated by commas; [] for none; unset: every plugin's header item", parse: names },
+  sidebarFoot: {
+    about: "what the left sidebar's bottom bar draws between the vault picker and Settings, in order, as sidebarHeader names them: a JSON list or names separated by commas; [] for none; unset: core:plugins", parse: names },
   pullActions: {
     about: "the commands a page pulled down on a phone offers, left, straight down, right, by command id (default file:new, switcher:open, tab:close): a JSON list or ids separated by commas", parse: names },
   lineNumbers: { about: "true or false: line numbers beside a file's text while editing it (code files always have them)", parse: bool("lineNumbers") },

@@ -302,7 +302,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `hashOf(to)`: The hash for a target: "file/Notes%2FIdea.md", "view/terminal%2Fabc", "new".
 - `hasSettings(p, files?)`: Whether a plugin has anything to set (whether it's on or not).
 - `hasTag(tags, want)`: Whether a file's tags have this one, or one nested under it (`project` matches `project/lighthouse`).
-- `HeaderItem`: Drawn at the right end of the sidebar's header (Workspaces' numbers); with the sidebar folded, at the top of the 28px icon rail with `open: false`; on phones at the top of the tab list with…
+- `HeaderItem`: A button in the left sidebar's header or bottom bar (`open: false` in the rail, `phone: true` atop the tab list).
 - `Heading`
 - `HeadingButton({ icon, label, tip, strokeWidth, className, … })`: An icon button in a panel's heading or a row: its label is its tooltip unless `tip` says otherwise.
 - `headingsOf(text)`: Every `# heading` of a text (ATX), in order, with its line (0-based).
@@ -865,7 +865,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `useShrinkOut(ref, what)`: A tab, or a tab group's chip or row, gone from the tab bar or the Tabs panel however it went shrinks away: a copy, as React takes it out.
 - `useSidebarMode()`
 - `useSidebars()`
-- `useSlide(box, order, axis)`: Slide `box`'s `[data-slide]` items (its children, `box` positioned) into `order`, their keys; those left out fade.
+- `useSlide(box, order, axis, { heldAtEnd }?)`: Slide `box`'s `[data-slide]` items (its children, `box` positioned) into `order`, their keys; those left out fade.
 - `useSteady(sorted, held, old)`: The rows in their order and which fold under Earlier (`old`); while `held`, as they last were: each keeps its place and its side of the fold (what it shows still changes), new ones come last.
 - `useStore()`: The store and the last error loading it, redrawn when either changes.
 - `useStoreWith(pick)`: What `pick` reads of the store (null till it loads), redrawn only when that changes: a slice the store didn't change keeps its object, so pick one (or a value), never a new array or object made…

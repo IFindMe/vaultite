@@ -4,13 +4,17 @@ import { ChevronDown } from "lucide-react"
 import { Mark } from "./Mark"
 import { preloadList } from "./chunks"
 import { List } from "./later"
-import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, panesClosed, pluginOn, sidebarsChanged, WORKSPACES, startDrag, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
+import { cn, colorVar, commandKeys, getStore, menuFor, onTabLayoutChange, panesClosed, pluginOn, sidebarsChanged, WORKSPACES, tabsInWorkspace, useDismiss, useDrag, useDropHit, useDropTarget, trackSoon, type DragItem, type SidebarCtx, type Store } from "@vaultite"
 import {
-  ALL_TABS, cycle, emit, getRenaming, moveAt, label, leaving, lit as litNow, lookOf, named, othersOnly, renamed, saveTabs, saveTabsSoon, savePending, sendTo, slotMenu, slots,
+  cycle, emit, getRenaming, moveAt, label, leaving, lit as litNow, lookOf, named, othersOnly, renamed, saveTabs, saveTabsSoon, savePending, sendTo, slotMenu, slots,
   sync, tookTabs, used, useVersion, type Sent,
 } from "./state"
 
-function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail: boolean }) {
+const listAt = (r: DOMRect, w: number, h: number, rail: boolean) => rail
+  ? { left: r.right + 8, top: Math.max(8, Math.min(r.top - 4, innerHeight - 8 - h)) }
+  : { left: Math.max(8, Math.min(r.left, innerWidth - 8 - w)), top: r.bottom + 4 + h <= innerHeight - 8 ? r.bottom + 4 : Math.max(8, r.top - 4 - h) }
+
+function Switcher({ lit, over, rail, row }: { lit: number; over: number | null; rail: boolean; row: boolean }) {
   const [shown, setOpen] = useState(false)
   const open = shown || !!getRenaming()
   const shut = () => {
@@ -22,19 +26,23 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
   const box = useRef<HTMLDivElement>(null)
   const [at, setAt] = useState({ left: 0, top: 0 })
   const [sprung, setSprung] = useState(false)
-  const dragging = useDrag((d) => !!d)
+  const dragging = useDrag((d) => !!d), lifted = useDrag((d) => d?.item.from === "panel" && d.item.panel === "workspaces:numbers")
   const overButton = useDrag((d) => {
     const r = d && sent(d.item) ? btn.current?.getBoundingClientRect() : null
     return !!d && !!r && d.x >= r.left && d.x <= r.right && d.y >= r.top && d.y <= r.bottom
   })
   useEffect(() => {
+    if (lifted && open) return void setOpen(false)
     if (!dragging) { if (sprung) { setSprung(false); setOpen(false) } return }
     if (!open && overButton) { setSprung(true); setOpen(true) }
-  }, [dragging, overButton, open, sprung])
+  }, [dragging, lifted, overButton, open, sprung])
   useLayoutEffect(() => {
     if (!open || !btn.current) return
-    const r = btn.current.getBoundingClientRect(), w = box.current?.offsetWidth ?? 208
-    setAt(rail ? { left: r.right + 8, top: r.top - 4 } : { left: Math.max(8, Math.min(r.left, innerWidth - 8 - w)), top: r.bottom + 4 })
+    const place = () => { if (btn.current) setAt(listAt(btn.current.getBoundingClientRect(), box.current?.offsetWidth ?? 208, box.current?.offsetHeight ?? 0, rail)) }
+    place()
+    const ro = new ResizeObserver(place)
+    if (box.current) ro.observe(box.current)
+    return () => ro.disconnect()
   }, [open, rail])
   useEffect(() => { const t = setTimeout(() => void preloadList(), 1500); return () => clearTimeout(t) }, [])
   useDismiss(open, shut, { inside: "[data-workspace-list], [role=menu], [aria-label='Close menu']", anchor: btn, escape: (e) => !(e.target instanceof Element && e.target.closest("input")) })
@@ -54,10 +62,11 @@ function Switcher({ lit, over, rail }: { lit: number; over: number | null; rail:
       <button ref={btn} type="button" data-workspace-switcher={n} aria-haspopup="dialog" aria-expanded={open}
         aria-label={`${label(n)}: switch workspace`} data-tip={open ? undefined : `${label(n)}${commandKeys("workspace:1") ? ` (${commandKeys("workspace:1")} to ${commandKeys(`workspace:${WORKSPACES}`)})` : ""}`} data-tip-side={rail ? "right" : undefined}
         onClick={() => (open ? shut() : setOpen(true))} onPointerEnter={() => void preloadList()} onContextMenu={menuFor(() => slotMenu(n))}
-        onPointerDown={(e) => startDrag(e, { from: "workspace", to: `view:${ALL_TABS}`, label: "Workspaces" })}
-        className={cn("flex shrink-0 cursor-pointer items-center justify-center gap-0.5 rounded-[5px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground",
-          rail ? "size-7" : "h-6 pr-0.5 pl-1", open && "bg-foreground/[0.08] text-foreground")}>
+        data-panel-handle={row ? "" : undefined} data-heading={row ? "Workspaces" : undefined}
+        className={cn("flex shrink-0 cursor-pointer items-center gap-0.5 rounded-[5px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground",
+          rail ? "size-7 justify-center" : row ? "h-7 w-full gap-2 pr-1 pl-1.5 text-[13px]" : "h-6 justify-center pr-0.5 pl-1", open && "bg-foreground/[0.08] text-foreground")}>
         <Mark n={n} {...lookOf(n)} look="border-[1.5px] border-current font-semibold" />
+        {row && <span className="min-w-0 flex-1 truncate text-left text-foreground">{label(n)}</span>}
         {!rail && <ChevronDown className="size-3 text-tertiary" strokeWidth={2.25} />}
       </button>
       {open && createPortal(
@@ -154,13 +163,13 @@ function useSendDrop() {
   return useDropHit<{ n: number }>(id)?.n ?? null
 }
 
-export function Workspaces({ open, phone }: SidebarCtx) {
+export function Workspaces({ open, phone, panel }: SidebarCtx) {
   useVersion()
   const over = useSendDrop()
   const list = slots()
   if (!list) return null
   const lit = litNow()
   if (phone) return null
-  return <Switcher lit={lit} over={over} rail={!open} />
+  return <Switcher lit={lit} over={over} rail={!open} row={open && !!panel} />
 }
 

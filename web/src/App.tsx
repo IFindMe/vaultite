@@ -31,7 +31,7 @@ import { backDetail, closeDetail, openDetail, replaceHash, route, setDetailRedir
 import { keepScroll, restoreScroll, scrollOf } from "@/core/viewstate"
 import { currentWorkspace, noteOpened, subscribeScoped, useWorkspacesOn } from "@/core/scope"
 import { sayWindowState, setWindowState } from "@/core/live"
-import { activeKey, backgrounds, detailFor, homeTab, isEnabled, panelsIn, pluginById, pluginCommands, safeMode, showTabsIn, shownHeaderItems, tabListPanel, tabsInSidebar, turnPluginsBackOn, usePluginsVersion, useSidebars, viewFor } from "@/core/plugins"
+import { activeKey, backgrounds, detailFor, homeTab, isEnabled, panelsIn, pluginById, pluginCommands, safeMode, showTabsIn, tabListPanel, tabsInSidebar, turnPluginsBackOn, usePluginsVersion, useSidebars, viewFor } from "@/core/plugins"
 import { leaveGroup } from "@/core/tabgroups"
 import { canRenameTab, chooseTabGroup, renameTab, renameTabGroup } from "@/core/tabnames"
 import { canReopen, reopenLatest } from "@/core/tabarchive"
@@ -45,7 +45,10 @@ import { menuBelow, menuFor, type MenuItem } from "@/components/ContextMenu"
 import { DetailSheet } from "@/components/DetailSheet"
 import { setFileView } from "@/components/fileState"
 import { newNote, revealInTree } from "@/components/FileTree"
-import { headerMenu, panelMenu, RAIL, SidebarPanels, SidebarToggle } from "@/components/Sidebar"
+import { panelMenu, RAIL, SidebarPanels, SidebarToggle } from "@/components/Sidebar"
+import { AppPageButton, SidebarBar } from "@/components/SidebarBar"
+import { barAreaMenu } from "@/components/barMenus"
+import { shownIn } from "@/core/sidebarbars"
 import { FileView } from "@/components/FileView"
 import { keptShown, PhoneFiles } from "@/components/PhoneFiles"
 import { StatusBar } from "@/components/StatusBar"
@@ -62,7 +65,7 @@ import { settingsCommands, settingsTitle } from "@/core/pluginSettings"
 import { currentLayout, openImport, previousSetup, restoreSetup } from "@/core/bundles"
 import { startWelcome } from "@/core/welcome"
 import { saveAsNew } from "@/components/LayoutPicker"
-import { APP_PAGES, appPageOf, hrefOf, isSetupTab, openAppPage, openSettings, openSetup, pageShownAt, useSettingsOwner, type AppPage } from "@/core/apppages"
+import { APP_PAGES, appPageOf, isSetupTab, openAppPage, openSettings, openSetup, pageShownAt, useSettingsOwner, type AppPage } from "@/core/apppages"
 import { CommandPalette } from "@/components/CommandPalette"
 import { FolderPicker } from "@/components/FolderPicker"
 import { Chooser } from "@/components/Chooser"
@@ -277,7 +280,8 @@ export default function App() {
   const lingering = useLingeringSheet()
   const sheet = detail || lingering || ""
   const { store, error } = useStore()
-  const { sidebar, sidebarWidth, rightSidebar, rightSidebarWidth, rails, peekShade, fileBarFade, disabled, enabled, sidebarHeader } = usePrefs()
+  const prefsNow = usePrefs()
+  const { sidebar, sidebarWidth, rightSidebar, rightSidebarWidth, rails, peekShade, fileBarFade, disabled, enabled } = prefsNow
   const home = store ? homeTab(store, disabled) : null
   const isFileTab = tab.startsWith("file/") || tab === "file"
   const isViewTab = tab.startsWith("view/")
@@ -497,7 +501,8 @@ export default function App() {
   }, [popout, bare])
   const hideLeft = desktop && !popout && !rails && !sidebar
   const side = popout ? "0px" : hideLeft ? INSET_L : `calc(${sidebar ? `${sidebarPx(sidebarWidth)}px` : space(RAIL)} + ${INSET_L})`
-  const header = shownHeaderItems(disabled, sidebarHeader)
+  const header = shownIn("header", prefsNow, useSidebars())
+  const settingsPage = APP_PAGES.find((p) => p.id === "settings")
   const rightCount = panelsIn("right", useSidebars(), disabled).length
   const hasRight = rightCount > 0
   const [emptyRight, setEmptyRight] = useStateFor([hasRight], () => false)
@@ -547,35 +552,25 @@ export default function App() {
           "fixed inset-y-0 left-0 z-20 hidden flex-col overflow-hidden border-r-[0.5px] border-border bg-sidebar pr-[calc(--spacing(2)-0.5px)] pl-[calc(--spacing(2)+env(safe-area-inset-left))] pt-[env(safe-area-inset-top)] pb-[max(--spacing(2),env(safe-area-inset-bottom))] md:flex",
           hideLeft && "z-(--z-peek) rounded-[12px] border-0 shadow-[0_8px_32px_rgb(0_0_0/0.22)]",
         )} style={hideLeft ? { width: `${sidebarPx(sidebarWidth)}px`, ...peekPanel("left", leftIn) } : { width: side }}>
-        <div data-titlebar onContextMenu={menuFor(headerMenu)} className={cn("@container flex h-10 shrink-0 items-center justify-end gap-1 pl-7.5 whitespace-nowrap transition-opacity duration-(--motion)", !leftOpen && "pointer-events-none opacity-0")}>
-          {store && desktop && leftOpen && header.map(({ key, item }) => (
-            <div key={key} data-header-item={key} className="flex min-w-0 shrink-0 items-center"><Guard what="This item"><Drawn draw={() => item.render({ store, open: true, file: filePath, tab: targetOf(tab) })} /></Guard></div>
-          ))}
+        <div data-titlebar data-bar-area onContextMenu={menuFor(barAreaMenu("header"))} className={cn("@container flex h-10 shrink-0 items-center justify-end gap-1 pl-7.5 whitespace-nowrap transition-opacity duration-(--motion)", !leftOpen && "pointer-events-none opacity-0")}>
+          {store && desktop && leftOpen && <SidebarBar bar="header" ctx={{ store, open: true, file: filePath, tab: targetOf(tab) }} />}
         </div>
         {hasLights && <span aria-hidden data-lights-ghost=""><i /><i /><i /></span>}
         <div className="flex min-h-0 flex-1 flex-col">
           {store && desktop && <SidebarPanels store={store} open={leftOpen} file={filePath} tab={targetOf(tab)}
-            head={!leftOpen && header.length ? header.map(({ key, item }) => (
-              <div key={key} data-header-item={key} className="flex"><Guard what="This item"><Drawn draw={() => item.render({ store, open: false, file: filePath, tab: targetOf(tab) })} /></Guard></div>
-            )) : undefined} />}
+            head={!leftOpen && header.length ? <SidebarBar bar="header" vertical ctx={{ store, open: false, file: filePath, tab: targetOf(tab) }} /> : undefined} />}
         </div>
-        <nav aria-label="App" data-sidebar-foot className={cn("-mx-2 -mb-2 flex shrink-0 gap-1 border-t-[0.5px] border-border p-2", !leftOpen && "flex-col items-start")}>
+        <nav aria-label="App" data-sidebar-foot data-bar-area onContextMenu={menuFor(barAreaMenu("foot"))} className={cn("-mx-2 -mb-2 flex shrink-0 gap-1 border-t-[0.5px] border-border p-2", !leftOpen && "flex-col items-start")}>
           {leftOpen && share && <SharedWith />}
           {leftOpen && !share && (
-            <button type="button" onClick={vaultMenu} aria-haspopup="menu"
-              className="flex h-7 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[5px] px-1.5 text-left text-[13px] font-medium whitespace-nowrap hover:bg-foreground/[0.06]">
+            <button type="button" onClick={vaultMenu} aria-haspopup="menu" data-tip={vaultName} data-tip-trunc="" data-tip-side="top"
+              className="flex h-7 min-w-7 flex-1 cursor-pointer items-center gap-2 rounded-[5px] px-1.5 text-left text-[13px] font-medium whitespace-nowrap hover:bg-foreground/[0.06]">
               <ChevronsUpDown className="size-4 shrink-0 text-tertiary" strokeWidth={2} />
               <span className="min-w-0 truncate">{vaultName}</span>
             </button>
           )}
-          {APP_PAGES.map((t) => (
-            <a key={t.id} href={hrefOf(t)} aria-label={t.label} aria-current={t.id === active?.id ? "page" : undefined} data-tip={t.label} data-tip-side={leftOpen ? "top" : "right"} data-app-page={t.id}
-              onClick={(e) => { if (!desktop) return; e.preventDefault(); openAppPage(t, e.metaKey || e.ctrlKey) }}
-              className={cn("grid size-7 shrink-0 place-items-center rounded-[5px] transition-colors",
-                t.id === active?.id ? "bg-foreground/[0.08] text-primary" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground")}>
-              <t.icon className="size-4" strokeWidth={2} />
-            </a>
-          ))}
+          {store && desktop && <SidebarBar bar="foot" vertical={!leftOpen} page={active?.id} ctx={{ store, open: leftOpen, file: filePath, tab: targetOf(tab) }} />}
+          {settingsPage && <AppPageButton page={settingsPage} active={active?.id === "settings"} tipSide={leftOpen ? "top" : "right"} />}
         </nav>
         {!hideLeft && <Resizer label="Resize the sidebar" onStart={() => { dragFrom = sidebarPx(getPrefs().sidebarWidth); dragOpen = getPrefs().sidebar }} onDrag={(x) => dragSidebar(false, x)}
           onCancel={() => setPrefs({ sidebar: dragOpen, sidebarWidth: dragFrom })} onReset={() => setPrefs({ sidebar: true, sidebarWidth: SIDEBAR.default })}

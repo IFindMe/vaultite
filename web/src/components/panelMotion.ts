@@ -86,7 +86,7 @@ function follow(d: Drag) {
   const l = lift!
   l.ghost.style.transform = `translate(${d.x - l.dx}px, ${d.y - l.dy}px)`
   l.over = d.hit?.target ?? null
-  const away = l.over === PANES && !!d.item.to
+  const away = (l.over === PANES && !!d.item.to) || !!l.over?.startsWith("bar:")
   l.card.style.opacity = away ? "0" : ""
   l.ghost.toggleAttribute("data-drag-ghost", !away)
   const hint = l.over === PANES ? "" : d.hit?.hint ?? ""

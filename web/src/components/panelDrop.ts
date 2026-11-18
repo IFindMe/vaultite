@@ -4,12 +4,13 @@ import { laidOut, type DragItem } from "@/core/drag"
 import { closestOf } from "@/core/dom"
 import { panelOfView, sideOf, type Side } from "@/core/plugins"
 import { closePane, closeTab } from "@/core/workspace"
+import { barOnly } from "@/core/sidebarbars"
 
 const filePanelOf = (to: string | undefined) => { const p = to ? vaultPath(to) : null; return p ? filePanelKey(p) : null }
 const singleFileTab = (item: DragItem) => (item.path ? filePanelKey(item.path) : null)
 
 export function draggedPanels(item: DragItem): string[] {
-  if (item.from === "panel") return item.panel ? [item.panel] : []
+  if (item.from === "panel") return item.panel && !barOnly(item.panel) ? [item.panel] : []
   if (item.from === "tab" || item.from === "pane") {
     const key = panelOfView(item.to) ?? (item.from === "pane" ? filePanelOf(item.to) : singleFileTab(item))
     return key ? [key] : []

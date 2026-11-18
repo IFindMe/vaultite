@@ -37,7 +37,7 @@ export function reorder(keys: string[], moving: string[], index: number) {
 
 /** Slide `box`'s `[data-slide]` items (its children, `box` positioned) into `order`, their keys; those left out fade.
  *  Null: all back in place. */
-export function useSlide(box: RefObject<HTMLElement | null>, order: string[] | null, axis: Axis) {
+export function useSlide(box: RefObject<HTMLElement | null>, order: string[] | null, axis: Axis, { heldAtEnd = false }: { heldAtEnd?: boolean } = {}) {
   const key = order?.join("\n") ?? null
   useLayoutEffect(() => {
     const root = box.current
@@ -47,17 +47,17 @@ export function useSlide(box: RefObject<HTMLElement | null>, order: string[] | n
       for (const e of slid(root)) { e.style.transform = ""; e.style.opacity = "" }
       return
     }
-    place(root, key.split("\n"), axis)
+    place(root, key.split("\n"), axis, heldAtEnd)
     let size = `${root.clientWidth}x${root.clientHeight}`
     const ro = new ResizeObserver(() => {
       if (`${root.clientWidth}x${root.clientHeight}` === size) return
       size = `${root.clientWidth}x${root.clientHeight}`
-      place(root, key.split("\n"), axis)
+      place(root, key.split("\n"), axis, heldAtEnd)
       rehit()
     })
     ro.observe(root)
     return () => ro.disconnect()
-  }, [box, key, axis])
+  }, [box, key, axis, heldAtEnd])
 }
 
 /** Rows that wrap (tiles) in a box resized (a sidebar's edge dragged): items changing rows glide there, and the panels
@@ -103,7 +103,9 @@ function laid(root: HTMLElement, o: DOMRect, k: number, e: HTMLElement) {
   return { x: (r.left - o.left) * k - root.clientLeft + root.scrollLeft - t.m41, y: (r.top - o.top) * k - root.clientTop + root.scrollTop - t.m42, w: r.width * k, h: r.height * k }
 }
 
-function place(root: HTMLElement, keys: string[], axis: Axis) {
+const rowWidth = (boxes: { w: number }[], gap: number) => boxes.reduce((n, b) => n + b.w, 0) + gap * Math.max(0, boxes.length - 1)
+
+function place(root: HTMLElement, keys: string[], axis: Axis, heldAtEnd = false) {
   const els = slid(root)
   const css = getComputedStyle(root)
   const colGap = parseFloat(css.columnGap) || 0, rowGap = parseFloat(css.rowGap) || 0
@@ -126,8 +128,9 @@ function place(root: HTMLElement, keys: string[], axis: Axis) {
   o = root.getBoundingClientRect()
   const at = new Map(els.filter((e) => e.offsetParent).map((e) => [e, laid(root, o, scale(o), e)]))
   const start = flow.find((e) => e.dataset.slide !== INCOMING) ?? flow[0]
-  const x0 = (start && at.get(start)?.x) ?? 0, y0 = (start && at.get(start)?.y) ?? 0
   const right = root.clientWidth - parseFloat(css.paddingRight)
+  const x0 = heldAtEnd && axis === "x" ? right - rowWidth(keys.flatMap((id) => { const e = byKey.get(id), b = e && at.get(e); return b ? [b] : [] }), colGap) : (start && at.get(start)?.x) ?? 0
+  const y0 = (start && at.get(start)?.y) ?? 0
   let x = x0, y = y0, line = 0
   for (const id of keys) {
     const e = byKey.get(id), b = e && at.get(e)
