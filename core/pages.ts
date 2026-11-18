@@ -58,7 +58,7 @@ const OLD = ".vaultite/pages"
 
 /** Write the missing pages of the plugins that are on (`only`: one), unpinned, and point pins, links and the new tab's
  *  page from the old copies in .vaultite/pages/ to the user's files, the old folder going. Idempotent. */
-export function restorePages(vault: Vault, plugins: Plugin[], only?: string) {
+export async function restorePages(vault: Vault, plugins: Plugin[], only?: string) {
   const made = writePages(vault, plugins, only ? [only] : enabled(vault, plugins), { pin: false })
   const moved: [string, string][] = []
   if (only || !fs.existsSync(vault.abs(OLD))) return { made, moved }
@@ -74,7 +74,7 @@ export function restorePages(vault: Vault, plugins: Plugin[], only?: string) {
     if (!moved.some(([f]) => f === from)) moved.push([from, pageAt(vault, name)])
   }
   for (const [from, to] of moved) vault.moved(from, to)
-  vault.relink(moved.filter(([, to]) => vault.entries.has(to)))
+  await vault.relink(moved.filter(([, to]) => vault.entries.has(to)))
   const tab = vault.config("newtab"), page = moved.find(([from]) => from === tab.page)
   if (page) vault.patchConfig("newtab", { page: page[1] })
   fs.rmSync(vault.abs(OLD), { recursive: true, force: true })

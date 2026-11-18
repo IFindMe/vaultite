@@ -16,6 +16,7 @@ type Waiter = { resolve: (v: unknown) => void; reject: (e: Error) => void; timer
 type Connected = { ws: WebSocket; hello?: Hello; waiting: Map<number, Waiter>; alive: boolean }
 const ID = /^[a-z0-9][a-z0-9-]{0,62}$/
 const HASH = /^[A-Za-z0-9_-]{43}$/
+const RECONNECT_MS = 8000
 const digest = (s: string) => crypto.createHash("sha256").update(s).digest("base64url")
 const clean = (v: unknown, max = 200) => String(v ?? "").slice(0, max)
 const KEYS = z.record(z.string(), z.string()).catch({})
@@ -32,8 +33,9 @@ export function dialIn(plugin: Plugin, entries: () => DialEntry[], selfId: () =>
   const hashes = () => KEYS.parse(stored().keys ?? {})
   const expire = () => { for (const [code, p] of pending) if (p.until < Date.now()) pending.delete(code) }
   const changed = () => plugin.forget()
+  const dropped = new Map<string, number>()
   const forget = (id: string, c: Connected) => {
-    if (connected.get(id) === c) connected.delete(id)
+    if (connected.get(id) === c) { connected.delete(id); dropped.set(id, Date.now()) }
     for (const w of c.waiting.values()) { clearTimeout(w.timer); w.reject(new HTTPError(502, "The machine disconnected")) }
     c.waiting.clear(); changed()
   }
@@ -59,8 +61,9 @@ export function dialIn(plugin: Plugin, entries: () => DialEntry[], selfId: () =>
   const request = async (id: string, op: string, args: Item): Promise<unknown> => {
     const was = !!ready(id)
     try { return await once(id, op, args) } catch (e) {
-      if (!(e instanceof HTTPError) || e.status !== 502 || (!was && !connected.has(id))) throw e
-      for (let waited = 0; waited < 8000 && !ready(id); waited += 250) await new Promise((r) => setTimeout(r, 250))
+      const reconnecting = connected.has(id) || Date.now() - (dropped.get(id) ?? 0) < RECONNECT_MS
+      if (!(e instanceof HTTPError) || e.status !== 502 || (!was && !reconnecting)) throw e
+      for (let waited = 0; waited < RECONNECT_MS && !ready(id); waited += 250) await new Promise((r) => setTimeout(r, 250))
       return once(id, op, args)
     }
   }

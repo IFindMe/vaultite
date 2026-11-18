@@ -826,7 +826,7 @@ export async function handle(vault: Vault, method: string, parts: string[], quer
     await (alone ? vault.reread([src, dst]) : vault.sync())
     const moves: [string, string][] = !folder ? [[src, dst]]
       : [...vault.entries.keys(), ...vault.others.keys()].filter((p) => p.startsWith(`${dst}/`)).map((p) => [src + p.slice(dst.length), p])
-    const updated = vault.relink(moves)
+    const updated = await vault.relink(moves)
     if (updated.length) await vault.reread(updated)
     return { path: dst, updated }
   }

@@ -66,6 +66,13 @@ const killed = (r: Ran) => r.signal === "SIGKILL" || (process.platform === "win3
   check("a main thread stuck in a loop is killed by the watchdog, saying so", killed(got) && stalledS < 5, got)
 }
 {
+  const holds = `import { holdingVault } from ${JSON.stringify(core("vaultholder.ts"))}\nsetTimeout(() => { holdingVault("#7 POST /api/file/move"); for (;;) {} }, 300)`
+  const got = await runModuleKilledAfter(WATCHED({}, holds), 10_000)
+  const at = /(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) vaultite: watchdog/.exec(got.out)?.[1], off = at ? Math.abs(Date.now() - new Date(at.replace(" ", "T")).getTime()) : Infinity
+  check("the watchdog names what held the vault, stamped in local time as the log is", killed(got) && got.out.includes("the vault held by #7 POST /api/file/move") &&
+    off < 60_000, { off, got })
+}
+{
   const got = await runModuleKilledAfter(WATCHED({}, `setTimeout(() => process.exit(0), 3000)`), 10_000)
   check("an idle main thread isn't killed", got.code === 0 && !/watchdog/.test(got.out), got)
 }

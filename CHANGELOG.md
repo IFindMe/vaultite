@@ -6,6 +6,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Server: moving or renaming a file in a big vault on iCloud Drive no longer freezes the server. Reading the vault's
+  folders and rewriting links to the moved file now happen off the main thread, in steps, so the app, terminals and
+  agents keep their connection meanwhile, where the watchdog used to kill and restart the server after 30 seconds.
+  When the watchdog does kill it, its log line has the local time and names what held the vault.
 - Workspaces: All tabs is now the Workspaces page, a board of the workspaces side by side in lanes of one height, as
   many to a row as the pane fits (filled evenly: four are one row, or two by two), the current one outlined. Each lane
   shows its icon, colour and name: a click on the name renames it, right-click or its … button has the switcher's menu
