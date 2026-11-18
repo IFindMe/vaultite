@@ -12,20 +12,18 @@ import { previewOf, useAllDrops, type AllDrop } from "./alldrops"
 import { closeIn, foldIn } from "./elsewhere"
 import { ALL_TABS, current, label, listsOf, lookOf, moveBetween, patch, showTab, slotMenu, SLOTS, slots, switchTo, useVersion } from "./state"
 
-/** The page's width at least (a reading column's), and each lane's share of a wider one. */
-const PAGE = 848, LANE = 312
-/** Lanes per row by the page's width (one fits in 216px): rows filled evenly, never one left alone (4: 2 by 2). */
-const COLS: Record<number, string> = {
-  0: "", 1: "",
-  2: "@min-[444px]:grid-cols-2",
-  3: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3",
-  4: "@min-[444px]:grid-cols-2 @min-[900px]:grid-cols-4",
-  5: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[1128px]:grid-cols-5",
-  6: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3",
-  7: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[900px]:grid-cols-4",
-  8: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[900px]:grid-cols-4",
-  9: "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[1128px]:grid-cols-5",
-}
+const READING_WIDTH = 848, LANE_WIDTH = 312
+const EVEN_ROWS_BY_LANES = [
+  "", "",
+  "@min-[444px]:grid-cols-2",
+  "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3",
+  "@min-[444px]:grid-cols-2 @min-[900px]:grid-cols-4",
+  "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[1128px]:grid-cols-5",
+  "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3",
+  "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[900px]:grid-cols-4",
+  "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[900px]:grid-cols-4",
+  "@min-[444px]:grid-cols-2 @min-[672px]:grid-cols-3 @min-[1128px]:grid-cols-5",
+] as const
 type Shown = { l: TabList; tabs: Tab[] }
 type Desk = { n: number; lists: Shown[]; count: number }
 type Info = (t: Tab | Pane) => TabInfo
@@ -88,7 +86,7 @@ export default function AllTabs({ store }: { store: Store }) {
     </Lane>
   )
   return (
-    <div data-all-tabs data-own-drops className="@container mx-auto pb-10" style={{ maxWidth: Math.max(PAGE, lanes.length * LANE) }}>
+    <div data-all-tabs data-own-drops className="@container mx-auto pb-10" style={{ maxWidth: Math.max(READING_WIDTH, lanes.length * LANE_WIDTH) }}>
       <PageHeader title="Workspaces" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
         <div className="flex items-center justify-end gap-2 max-md:basis-full md:basis-80">
           {free && !query && !naming && <NewDesk n={free} start={() => setNaming(free)} />}
@@ -96,7 +94,7 @@ export default function AllTabs({ store }: { store: Store }) {
         </div>
       </PageHeader>
       {query && !lanes.length ? <Empty>No tabs match "{query}".</Empty>
-        : <div data-all-tabs-board className={cn("grid gap-3", COLS[lanes.length])}>{lanes.map(lane)}</div>}
+        : <div data-all-tabs-board className={cn("grid gap-3", EVEN_ROWS_BY_LANES[lanes.length])}>{lanes.map(lane)}</div>}
     </div>
   )
 }
