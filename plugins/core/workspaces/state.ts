@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, Box, CircleSlash, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
   cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
-  replaceHash, sameSidebars, WORKSPACES as MAX, isPhoneDevice, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
+  replaceHash, sameSidebars, WORKSPACES as MAX, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
   allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type TabList, type WorkspaceHost, type WorkspaceInfo,
 } from "@vaultite"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
@@ -40,7 +40,6 @@ let local: Slots | null = null
 let movesNow: Moves = NO_MOVES
 let reorderedAt = 0
 export function slots(): Slots | null {
-  if (isPhoneDevice()) return null
   const w = getStore()?.workspaces
   const d = JSON.stringify(savedSidebars())
   if (w !== seen || d !== seenDef) {

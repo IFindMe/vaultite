@@ -7,7 +7,7 @@ app's terminal `VAULTITE=1` is set (with `VAULTITE_URL`, the server, and `VAULTI
 **Three levels.** The vault is the user's things and how the app works (files, plugins on or off, appearance, hotkeys,
 and the panels and pinned pages a new workspace starts with), the same on every device. A workspace (with Workspaces
 on, `vau docs workspaces`) is a desk: its tabs, sidebars' panels, pinned pages, open folders, recent files, shared by
-every computer on it (a phone keeps its own tabs). A device keeps only which workspace it's on and its sidebars' widths and open state. `vau context`
+every device on it, phones too. A device keeps only which workspace it's on and its sidebars' widths and open state. `vau context`
 says which workspace the user's window is on. What's open (each device's and workspace's tabs, places in videos) and
 plugins' caches aren't settings: the server keeps them out of the vault, shared with the other machines (`vau kept`;
 change them with their plugins' ops: `vau workspace`, `vau tabs`).

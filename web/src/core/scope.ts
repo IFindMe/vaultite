@@ -3,12 +3,10 @@ import type { WorkspaceHost, WorkspaceInfo } from "@/core/define"
 import type { Tab } from "../../../core/layout.ts"
 import { isEnabled, PLUGINS } from "@/core/plugins"
 import { devicePref, getPrefs, onPrefs } from "@/core/prefs"
-import { isPhoneDevice } from "@/core/platform"
 
 export type Scope = "workspace" | "device"
 
 function workspaceHost(): WorkspaceHost | null {
-  if (isPhoneDevice()) return null
   const off = getPrefs().disabled
   return PLUGINS.find((p) => p.workspace && isEnabled(p.id, off))?.workspace ?? null
 }

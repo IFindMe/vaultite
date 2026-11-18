@@ -34,7 +34,7 @@ _Avoid_: endpoint, action, command (that's the palette's).
 **pack** adds plugins and pages, a **look** restyles.
 _Avoid_: template, theme, preset.
 
-**Workspace**: a desk: its tabs, sidebars, pinned pages and open folders, shared by every computer on it (a phone keeps its own).
+**Workspace**: a desk: its tabs, sidebars, pinned pages and open folders, shared by every device on it.
 _Avoid_: vault, project.
 
 **Tab**: one open file, page or terminal. **Pane**: where tabs show, side by side when split.

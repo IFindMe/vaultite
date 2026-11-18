@@ -1,7 +1,5 @@
-// Phone tabs: the phone's bar, header, tab list and Back, with Workspaces on. Workspaces are the computers': the phone
-// keeps its own tabs, and a desktop-sized page's workspace 1 is never touched by it, nor the phone by the desktop.
-// Writes Qa tabs/ and the workspaces (removed after): throwaway server only.
-// Paths: web/src/core/scope.ts, web/src/core/platform.ts, plugins/core/workspaces/index.tsx
+// Phone tabs through Workspaces: a phone-sized and a desktop-sized page sharing workspace 1's tabs, both ways. Writes
+// Qa tabs/ and the Workspaces data.json (removed after): throwaway server only.
 // [data-kept]: a tab drawn behind (PhoneFiles.tsx). TabSwitcher.tsx's bars sit on PhoneBar.tsx's and PhoneHeader.tsx's.
 //   node web/qa/phonetabs.mjs <base url> <vault path> [out dir]
 import { execFileSync } from "node:child_process"
@@ -32,8 +30,6 @@ const pastSaveTabsSoon = (ms = 1500) => wait(ms)
 const menuHeld = () => until(() => P.locator("[role=menu]").count(), 3000)
 for (const p of [D, P]) watch(p, { console: true, ignore: /favicon|Failed to load resource|WebSocket/ })
 const dTabs = () => D.$$eval("[data-tab-bar] [data-tab-id]", (els) => els.map((t) => t.innerText.trim()))
-/** Workspace 1's places as saved: the desktop's tabs, which nothing on the phone changes. */
-const ws1 = () => tosOf(data()[0]?.layout).join()
 const pCount = () => P.locator("[data-tabs-button]").innerText().then((t) => Number(t.trim()))
 const pHash = () => P.evaluate(() => decodeURIComponent(location.hash))
 const onScreen = (name) => P.locator(`article.file-view[data-path="Qa tabs/${name}.md"]:not([data-kept] *)`).count().then((n) => n > 0)
@@ -92,16 +88,11 @@ try {
   await D.evaluate((h) => { location.hash = h }, hash("Two"))
   check("desktop: workspace 1 saved with One and Two", !!(await until(() => { const t = tosOf(data()[0]?.layout); return t.includes(F("One")) && t.includes(F("Two")) }, 6000)), data())
 
-  await dUi.saved()
-  const desk = ws1(), deskTabs = await dTabs()
-
-  // ---------- the phone keeps its own tabs ----------
-  await P.goto(`${B}${hash("One")}`)
-  await P.waitForSelector("[data-phone-bar]"); await pUi.idle()
-  check("phone: its own tabs, not workspace 1's (count 1)", (await pCount()) === 1 && (await onScreen("One")), [await pCount(), await pHash()])
-  check("phone: on no workspace, its tabs not held by one", await P.evaluate(() => JSON.parse(localStorage.getItem("vaultite.prefs") ?? "{}").device?.workspace === undefined && localStorage.getItem("vaultite.tabs.held") === null))
-  check("phone: no workspace switcher", !(await P.locator("[data-workspace-switcher]").count()))
-  check("phone: workspace 1 as the desktop left it", ws1() === desk, [ws1(), desk])
+  // ---------- the phone adopts it ----------
+  await P.goto(B)
+  await P.waitForSelector("[data-phone-bar]")
+  check("phone: shares workspace 1's tabs (count 2)", !!(await until(async () => (await pCount()) === 2, 6000)), await pCount())
+  check("phone: current workspace is 1 on this device", await P.evaluate(() => JSON.parse(localStorage.getItem("vaultite.prefs") ?? "{}").device?.workspace === 1))
   const bar = await P.locator("[data-phone-bar]").boundingBox()
   check("phone bar: a capsule floating over the bottom, 12px from the sides, 8px up (no home indicator)", Math.round(bar.x) === 12 && Math.round(bar.width) === 366 && Math.round(bar.y + bar.height) === 836, bar)
   check("phone bar: no pinned pages in it (they're in the drawer)", !(await P.locator("[data-phone-bar] a").count()), await P.locator("[data-phone-bar] a").count())
@@ -150,13 +141,13 @@ try {
   check("tab list: its top row's … where the header's is", !!tops.header && tops.list?.join() === tops.header.join(), tops)
   await list().getByRole("button", { name: "New tab", exact: true }).click(); await pUi.idle()
   check("New tab: a blank tab on screen", /#new$/.test(P.url()) && (await pCount()) === n0 + 1, [P.url(), await pCount()])
+  check("desktop: follows the phone's new tab", !!(await until(async () => (await dTabs()).length === n0 + 1, 6000)), await dTabs())
   await P.getByText("Open a file", { exact: true }).click()
   await P.waitForSelector("[role=dialog] [role=combobox]")
   await P.keyboard.type("Three"); await pUi.idle()
   await P.keyboard.press("Enter"); await pUi.idle()
   check("Open a file from a blank tab: it shows in that tab, not the sheet", (await onScreen("Three")) && (await pCount()) === n0 + 1 && !(await pHash()).includes("/file/Qa tabs/Three.md/"), [await pHash(), await pCount()])
-  await pUi.saved(); await dUi.idle()
-  check("desktop: none of the phone's tabs", JSON.stringify(await dTabs()) === JSON.stringify(deskTabs) && ws1() === desk, [await dTabs(), ws1()])
+  check("desktop: the blank tab became Three", !!(await until(async () => (await dTabs()).some((t) => t.includes("Three")), 6000)), await dTabs())
   // Back from it: the blank tab it came from (what the swipe shows).
   await P.goBack(); await pUi.idle()
   check("Back from a filled blank tab: blank again", /#new$/.test(P.url()), P.url())
@@ -215,37 +206,35 @@ try {
   await P.screenshot({ path: `${OUT}dashboard-edit.png` })
   await toggle.click(); await pUi.idle()
   check("dashboard: reading again, drawn", (await toggle.getAttribute("aria-label")) === "Edit" && !(await P.locator("article:not([data-kept] *) .cm-content").count()))
-  await P.evaluate((h) => { location.hash = h }, hash("Three")); await pUi.saved()
-  check("desktop: still none of the phone's tabs", JSON.stringify(await dTabs()) === JSON.stringify(deskTabs) && ws1() === desk, [await dTabs(), ws1()])
+  await P.evaluate((h) => { location.hash = h }, hash("Three"))
+  check("desktop: sees the phone's tab back on Three", !!(await until(async () => (await dTabs()).some((t) => t.includes("Three")) && !(await dTabs()).some((t) => t.includes("Board")), 6000)), await dTabs())
 
-  // ---------- desktop opens and closes: its workspace changes, the phone's tabs don't ----------
+  // ---------- desktop opens and closes: the phone follows, keeping the tab on screen ----------
   const n1 = await pCount()
   await D.click("[data-tab-bar] button[aria-label='New tab']"); await dUi.idle()
   await D.evaluate((h) => { location.hash = h }, hash("Four"))
+  check("phone: sees the desktop's new tab", !!(await until(async () => (await pCount()) === n1 + 1, 6000)), await pCount())
+  check("phone: still on Three", await onScreen("Three"), await pHash())
   await D.locator("[data-tab-bar] [data-tab-id]", { hasText: "Two" }).hover()
   await D.locator("[data-tab-bar] [data-tab-id]", { hasText: "Two" }).locator("[data-tab-close]").click()
-  check("desktop: workspace 1 has Four, not Two", !!(await until(() => ws1().includes(F("Four")) && !ws1().includes(F("Two")), 6000)), ws1())
-  await pastSaveTabsSoon(); await pUi.idle()
-  check("phone: none of it (count unchanged, still on Three)", (await pCount()) === n1 && (await onScreen("Three")), [await pCount(), await pHash()])
-  // The phone writes nothing into the workspaces, whatever it does with its tabs.
-  await dUi.saved()
-  const m0 = mtime(), s0 = shared()
+  check("phone: sees the desktop close Two", !!(await until(async () => (await pCount()) === n1, 6000)), await pCount())
+  check("phone: still on Three after", await onScreen("Three"), await pHash())
+  // No echo: neither page writes back what it just received, and switching tabs (what's on screen) isn't saved.
+  await pastSaveTabsSoon()
+  let m0 = mtime()
+  await pastSaveTabsSoon(3000)
+  check("no writes while both pages sit on the same workspace", mtime() === m0, [m0, mtime()])
+  const s0 = shared()
   await P.click("[data-tabs-button]"); await P.waitForSelector("[data-tab-row]"); await pUi.idle()
-  await card("Three").click(); await pUi.saved()
-  await P.locator("[data-bar=new]").tap(); await pUi.idle()
-  await P.evaluate((h) => { location.hash = h }, hash("Four")); await pUi.saved()
-  check("phone: Four in a new tab of its own", (await onScreen("Four")) && (await pCount()) === n1 + 1, [await pCount(), await pHash()])
-  await pastSaveTabsSoon(1800)
-  check("phone: switching and opening tabs writes nothing into the workspaces", mtime() === m0 && shared() === s0, [m0, mtime()])
-  await P.click("[data-tabs-button]"); await P.waitForSelector("[data-tab-row]"); await pUi.idle()
-  await card("One").click(); await pUi.idle()
+  await card("One").click(); await pastSaveTabsSoon(1800)
+  check("switching tabs on the phone changes no tabs", shared() === s0, [s0, shared()])
 
   // ---------- the tab list ----------
   await P.click("[data-tabs-button]")
   await P.waitForSelector("[data-tab-row]"); await pUi.idle()
   const listTop = await P.evaluate(() => ({ search: !!document.querySelector("[data-tabs-header] [data-tabs-search]"), title: document.querySelector("[data-tabs-title]")?.textContent,
     more: !!document.querySelector("[data-tabs-header] [data-tabs-more]"), dots: document.querySelectorAll("[data-tabs-workspace] .rounded-full").length }))
-  check("tab list: search, its title (no workspace, no dots), more", listTop.search && listTop.title === "Tabs" && listTop.more && listTop.dots === 0, listTop)
+  check("tab list: search, the workspace (no dots for one), more", listTop.search && listTop.title === "Workspace 1" && listTop.more && listTop.dots === 0, listTop)
   // Search: a field across the top line, the cards those that match.
   await P.click("[data-tabs-search]"); await P.keyboard.type("Thr"); await pUi.idle()
   check("search: only the tabs that match", (await P.locator("[data-tab-row]").count()) === 1 && (await P.locator(`[data-tab-row] button[aria-label="Three"]`).count()) === 1, await P.locator("[data-tab-row]").count())
@@ -274,7 +263,7 @@ try {
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await pUi.idle()
   const back = await cardState(four)
   check("swipe: short of the threshold it springs back", back && !back.transform && !back.opacity, back)
-  check("swipe: ...and the tab stays open", (await pCount()) === n1 + 1, await pCount())
+  check("swipe: ...and the tab stays open", (await pCount()) === n1, await pCount())
   // Held still: its menu opens, and lifting leaves it; held then moved to a card's edge: the menu goes, the card moves.
   {
     const cardOrder = () => P.$$eval("[data-tab-row]", (els) => els.map((e) => e.dataset.tabRow))
@@ -292,8 +281,8 @@ try {
     const firstSel = `[data-tab-row="${was[0]}"] [data-tab-card]`, fb = await P.locator(firstSel).boundingBox()
     await hold(cardSel, { x: fb.x + fb.width * 0.1, y: fb.y + fb.height / 2 })
     check("hold and move: no menu left open", !(await menuItems()).length, await menuItems())
-    check("hold and move: the card moves", (await cardOrder())[0] === four, [was, await cardOrder()])
-    check("hold and move: ...and the tab stays open", (await pCount()) === n1 + 1, await pCount())
+    check("hold and move: the card moves", (await cardOrder())[0] === four, await cardOrder())
+    check("hold and move: ...and the tab stays open", (await pCount()) === n1, await pCount())
   }
   // Past it: flies off, the tab closes, and the cards after it move up into its place.
   const after = await P.$$eval("[data-tab-row]", (els, id) => els[els.findIndex((e) => e.dataset.tabRow === id) + 1]?.dataset.tabRow ?? null, four)
@@ -301,45 +290,45 @@ try {
   await touchDrag(cardSel, -260); await pUi.idle()
   const closing = await cardState(four)
   check("swipe: past the threshold it flies off", !closing || /translateX\(-\d{3,}/.test(closing.transform), closing)
-  check("swipe: the tab closes, the desktop's Four stays", !!(await until(async () => !(await P.locator(`[data-tab-row="${four}"]`).count()), 6000)) && ws1().includes(F("Four")), ws1())
+  check("swipe: the tab closes, and the desktop follows", !!(await until(async () => !(await P.locator(`[data-tab-row="${four}"]`).count()) && !(await dTabs()).some((t) => t.includes("Four")), 6000)), await dTabs())
   await pUi.idle()
   if (after) check("swipe: the next card slides into its place", (await cardState(after)).x !== afterAt.x || (await cardState(after)).y !== afterAt.y, [afterAt, await cardState(after)])
   const one = await cellOf("One")
   await P.locator(`[data-tab-row="${one}"] button[aria-label^='Close']`).click(); await pUi.idle()
   const xClosing = await cardState(one)
   check("X: shrinks away where it is", !xClosing || (xClosing.transform.includes("scale") && xClosing.opacity === "0"), xClosing)
-  check("X closes, the desktop's One stays", !!(await until(async () => !(await P.locator(`[data-tab-row="${one}"]`).count()), 6000)) && (await dTabs()).some((t) => t.includes("One")), await dTabs())
+  check("X closes, and the desktop follows", !!(await until(async () => !(await dTabs()).some((t) => t.includes("One")), 6000)), await dTabs())
   const left = await P.locator("[data-tab-row]").count()
-  // No workspaces to page through: the title has no menu, a swipe across the list changes nothing.
-  check("tab list: the title opens no menu", await P.locator("[data-tabs-workspace]").isDisabled(), await P.locator("[data-tabs-workspace]").getAttribute("aria-haspopup"))
+  // A workspace made from the phone (the title's menu): an unused one, with a blank tab; the desktop stays on 1.
+  await pUi.menu.open(P.locator("[data-tabs-workspace]"))
+  await P.locator("[role=menu] [role^=menuitem]", { hasText: /^New workspace$/ }).click(); await pUi.idle()
+  check("phone: New workspace switched to workspace 2", !!(await until(async () => (await P.locator("[data-tabs-title]").innerText()) === "Workspace 2", 6000)), data())
+  check("phone: ...not written: a blank tab is an unused workspace", !data()[1], data())
+  check("phone: workspace 2 has one blank tab", (await P.locator("[data-tab-row]").count()) === 1, await P.locator("[data-tab-row]").count())
+  await pUi.idle(); await dUi.idle()
+  check("desktop: still on workspace 1's tabs", (await dTabs()).length === left, await dTabs())
+  // Swiped right on the list's empty part: the one before, the list still open.
   const sw = await P.locator("[data-tabs-pager]").boundingBox()
   const sy = sw.y + sw.height - 120
-  for (const dir of [1, -1]) {
-    const x0 = dir > 0 ? 40 : 350
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: x0, y: sy }] })
-    for (let i = 1; i <= 10; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x0 + dir * i * 28, y: sy }] })
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await pUi.idle()
-  }
-  check("tab list: swiped either way, the same tabs, still open", (await P.locator("[data-tabs-title]").innerText()) === "Tabs" && (await P.locator("[data-tab-row]").count()) === left, [await P.locator("[data-tabs-title]").innerText(), await P.locator("[data-tab-row]").count()])
-  await P.keyboard.press("Escape"); await P.goBack().catch(() => {}); await pUi.saved()
-  // A split tab (made on a computer: the phone makes none) is one card, named by both panes (no group: groups are tab groups).
-  await P.evaluate(([a, b]) => {
-    const l = JSON.parse(localStorage.getItem("vaultite.tabs"))
-    l.tabs.push({ id: "tsplit", focus: "sp1", root: { id: "ss", dir: "row", sizes: [0.5, 0.5], kids: [{ id: "sp1", to: a }, { id: "sp2", to: b }] } })
-    localStorage.setItem("vaultite.tabs", JSON.stringify(l))
-  }, [F("One"), F("Two")])
-  await P.reload(); await P.waitForSelector("[data-phone-bar]"); await pUi.idle()
-  await P.click("[data-tabs-button]"); await P.waitForSelector("[data-tab-row]"); await pUi.idle()
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 40, y: sy }] })
+  for (let i = 1; i <= 10; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 40 + i * 28, y: sy }] })
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await pUi.idle()
+  check("phone: swiped back to 1", (await P.locator("[data-tabs-title]").innerText()) === "Workspace 1", await P.locator("[data-tabs-title]").innerText())
+  check("phone: back on 1: its tabs again, list still open", (await P.locator("[data-tab-row]").count()) === left, await P.locator("[data-tab-row]").count())
+  // Split on the desktop: on a phone the split tab is one card, named by both panes (no group: groups are tab groups).
+  await D.evaluate(() => document.querySelector("[data-tab-bar] [data-tab-id]")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 300, clientY: 20 })))
+  await D.locator("[role=menuitem]", { hasText: /^Split right$/ }).click()
   const splitCard = P.locator("[data-tab-row]", { has: P.locator("[data-card-panes]") })
-  check("tab list: a split is one card, no group", !!(await until(async () => !(await P.locator("[data-group-card]").count()) && (await P.locator("[data-tab-row]").count()) === left + 1 && (await splitCard.count()) === 1, 6000)), await P.$$eval("[data-group-card], [data-tab-row]", (s) => s.map((x) => x.innerText.split("\n")[0])))
+  check("tab list: a desktop split is one card, no group", !!(await until(async () => !(await P.locator("[data-group-card]").count()) && (await P.locator("[data-tab-row]").count()) === left && (await splitCard.count()) === 1, 6000)), await P.$$eval("[data-group-card], [data-tab-row]", (s) => s.map((x) => x.innerText.split("\n")[0])))
   check("tab list: ...named by both its panes, marked as holding 2", / · /.test(await splitCard.locator("[data-tab-card] > button").first().getAttribute("aria-label").catch(() => "")) && (await splitCard.locator("[data-card-panes]").getAttribute("data-card-panes").catch(() => "")) === "2",
     [await splitCard.locator("[data-tab-card] > button").first().getAttribute("aria-label").catch(() => null), await splitCard.locator("[data-card-panes]").getAttribute("data-card-panes").catch(() => null)])
   await P.screenshot({ path: `${OUT}phone-list-split.png` })
-  await splitCard.locator("button[aria-label^='Close']").first().click(); await pUi.idle()
-  check("tab list: the split's card closes as a tab", !!(await until(async () => !(await splitCard.count()) && (await P.locator("[data-tab-row]").count()) === left, 6000)), await P.locator("[data-tab-row]").count())
+  // The split's new pane closed on the desktop (⌥⇧⌘W, its focused one): one card again, as before it. (What follows is
+  // about tabs outside a split: in one, a new tab is one of the focused pane's own, as on a computer.)
+  await D.keyboard.press("ControlOrMeta+Alt+Shift+KeyW")
+  check("tab list: the desktop closes the split's pane, the phone's card is a tab of one", !!(await until(async () => !(await splitCard.count()) && (await P.locator("[data-tab-row]").count()) === left, 6000)), await P.locator("[data-tab-row]").count())
   await P.keyboard.press("Escape"); await P.goBack().catch(() => {}); await pUi.idle()
   await P.goto(`${B}${hash("Three")}`); await P.waitForSelector("[data-phone-bar]"); await pUi.idle()
-  check("desktop: workspace 1 only ever had its own", ws1().includes(F("Four")) && ![F("Three"), F("Board")].some((f) => ws1().includes(f)), ws1())
 
   // ---------- a pinned page, from the drawer ----------
   // As from a computer's sidebar: a page opened from a file goes in a new tab beside it, a page replaces a page.

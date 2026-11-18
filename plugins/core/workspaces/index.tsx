@@ -1,5 +1,5 @@
 import { LayoutGrid } from "lucide-react"
-import { definePlugin, isMac, isPhoneDevice, isPopout, vaultSidebars } from "@vaultite"
+import { definePlugin, isMac, isPopout, vaultSidebars } from "@vaultite"
 import { AllTabs, WorkspaceSettings } from "./later"
 import { Background, Workspaces } from "./Numbers"
 import { ALL_TABS, current, currentTab, cycle, host, lit, moveTab, openElsewhere, patch, showAllTabs, slots, SLOTS, switchTo, used } from "./state"
@@ -25,7 +25,7 @@ export default definePlugin({
     { key: "panels", label: "Workspace's panels", description: "the sidebars of this workspace" },
   ],
   header: { numbers: { render: (ctx) => <Workspaces {...ctx} /> } },
-  background: (ctx) => (isPopout() || isPhoneDevice() ? null : <Background {...ctx} />),
+  background: (ctx) => (isPopout() ? null : <Background {...ctx} />),
   views: {
     [ALL_TABS]: { icon: LayoutGrid, wide: true, title: () => "Workspaces", render: ({ store }) => <AllTabs store={store} /> },
   },

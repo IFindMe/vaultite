@@ -1,5 +1,5 @@
-// Workspaces as spaces (plugins/core/workspaces): each one's icon, colour and Browser container, swiped between; a
-// phone keeps its own tabs. Writes plugins.json and the workspaces' files (put back): throwaway only.
+// Workspaces as spaces (plugins/core/workspaces): each one's icon, colour and Browser container, swiped between, and
+// shown on the phone. Writes plugins.json and the workspaces' files (put back): throwaway only.
 //   node web/qa/spaces.mjs <base url> <vault path>
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import path from "node:path"
@@ -112,15 +112,18 @@ try {
   check("an up-and-down swipe doesn't switch", (await lit()) === "1", await lit())
   await ctx.close()
 
-  // The phone: workspaces are the computers'; its tab list is its own tabs', with no workspace's icon or menu.
   const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true })
   const P = watch(await pctx.newPage(), { console: true, ignore: /favicon|Failed to load resource|WebSocket/ })
   await P.goto(B)
   await P.waitForSelector("[data-tabs-button]", { timeout: 30000 }); await app(P).idle()
   await P.click("[data-tabs-button]")
   await P.locator("[data-tabs-workspace]").waitFor({ timeout: 5000 })
-  const head = await P.locator("[data-tabs-workspace]").evaluate((e) => ({ title: e.querySelector("[data-tabs-title]")?.textContent, icon: !!e.querySelector("[data-tabs-workspace-icon]"), menu: !e.disabled }))
-  check("phone: the tab list is the phone's own, no workspace's name, icon or menu", head.title === "Tabs" && !head.icon && !head.menu, head)
+  check("phone: the tab list's title shows the workspace's icon", await until(() => P.$("[data-tabs-workspace] [data-tabs-workspace-icon]"), 5000))
+  await P.click("[data-tabs-workspace]")
+  const marks = await until(() => P.$$eval("[role=menu] [role=menuitemradio]", (els) => els.map((e) => e.querySelector("[data-workspace-icon]")?.getAttribute("data-workspace-icon") ?? e.textContent.trim())), 3000)
+  check("… its menu shows each workspace's mark, as the computer's list does", marks?.[0] === "book-open" && marks?.[1] === "2Reading", marks)
+  const fits = await P.$eval("[role=menu]", (m) => ({ right: Math.round(m.getBoundingClientRect().right), w: innerWidth, cut: [...m.querySelectorAll(".truncate")].some((t) => t.scrollWidth > t.clientWidth) }))
+  check("… within the screen, a long name cut off", fits.right <= fits.w && fits.cut, fits)
   await pctx.close()
 } finally {
   writeFileSync(PLUGINS, pluginsBefore)

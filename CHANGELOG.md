@@ -53,8 +53,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   switcher) shows every workspace's as the Tabs panel does: groups fold on a click (their count in their pill), a row
   opens its tab or pane, closes on hover or middle-click and has the tab's menu, and drags
   like the Tabs panel's, to reorder a workspace's tabs or move them and groups to another workspace's, tab search finds them, a speaker marks the workspace playing sound, and a web page
-  whose tab is in no workspace closes. A workspace's settings say where its web pages and terminals open. Workspaces
-  are the computers': a phone keeps its own tabs.
+  whose tab is in no workspace closes. A workspace's settings say where its web pages and terminals open.
 - Browser: logins come only from containers; each workspace's own logins from before become a container named after
   it, once, on each Mac, so nobody is signed out.
 - Click a shortcut where it shows (the command palette, menus, the sidebar, a new tab, Hotkeys) to change it on the
