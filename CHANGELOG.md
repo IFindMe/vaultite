@@ -10,6 +10,12 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   be read says why ("Couldn't open this note: the server didn't answer") instead of "isn't in the vault any more", and
   opens by itself when the connection's back. When the server can't be reached for a while the app says so ("Can't
   connect to Vaultite · Try now"), and "Reconnected" takes its place.
+- Browser: sign-ins work in the user's own tabs. claude.ai's Authorize (Claude Code's login) and other buttons that
+  wait for the page to have focus take the first click even while a toast or an agent's card is over the page; a tab
+  opened from another app's link takes the keyboard; a popup, a new tab or a blocked popup's Open stays in its opener's
+  container; a sign-in that ends in another app's link asks to open it; a login answering this Mac never makes a
+  localhost rule; and Google's "Couldn't sign you in" offers to copy a Google login it already trusts from another
+  container or Mac.
 - Server: moving or renaming a file in a big vault on iCloud Drive no longer freezes the server. Reading the vault's
   folders and rewriting links to the moved file now happen off the main thread, in steps, so the app, terminals and
   agents keep their connection meanwhile, where the watchdog used to kill and restart the server after 30 seconds.

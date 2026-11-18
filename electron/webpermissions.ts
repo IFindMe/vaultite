@@ -17,6 +17,7 @@ const ASKED: Record<string, string> = {
   camera: "use your camera", microphone: "use your microphone", geolocation: "know your location", "clipboard-read": "see what you copy",
   midi: "use your MIDI devices", midiSysex: "control your MIDI devices", "idle-detection": "know when you're away from the computer",
   "window-management": "see your screens and place windows on them", fileSystem: "edit files on this Mac", openExternal: "open another app",
+  "local-network-access": "reach your network", "local-network": "reach your network", "loopback-network": "reach this Mac",
 }
 type Answers = { [profile: string]: { [site: string]: { [kind: string]: boolean } } }
 let answers: Answers | null = null
@@ -86,11 +87,11 @@ export async function askPermission(profile: string, wc: WebContents, perm: stri
   return yes
 }
 
-export async function otherApp(p: Page, to: string) {
+export async function otherApp(p: Page, to: string, from = "") {
   const scheme = otherAppScheme(to)
   if (!scheme) return
   if (scheme === "mailto") return void shell.openExternal(to)
   const wc = p.view.webContents
   if (wc.isDestroyed()) return
-  if (await askPermission(p.profile, wc, "openExternal", { requestingUrl: wc.getURL(), externalURL: to }).catch(() => false)) await shell.openExternal(to).catch((e) => log.error("couldn't open a link in another app", e))
+  if (await askPermission(p.profile, wc, "openExternal", { requestingUrl: wc.getURL() || from, externalURL: to }).catch(() => false)) await shell.openExternal(to).catch((e) => log.error("couldn't open a link in another app", e))
 }

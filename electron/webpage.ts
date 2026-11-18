@@ -81,7 +81,7 @@ export function make(win: AppWindow, url: string, profile: string, tab: string, 
   const refuse = (e: { preventDefault: () => void }, to: string) => {
     if (shows(to)) return
     e.preventDefault()
-    void otherApp(p, to)
+    void otherApp(p, to, p.target)
   }
   wc.on("will-navigate", (e) => refuse(e, e.url))
   wc.on("will-redirect", (e) => refuse(e, e.url))

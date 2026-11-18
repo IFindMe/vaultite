@@ -117,6 +117,13 @@ let keyboard = 0
 export const pageTookKeyboard = (id: number) => { keyboard = id }
 export const hasKeyboard = (id: number) => keyboard === id
 if (typeof window !== "undefined") addEventListener("focus", () => { keyboard = 0 })
+const fromApps = new Map<string, number>()
+export const opensFromApp = (url: string) => { fromApps.set(url, Date.now()) }
+export function openedFromApp(url: string) {
+  const at = fromApps.get(url)
+  fromApps.delete(url)
+  return at !== undefined && Date.now() - at < 60_000
+}
 
 export const setPlayer = (id: number, on: boolean) =>
   void Promise.resolve(webPages?.player?.(id, on, settings.get().playerFullScreen === true)).catch((e) => notifyError(e, on ? "Couldn't open the player" : "Couldn't bring the page back"))

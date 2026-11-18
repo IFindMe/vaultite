@@ -14,7 +14,7 @@ import { EDIT_DETAIL, ENTRY_DETAIL, entryTitle, NEW_DETAIL, PasswordsSetting } f
 import { askImport, browsersHere, findBrowsers } from "./importer"
 import "./types"
 import { openBookmark, starOf } from "./Star"
-import { focusedPage, focusedPageId, keptTitles, linksInViewer, loadingIn, onScreen, pageOfTab, pageTookKeyboard, passkeyAsks, setPageFlags, stateCame, setPlayer, setSounds, settings, settingsRead, shown, soundOf, titleOf, typedIn } from "./state"
+import { focusedPage, focusedPageId, keptTitles, linksInViewer, loadingIn, onScreen, opensFromApp, pageOfTab, pageTookKeyboard, passkeyAsks, setPageFlags, stateCame, setPlayer, setSounds, settings, settingsRead, shown, soundOf, titleOf, typedIn } from "./state"
 import { agentPage, agentPageOfTab, agentPages, openAsTab, pauseAgents, setAgentPages, working, type AgentPage } from "./agentpages"
 import { AgentsCard, agentsCardShown, showAgentsCard } from "./AgentsCard"
 import { pickElement, useHiddenParts, watchShields } from "./shields"
@@ -48,8 +48,16 @@ const ExtensionsView = lazy(() => import("./Extensions").then((m) => ({ default:
 
 const openPage = (url: string, container: string | null = null) => openView(`web/${argOf(url, container)}`, { newTab: true })
 
+let refusals = false
+function googleSeen(id: number, url: string) {
+  if (!refusals && !url.startsWith("https://accounts.google.com/")) return
+  refusals = true
+  void import("./googlerefused").then((g) => g.googleRefused(id, url, shown.get(id)?.container ?? null))
+}
+
 function opened(m: Extract<WebEvent, { type: "open" }>) {
-  const c = m.container !== undefined ? m.container : destination(m.url, { from: containerOfProfile(m.profile), fresh: false, opened: true }).container
+  const c = m.container !== undefined ? m.container : m.page ? containerOfProfile(m.profile)
+    : destination(m.url, { from: containerOfProfile(m.profile), fresh: false, opened: true }).container
   if (c === null) keepOutside(m.url)
   const to = `view:web/${argOf(m.url, c)}`
   if (m.how === "glance") return openDetail(detailPath("glance", to))
@@ -171,10 +179,10 @@ function Background() {
   useEffect(readDownloads, [])
   useEffect(() => { void engine("agents:pages").then((l) => { if (Array.isArray(l)) setAgentPages(l) }, () => {}) }, [])
   useEffect(() => webPages?.on((m) => {
-    if (m.type === "state") stateCame(m.id, m.state)
+    if (m.type === "state") { stateCame(m.id, m.state); googleSeen(m.id, m.state.url) }
     else if (m.type === "open") opened(m)
     else if (m.type === "close") closePane(m.tab, true)
-    else if (m.type === "blocked") notify(`Blocked a pop-up from ${hostOf(m.url) || "a page"}`, { action: { label: "Open", run: () => opened({ ...m, type: "open", how: "foreground" }) } })
+    else if (m.type === "blocked") notify(`Blocked a pop-up from ${hostOf(m.url) || "a page"}`, { action: { label: "Open", run: () => opened({ ...m, type: "open", how: "foreground", container: containerOfProfile(m.profile) }) } })
     else if (m.type === "engine:agent:pages" && Array.isArray(m.pages)) setAgentPages(m.pages as AgentPage[])
     else if (m.type === "engine:agent:close" && typeof m.tab === "string" && m.tab) closePane(m.tab, true)
     else if (m.type === "engine:navlog:load") { const { type: _, ...load } = m; trace("browser", { ev: "load", ...load }) }
@@ -294,7 +302,7 @@ export default definePlugin({
     const chosen = chosenFor(container)
     if (!webPages && framedSite(url) && !out) { if (newTab) openTab(`view:web/${url}`, { background: !front }); else openPage(url); return true }
     if (!webPages || out || (!linksInViewer() && chosen === undefined)) return false
-    if (fromApp && chosen === undefined) { void settingsRead().then(() => openFromApp(url, openPage)); return true }
+    if (fromApp && chosen === undefined) { void settingsRead().then(() => openFromApp(url, (u, c) => { opensFromApp(u); openPage(u, c) })); return true }
     const c = destination(url, { from: null, fresh: true, chosen }).container
     if (c === null && chosen === null) keepOutside(url)
     if (newTab && front) openTab(`view:web/${argOf(url, c)}`)

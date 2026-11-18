@@ -6,8 +6,8 @@ import { answer, choiceOf, loadAnswers } from "./webpermissions.ts"
 import { hostOfUrl, siteOf } from "./webwire.ts"
 
 const SHOWN = ["camera", "microphone", "geolocation", "notifications"]
-const QUERIED = z.enum(["camera", "microphone", "geolocation", "notifications", "clipboard-read", "midi", "idle-detection", "window-management"])
-const KIND = z.string().regex(/^(camera|microphone|geolocation|notifications|clipboard-read|midi|midiSysex|idle-detection|window-management|fileSystem|openExternal:[a-z][a-z0-9+.-]{0,40})$/)
+const QUERIED = z.enum(["camera", "microphone", "geolocation", "notifications", "clipboard-read", "midi", "idle-detection", "window-management", "local-network-access", "local-network", "loopback-network"])
+const KIND = z.string().regex(/^(camera|microphone|geolocation|notifications|clipboard-read|midi|midiSysex|idle-detection|window-management|local-network-access|local-network|loopback-network|fileSystem|openExternal:[a-z][a-z0-9+.-]{0,40})$/)
 const PROFILE = z.string().regex(/^[a-z0-9-]{0,32}$/), SITE = z.string().regex(/^[a-z0-9.-]{1,253}$/)
 const SET = z.tuple([PROFILE, SITE, KIND, z.enum(["allow", "block", "ask"])]), CLEAR = z.tuple([PROFILE, SITE]), MAC_KIND = z.enum(["camera", "microphone"])
 

@@ -10,7 +10,9 @@
   electron/appwindow.ts), see-through behind it. Only a popup or a drag takes every click; anything else takes its own
   and the rest go to the page over CDP, since sendInputEvent never reaches a cross-site frame (a captcha, "Sign in with
   Google"). An overlay no hit test finds (no pointer events, or between the test's points) needs `data-floats`; small
-  ambient bits the page may hide take `data-under-pages`, so they don't raise the window. No API passes a pinch on:
+  ambient bits the page may hide take `data-under-pages`, so they don't raise the window. A passed click lands on the
+  window's view first, which takes the keyboard a moment: the page under it keeps its focus (electron/focusstep.ts, CDP
+  focus emulation), as sites' clickjacking guards (claude.ai's Authorize) stay disabled a while after any blur. No API passes a pinch on:
   macOS gives it to the top view, so electron/gestures.m hands it to the page under the pointer (`web/qa/pinch.mjs`,
   VAULTITE_REAL_INPUT=1).
 - Electron drags the window wherever any view has a drag region, whatever is drawn over it, and Chromium neither clips

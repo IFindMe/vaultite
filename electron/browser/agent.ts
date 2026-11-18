@@ -500,10 +500,11 @@ export const acting = (p: EnginePage, by: By, what: string) => {
   changed(p.win)
 }
 const openerOf = (id: number) => owners.get(id) ?? (Date.now() - (doing.get(id)?.at ?? 0) < 5000 ? doing.get(id)?.by : undefined)
-setAgentActing((id) => !!openerOf(id))
+const agentDoing = (id: number) => !taken.has(id) && !asks.has(id) && !!openerOf(id)
+setAgentActing(agentDoing)
 setAgentOwned((id) => owners.has(id) && !taken.has(id))
 eachPage((p) => {
-  const by = p.opener === undefined || p.tab() ? undefined : openerOf(p.opener)
+  const by = p.opener === undefined || p.tab() || !agentDoing(p.opener) ? undefined : openerOf(p.opener)
   if (!by) return
   owners.set(p.id, by)
   used.set(p.id, Date.now())

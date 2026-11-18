@@ -25,7 +25,7 @@ import { LoginButton } from "./LoginFill"
 import { Start } from "./Start"
 import { openBookmark, StarButton, starOf } from "./Star"
 import { Passkey } from "./Passkey"
-import { forgetUnheard, hasKeyboard, passkeyAsks, setFocusedPage, setOnScreen, setPlayer, settings, settingsRead, setTitle, shown, takeUnheard, type FindAsk } from "./state"
+import { forgetUnheard, hasKeyboard, openedFromApp, passkeyAsks, setFocusedPage, setOnScreen, setPlayer, settings, settingsRead, setTitle, shown, takeUnheard, type FindAsk } from "./state"
 import { FindBar, findOpen, setFindOpen, type Found } from "./FindBar"
 import { siteIcon } from "./icons"
 import { barItems } from "./pagebar"
@@ -117,12 +117,14 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
   usePaneTopBar(bar, !barHid)
   const taken = useRef("")
   const shownFocused = useRef(false)
+  const takesKeys = useRef(false)
   useEffect(() => {
     if (locked !== false || blank) return
     let gone = false, mine = 0
     const leave = (id: number) => void painted().then(() => { void web.release(id); if (tab && !stillWeb(tab)) void web.close(tab) })
     settingsRead().then(() => {
       watchTab(arg, tab)
+      if (openedFromApp(arg)) takesKeys.current = true
       const into = container || keptOutside(arg) ? null : destination(arg, { from: null, fresh: true }).container
       if (into) { live.current.setTabArg(argOf(arg, into)); return Promise.reject(null) }
       const el = box.current, r = el && !popupOpen() ? pageArea(el.getBoundingClientRect()) : null
@@ -213,7 +215,7 @@ function Page({ web, arg: tabArg, focused, setArg: setTabArg }: Props & { web: W
   useEffect(() => {
     if (!id) return
     setFocusedPage(id, focused)
-    if (focused && !hasKeyboard(id) && !typingIn(document.activeElement)) void web.go(id, "focus")
+    if (focused && !hasKeyboard(id) && (takesKeys.current || !typingIn(document.activeElement))) { takesKeys.current = false; void web.go(id, "focus") }
     return () => setFocusedPage(id, false)
   }, [id, focused, web])
 

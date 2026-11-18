@@ -50,6 +50,10 @@ import { plugin } from "./lib.ts"
     linkRuleIn(list, auth) === "alt" && ruleSiteOf(auth) === "lighthouse.app"
     && linkRuleIn(list, "https://accounts.google.com/o/oauth2/v2/auth?client_id=1&redirect_uri=https://other.example.com/cb") === "agents"
     && linkRuleIn(list, "https://docs.lighthouse.app/a") === "alt" && linkRuleIn(list, "https://example.com/") === null && ruleSiteOf("https://www.example.com/a") === "example.com")
+  const cli = "https://lighthouse.app/oauth/authorize?client_id=1&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A54994%2Fcallback"
+  check("link from an app: a sign-in answering this machine (a CLI's login) goes by its own site's rule, never by localhost's",
+    linkRuleIn(list, cli) === "alt" && ruleSiteOf(cli) === "lighthouse.app"
+    && ruleSiteOf(cli.replace("localhost%3A54994", "127.0.0.1%3A8080")) === "lighthouse.app")
   check("link from an app: one set of logins signed in opens there (none, the workspace's, too), several ask in their order, none leaves it to the rules",
     JSON.stringify(byLogins(["alt"])) === JSON.stringify({ open: "alt" }) && JSON.stringify(byLogins([null])) === JSON.stringify({ open: null })
     && JSON.stringify(byLogins([null, "personal", "alt", "alt"])) === JSON.stringify({ ask: [null, "personal", "alt"] }) && JSON.stringify(byLogins([])) === "{}")

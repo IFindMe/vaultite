@@ -62,6 +62,9 @@ a file here that adds itself through `engine.ts` and is imported by `index.ts`; 
 - Google's sign-in still finds Electron by its client hints (Chromium's brands, no Google Chrome's): accounts.google.com
   alone sees Firefox, its requests and its frames' navigator (googlesignin.ts), which sends none; only in Google's own tab
   or popup: its frames in another site ("Sign in with Google") talk to that site's script and must see what it sees.
+- A profile Google hasn't seen (a new container) can still be refused ("This browser or app may not be secure") for some
+  accounts, whatever it claims: Firefox, Chrome's own brands and no disguise were all refused alike (2026-11). That's its
+  risk check, so the way through is a login it trusts copied in (web-viewer's googlerefused.ts), never another disguise.
 - FedCM is off (main.ts): Electron has no account chooser for it, so a request never settled; sites open popups instead.
 - Chromium drops session cookies at every launch (Electron never sets persist_session_cookies): sessioncookies.ts
   keeps each persistent session's, encrypted (safeStorage), in its partition's folder and sets them as it's made.

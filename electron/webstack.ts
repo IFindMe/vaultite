@@ -1,6 +1,7 @@
 import { screen, type View, WebContentsView } from "electron"
 import { AppWindow } from "./appwindow.ts"
 import { cdp } from "./browser/cdp.ts"
+import type { FocusEvent } from "./focusstep.ts"
 import { QUIET } from "./quiet.ts"
 import { NO_POINTER, type Passed, type Pointer, type PointerEvent, pointerStep, type Raise, type Role, stackOrder } from "./stack.ts"
 import { MAC, type Page, pages } from "./webbase.ts"
@@ -30,7 +31,12 @@ export const raise = (win: AppWindow, how: Raise) => { if (!win.isDestroyed()) r
 
 export const pointer = (p: Page, e: Passed) => run(p.win, { type: "pass", page: p.id, kind: e.kind, button: e.button }, p, e)
 
+let focusing: Promise<typeof import("./webfocus.ts")> | undefined
+const focus = (win: AppWindow, e: FocusEvent) => void (focusing ??= import("./webfocus.ts")).then((f) => f.focusOn(win, e))
+
 export function run(win: AppWindow, e: PointerEvent, p?: Page, m?: Passed) {
+  if (e.type === "raise" || e.type === "gone") focus(win, e)
+  else if (e.kind === "mouseDown" && pointerOf(win).raise === "through") focus(win, { type: "press", page: e.page })
   const r = pointerStep(pointerOf(win), e)
   pointers.set(win, r.to)
   for (const x of r.do) {

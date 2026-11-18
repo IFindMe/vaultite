@@ -31,9 +31,10 @@ export function whereIn<C extends Named>(list: C[], url: string, { from, fresh, 
   return mine ? { container: mine.id, why: "This workspace's container" } : { container: null, why: "" }
 }
 
-export const ruleSiteOf = (url: string) => siteOf(signInOf(url)?.back ?? "") || siteOf(url)
+const backOf = (url: string) => { const b = signInOf(url)?.back ?? ""; return /^https?:\/\/(localhost|127\.\d+\.\d+\.\d+|\[::1\])(:\d+)?\//i.test(b) ? "" : b }
+export const ruleSiteOf = (url: string) => siteOf(backOf(url)) || siteOf(url)
 export function linkRuleIn(list: Named[], url: string): string | null {
-  const back = signInOf(url)?.back
+  const back = backOf(url)
   return (back ? ruleIn(list, back) : null) ?? ruleIn(list, url)
 }
 

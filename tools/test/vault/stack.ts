@@ -3,6 +3,7 @@ import type { VaultTest } from "./harness.ts"
 type Check = VaultTest["check"]
 const S = await import("../../../electron/stack.ts")
 const P = await import("../../../electron/pagespot.ts")
+const F = await import("../../../electron/focusstep.ts")
 
 function order(check: Check) {
   type V = { name: string; role: "window" | "page" | "full" | "chrome" }
@@ -26,7 +27,7 @@ function pointer(check: Check) {
   const run = (events: E[], from = S.NO_POINTER) => events.reduce((acc, e) => {
     const r = S.pointerStep(acc.s, e)
     return { s: r.to, did: [...acc.did, r.do.map((x) => x.do === "send" ? `send:${x.buttons}` : x.do === "pinch" ? `pinch:${x.on}` : x.do).join(",")] }
-  }, { s: from, did: [] as string[] })
+  }, { s: from, did: new Array<string>() })
   const pass = (kind: "mouseMove" | "mouseDown" | "mouseUp" | "mouseLeave" | "mouseWheel", button: "left" | "right" | "middle" = "left", page = 1): E => ({ type: "pass", page, kind, button })
   const raise = (how: "app" | "through" | null): E => ({ type: "raise", how })
   const read = (m: unknown) => { const r = S.PASSED.safeParse(m); return r.success ? r.data : null }
@@ -50,6 +51,25 @@ function pointer(check: Check) {
     read({ type: "mouseDown", keys: ["meta", "nope", "alt"] })?.keys.join() === "alt,meta" && read({ type: "mouseDown" })?.button === "left" &&
     read({ type: "mouseWheel", dx: "x" })?.dx === 0 && read({ type: "click" }) === null && read(null) === null)
   check("pointer: anything but a known raise reads as none", S.RAISE.parse("app") === "app" && S.RAISE.parse("through") === "through" && S.RAISE.parse("x") === null && S.RAISE.parse(undefined) === null)
+}
+
+function keptFocus(check: Check) {
+  type E = Parameters<typeof F.focusStep>[1]
+  const run = (events: [E, number | null][]) => events.reduce<{ kept: number | null; did: string[] }>((acc, [e, k]) => {
+    const m = F.focusStep(acc.kept, e, k)
+    return { kept: m.kept, did: [...acc.did, [m.off === null ? "" : `off:${m.off}`, m.on === null ? "" : `on:${m.on}`].filter(Boolean).join(",")] }
+  }, { kept: null, did: [] })
+  const shown = (events: [E, number | null][]) => run(events).did.join(" | ")
+  const rise = (how: "app" | "through" | null): E => ({ type: "raise", how }), press = (page: number): E => ({ type: "press", page })
+  check("focus: the page with the keyboard keeps its focus while the window is let through over it, till the window drops",
+    shown([[rise("through"), 4], [rise("through"), null], [press(4), null], [rise(null), null]]) === "on:4 |  |  | off:4")
+  check("focus: a page pressed through the window keeps focus from that press, and another pressed takes it over",
+    shown([[rise("through"), null], [press(1), null], [press(2), null]]) === " | on:1 | off:1,on:2")
+  check("focus: a menu over the page, the app losing the keyboard or the page ending lets its focus go",
+    shown([[rise("through"), 3], [rise("app"), null]]) === "on:3 | off:3"
+    && shown([[rise("through"), 3], [{ type: "appBlurred" }, null], [press(3), null]]) === "on:3 | off:3 | on:3"
+    && run([[rise("through"), 3], [{ type: "gone", page: 3 }, null]]).did.join(" | ") === "on:3 | " && run([[rise("through"), 3], [{ type: "gone", page: 3 }, null]]).kept === null)
+  check("focus: no window over the pages keeps none", shown([[rise(null), 5], [rise("app"), 5]]) === " | ")
 }
 
 function overlay(check: Check) {
@@ -90,4 +110,4 @@ function spot(check: Check) {
     run([{ type: "park", now: 1 }, { type: "hide" }]).s.at === "hidden" && !P.shown({ at: "parked", woke: 0 }) && P.shown({ at: "fill" }) && P.shown({ at: "tab" }))
 }
 
-export default async ($: VaultTest) => { for (const t of [order, pointer, overlay, spot]) t($.check) }
+export default async ($: VaultTest) => { for (const t of [order, pointer, keptFocus, overlay, spot]) t($.check) }
