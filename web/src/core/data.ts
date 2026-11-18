@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { createContext, useContext, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react"
 import { editCount, edited, onKeptChange, onVaultChange, settled, startLive, type Paths } from "@/core/live"
 import { get, send } from "@/core/http"
 import { hydratePrefs } from "@/core/prefs"
 import { errorText, notifyError } from "@/core/notify"
 import { span } from "@/core/spans"
 import { trackSoon } from "@/core/unsaved"
+import { failedOf, liveShown, mockedLive, useAskAgain, type Failed, type Live } from "@/core/liveread"
 import { setHere } from "@/core/here"
 import { usePane } from "@/core/pane"
 import { setVaultAppearance, type VaultAppearance } from "@/core/appearance"
@@ -119,10 +120,6 @@ export function useTick(ms = 30_000, on = true) {
 export const PreviewLive = createContext<Record<string, unknown> | null>(null)
 /** Drawn in a plugin's preview (made-up data, nothing fetched or written). */
 export const usePreview = () => useContext(PreviewLive) !== null
-function mocked<T>(mock: Record<string, unknown>, path: string | null) {
-  const key = path && Object.keys(mock).find((k) => path === k || path.startsWith(`${k}?`))
-  return { data: (key ? mock[key] : null) as T | null, error: null, loading: false }
-}
 
 const inflight = new Map<string, { at: number; n: number; p: Promise<unknown> }>()
 let changes = 0
@@ -198,17 +195,18 @@ function pollEvery(path: string, every: number, fn: () => void) {
 
 /** Live data from a plugin's route per mount (the last answer meanwhile), again when its cache or settings change, on a
  *  reconnect, `version`, vault files (`files`: any, or by path) and every `every` ms while shown. */
-export function useLive<T>(path: string | null, version?: string | number, files?: boolean | ((path: string) => boolean), every?: number) {
+export function useLive<T>(path: string | null, version?: string | number, files?: boolean | ((path: string) => boolean), every?: number): Live<T> {
   const follow = useRef(files)
   follow.current = files
   const mock = useContext(PreviewLive)
-  const [data, setData] = useState<T | null>(() => (path ? (recall(path)?.data as T | undefined) ?? null : null))
-  const [error, setError] = useState<string | null>(null)
+  const [got, setGot] = useState<{ path: string | null; data: T | null }>(() => ({ path, data: path ? (recall(path)?.data as T | undefined) ?? null : null }))
+  const [error, setError] = useState<Failed | null>(null)
+  const [tries, retry] = useReducer((n: number) => n + 1, 0)
   const shownJson = useRef<string | null>(null)
   shownJson.current ??= path ? recall(path)?.json ?? "" : ""
   const ask = path && version !== undefined ? `${path}\0${version}` : path
-  const behind = useRef(false)
-  behind.current = !!usePane().hidden
+  const hidden = !!usePane().hidden, behind = useRef(hidden)
+  behind.current = hidden
   const again = useRef<((fresh: number) => void) | null>(null)
   useEffect(() => {
     if (!path || !ask || mock) return
@@ -217,9 +215,9 @@ export function useLive<T>(path: string | null, version?: string | number, files
       if (!on) return
       const json = JSON.stringify(d)
       remember(path, d, json)
-      if (json !== shownJson.current) { shownJson.current = json; setData(d) }
+      if (json !== shownJson.current) { shownJson.current = json; setGot({ path, data: d }) } else setGot((g) => (g.path === path ? g : { path, data: d }))
       setError(null)
-    }).catch((e) => on && setError(errorText(e)))
+    }).catch((e) => on && setError(failedOf(e)))
     load()
     const offFiles = onVaultChange((paths) => {
       const f = follow.current
@@ -233,25 +231,26 @@ export function useLive<T>(path: string | null, version?: string | number, files
     again.current = (fresh) => void load(fresh)
     const stop = pollEvery(path, every, poll)
     return () => { on = false; again.current = null; off(); stop() }
-  }, [path, ask, mock, every])
-  const shown = !behind.current
+  }, [path, ask, mock, every, tries])
+  const shown = !hidden
   useEffect(() => { if (shown && every) again.current?.(every / 2) }, [shown, every])
-  if (mock) return mocked<T>(mock, path)
-  return { data, error, loading: !!path && data === null && error === null }
+  useAskAgain(error !== null, retry, hidden)
+  if (mock) return mockedLive<T>(mock, path)
+  return liveShown(path, got, error, retry)
 }
 
 /** useLive for an answer the server keeps frozen (the graph), asked again on `version` and its plugin's changes as a
  *  patch of the one it has (?patch=<v>, core/app.ts patched): only what changed comes, the rest keeps its objects. */
-export function usePatched<T>(path: string | null, version?: string | number) {
+export function usePatched<T>(path: string | null, version?: string | number): Live<T> {
   const mock = useContext(PreviewLive)
   const [got, setGot] = useState<{ path: string; v: string; data: T } | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Failed | null>(null)
   const had = useRef(got)
-  const [again, setAgain] = useState(0)
+  const [again, retry] = useReducer((n: number) => n + 1, 0)
   useEffect(() => {
     if (!path) return
-    const offFiles = onVaultChange((paths) => { if (liveData(paths, path)) setAgain((n) => n + 1) })
-    const offKept = onKeptChange((names) => { if (keptData(names, path)) setAgain((n) => n + 1) })
+    const offFiles = onVaultChange((paths) => { if (liveData(paths, path)) retry() })
+    const offKept = onKeptChange((names) => { if (keptData(names, path)) retry() })
     return () => { offFiles(); offKept() }
   }, [path])
   useEffect(() => {
@@ -266,13 +265,13 @@ export function usePatched<T>(path: string | null, version?: string | number) {
       had.current = { path, v: a.v, data }
       setGot(had.current)
       setError(null)
-    }).catch((e) => { if (on) setError(errorText(e)) })
+    }).catch((e) => { if (on) setError(failedOf(e)) })
     void ask(had.current?.path === path ? had.current : null)
     return () => { on = false }
   }, [path, version, again, mock])
-  if (mock) return mocked<T>(mock, path)
-  const data = got?.path === path ? got.data : null
-  return { data, error, loading: !!path && data === null && error === null }
+  useAskAgain(error !== null, retry, !!usePane().hidden)
+  if (mock) return mockedLive<T>(mock, path)
+  return liveShown(path, { path, data: got?.path === path ? got.data : null }, error, retry)
 }
 
 type Loaded = { store: Store | null; error: string | null }

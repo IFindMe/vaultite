@@ -138,7 +138,7 @@ export type FeedOpts = { limit?: number; actor?: ActorKind | ""; action?: Action
 export function useFeed({ limit = 30, actor = "", action = "", path = "" }: FeedOpts) {
   const q = `limit=${limit}${actor ? `&actor=${actor}` : ""}${action ? `&action=${action}` : ""}${path ? `&path=${encodeURIComponent(path)}` : ""}`
   const preview = usePreview()
-  const { data, error } = useLive<ActivityList>(`activity?${q}`, undefined, undefined, 4000)
+  const { data, error, retry } = useLive<ActivityList>(`activity?${q}`, undefined, undefined, 4000)
   const [older, setOlder] = useState<{ q: string; events: ActivityEvent[]; done: boolean }>({ q, events: [], done: false })
   const [busy, setBusy] = useState(false)
   useEffect(() => { setOlder({ q, events: [], done: false }) }, [q])
@@ -154,7 +154,7 @@ export function useFeed({ limit = 30, actor = "", action = "", path = "" }: Feed
       setOlder((o) => (o.q !== q ? o : { q, events: [...o.events, ...r.events], done: r.events.length === 0 }))
     }, () => {}).finally(() => setBusy(false))
   }
-  return { q, data, error, events, more, loadMore, busy }
+  return { q, data, error, retry, events, more, loadMore, busy }
 }
 
 export function FeedList({ store, opts, empty }: { store: Store; opts: FeedOpts; empty?: ReactNode }) {
@@ -162,7 +162,7 @@ export function FeedList({ store, opts, empty }: { store: Store; opts: FeedOpts;
   useEffect(() => setActor(opts.actor ?? ""), [opts.actor])
   const [action, setAction] = useState<ActionKind | "">(opts.action ?? "")
   useEffect(() => setAction(opts.action ?? ""), [opts.action])
-  const { q, data, error, events, more, loadMore, busy } = useFeed({ ...opts, actor, action })
+  const { q, data, error, retry, events, more, loadMore, busy } = useFeed({ ...opts, actor, action })
   const exists = useExists(store)
   const rows = useKeptCount(`activity?${q}`, data?.events.length)
   useTick()
@@ -171,7 +171,7 @@ export function FeedList({ store, opts, empty }: { store: Store; opts: FeedOpts;
       <Chips name="Who" opts={WHO} value={actor} onChange={setActor} />
       <Chips name="What" opts={WHAT} value={action} onChange={setAction} />
       {!data ? (
-        error || !rows ? <Loading error={error && "Couldn't read the activity."} /> : <Skeleton count={rows} />
+        error || !rows ? <Loading error={error && `Couldn't read the activity. ${error}`} retry={retry} /> : <Skeleton count={rows} />
       ) : !events.length ? (
         <Empty>{actor || action ? "Nothing like that yet." : empty ?? "Nothing yet."}</Empty>
       ) : (

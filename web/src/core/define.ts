@@ -702,9 +702,9 @@ export type PluginDef = {
   /** Things it finds that aren't in the store (running terminals): `docs` is asked whenever search looks, and
    *  `subscribe` says when they change while search is open. */
   searchLive?: { docs: () => SearchDoc[]; subscribe: (changed: () => void) => () => void }
-  /** Its coding agents at work, for the Agents panel: a hook, called only while the panel shows, giving every one it knows
-   *  of now (null: not known yet). Keep the list's object while nothing changed (useMemo): the panel redraws on a new one. */
-  agentRuns?: () => AgentRun[] | null
+  /** Its coding agents for the Agents panel, a hook called while it shows (null runs: not known yet; `unreachable`: "the
+   *  terminals", its runs the last known). Keep the object while nothing changed (useMemo): a new one redraws the panel. */
+  agentRuns?: () => { runs: AgentRun[] | null; unreachable?: string; retry?: () => void }
   /** What the quick switcher finds by the query itself, too many to index (the browsing history). */
   searchQuery?: {
     /** Things matching it, asked a moment after typing stops (the last answer wins), listed under `section`. */

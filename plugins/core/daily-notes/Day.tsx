@@ -18,13 +18,13 @@ export async function openDay(date: string, newTab = false) {
 type Day = { date: string; path: string; exists: boolean }
 export function useDay(date: string) {
   const at = useRef<string | null>(null)
-  const { data, error } = useLive<Day>(`daily-notes/day?date=${date}`, undefined, (p) => p === at.current)
+  const { data, error, retry } = useLive<Day>(`daily-notes/day?date=${date}`, undefined, (p) => p === at.current)
   const day = data?.date === date ? data : null
   at.current = day?.path ?? null
   const [started, setStarted] = useState<string | null>(null)
   const [busy, run] = useBusy()
   const start = () => void run(() => op("daily-note.open", { date }).then(() => setStarted(date), (e) => notifyError(e, `Couldn't start ${whose(date)} note`)))
-  return { day, error, start, started: started === date, starting: busy || (started === date && !!day && !day.exists) }
+  return { day, error: error && `Couldn't read the daily note. ${error}`, retry, start, started: started === date, starting: busy || (started === date && !!day && !day.exists) }
 }
 
 function useToday() {
@@ -50,7 +50,7 @@ export const DailyPanel = ({ store, open, flyout }: SidebarCtx) => (open ? <DayP
 
 function DayPanel({ store, jot }: { store: Store; jot?: boolean }) {
   const { date, now, show } = useShownDay()
-  const { day, error, start, started, starting } = useDay(date)
+  const { day, error, retry, start, started, starting } = useDay(date)
   return (
     <div className="flex shrink-0 flex-col" data-daily-panel={date}>
       <SidebarHeading title={dayName(date)} open>
@@ -58,7 +58,7 @@ function DayPanel({ store, jot }: { store: Store; jot?: boolean }) {
         <HeadingButton icon={ChevronLeft} label="Day before" onClick={() => show(addDays(date, -1))} />
         <HeadingButton icon={ChevronRight} label="Day after" onClick={() => show(addDays(date, 1))} />
       </SidebarHeading>
-      {!day ? <p className="h-7 pl-1.5 text-[13px] leading-7 text-tertiary">{error ? "Couldn't find the daily note." : ""}</p>
+      {!day ? (error ? <Loading error={error} retry={retry} className="pl-1.5 text-[13px] leading-[18px]" /> : <p className="h-7" />)
         : !day.exists ? (
           <button type="button" onClick={start} disabled={starting} aria-busy={starting || undefined} data-daily-start
             className="flex h-7 min-w-0 cursor-pointer items-center truncate pl-1.5 text-left text-[13px] whitespace-nowrap text-tertiary hover:text-muted-foreground disabled:cursor-progress">
@@ -72,7 +72,7 @@ function DayPanel({ store, jot }: { store: Store; jot?: boolean }) {
 
 export function DailyView({ store }: { store: Store }) {
   const { date, now, show } = useShownDay()
-  const { day, error, start, started, starting } = useDay(date)
+  const { day, error, retry, start, started, starting } = useDay(date)
   return (
     <div className="pb-10" data-daily-view={date}>
       <div className="mb-3 flex items-center gap-1">
@@ -81,7 +81,7 @@ export function DailyView({ store }: { store: Store }) {
         <Button look="quiet" size="small" className="px-2" disabled={date === now} onClick={() => show(now)}>Today</Button>
         <button type="button" className={nav} aria-label="Day after" data-tip="Day after" onClick={() => show(addDays(date, 1))}><ChevronRight className="size-4" strokeWidth={2.5} /></button>
       </div>
-      {!day ? <Loading error={error && "Couldn't find the daily note."} />
+      {!day ? <Loading error={error} retry={retry} />
         : !day.exists ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Empty>No note for {inSentence(dayName(date))} yet.</Empty>

@@ -23,7 +23,6 @@ import { type Any, ROOT, WEB, web } from "./lib.ts"
   check("choices: Undo puts back the one before", value === "natural" && cp.choiceLabel(def) === "Natural")
   check("choices: no preview where the setting can't show one", cp.choicePicker({ ...def, preview: undefined }, () => {}).preview === undefined)
 
-  // A plugin's enum (its manifest's), numbers too: the default again takes the key out.
   let data: Record<string, unknown> = {}, over: unknown = "unset"
   const store = { get: () => data, set: (k: Record<string, unknown>) => { data = Object.fromEntries(Object.entries({ ...data, ...k }).filter(([, v]) => v !== null)) }, preview: (k: unknown) => { over = k } }
   const decl = { type: "enum", values: [10, 20, 30], default: 20, label: "Row height", labels: { 10: "Short" }, description: "how tall rows are", preview: true }
@@ -50,7 +49,6 @@ import { type Any, ROOT, WEB, web } from "./lib.ts"
 }
 
 {
-  // A manifest's "⌥⌘F" reads as Linux and Windows name the keys there, a Mac's as written.
   const { keysText } = await import("../../../web/src/core/platform.ts")
   const off = (t: string) => keysText(t, false)
   check("keys in text: off a Mac, Ctrl, Alt and Shift", off("Find (⌘F), and replace (⌥⌘F); ⇧⌘T") === "Find (Ctrl+F), and replace (Ctrl+Alt+F); Ctrl+Shift+T", off("Find (⌘F), and replace (⌥⌘F); ⇧⌘T"))
@@ -59,7 +57,6 @@ import { type Any, ROOT, WEB, web } from "./lib.ts"
 }
 
 {
-  // Every scheme's ten colours (tab groups, workspaces, labels pick from them) tell apart: CIE76 distance at least 10.
   const { COLORS } = await import("../../../core/colors.ts")
   const lab = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map((i) => { const c = parseInt(hex.slice(i, i + 2), 16) / 255; return c > 0.04045 ? ((c + 0.055) / 1.055) ** 2.4 : c / 12.92 })
@@ -88,6 +85,11 @@ import { type Any, ROOT, WEB, web } from "./lib.ts"
   check("errors: a system call's code and a lost connection read as what to do, not bugs",
     said(new Error("EACCES: permission denied, open '/a/b'")) === "Vaultite isn't allowed to open it" && said(Object.assign(new Error("x"), { code: "ENOSPC" })) === "the disk is full" &&
     said(new TypeError("Failed to fetch")) === "the server didn't answer" && !plainError(new TypeError("Load failed")).bug)
+  check("errors: a proxy's 502/503/504 or bare 5xx reads as the server not answering, not its status text or a bug",
+    [http(502, "Bad Gateway"), http(503, "Service Unavailable"), http(504, "Gateway Timeout"), http(502, "Error 502"), http(500, "Internal Server Error"), http(503, "")]
+      .every((e) => said(e) === "the server didn't answer" && !plainError(e).bug && !!plainError(e).network))
+  check("errors: a 5xx the server explained keeps its words, and isn't a lost connection",
+    said(http(502, "Alice's Mac doesn't answer")) === "Alice's Mac doesn't answer" && !plainError(http(502, "Alice's Mac doesn't answer")).network && !plainError(http(404, "Error 404")).network)
   check("errors: the server's refusals and the app's own messages are shown as written",
     said(http(409, "A file called Plan already exists.")) === "A file called Plan already exists" && said(http(400, "path: a vault file, like {folder}/{name}.md")) !== null && said(new Error("That isn't a web address")) === "That isn't a web address" &&
     said("Error invoking remote method 'setup:create': Error: The vault needs a name") === "The vault needs a name")

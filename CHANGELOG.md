@@ -14,6 +14,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   box too. A chat tab shows its skeleton while its code comes (a phone fetches it once it has started). The inbox
   says when it can't be reached, with Try again, instead of "Loading…" for ever, and follows again once the
   connection's back.
+- Bad connections, everywhere else: a block, panel or page whose data can't be read says what and why with Try again
+  (never "Nothing scheduled." or "Couldn't find the daily note."), keeps what it already showed, and asks again by
+  itself (soon after, and as the connection comes back). Search says it's still looking in files, or why it couldn't;
+  Agents keeps its list and says which source it can't reach; a proxy's "Bad Gateway" reads as the server not answering.
 - Browser: sign-ins work in the user's own tabs. claude.ai's Authorize (Claude Code's login) and other buttons that
   wait for the page to have focus take the first click even while a toast or an agent's card is over the page; a tab
   opened from another app's link takes the keyboard; a popup, a new tab or a blocked popup's Open stays in its opener's

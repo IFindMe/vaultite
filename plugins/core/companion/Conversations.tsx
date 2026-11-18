@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react"
 import { Brain, Check, Maximize2, MessagesSquare, RotateCcw, X } from "lucide-react"
-import { cn, fmtAgo, HeadingButton, ink, keyHint, Loading, Markdown, notifyError, op, plural, Segmented, share, snippet, today, useFocusedFile, useKeptCount, type SidebarCtx } from "@vaultite"
+import { cn, errorText, fmtAgo, HeadingButton, ink, keyHint, Loading, Markdown, notifyError, op, plural, Segmented, share, snippet, today, useFocusedFile, useKeptCount, type SidebarCtx } from "@vaultite"
 import { AskLine } from "./AskLine"
 import type { Exchange } from "./conversation"
 import { accept, answer, getState, type Note, pick, reopen, review, subscribe, tintOf } from "./live"
@@ -99,7 +99,7 @@ function Talk({ fit }: { fit: Fit }) {
   useAtEnd(box, `${items.length}:${items.at(-1)?.e?.said.length ?? 0}:${pending.length}`, fit === "stack")
   const earlier = fit === "stack" ? Math.max(0, items.length - RECENT) : 0
   const asked = (text: string): Exchange => ({ t: Date.now(), seq: -1, kind: "ask", text, where: "", voice: false, summoned: false, said: [], did: [] })
-  const talk = !shown ? <Loading className="px-0.5 text-[13px] leading-[18px]" error={error ? "Couldn't read the companion's talk." : undefined} />
+  const talk = !shown ? <Loading className="px-0.5 text-[13px] leading-[18px]" error={error ? errorText(error, "Couldn't read the companion's talk") : undefined} retry={again} />
     : !items.length && !pending.length ? <p className="px-0.5 text-[13px] text-tertiary">Nothing yet today.</p>
     : items.slice(earlier).map((x) => (x.e ? <Turn key={`e${x.e.seq}-${x.e.t}`} e={x.e} compact /> : <JobRow key={`j${x.j.id}`} j={x.j} />))
   const few = !!shown && items.length < RECENT

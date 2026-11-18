@@ -278,7 +278,7 @@ export function SetupSheet({ id }: { id: string }) {
 }
 
 function AppSetup({ id }: { id: AppId }) {
-  const { data, error, reload } = useConnections()
+  const { data, error, retry, reload } = useConnections()
   const g = GUIDES[id]
   if (!g) return null
   const address = data ? data.cloud.url ?? data.url : null
@@ -286,7 +286,7 @@ function AppSetup({ id }: { id: AppId }) {
   return (
     <div data-setup={id}>
       <SheetHead icon={appIcon(id)} tint={g.tint ?? "var(--foreground)"} kicker="Connections" title={setupTitle(id)} sub={g.sub} />
-      {!data ? <Loading error={error} /> : (
+      {!data ? <Loading error={error} retry={retry} /> : (
         <div className="flex flex-col gap-4">
           {done && <Group><Row title={`${g.name} is connected`} meta={`Connected ${fmtAgo(done.created)}${done.used ? `, used ${fmtAgo(done.used)}` : ""}`} onOpen={() => openDetail(detailPath(CONNECTION_DETAIL, done.id))} data-setup-connected /></Group>}
           {address ? (
@@ -380,9 +380,9 @@ function Waiting({ data, onDone }: { data: State; onDone: () => void }) {
 }
 
 export function AiApps({ bare }: { bare?: boolean }) {
-  const { data, error, leaving, reload } = useConnections()
+  const { data, error, retry, leaving, reload } = useConnections()
   const rows = useKeptCount("mcp:connections", data ? APPS.length + 1 + Math.max(0, data.connections.length - 1) : undefined)
-  if (error && !data) return <Loading error={error} />
+  if (error && !data) return <Loading error={error} retry={retry} />
   const intro = bare ? null : <p className="pb-3 text-[15px] leading-[20px] text-muted-foreground">{INTRO}</p>
   if (!data) return <div aria-busy>{intro}<div className="rounded-[10px] bg-foreground/[0.04] px-3"><LoadingRows count={rows || APPS.length + 1} lead={<span className="skeleton size-8 shrink-0 rounded-[8px]" />} /></div></div>
   const taken = new Set<string>()
@@ -440,8 +440,8 @@ function ConnectedApps({ data, intro, leaving }: { data: State; intro: ReactNode
 }
 
 export function RemoteAccess() {
-  const { data, error, reload } = useConnections()
-  if (!data) return <Loading error={error} />
+  const { data, error, retry, reload } = useConnections()
+  if (!data) return <Loading error={error} retry={retry} />
   return (
     <div className="flex flex-col gap-4" data-remote-access>
       {data.here === "connect" ? <ThroughCloud cloud={data.cloud} /> : (
@@ -494,9 +494,9 @@ function NameField({ c, onDone }: { c: Connection; onDone: () => void }) {
 }
 
 export function ConnectionSheet({ id }: { id: string }) {
-  const { data, error, reload } = useConnections()
+  const { data, error, retry, reload } = useConnections()
   const c = data?.connections.find((x) => x.id === id)
-  if (!data) return <Loading error={error} />
+  if (!data) return <Loading error={error} retry={retry} />
   if (!c) return (
     <div data-connection-sheet>
       <SheetHead icon={Plug} tint="var(--foreground)" kicker="Connections" title="Not connected" />

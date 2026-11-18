@@ -20,6 +20,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `AgentDay`
 - `AgentDef`: A coding agent it brings (Claude Code, Codex), run by the Terminal plugin in a tab (`view:terminal/<name>-<id>`; resume-<name>-<session> resumes).
 - `AgentEntry`
+- `AgentFeed`
 - `AgentLimits({ src, options, fm })`: Its plan's allowances; with several accounts, each one's under its name (`account:` for one).
 - `AgentLimitsChip({ src, open })`: Its plan's limits in the status bar (AmbientItem): each account's tightest window, a click to `open`.
 - `AgentLiveSession`
@@ -382,7 +383,8 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `linkTo(path, from?, to?)`: A new link to a file, written in `from`, as the vault writes links (Settings, Files).
 - `List({ children })`
 - `listening()`: Listening now: a session not told to stop.
-- `Loading({ error, className })`: A block's data on its way: "Loading…", shimmering, or what went wrong getting it (`error`: "Couldn't ask Tailscale.").
+- `Live`: useLive's answer: `error` only while nothing of `path` shows, else `stale`: its answer kept through the failure (`cause`).
+- `Loading({ error, retry, className })`: A block's data on its way: "Loading…", shimmering, or what went wrong getting it (`error`: "Couldn't ask Tailscale."), with Try again given `retry`.
 - `LoadingRows({ count, meta, lead, right, className })`: A list on its way: `count` skeleton rows built from the real `Row` (`meta`: with a meta line, or how many have one), taking the list's room at once; `useKeptCount` gives as many rows as last time.
 - `LoadingSidebarRows({ count, right, className, … })`: Rows on their way: SidebarRow's shape, its icon a muted square and its label a bar (`right`: a bar at its end, as a time or a count); in a `data-size-up` list where the real rows are.
 - `logError(area, error)`
@@ -717,6 +719,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `startSelecting(list)`: Start a phone's select mode in a list with nothing picked yet (a list's own Select button).
 - `Stat({ label, value, unit, hint })`
 - `StatusItem`: Drawn in the desktop status bar for the focused file: before its view and counts (its properties), or `after` them (Token count).
+- `statusOf(e)`
 - `stem(path)`: A file's name as the app shows it: without .md, or the extension of a page a plugin draws (an artifact's .html, a table's .csv: named like notes, FileFormat.page); other files keep theirs.
 - `stepTextSize(kind, step)`: One step bigger (1), smaller (-1), or back to 100% (0).
 - `stiffness(ms)`: The stiffness that settles a move (to within 1%) in `ms`.
@@ -783,13 +786,15 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `trackSoon(what, on, save?)`: What the page will do by itself in a moment (a hint's delay; `save`: a debounced save): QA waits while `on()`.
 - `trackUnderway(on)`: Something under way in the page that it going away would cut (a recording, dictation): `on` says while it is.
 - `treeShownItems({ reveal }?)`: The tree's panel, tab and empty-space menus: hidden files, archived ones when there are archive folders, and revealing the open file (the heading's buttons have the rest: new, sort, collapse);…
+- `TryAgain({ onClick, quiet, className })`
 - `typedValue(type, v)`: A value as its type sorts and compares it: numbers and dates as numbers (ms), checkboxes as true or false; undefined when the type doesn't change how it compares.
 - `typingIn(el)`: Where keys type: a text field, an editor, a terminal (contenteditable, or a field you type text in), or a widget that keeps its keys, marked `data-keeps-keys` (a remote screen takes every key, a…
 - `UiMark`: `run` gets the click: a menu at the mark (`menuBelow`).
 - `unhighlight(view)`: Take out the coloured highlight the selection is in, marks and colour (false if it's in none: plain ones toggle as the other marks do).
+- `Unreachable`
 - `useAccountNames()`: Agents' accounts' names (accountName): another function each time more are read.
 - `useAgentRoute(route, options, query?, version?)`: A plugin's `route` for a block, with `query`, on its options' `machine` (this one when it's none or this) and `account` (and `for`: a plugin whose accounts come first): `on` names another machine…
-- `useAgentRuns(on?)`: Every agent the plugins that are on know of, in order, and whether some haven't said yet (`loading`).
+- `useAgentRuns(on?)`: Every agent the plugins that are on know of, in order; whether some haven't said yet (`loading`), and which can't be reached (`unreachable`).
 - `useAgents()`
 - `useAi()`
 - `useArchivedTabs()`

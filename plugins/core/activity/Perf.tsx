@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { MonitorSmartphone, Route, Server } from "lucide-react"
-import { Empty, fmtAgo, fmtStamp, Loading, Panel, Section, Stat, useLive, useTick } from "@vaultite"
+import { Empty, fmtAgo, fmtStamp, Loading, Panel, Section, Stat, useLive, useTick, type Live } from "@vaultite"
 import type { ClientPerf, Minute, Perf, RouteStat } from "./model"
 import { Columns } from "./Columns"
 import { TINT } from "./Feed"
@@ -10,7 +10,7 @@ type Options = { minutes?: unknown }
 const minutesOf = (o: Options) => Math.min(Math.max(typeof o.minutes === "number" ? Math.round(o.minutes) : 1440, 10), 1440 * 7)
 const usePerf = (minutes: number) => useLive<Perf>(`activity/perf?minutes=${minutes}`, undefined, undefined, 15_000)
 const span = (m: number) => (m % 1440 === 0 ? (m === 1440 ? "Last 24 h" : `Last ${m / 1440} days`) : m % 60 === 0 ? `Last ${m / 60} h` : `Last ${m} min`)
-const Waiting = ({ error }: { error: string | null }) => <Loading error={error && "Couldn't read the timings."} />
+const Waiting = ({ live }: { live: Live<Perf> }) => <Loading error={live.error && `Couldn't read the timings. ${live.error}`} retry={live.retry} />
 
 function bucket(list: Minute[], minutes: number, now: number, n = 72) {
   const cols = Math.min(n, minutes)
@@ -29,8 +29,9 @@ function bucket(list: Minute[], minutes: number, now: number, n = 72) {
 
 export function PerfServer({ options }: { options: Options }) {
   const minutes = minutesOf(options)
-  const { data, error } = usePerf(minutes)
-  if (!data) return <Panel title="Server" icon={Server} tint={TINT}><Waiting error={error} /></Panel>
+  const live = usePerf(minutes)
+  const { data } = live
+  if (!data) return <Panel title="Server" icon={Server} tint={TINT}><Waiting live={live} /></Panel>
   const { out, size } = bucket(data.minutes, minutes, data.now)
   const range = (t: number) => `${clock(t)}–${clock(t + size)}`
   const from = clock(data.now - minutes * 60_000)
@@ -82,10 +83,11 @@ function RouteRows({ routes }: { routes: RouteStat[] }) {
 
 export function PerfRoutes({ options }: { options: Options }) {
   const minutes = minutesOf(options)
-  const { data, error } = usePerf(minutes)
+  const live = usePerf(minutes)
+  const { data } = live
   const [all, setAll] = useState(false)
   useTick()
-  if (!data) return <Panel title="Routes" icon={Route} tint={TINT}><Waiting error={error} /></Panel>
+  if (!data) return <Panel title="Routes" icon={Route} tint={TINT}><Waiting live={live} /></Panel>
   const routes = [...data.routes].sort((a, b) => b.n * b.avg - a.n * a.avg)
   const shown = all ? routes : routes.slice(0, 12)
   return (
@@ -176,11 +178,12 @@ function Client({ c }: { c: ClientPerf }) {
 }
 
 export function PerfApp({ options }: { options: Options }) {
-  const { data, error } = usePerf(minutesOf(options))
+  const live = usePerf(minutesOf(options))
+  const { data } = live
   useTick()
   return (
     <Panel title="The app" icon={MonitorSmartphone} tint={TINT}>
-      {!data ? <Waiting error={error} /> : !data.clients.length ? (
+      {!data ? <Waiting live={live} /> : !data.clients.length ? (
         <Empty>No app has reported yet. Each open app reports its own timings once a minute.</Empty>
       ) : (
         <div className="space-y-5" data-perf-app>

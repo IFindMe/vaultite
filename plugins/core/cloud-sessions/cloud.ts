@@ -19,21 +19,25 @@ const stateOf = (x: Partial<CloudState> & { sessions: CloudSession[] }): CloudSt
 const profiles = () => [profileIn(null), ...containers().map((c) => profileIn(c.id))]
 
 let asked = ""
+let unreachable = false
 function ask() {
   const s = settings.get()
   const want = { profiles: profiles(), read: s.read === true, hidden: s.hidden ?? [] }
   const key = JSON.stringify(want)
   if (key === asked) return
   asked = key
-  void webPages!.cloud!(want).then((x) => put(stateOf(Array.isArray(x) ? { sessions: x } : x)), () => { asked = "" })
+  void webPages!.cloud!(want).then((x) => { unreachable = false; put(stateOf(Array.isArray(x) ? { sessions: x } : x)) },
+    () => { asked = ""; unreachable = true; put({ ...now }) })
 }
+export const cloudUnreachable = () => unreachable
+export const askCloud = () => { if (unreachable) ask() }
 
 let started = false
 export function subscribeCloud(fn: () => void) {
   listeners.add(fn)
   if (!started && webPages?.cloud) {
     started = true
-    webPages.on((m) => { if (m.type === "cloud") put(stateOf(m)) })
+    webPages.on((m) => { if (m.type === "cloud") { unreachable = false; put(stateOf(m)) } })
     void Promise.all([settings.ready(), settingsRead()]).then(() => {
       ask()
       settings.onChange(ask)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { CalendarPlus, Check, ChevronDown, Copy, Globe, Link2, Share2, UserMinus } from "lucide-react"
-import { Button, confirmDialog, copyText, dateText, Empty, fmtAgo, Group, Loading, menuBelow, notify, notifyError, OnThisMac, op, openFolder, openView, Panel, Row, Section, Segmented, SettingRow, SheetHead, useOverConnect, useStoreWith, useTick, type MenuItem } from "@vaultite"
+import { Button, confirmDialog, copyText, dateText, Empty, errorText, fmtAgo, Group, Loading, menuBelow, notify, notifyError, OnThisMac, op, openFolder, openView, Panel, Row, Section, Segmented, SettingRow, SheetHead, useOverConnect, useStoreWith, useTick, type MenuItem } from "@vaultite"
 
 type Role = "read" | "comment" | "edit"
 type Shared = { id: string; folder: string; guest: string; role: Role; created: string; expires: string; expired: boolean; used: string | null; here?: boolean }
@@ -19,7 +19,7 @@ function useShares(folder?: string) {
   useEffect(() => {
     if (over) return
     let on = true
-    op<Shared[]>("share.list", folder ? { folder } : {}).then((r) => on && setList(r), (e) => on && setError(e instanceof Error ? e.message : String(e)))
+    op<Shared[]>("share.list", folder ? { folder } : {}).then((r) => on && setList(r), (e) => on && setError(errorText(e, "Couldn't read what's shared")))
     return () => { on = false }
   }, [folder, again, tick, over])
   return { list, error, over, reload: () => setAgain((n) => n + 1) }
@@ -97,7 +97,7 @@ export function ShareSheet({ folder }: { folder: string }) {
         : <Empty>Links need a machine of yours on the internet: sign one in to Vaultite Cloud (Settings, Share & sync).</Empty>}
       {fresh && <FreshLink link={fresh} />}
       <Section title="People with access">
-        {!list ? <Loading error={error} />
+        {!list ? <Loading error={error} retry={reload} />
           : !list.length ? <Empty>Nobody yet.</Empty>
           : <Group>{list.map((s) => <AccessRow key={s.id} s={s} done={reload} fresh={setFresh} />)}</Group>}
       </Section>
@@ -147,7 +147,7 @@ export function SharedView() {
         <div className="flex flex-col gap-4">
           {fresh && <FreshLink link={fresh} />}
           {over ? <OnThisMac>Who you share folders with is seen and changed on this Mac.</OnThisMac>
-            : !list ? <Loading error={error} />
+            : !list ? <Loading error={error} retry={reload} />
             : !list.length ? <Empty>Nothing is shared yet. To share a folder, open its menu and choose Share…</Empty>
             : folders.map((f) => (
               <Section key={f} title={<button type="button" onClick={() => openFolder(f)} data-shared-folder={f} className="cursor-pointer hover:text-foreground">{f}</button>}>

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react"
 import { AudioLines, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, CircleDashed, Clock, CircleDot, CirclePause, CircleStop, Columns2, CornerDownRight, ExternalLink, Image, Mic, Pencil, Rows2, SquareArrowOutUpRight, X } from "lucide-react"
-import { addDays, Button, cn, Empty, HeadingButton, fmtLongDay, fmtStamp, isDesktop, Loading, menuFor, type MenuItem, notifyError, op, openInSplit, openTab, Panel, today, useTick } from "@vaultite"
+import { addDays, Button, cn, Empty, errorText, HeadingButton, fmtLongDay, fmtStamp, isDesktop, Loading, menuFor, type MenuItem, notifyError, op, openInSplit, openTab, Panel, today, useTick } from "@vaultite"
 import type { Exchange, PressLine, Spent } from "./conversation"
 import { getState, subscribe } from "./live"
 
@@ -48,7 +48,7 @@ const STATES: Record<string, { icon: typeof CircleDot; tint: string; word: strin
 
 export function ConversationBlock() {
   const [day, setDay] = useState(today)
-  const { data, error } = useOp<Day>("companion.conversation", { day })
+  const { data, error, again } = useOp<Day>("companion.conversation", { day })
   const name = useSyncExternalStore(subscribe, () => getState().name)
   const shown = data?.day === day ? data : null
   const isToday = day === today()
@@ -63,7 +63,7 @@ export function ConversationBlock() {
   return (
     <div data-companion-conversation className="min-w-0">
       <Panel title={isToday ? "Today" : fmtLongDay(day)} action={nav}>
-        {!shown ? <Loading error={error ? "Couldn't read the companion's talk." : undefined} />
+        {!shown ? <Loading error={error ? errorText(error, "Couldn't read the companion's talk") : undefined} retry={again} />
           : !items.length ? <Empty>{isToday ? `Nothing yet today. Hold ⌃⌥ anywhere and ask ${name}.` : "Nothing that day."}</Empty>
           : <div className="flex flex-col gap-4">{items}</div>}
       </Panel>
@@ -243,11 +243,11 @@ export function JobRow({ j }: { j: JobCard }) {
 }
 
 export function UsageBlock() {
-  const { data, error } = useOp<{ services: UsageRow[] }>("companion.usage", {}, 60_000)
+  const { data, error, again } = useOp<{ services: UsageRow[] }>("companion.usage", {}, 60_000)
   return (
     <div data-companion-usage className="min-w-0">
       <Panel title="Usage">
-        {!data ? <Loading error={error ? "Couldn't count what it used." : undefined} />
+        {!data ? <Loading error={error ? errorText(error, "Couldn't count what it used") : undefined} retry={again} />
           : !data.services.length ? <Empty>Nothing used this week.</Empty>
           : <div className="hairline">{data.services.map((s) => <Service key={s.service} s={s} />)}</div>}
       </Panel>

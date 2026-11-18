@@ -32,7 +32,7 @@ const CODES: Record<string, string> = {
   EAI_AGAIN: "the network isn't reachable",
   ENETUNREACH: "the network isn't reachable",
 }
-const NETWORK = /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?|The server didn't answer|The network connection was lost\.?|net::ERR_[A-Z_]+)/i
+const NETWORK = /^(Failed to fetch|Load failed|NetworkError when attempting to fetch|The server didn't answer|The network connection was lost|net::ERR_[A-Z_]+)/i
 const ENGINE = new Set(["TypeError", "ReferenceError", "SyntaxError", "RangeError", "EvalError", "URIError", "AggregateError", "InternalError"])
 const ENGINE_TEXT = /\b(undefined|null|NaN)\b|is not (a function|a constructor|defined|iterable)|Cannot (read|set|access) propert|Unexpected (token|end of)|Maximum call stack|out of memory|\bat \S+ \(|\w+\.(js|ts|tsx|mjs):\d+|\b[A-Z][A-Za-z]*(Error|Exception):|\bERR_[A-Z_]{3,}\b/
 const DUMP = /\berrno\b|\bexit (code )?-?\d+|[{}<>]|=>/
@@ -48,7 +48,7 @@ export function plainError(e: unknown): Plain {
   const text = unwrap(raw).trim()
   const detail = typeof o.stack === "string" && o.stack.includes(text) ? o.stack : `${name && name !== "Error" && !raw.startsWith(name) ? `${name}: ` : ""}${raw}`
   const status = typeof o.status === "number" ? o.status : 0
-  if (NETWORK.test(text)) return { reason: "the server didn't answer", bug: false, detail, network: true }
+  if (NETWORK.test(text) || (status > 499 && !/[a-z] [a-z]/.test(text))) return { reason: "the server didn't answer", bug: false, detail, network: true }
   // (a code first: one an error carries, or Node's in its text: "EACCES: permission denied, open '…'", "spawn ENOENT")
   const code = (typeof o.code === "string" && o.code) || [...text.matchAll(/\b(E[A-Z]{3,}[A-Z_]*)\b/g)].map((m) => m[1]).find((c) => CODES[c]) || ""
   if (CODES[code]) return { reason: CODES[code], bug: false, detail }

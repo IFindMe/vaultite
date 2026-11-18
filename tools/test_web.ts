@@ -43,6 +43,8 @@ const AUTOSAVE_STUBS: Record<string, string> = {
   "@/core/notify": "export const errorReason = (e) => e?.message ?? null; export const notify = (text) => { globalThis.__autosave.toasts.push(text) }",
   "@/core/drafts": "export const keepDraft = () => {}; export const dropDraft = () => {}",
 }
+const LIVEREAD_NOTIFY = `export { plainText as errorText } from ${JSON.stringify(pathToFileURL(path.join(ROOT, "core", "plainerror.ts")).href)}; export const notify = () => {}`
+const ON_LIVEREAD = ["/web/src/core/liveread.ts", "/web/src/core/connection.ts"]
 const PREFS_HTTP = "export const patch = async () => {}; export const put = async () => {}"
 // Co-typing's socket, editors and app (plugins/core/companion/cotype.ts): the made-up ones on globalThis.__cotype, its
 // hold on a note the app's own (core/cosync.ts, as autosave has it).
@@ -71,6 +73,7 @@ registerHooks({
     if (spec === "@vaultite" && ON_WEB_VIEWER_APP_IDLE.some((f) => context.parentURL?.endsWith(f))) return { url: `data:text/javascript,${encodeURIComponent(WEB_VIEWER_APP_IDLE)}`, shortCircuit: true }
     if (spec === "@vaultite") return { url: pathToFileURL(shim).href, shortCircuit: true }
     if (spec === "@/core/http" && context.parentURL?.endsWith("/web/src/core/prefs.ts")) return { url: `data:text/javascript,${encodeURIComponent(PREFS_HTTP)}`, shortCircuit: true }
+    if (spec === "@/core/notify" && ON_LIVEREAD.some((f) => context.parentURL?.endsWith(f))) return { url: `data:text/javascript,${encodeURIComponent(LIVEREAD_NOTIFY)}`, shortCircuit: true }
     if (spec in AUTOSAVE_STUBS && context.parentURL?.endsWith("/web/src/core/autosave.ts")) return { url: `data:text/javascript,${encodeURIComponent(AUTOSAVE_STUBS[spec])}`, shortCircuit: true }
     if (spec in STUBS) return { url: `data:text/javascript,${encodeURIComponent(STUBS[spec])}`, shortCircuit: true }
     if (spec.startsWith("@/")) {

@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useReducer, useState } from "react"
 import { ChevronRight, CircleAlert, History, SquareTerminal, User } from "lucide-react"
-import { Bar, Empty } from "@/components/kit"
+import { Bar, Empty, Loading } from "@/components/kit"
 import { ink } from "@/lib/ink"
 import { Markdown } from "@/components/Markdown"
 import type { AgentSource } from "@/components/AgentUsage"
 import { openAgent } from "@/core/agents"
 import { fmtDay, fmtTime, iso, numberText, today } from "@/core/data"
 import { get } from "@/core/http"
+import { errorText } from "@/core/notify"
+import { askAgain, statusOf } from "@/core/liveread"
 import { machinePath, splitMachine } from "@/core/machines"
 import { useEnabled } from "@/core/plugins"
 import { cn } from "@/lib/utils"
@@ -23,17 +25,21 @@ const EVERY = 10_000
 
 function useSession(src: AgentSource, full: string, want: number) {
   const [data, setData] = useState<SessionPage | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Error | undefined>(undefined)
+  const [tries, retry] = useReducer((n: number) => n + 1, 0)
   useEffect(() => {
     let on = true
     const [id, machine] = splitMachine(full)
     const load = () => get<SessionPage>(machinePath(machine, `${src.path}/session/${encodeURIComponent(id)}?limit=${want}`))
-      .then((d) => { if (on) { setData(d); setError(null) } }).catch((e) => on && setError(String(e)))
+      .then((d) => { if (on) { setData(d); setError(undefined) } }, (e) => { if (on) setError(e ?? new Error("no answer")) })
     load()
     const t = setInterval(() => { if (!document.hidden) load() }, EVERY)
     return () => { on = false; clearInterval(t) }
-  }, [src.path, full, want])
-  return { data, error }
+  }, [src.path, full, want, tries])
+  const failed = error !== undefined
+  useEffect(() => (failed ? askAgain(retry) : undefined), [failed])
+  const said = useMemo(() => (failed ? errorText(error, "Couldn't read this session") : ""), [failed, error])
+  return { data, error, said, retry }
 }
 
 function when(at: string) {
@@ -91,12 +97,12 @@ const Kicker = ({ src }: { src: AgentSource }) => (
 
 export function AgentSession({ src, id }: { src: AgentSource; id: string }) {
   const [want, setWant] = useState(PAGE)
-  const { data, error } = useSession(src, id, want)
+  const { data, error, said, retry } = useSession(src, id, want)
   const on = useEnabled()
   const machine = splitMachine(id)[1]
   if (!data) {
     const gone = machine ? "This session isn't on that machine any more, or it's private." : "This session isn't on this machine any more, or it's private."
-    if (error) return <div className="pt-4"><Empty>{/404/.test(error) ? gone : /502/.test(error) ? "That machine isn't answering." : "Couldn't read this session."}</Empty></div>
+    if (error !== undefined) return <div className="pt-4">{statusOf(error) === 404 ? <Empty>{gone}</Empty> : <Loading error={said} retry={retry} />}</div>
     return (
       <article className="pb-10" aria-busy>
         <header className="mb-6 pt-2">

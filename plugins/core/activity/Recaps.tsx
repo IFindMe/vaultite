@@ -135,7 +135,7 @@ export function RecapBlock({ store, path, options }: { store: Store; path: strin
   const [end, setEnd] = useState(base)
   const [group, setGroup] = useState<RecapGroup | "">("")
   const days = SPAN_DAYS[span]
-  const { data, error } = useLive<RecapAnswer>(`activity/recap?date=${end}&days=${days}`, undefined, undefined, 30_000)
+  const { data, error, retry } = useLive<RecapAnswer>(`activity/recap?date=${end}&days=${days}`, undefined, undefined, 30_000)
   const groups = useGroups(data?.days ?? [])
   const rows = useKeptCount(`activity:recap:${span}`, data?.days.reduce((n, d) => n + d.entries.length, 0))
   const from = addDays(end, -(days - 1))
@@ -156,7 +156,7 @@ export function RecapBlock({ store, path, options }: { store: Store; path: strin
       <Segmented label="Span" value={span} onChange={setSpan} className="mb-3 w-full max-w-[280px]"
         options={[{ value: "day", label: "Day" }, { value: "week", label: "Week" }, { value: "month", label: "Month" }]} />
       {groups.length > 1 && <Chips name="Kind" opts={groups} value={group} onChange={setGroup} />}
-      {!data ? (error || !rows ? <Loading error={error && "Couldn't read the recap."} /> : <Skeleton count={rows} />) : <Timeline days={data.days} store={store} group={group} />}
+      {!data ? (error || !rows ? <Loading error={error && `Couldn't read the recap. ${error}`} retry={retry} /> : <Skeleton count={rows} />) : <Timeline days={data.days} store={store} group={group} />}
     </Panel>
   )
 }
@@ -204,11 +204,11 @@ type Counts = { from: string; to: string; days: Record<string, Partial<Record<Re
 
 export function RecapStats({ store, options }: { store: Store; options: { weeks?: unknown } }) {
   const weeks = Math.min(Math.max(typeof options.weeks === "number" ? Math.round(options.weeks) : 10, 1), 53)
-  const { data, error } = useLive<Counts>(`activity/recap/counts?weeks=${weeks}`, undefined, undefined, 60_000)
+  const { data, error, retry } = useLive<Counts>(`activity/recap/counts?weeks=${weeks}`, undefined, undefined, 60_000)
   const recaps = useMemo(() => new Map((store.files?.files ?? []).filter((f) => f.kind === "recaps").map((f) => [dateOfFile(f.path), f.path])), [store.files])
   const kinds = useKeptCount(`activity:recap-stats:${weeks}`, data ? RECAP_GROUPS.filter((g) => Object.values(data.days).some((d) => d[g.id])).length : undefined, 3, 6)
   const title = `Your days · last ${weeks} weeks`
-  if (!data) return <Panel title={title} icon={CalendarDays} tint={RECAP_TINT}>{error ? <Loading error="Couldn't read the recaps." /> : <StatsSkeleton weeks={weeks} kinds={kinds} />}</Panel>
+  if (!data) return <Panel title={title} icon={CalendarDays} tint={RECAP_TINT}>{error ? <Loading error={`Couldn't read the recaps. ${error}`} retry={retry} /> : <StatsSkeleton weeks={weeks} kinds={kinds} />}</Panel>
   const sum = (d: string) => Object.values(data.days[d] ?? {}).reduce((n, x) => n + (x ?? 0), 0)
   const start = addDays(data.to, -(dow(data.to) + (weeks - 1) * 7))
   const cols = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i)))

@@ -8,6 +8,7 @@ export {
   addDays, dateText, dow, fmtAgo, fmtDay, fmtLongDay, fmtMin, fmtStamp, fmtTime, getStore, stampMs, iso, mutate, numberText, optimistic, parse, plain,
   range, reload, today, useLive, usePatched, usePreview, useStore, useStoreWith, useTick, weekStart,
 } from "@/core/data"
+export { statusOf, type Live } from "@/core/liveread"
 export { appDevice, del, get, op, patch, post, put } from "@/core/http"
 /** A shared folder's guest (plugins/core/share), when this app is theirs: their name, role and folder; else null. */
 export { guestEdits, share, type Share } from "@/core/share"
@@ -119,7 +120,7 @@ export { besideActive, newNoteFolder } from "@/core/conventions"
 // a file a plugin draws as one (a dashboard).
 export { fileAt, iconOf, isListedPage, isPage, namedIcon, offPlugin, pageOf, tintOf } from "@/core/pages"
 // Attachments (a pasted image, a recording): the folder they go in for a note, and saving files there as embeds.
-export { attachmentFolder, pasteAttachments } from "@/core/conventions"
+export { attachmentFolder, pasteAttachments, saveAttachments } from "@/core/conventions"
 export {
   accountsOf, askedAt, canRunAgents, chooseDefaultPlace, choosePlace, getDefaultPlace, defaultPlaceOf, mintedHere, openAgent, openPlace, openTerminal, places, resolvePlace, setDefaultPlace, terminalId, useDefaultPlace,
   useAccountNames, useTerminalAccount, type AgentAccount, type DefaultPlace, type Place,
@@ -150,7 +151,7 @@ export { aiOn, setAi, useAi } from "@/core/ai"
 // Used through Vaultite Connect without owner tools: what's the Mac's is refused there (OnThisMac says so).
 export { overConnect, useOverConnect } from "@/core/here"
 // Every coding agent on every machine, merged from the plugins' `agentRuns` (the Agents panel).
-export { asksNothing, foldsAway, orderRuns, QUIET_AFTER } from "@/core/agentorder"
+export { asksNothing, foldsAway, orderRuns, QUIET_AFTER, type AgentFeed, type Unreachable } from "@/core/agentorder"
 export { useAgentRuns } from "@/core/agentruns"
 // A live list that holds still while the user is in it, and folds what asks nothing under Earlier (Agents, Terminals).
 export { EarlierRow, useEarlier, useGlide, useHold, useSteady } from "@/core/steadyrows"
@@ -220,6 +221,7 @@ export { formatSize, kindIcon } from "@/core/filekinds"
 export { AmbientButton } from "@/components/Ambient"
 export { CORNERS, useCornerDrag, useCornerStack, type Corner } from "@/components/CornerCard"
 export { Button, buttonClass, HeadingButton } from "@/components/Button"
+export { TryAgain } from "@/components/TryAgain"
 // A note over a file's text and what can be done about it (a NoteItem's).
 export { Banner } from "@/components/Banner"
 // A cursor's conversation: its last words and what the user asked, above a box to ask more (the window's and the screen's).
@@ -359,5 +361,3 @@ export { lookUp, spelling } from "@/core/desktop"
 // Web pages laid over a pane (the Browser): null in a browser, and in app builds from before it.
 export { webPages, type CloudAccount, type CloudSession, type CloudState, type WebEvent, type WebDownload, type WebPageInfo, type WebPages, type WebPageState, type WebSite } from "@/core/desktop"
 export { appWindows, type AppEvent, type AppInfo, type AppProblem, type AppWindows } from "@/core/desktop"
-// Files saved as attachments where the vault's settings say (pasted or dropped images): their vault paths.
-export { saveAttachments } from "@/core/conventions"

@@ -2,7 +2,7 @@ import { Fragment, memo, useContext, type ReactNode, useMemo, useRef, type Mouse
 import { Cloud, ListFilter, MessageCircle, Plus, SquareTerminal, type LucideIcon } from "lucide-react"
 import {
   asksNothing, cn, commandItems, EarlierRow, fmtAgo, foldsAway, HeadingButton, isViewOpen, LoadingSidebarRows, menuBelow, menuFor, openAgent, openView, PanelFold, Segmented,
-  SidebarHeading, SidebarRow, useAgentRuns, useAgents, useEarlier, useGlide, useHold, useKeptCount, useMachines, useScopedState, useSteady, useTick, type AgentRun, type MenuItem,
+  SidebarHeading, SidebarRow, useAgentRuns, useAgents, useEarlier, useGlide, useHold, useKeptCount, useMachines, useScopedState, useSteady, useTick, TryAgain, type AgentRun, type MenuItem, type Unreachable,
 } from "@vaultite"
 import { useFoldAfter } from "@plugins/terminal/fold"
 import { useView, viewMenu, type Group, type Sort } from "./view"
@@ -20,7 +20,7 @@ const EARLIER = "agents:earlier"
 const KEPT = "agents:agents"
 
 export function useAgentList(on = true) {
-  const { runs: all, loading, feeds } = useAgentRuns(on)
+  const { runs: all, loading, unreachable, feeds } = useAgentRuns(on)
   const { hide } = useView()
   const runs = useMemo(() => (hide.length ? all.filter((r) => !hide.includes(r.kind)) : all), [all, hide])
   const [picked, pick] = useScopedState<Filter>(FILTER, "all")
@@ -28,7 +28,7 @@ export function useAgentList(on = true) {
   const filter: Filter = kinds.some((k) => k.kind === picked) ? picked : "all"
   const shown = useMemo(() => (filter === "all" ? runs : runs.filter((r) => r.kind === filter)), [runs, filter])
   const every = useMemo(() => KINDS.filter((k) => all.some((r) => r.kind === k.kind) || hide.includes(k.kind)), [all, hide])
-  return { runs, shown, loading, feeds, kinds, every, filter, pick: (f: Filter) => pick(f === "all" ? undefined : f) }
+  return { runs, shown, loading, unreachable, feeds, kinds, every, filter, pick: (f: Filter) => pick(f === "all" ? undefined : f) }
 }
 
 function useWhere() {
@@ -133,6 +133,17 @@ function Rows({ list, open, tab, page }: { list: AgentRun[]; open: boolean; tab:
   )
 }
 
+const OR = new Intl.ListFormat("en", { type: "disjunction" })
+function CantReach({ list, className }: { list: Unreachable[]; className?: string }) {
+  if (!list.length) return null
+  return (
+    <div className={cn("flex min-w-0 items-center gap-2", className)} data-agents-unreachable role="status">
+      <p className="min-w-0 flex-1 truncate text-[13px] text-tertiary max-md:text-[15px]">Can't reach {OR.format(list.map((u) => u.what))}</p>
+      <TryAgain quiet onClick={() => { for (const u of list) u.retry?.() }} />
+    </div>
+  )
+}
+
 function newMenu(e: MouseEvent, agents: ReturnType<typeof useAgents>) {
   const chat = commandItems("claude-code:chat").map((it) => ({ ...it, label: "New chat with Claude Code", icon: MessageCircle }))
   const items: MenuItem[] = [...chat, ...agents.map((a, i) => ({ label: `New ${a.label} in a terminal`, icon: a.icon, sep: i === 0 && !!chat.length, run: () => openAgent(a.name) }))]
@@ -142,7 +153,7 @@ function newMenu(e: MouseEvent, agents: ReturnType<typeof useAgents>) {
 export const AgentsPanel = memo(function AgentsPanel({ open, tab }: { open: boolean; tab: string }) {
   const fold = useContext(PanelFold)
   const folded = !!fold?.collapsed && open
-  const { runs: all, loading, feeds } = useAgentRuns(!folded)
+  const { runs: all, loading, unreachable, feeds } = useAgentRuns(!folded)
   const { hide } = useView()
   const shown = useMemo(() => (hide.length ? all.filter((r) => !hide.includes(r.kind)) : all), [all, hide])
   const kinds = KINDS.filter((k) => all.some((r) => r.kind === k.kind) || hide.includes(k.kind))
@@ -160,7 +171,8 @@ export const AgentsPanel = memo(function AgentsPanel({ open, tab }: { open: bool
         <div className="flex flex-col gap-px">
           {shown.length ? <Rows list={shown} open tab={tab} />
             : loading ? <LoadingSidebarRows count={rows || 2} data-agents-loading="" />
-            : <p className={none} data-agents-empty>No agents at work</p>}
+            : !unreachable.length && <p className={none} data-agents-empty>No agents at work</p>}
+          <CantReach list={unreachable} className="pl-1.5" />
         </div>
       )}
     </div>
@@ -168,7 +180,7 @@ export const AgentsPanel = memo(function AgentsPanel({ open, tab }: { open: bool
 })
 
 export function AgentsView() {
-  const { runs, shown, loading, feeds, kinds, every, filter, pick } = useAgentList()
+  const { runs, shown, loading, unreachable, feeds, kinds, every, filter, pick } = useAgentList()
   const rows = useKeptCount(KEPT, loading ? undefined : runs.length, 0)
   const needs = runs.filter((r) => r.state === "needs").length, working = runs.filter((r) => r.state === "working").length
   return (
@@ -189,6 +201,7 @@ export function AgentsView() {
       <div className="size-up-bleed"><div data-size-up>
         {shown.length ? <Rows list={shown} open tab="" page /> : loading ? <LoadingSidebarRows count={rows || 2} right data-agents-loading="" /> : null}
       </div></div>
+      <CantReach list={unreachable} className="mt-2" />
     </div>
   )
 }

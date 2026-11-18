@@ -1,7 +1,6 @@
 import { useMemo, type ReactNode } from "react"
-import { RotateCcw } from "lucide-react"
-import { Button } from "@/components/Button"
 import { Bar } from "@/components/kit"
+import { TryAgain } from "@/components/TryAgain"
 import { useOffline } from "@/core/connection"
 import { errorText } from "@/core/notify"
 import type { Reading } from "@/core/reading"
@@ -10,16 +9,12 @@ import { plainError } from "../../../core/plainerror.ts"
 
 const LINE = "text-[17px] leading-[24px] text-muted-foreground md:text-[15px] md:leading-[22px]"
 
-function TryAgain({ read }: { read: Reading<unknown> }) {
-  return <Button size="small" className="mt-3" onClick={read.retry}><RotateCcw className="size-3.5" strokeWidth={2} />Try again</Button>
-}
-
 export function ReadFailed({ read, what, className }: { read: Reading<unknown>; what: string; className?: string }) {
   const text = useMemo(() => errorText(read.error, what), [read.error, what])
   return (
     <div role="alert" data-read-failed className={className}>
       <p className={cn(LINE, "select-text")}>{text}{plainError(read.error).network && " Trying again once the connection's back."}</p>
-      <TryAgain read={read} />
+      <TryAgain onClick={read.retry} />
     </div>
   )
 }
@@ -30,7 +25,7 @@ export function ReadSlow({ read, className }: { read: Reading<unknown>; classNam
   return (
     <div role="status" data-read-slow className={cn("loading-in", className)}>
       <p className={LINE}>{offline ? "Waiting for the connection…" : "Still loading…"}</p>
-      <TryAgain read={read} />
+      <TryAgain onClick={read.retry} />
     </div>
   )
 }

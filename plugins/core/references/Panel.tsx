@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { NotebookPen, Settings2 } from "lucide-react"
-import { cn, menuBelow, menuFor, openPluginSettings, Segmented, SidebarHeading, useFocusedFile, useLive, type SidebarCtx } from "@vaultite"
+import { cn, Loading, menuBelow, menuFor, openPluginSettings, Segmented, SidebarHeading, useFocusedFile, useLive, type SidebarCtx } from "@vaultite"
 import { openLiterature, touchesLibrary } from "./client.ts"
 import { entryMenu } from "./menus.ts"
 import { useLibraryVersion } from "./hooks.ts"
@@ -25,9 +25,9 @@ function Entry({ e, hanging, numbered }: { e: Shown; hanging: boolean; numbered:
 }
 
 function Cited({ path }: { path: string }) {
-  const { data, error } = useLive<NoteAnswer>(`references/note?path=${encodeURIComponent(path)}`, useLibraryVersion(), (p) => p === path || touchesLibrary(p) || (!p.startsWith(".") && p.endsWith(".md")))
+  const { data, error, retry } = useLive<NoteAnswer>(`references/note?path=${encodeURIComponent(path)}`, useLibraryVersion(), (p) => p === path || touchesLibrary(p) || (!p.startsWith(".") && p.endsWith(".md")))
   const answer = data
-  if (error) return <p className="px-1.5 text-[13px] text-muted-foreground">Couldn't read this note's references.</p>
+  if (error) return <div className="px-1.5"><Loading error={`Couldn't read this note's references. ${error}`} retry={retry} className="text-[13px] leading-[18px]" /></div>
   if (!answer) return <div className="loading-in px-1.5 text-[13px] text-tertiary" aria-busy>Loading…</div>
   if (!answer.entries.length && !answer.missing.length) {
     return <p className="px-1.5 py-1 text-[13px] leading-[18px] text-muted-foreground" data-references-empty>This note cites nothing yet. Type <code>[@</code> to cite from your library.</p>

@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { splitMachine, stem, useAccountNames, useLive, type AgentRun } from "@vaultite"
+import { splitMachine, statusOf, stem, useAccountNames, useLive, type AgentFeed, type AgentRun } from "@vaultite"
 import { agentTint } from "../../../core/agenttint.ts"
 
 type Chat = { id: string; state: "starting" | "working" | "waiting" | "idle" | "error"; cwd: string; account?: string; project?: string; by: string; started: number; at: number
@@ -9,10 +9,12 @@ type Chat = { id: string; state: "starting" | "working" | "waiting" | "idle" | "
 const EVERY = 4000
 const firstLine = (t: string | undefined) => t?.trim().split("\n")[0]?.slice(0, 120) || undefined
 
-export function useChatRuns(): AgentRun[] | null {
-  const { data, error } = useLive<{ sessions: Chat[] }>("claude-code/chats", undefined, false, EVERY)
+export function useChatRuns(): AgentFeed {
+  const { data, error, cause, retry } = useLive<{ sessions: Chat[] }>("claude-code/chats", undefined, false, EVERY)
   const accountName = useAccountNames()
-  return useMemo(() => {
+  const status = statusOf(cause)
+  const unreachable = cause !== undefined && !(status && status < 500) ? "Claude Code's chats" : undefined
+  const runs = useMemo(() => {
     if (!data) return error ? [] : null
     return data.sessions.map((c): AgentRun => {
       const [id, machine] = splitMachine(c.id)
@@ -26,4 +28,5 @@ export function useChatRuns(): AgentRun[] | null {
       }
     })
   }, [data, error, accountName])
+  return useMemo(() => ({ runs, unreachable, retry }), [runs, unreachable, retry])
 }

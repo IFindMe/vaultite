@@ -110,7 +110,7 @@ export function ErrorsList({ options = {} }: { options?: { source?: unknown; lim
   const limit = Math.min(Math.max(typeof options.limit === "number" ? Math.round(options.limit) : 20, 1), 200)
   const [asked, setAsked] = useState(0)
   const reload = () => setAsked((n) => n + 1)
-  const { data, error } = useLive<ErrorList>(`errors?limit=${limit}${source ? `&source=${source}` : ""}`, asked, undefined, 10_000)
+  const { data, error, retry } = useLive<ErrorList>(`errors?limit=${limit}${source ? `&source=${source}` : ""}`, asked, undefined, 10_000)
   const [open, setOpen] = useState<string | null>(null)
   const { list: groups, leaving } = forgetting.use(data?.groups, (g) => g.id)
   const rows = useKeptCount(`errors:${limit}:${source ?? "all"}`, data?.groups.length)
@@ -128,7 +128,7 @@ export function ErrorsList({ options = {} }: { options?: { source?: unknown; lim
   )
   return (
     <Panel title={title} icon={AlertTriangle} tint={TINT} action={action}>
-      {!data ? (error || !rows ? <Loading error={error && "Couldn't read the errors."} /> : <Skeleton count={rows} />) : !groups?.length ? (
+      {!data ? (error || !rows ? <Loading error={error && `Couldn't read the errors. ${error}`} retry={retry} /> : <Skeleton count={rows} />) : !groups?.length ? (
         <Empty>No errors{source ? ` in the ${source}` : ""}. When the app or the server hits one, it's here.</Empty>
       ) : (
         <>

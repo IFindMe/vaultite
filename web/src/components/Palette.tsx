@@ -110,7 +110,7 @@ const Clear = memo(function Clear({ onClear }: { onClear: () => void }) {
 const COARSE = matchMedia("(pointer: coarse)").matches
 const actOf = <T,>(action: ((item: T) => RowAction | null) | undefined, item: T) => (action ? action(item) : null)
 
-export function Palette<T extends { id: string }>({ label, placeholder, query, setQuery, select = false, items, row, action, onPick, onClose, hints, heading, section, empty, start = 0, onEnd, onSelect, preview, look, complete, onKey: ownKey }: {
+export function Palette<T extends { id: string }>({ label, placeholder, query, setQuery, select = false, items, row, action, onPick, onClose, hints, heading, section, empty, tail, start = 0, onEnd, onSelect, preview, look, complete, onKey: ownKey }: {
   label: string; placeholder: string
   query: string; setQuery: (q: string, how?: { deleting: boolean }) => void
   complete?: string | null
@@ -127,6 +127,7 @@ export function Palette<T extends { id: string }>({ label, placeholder, query, s
   heading?: string
   section?: (item: T) => string | undefined
   empty?: ReactNode
+  tail?: { section: string; body: ReactNode } | null
   start?: number
   onEnd?: () => void
   look?: unknown
@@ -215,6 +216,12 @@ export function Palette<T extends { id: string }>({ label, placeholder, query, s
             </div>
           )
         })}
+        {tail && (
+          <div role="group" aria-labelledby={`${ids}t`} data-palette-tail={tail.section}>
+            <div id={`${ids}t`} role="presentation" className="px-3 pt-2.5 pb-1 text-[12px] font-semibold text-muted-foreground">{tail.section}</div>
+            {tail.body}
+          </div>
+        )}
         {drawn < items.length ? <div ref={more} aria-hidden className="h-px" /> : onEnd && <div ref={end} aria-hidden className="h-px" />}
       </div>
       <Hints hints={hints} />

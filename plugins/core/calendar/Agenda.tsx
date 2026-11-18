@@ -29,7 +29,7 @@ const dayLabel = (d: string) => dateText(parse(d), { weekday: "short", day: "num
 
 export function AgendaPanel() {
   const t = today()
-  const { data, loading } = useLive<Feed>(`calendar?from=${t}&to=${addDays(t, 6)}`)
+  const { data, loading, error, retry } = useLive<Feed>(`calendar?from=${t}&to=${addDays(t, 6)}`)
   const events = data?.events ?? []
   const configured = data?.configured ?? true
   const now = new Date()
@@ -61,6 +61,8 @@ export function AgendaPanel() {
             </div>
           ))}
         </div>
+      ) : error ? (
+        <Loading error={`Couldn't read the calendar. ${error}`} retry={retry} />
       ) : !configured ? (
         <Empty>No calendars connected yet. Ask Claude to connect one (its private iCal link).</Empty>
       ) : (

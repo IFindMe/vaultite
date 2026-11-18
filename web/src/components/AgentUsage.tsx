@@ -81,8 +81,8 @@ export function useAgentRoute<T>(route: string, options: Record<string, unknown>
   const m = useMachines()?.find((x) => x.id === machine)
   const there = m?.self ? "" : machine
   const q = new URLSearchParams(Object.entries({ ...query, ...(account ? { account } : {}), ...(by ? { for: by } : {}) }).map(([k, v]) => [k, String(v)])).toString()
-  const { data, error } = useLive<T>(machinePath(there, q ? `${route}?${q}` : route), version)
-  return { data, error: data ? null : error, on: there ? ` on ${m?.label ?? machine}` : "", machine: there }
+  const { data, error, retry } = useLive<T>(machinePath(there, q ? `${route}?${q}` : route), version)
+  return { data, error: data ? null : error, retry, on: there ? ` on ${m?.label ?? machine}` : "", machine: there }
 }
 
 function useAgentUsage(src: AgentSource, options: Record<string, unknown>, days = 30) {
@@ -126,8 +126,8 @@ export const tokens = (n: number) =>
 const minsSince = (s: string | null) => (s ? Math.max((Date.now() - new Date(s).getTime()) / 60000, 0) : 0)
 const status = (s: string) => (s === "busy" ? "Working" : s ? s[0].toUpperCase() + s.slice(1) : "Open")
 
-function Waiting({ src, error, on = "" }: { src: AgentSource; error: string | null; on?: string }) {
-  return <Loading error={error && `Couldn't read ${src.label}${on || " on this machine"}.`} />
+function Waiting({ src, error, retry, on = "" }: { src: AgentSource; error: string | null; retry?: () => void; on?: string }) {
+  return <Loading error={error && `Couldn't read ${src.label}${on || " on this machine"}. ${error}`} retry={retry} />
 }
 
 function renews(at: string) {
@@ -220,7 +220,7 @@ export function AgentLimitsChip({ src, open }: { src: AgentSource; open: () => v
 
 /** Its plan's allowances; with several accounts, each one's under its name (`account:` for one). */
 export function AgentLimits({ src, options, fm }: BlockCtx & { src: AgentSource }) {
-  const { data, error, on, refresh } = useAgentUsage(src, options)
+  const { data, error, retry, on, refresh } = useAgentUsage(src, options)
   const [settings] = usePluginSettings(src.path)
   const [asking, setAsking] = useState(false)
   const again = () => {
@@ -244,7 +244,7 @@ export function AgentLimits({ src, options, fm }: BlockCtx & { src: AgentSource 
           )}
         </div>
       }>
-      {ask ? <Consent src={src} consent={ask} /> : !data ? (error || !meters ? <Waiting src={src} error={error} on={on} /> : (
+      {ask ? <Consent src={src} consent={ask} /> : !data ? (error || !meters ? <Waiting src={src} error={error} retry={retry} on={on} /> : (
         <div className="loading-in space-y-4" aria-busy>
           {Array.from({ length: meters }, (_, i) => <MeterSkeleton key={i} />)}
           <p className="text-[13px] text-muted-foreground"><Bar w="12em" /></p>
@@ -314,7 +314,7 @@ function SessionRow({ src, s, machine = "" }: { src: AgentSource; s: Session; ma
 
 /** What's open now (working or idle), then the latest sessions (`recent: 5`). */
 export function AgentSessions({ src, options, fm }: BlockCtx & { src: AgentSource }) {
-  const { data, error, on, machine } = useAgentUsage(src, options)
+  const { data, error, retry, on, machine } = useAgentUsage(src, options)
   const n = typeof options.recent === "number" ? options.recent : 5
   const open = new Set(data?.live.map((s) => s.id))
   const recent = data?.sessions.filter((s) => !open.has(s.id)).slice(0, n) ?? []
@@ -323,7 +323,7 @@ export function AgentSessions({ src, options, fm }: BlockCtx & { src: AgentSourc
   return (
     <Panel title={`Sessions${on}`} icon={iconFor(src, fm, Terminal)} tint={src.tint}
       action={data && !src.cloud && <span className="text-[13px] text-muted-foreground">{data.live.length} open</span>}>
-      {!data ? (error ? <Waiting src={src} error={error} on={on} /> : (
+      {!data ? (error ? <Waiting src={src} error={error} retry={retry} on={on} /> : (
         <>
           {!src.cloud && (
             <Section title="Now">
@@ -370,12 +370,12 @@ export function AgentSessions({ src, options, fm }: BlockCtx & { src: AgentSourc
 export function AgentUsageBlock({ src, options, fm }: BlockCtx & { src: AgentSource }) {
   const days = daysOf(options)
   const [by, setBy] = useState<"cost" | "tokens">("cost")
-  const { data, error, on } = useAgentUsage(src, options, days)
+  const { data, error, retry, on } = useAgentUsage(src, options, days)
   const today = data?.days.at(-1)
   const plan = data?.plan?.monthly ? data.plan : null
   return (
     <Panel title={`Usage${on}`} icon={iconFor(src, fm, BarChart3)} tint={src.tint}>
-      {!data || !today ? (error ? <Waiting src={src} error={error} on={on} /> : (
+      {!data || !today ? (error ? <Waiting src={src} error={error} retry={retry} on={on} /> : (
         <div className="loading-in" aria-busy>
           <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
             {["Today", "Working today", `Last ${days} days`, "Cache hits"].map((l) => <Stat key={l} label={l} value={<Bar w="2.5em" />} hint={<Bar w="5em" />} />)}
@@ -437,7 +437,7 @@ const top = (xs: Share[]) => Math.max(...xs.map(share), 1e-9)
 
 function Shares({ src, options, fm, by }: BlockCtx & { src: AgentSource; by: "projects" | "models" }) {
   const days = daysOf(options)
-  const { data, error, on } = useAgentUsage(src, options, days)
+  const { data, error, retry, on } = useAgentUsage(src, options, days)
   const list = by === "projects" ? data?.projects.slice(0, 10) : data?.models
   const meta = (x: Share) => by === "models" ? `${tokens(x.tokens)} tokens`
     : [plural(x.sessions!, "session"), (x.active_min ?? 0) >= 1 && fmtMin(Math.round(x.active_min!)), x.last && fmtAgo(x.last)].filter(Boolean).join(" · ")
@@ -445,7 +445,7 @@ function Shares({ src, options, fm, by }: BlockCtx & { src: AgentSource; by: "pr
   return (
     <Panel title={`${by === "projects" ? "Projects" : "Models"}${on}`} icon={iconFor(src, fm, by === "projects" ? FolderGit2 : Boxes)} tint={src.tint}
       action={<span className="text-[13px] text-muted-foreground">Last {days} days</span>}>
-      {!data || !list ? (error || !rows ? <Waiting src={src} error={error} on={on} /> : (
+      {!data || !list ? (error || !rows ? <Waiting src={src} error={error} retry={retry} on={on} /> : (
         <div className="loading-in hairline" aria-busy>
           {Array.from({ length: rows }, (_, i) => (
             <ShareRow key={i} tint="transparent" name={<Bar w={i % 2 ? "45%" : "60%"} />} value={<Bar w="3em" />} meta={<Bar w="35%" />} share={0} />
@@ -474,8 +474,8 @@ function keysFor(ctx: BlockCtx) {
 
 /** In a project file: that project's last 30 days and its sessions (`project: Name` for another). */
 export function AgentProject({ src, ...ctx }: BlockCtx & { src: AgentSource }) {
-  const { data, error, machine } = useAgentUsage(src, ctx.options)
-  if (!data) return <Waiting src={src} error={error} />
+  const { data, error, retry, machine } = useAgentUsage(src, ctx.options)
+  if (!data) return <Waiting src={src} error={error} retry={retry} />
   const ks = keysFor(ctx)
   const p = data.projects.find((x) => ks.has(x.name.toLowerCase()))
   const live = data.live.filter((s) => ks.has(s.project.toLowerCase()))

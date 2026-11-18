@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useReducer, useState } from "react"
 import { Search, TextSearch } from "lucide-react"
 import { getStore, type Store } from "@/core/data"
 import { get } from "@/core/http"
+import { useOnReconnect } from "@/core/connection"
+import { errorText } from "@/core/notify"
 import { trackSoon } from "@/core/unsaved"
 import { cleanName, createNamed, folderOf, openFile, openNew, openView, stem } from "@/core/files"
 import { currentFile, newTabsAt } from "@/core/workspace"
@@ -14,10 +16,12 @@ import { useRecentFiles } from "@/core/scope"
 import { usePrefs } from "@/core/prefs"
 import { useStateFor } from "@/core/statefor"
 import { marked, NoMatches, Palette, useFinderQuery } from "@/components/Palette"
+import { Loading } from "@/components/kit"
 import { FilePreview } from "@/components/FilePreview"
 import { excerpt, explain, highlighter, isPlain, marksOf, parse, type Node } from "../../../core/searchquery.ts"
 
 type Found = { path: string; title: string; context: string; mtime: number; archived?: boolean }
+type InFiles = { hits: Hit[]; files: number; for: string; failed: Error | null }
 
 function readQuery(q: string): { node: Node | null; error?: string } {
   if (!q.trim()) return { node: null }
@@ -34,6 +38,18 @@ function foundHit(r: Found, node: Node): Hit {
     tint: "var(--muted-foreground)", file: r.path, text: "", recent: r.mtime, marks: marksOf(highlighter(node, "name")(title)), score: 0, archived: r.archived,
   }
 }
+
+const BAR = "skeleton inline-block h-[0.7em] max-w-full align-[-0.05em]"
+const ARRIVING = (
+  <div className="loading-in" aria-busy>
+    {["7em 40%", "5em 55%", "7em 40%"].map((w, i) => (
+      <div key={i} className="flex items-baseline gap-2.5 px-3 py-2 max-md:py-[9px]">
+        <span className="text-[15px] leading-[21px]"><span className={BAR} style={{ width: w.split(" ")[0] }} /></span>
+        <span className="min-w-0 flex-1 text-[13px]"><span className={BAR} style={{ width: w.split(" ")[1] }} /></span>
+      </div>
+    ))}
+  </div>
+)
 
 const PAGE = 40
 
@@ -52,7 +68,9 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
   const named = useMemo(() => (!q.trim() ? suggestions(docs, opened) : plain && !error ? search(docs, q, Infinity) : []), [docs, q, plain, error, opened])
   const local = q.trim() ? named.slice(0, limit) : named
   const short = !node || (plain && q.trim().length < 2)
-  const [text, setText] = useStateFor<{ hits: Hit[]; files: number }>([short], () => ({ hits: [], files: 0 }))
+  const [text, setText] = useStateFor<InFiles>([short], () => ({ hits: [], files: 0, for: "", failed: null }))
+  const [tries, retry] = useReducer((n: number) => n + 1, 0)
+  const asked = `${q.trim()}\0${limit}\0${tries}`
   useEffect(() => {
     const query = q.trim()
     if (!node || short) return
@@ -61,11 +79,14 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
     const t = setTimeout(() => {
       off()
       get<{ results: Found[]; files: number }>(`search?q=${encodeURIComponent(query)}&limit=${limit}&total=1`)
-        .then((f) => on && setText({ hits: f.results.map((r) => foundHit(r, node)), files: f.files }))
-        .catch(() => on && setText({ hits: [], files: 0 }))
+        .then((f) => on && setText({ hits: f.results.map((r) => foundHit(r, node)), files: f.files, for: asked, failed: null }))
+        .catch((e) => on && setText({ hits: [], files: 0, for: asked, failed: e || new Error("Couldn't search") }))
     }, limit > PAGE ? 0 : 150)
     return () => { on = false; off(); clearTimeout(t) }
-  }, [q, node, plain, limit, short, setText])
+  }, [q, node, plain, limit, short, setText, asked])
+  const out = !short && !!node && text.for !== asked, failed = !short && !!node && !out ? text.failed : null
+  useOnReconnect(retry, !!failed)
+  const failedText = useMemo(() => (failed ? errorText(failed, "Couldn't search in files") : null), [failed])
   const queried = useQueried(plain && !error ? q : "")
   const opens = useOpens(q)
   const lead = launcher ? launcherText(disabled) : null
@@ -135,7 +156,9 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
       heading={!q.trim() ? "Recent files and pages" : node && !plain && !opens.length ? explain(node) : undefined}
       section={(h) => (h.id === "search-tab" ? "More" : sections.has(h.id) ? sections.get(h.id) || undefined : plain && h.id.startsWith("text-") ? "In files" : undefined)}
       empty={error ? <p className="px-3 py-6 text-center text-[15px] text-muted-foreground">{error}</p>
-        : q.trim() && <NoMatches what="Nothing matches" query={q} then="Enter makes a note with that name" />}
+        : q.trim() && !out && !failed && <NoMatches what="Nothing matches" query={q} then="Enter makes a note with that name" />}
+      tail={!(out || failed) || error || text.hits.length ? null : { section: "In files",
+        body: failedText ? <div className="px-3 pt-1 pb-2"><Loading error={failedText} retry={retry} /></div> : ARRIVING }}
       hints={[["ArrowUp ArrowDown", "to navigate"], ...(launcher ? [["Enter", "to open in new tab"]] satisfies [string, string][] : [["Enter", "to open"], ["Mod+Enter", "to open in new tab"]] satisfies [string, string][]),
         ...(turns ? [["Alt+ArrowUp Alt+ArrowDown", `to change ${turns}`]] satisfies [string, string][] : []), ["Shift+Enter", "to create"], ["Escape", "to dismiss"]]}
       row={(h) => (<>

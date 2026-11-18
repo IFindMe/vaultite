@@ -1,13 +1,13 @@
 import { useMemo, useSyncExternalStore } from "react"
-import type { AgentRun } from "@vaultite"
-import { accountOf, cloudListed, getCloud, hasCloud, openSession, repoName, repoOf, settings, shownAccounts, statusOf, subscribeCloud } from "./cloud"
+import type { AgentFeed, AgentRun } from "@vaultite"
+import { accountOf, askCloud, cloudListed, cloudUnreachable, getCloud, hasCloud, openSession, repoName, repoOf, settings, shownAccounts, statusOf, subscribeCloud } from "./cloud"
 import { sessionMenu } from "./CloudPanel"
 import { agentTint } from "../../../core/agenttint.ts"
 
-export function useCloudRuns(): AgentRun[] | null {
+export function useCloudRuns(): AgentFeed {
   const s = useSyncExternalStore(subscribeCloud, getCloud)
   const { read, hidden } = settings.use()
-  return useMemo(() => {
+  const runs = useMemo(() => {
     if (!hasCloud() || read !== true) return []
     const shown = shownAccounts(s, hidden)
     const list = s.sessions.filter((c) => !c.account || shown.some((a) => a.id === c.account) || !s.accounts.some((a) => a.id === c.account))
@@ -22,4 +22,6 @@ export function useCloudRuns(): AgentRun[] | null {
       }
     })
   }, [s, read, hidden])
+  const lost = read === true && cloudUnreachable()
+  return useMemo(() => ({ runs, unreachable: lost ? "the cloud sessions" : undefined, retry: askCloud }), [runs, lost])
 }

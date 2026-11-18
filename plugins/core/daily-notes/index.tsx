@@ -9,7 +9,7 @@ function DayBlock({ store, options }: BlockCtx) {
   const base = typeof options.date === "string" && ISO.test(options.date) ? options.date : today()
   const [date, setDate] = useState(base)
   useEffect(() => setDate(base), [base])
-  const { day, error, start, started, starting } = useDay(date)
+  const { day, error, retry, start, started, starting } = useDay(date)
   const name = dayName(date)
   return (
     <Panel title={heading || "Daily note"} icon={CalendarDays}
@@ -21,7 +21,7 @@ function DayBlock({ store, options }: BlockCtx) {
           <button type="button" className={nav} aria-label="Day after" data-tip="Day after" onClick={() => setDate(addDays(date, 1))}><ChevronRight className="size-4" strokeWidth={2.5} /></button>
         </div>
       }>
-      {!day ? <Loading error={error && "Couldn't find the daily note."} />
+      {!day ? <Loading error={error} retry={retry} />
         : !day.exists ? (
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <Empty>No note for {inSentence(name)} yet.</Empty>

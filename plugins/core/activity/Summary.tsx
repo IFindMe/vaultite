@@ -71,7 +71,7 @@ function Skeleton({ who, files }: { who: number; files: number }) {
 
 export function SummaryBlock({ store, options }: { store: Store; options: { days?: unknown; title?: unknown } }) {
   const days = Math.min(Math.max(typeof options.days === "number" ? Math.round(options.days) : 1, 1), 31)
-  const { data, error } = useLive<ActivitySummary>(`activity/summary?days=${days}`, undefined, undefined, 15_000)
+  const { data, error, retry } = useLive<ActivitySummary>(`activity/summary?days=${days}`, undefined, undefined, 15_000)
   const exists = useExists(store)
   const who = useKeptCount(`activity:summary:${days}:who`, data ? Math.min(data.actors.length, 8) : undefined, 3, 8)
   const files = useKeptCount(`activity:summary:${days}:files`, data ? Math.min(data.files.length, 8) : undefined, 3, 8)
@@ -81,7 +81,7 @@ export function SummaryBlock({ store, options }: { store: Store; options: { days
   return (
     <Panel title={title} icon={BarChart3} tint={TINT}
       action={data && <span className="text-[13px] text-muted-foreground tabular-nums">{count(data.total)} done</span>}>
-      {error && !data ? <Loading error="Couldn't read the activity." /> : !data ? <Skeleton who={who} files={files} /> : (
+      {error && !data ? <Loading error={`Couldn't read the activity. ${error}`} retry={retry} /> : !data ? <Skeleton who={who} files={files} /> : (
         <div data-activity-summary>
           <Columns series={SERIES} legend="totals" format={count}
             cols={data.buckets.map((b) => ({

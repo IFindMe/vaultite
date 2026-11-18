@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { agentOfTerminal, agentsOn, announceAgent, closeView, confirmDialog, notify, notifyError, op, openView, parseTerminal, type Agent, type AgentPhase, type AgentRun, type Dot } from "@vaultite"
+import { agentOfTerminal, agentsOn, announceAgent, closeView, confirmDialog, notify, notifyError, onReconnect, op, openView, parseTerminal, type Agent, type AgentPhase, type AgentRun, type Dot } from "@vaultite"
 import { agentTint } from "../../../core/agenttint.ts"
 import { hasNews, waitsOnUser } from "../../../core/attention.ts"
 import { resumeTerminalId } from "../../../core/terminalids.ts"
@@ -168,10 +168,11 @@ export function runOf(s: Session, a = agentIn(s)): AgentRun | null {
   }
 }
 
-type Sessions = { list: Session[] | null; refused: string }
-let now: Sessions = { list: null, refused: "" }
+type Sessions = { list: Session[] | null; refused: string; lost: boolean }
+let now: Sessions = { list: null, refused: "", lost: false }
 const listeners = new Set<() => void>()
 let ws: WebSocket | null = null, timer = 0, tries = 0
+const LOST_AFTER = 2
 const put = (next: Partial<Sessions>) => {
   if (next.list && ending.size) next = { ...next, list: next.list.filter((s) => !ending.has(s.id)) }
   if (next.list) tell(now.list, next.list)
@@ -202,13 +203,21 @@ function connect() {
     if (typeof e.data !== "string") return
     let m: { t?: string; list?: Session[]; reason?: string }
     try { m = JSON.parse(e.data) } catch { return }
-    if (m.t === "sessions" && Array.isArray(m.list)) { tries = 0; put({ list: m.list, refused: "" }) }
+    if (m.t === "sessions" && Array.isArray(m.list)) { tries = 0; put({ list: m.list, refused: "", lost: false }) }
     else if (m.t === "refused") put({ refused: m.reason ?? "refused" })
   }
   sock.onclose = () => {
     if (ws !== sock || now.refused) return
+    if (tries >= LOST_AFTER && !now.lost) put({ lost: true })
     timer = window.setTimeout(connect, Math.min(10000, 500 * 2 ** Math.min(tries++, 5)))
   }
+}
+
+export function retrySessions() {
+  if (!now.lost || !listeners.size) return
+  clearTimeout(timer)
+  tries = 0
+  connect()
 }
 
 function disconnect() {
@@ -223,8 +232,10 @@ if (typeof document !== "undefined") document.addEventListener("visibilitychange
   else if (listeners.size && !ws) connect()
 })
 
+let followsServer = false
 export function subscribeSessions(fn: () => void) {
   listeners.add(fn)
+  if (!followsServer) { followsServer = true; onReconnect(retrySessions) }
   if (!ws && !document.hidden) connect()
   return () => {
     listeners.delete(fn)

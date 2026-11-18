@@ -65,13 +65,13 @@ function AgentsAtWork() {
 }
 
 function Instructions() {
-  const { data, error } = useLive<{ text: string }>("terminals/instructions")
+  const { data, error, retry } = useLive<{ text: string }>("terminals/instructions")
   return (
     <div data-terminal-instructions>
       <PageHeader title="What agents are told" subtitle={"A coding agent started in a terminal here gets this added to its instructions, when it takes added " +
         "instructions. The plugins' lines come from the plugins that are on; the vault's rules, .vaultite/AGENTS.md, have them too."} />
       {data ? <pre className="rounded-[8px] bg-muted px-4 py-3 font-mono text-[13px] leading-[19px] whitespace-pre-wrap select-text">{data.text}</pre>
-        : <Loading error={error && "Couldn't read them."} />}
+        : <Loading error={error && `Couldn't read them. ${error}`} retry={retry} />}
     </div>
   )
 }

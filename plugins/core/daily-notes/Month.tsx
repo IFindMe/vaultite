@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Calendar1, ChevronLeft, ChevronRight } from "lucide-react"
-import { addDays, cn, dateText, dow, get, HeadingButton, openFile, parse, range, SidebarHeading, today, useTick, useVaultChange, type SidebarCtx } from "@vaultite"
+import { addDays, cn, dateText, dow, HeadingButton, Loading, openFile, parse, range, SidebarHeading, today, useLive, useTick, type SidebarCtx } from "@vaultite"
 import { nav, openDay } from "./Day"
 
 type Month = { month: string; days: Record<string, { path: string; words: number }> }
@@ -10,15 +10,8 @@ const shift = (month: string, by: number) => { const d = parse(firstOf(month)); 
 const dots = (words: number) => (words < 150 ? 1 : words < 600 ? 2 : 3)
 
 function useMonth(month: string) {
-  const [data, setData] = useState<Month | null>(null)
-  const [seen, setSeen] = useState(0)
-  useVaultChange(() => setSeen(Date.now()), [])
-  useEffect(() => {
-    let live = true
-    get<Month>(`daily-notes/month?month=${month}`).then((r) => { if (live) setData(r) }, () => { if (live) setData({ month, days: {} }) })
-    return () => { live = false }
-  }, [month, seen])
-  return data?.month === month ? data : null
+  const { data, error, retry } = useLive<Month>(`daily-notes/month?month=${month}`, undefined, true)
+  return { data: data?.month === month ? data : null, error, retry }
 }
 
 export const MonthPanel = ({ open }: SidebarCtx) => (open ? <MonthCalendar /> : null)
@@ -27,7 +20,7 @@ export function MonthCalendar({ tab = false }: { tab?: boolean }) {
   useTick(60_000)
   const now = today()
   const [month, setMonth] = useState(now.slice(0, 7))
-  const data = useMonth(month)
+  const { data, error, retry } = useMonth(month)
   const start = addDays(firstOf(month), -dow(firstOf(month)))
   const weeks = Math.ceil((dow(firstOf(month)) + new Date(+month.slice(0, 4), +month.slice(5), 0).getDate()) / 7)
   const title = dateText(parse(firstOf(month)), { month: "long", year: "numeric" })
@@ -65,6 +58,7 @@ export function MonthCalendar({ tab = false }: { tab?: boolean }) {
           )
         })}
       </div>
+      {error && <Loading error={`Couldn't read which days have notes. ${error}`} retry={retry} className={cn("px-1.5", !tab && "text-[13px] leading-[18px]")} />}
     </div>
   )
 }

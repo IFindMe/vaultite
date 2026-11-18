@@ -1,5 +1,5 @@
 import { ListFilter, SquareArrowOutUpRight, Users } from "lucide-react"
-import { Bar, cn, fmtAgo, fmtDay, fmtStamp, menuBelow, openFile, openView, SidebarHeading, useKeptCount, useScopedState, useTick, type SidebarCtx } from "@vaultite"
+import { Bar, cn, fmtAgo, fmtDay, fmtStamp, Loading, menuBelow, openFile, openView, SidebarHeading, useKeptCount, useScopedState, useTick, type SidebarCtx } from "@vaultite"
 import { ACTION_KINDS, type ActionKind, type ActivityEvent, type ActorKind } from "./model"
 import { byDay, EventText, KINDS, useExists, useFeed } from "./Feed"
 import { kindLabel, openTerminal, useLook, whoOf } from "./shared"
@@ -58,7 +58,7 @@ export function ActivityPanel({ store, open, mode }: SidebarCtx) {
   const [filter, setFilter] = useScopedState<Filter>("activity:filter", ALL)
   const actor = KINDS.find((k) => k === filter.actor) ?? ""
   const action = ACTION_KINDS.some((k) => k.id === filter.action) ? filter.action! : ""
-  const { q, data, error, events, more, loadMore, busy } = useFeed({ limit: mode ? 50 : 10, actor, action })
+  const { q, data, error, retry, events, more, loadMore, busy } = useFeed({ limit: mode ? 50 : 10, actor, action })
   const exists = useExists(store)
   const rows = useKeptCount(`activity?${q}`, data?.events.length, 3, mode ? 20 : 10)
   useTick()
@@ -91,7 +91,7 @@ export function ActivityPanel({ store, open, mode }: SidebarCtx) {
       </SidebarHeading>
       <div className={cn("flex flex-col gap-px", mode && "edge-fade-b min-h-0 flex-1 overflow-y-auto")}>
         {!data ? (
-          error ? <p className={note}>Couldn't read the activity</p>
+          error ? <Loading error={`Couldn't read the activity. ${error}`} retry={retry} className="pl-1.5 text-[13px] leading-[18px]" />
             : rows ? <Skeleton count={rows} />
             : <p className={cn("loading-in", note)} aria-busy><span className="shimmer">Loading…</span></p>
         ) : !events.length ? (

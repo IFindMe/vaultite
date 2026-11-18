@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check, ChevronRight, Download, ExternalLink, MoreHorizontal, Puzzle, RefreshCw, type LucideIcon } from "lucide-react"
 import { dateText, fmtAgo, numberText, reload } from "@/core/data"
 import { op } from "@/core/http"
@@ -6,7 +6,7 @@ import { openWebLink } from "@/core/links"
 import { snippet } from "@/core/plaintext"
 import { openDetail, replaceDetail } from "@/core/nav"
 import { GitHubIcon } from "@/core/icons"
-import { notify, notifyError } from "@/core/notify"
+import { errorText, notify, notifyError } from "@/core/notify"
 import { pluginIcon } from "@/core/pages"
 import { useKeptCount } from "@/core/heights"
 import { official } from "../../../core/updates.ts"
@@ -21,6 +21,7 @@ import type { BrowseEntry, BrowseSource } from "@/core/define"
 import { hostsNow, pluginById, setSwitch, updatePlugin, usePluginsVersion } from "@/core/plugins"
 import { Button } from "@/components/Button"
 import { Certified } from "@/components/Certified"
+import { useListed } from "@/components/pluginListed"
 import { overConnect } from "@/core/here"
 
 type Sort = "stars" | "new" | "updated"
@@ -415,23 +416,18 @@ export function GetPluginSheet({ id }: { id: string }) {
 
 const notFound = (what: string) => <SheetHead icon={Puzzle} tint="var(--muted-foreground)" kicker="Not found" title={what} />
 
+function Unreached({ where, cause, retry }: { where: string; cause: Error; retry: () => void }) {
+  const said = useMemo(() => errorText(cause, `Couldn't read ${where}`), [cause, where])
+  return <><SheetHead icon={Puzzle} tint="var(--muted-foreground)" kicker="Plugin" title={`Can't reach ${where}`} /><Loading error={said} retry={retry} /></>
+}
+
 function DirectorySheet({ id }: { id: string }) {
   const v = usePluginsVersion()
-  const [e, setE] = useState<Entry | null | undefined>(() => seen.get(id))
+  const { e, unreached, retry } = useListed(() => op<Found>("plugin.search", { q: id }).then((f) => ({ ...f, entries: f.plugins })), id, seen, id, v)
   const [busy, setBusy] = useState(false)
   const [goOn, setGoOn] = useState(() => { const s = seen.get(id); return !!s && s.installed !== null && !s.update && !pluginById(id) })
   useEffect(() => { if (goOn && pluginById(id)) replaceDetail(`plugin/${id}`) }, [goOn, id, v])
-  useEffect(() => {
-    let live = true
-    op<Found>("plugin.search", { q: id }).then((f) => {
-      if (!live) return
-      const got = f.plugins.find((x) => x.id === id)
-      if (got) seen.set(id, got)
-      setE(got ?? seen.get(id) ?? null)
-    }, () => { if (live) setE((x) => x ?? null) })
-    return () => { live = false }
-  }, [id, v])
-  if (e === undefined) return <Loading />
+  if (e === undefined) return unreached === undefined ? <Loading /> : <Unreached where="the plugin directory" cause={unreached} retry={retry} />
   if (!e) return notFound("This plugin isn't in the directory")
   const ours = official(e.source)
   const says = disclosed(e.disclosures)
@@ -492,21 +488,10 @@ function HostedSheet({ host, id }: { host: string; id: string }) {
   const v = usePluginsVersion()
   const key = `${host}:${id}`
   const src = hostsNow().find(([h]) => h === host)?.[1].browse
-  const [e, setE] = useState<BrowseEntry | null | undefined>(() => seenHosted.get(key))
+  const { e, unreached, retry } = useListed(src ? () => src.search(id, src.sorts?.[0]?.value ?? "") : null, id, seenHosted, key, v)
   const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    if (!src) return
-    let live = true
-    src.search(id, src.sorts?.[0]?.value ?? "").then((f) => {
-      if (!live) return
-      const got = f.entries.find((x) => x.id === id)
-      if (got) seenHosted.set(key, got)
-      setE(got ?? seenHosted.get(key) ?? null)
-    }, () => { if (live) setE((x) => x ?? null) })
-    return () => { live = false }
-  }, [src, id, key, v])
   if (!src) return notFound("This source isn't here now")
-  if (e === undefined) return <Loading />
+  if (e === undefined) return unreached === undefined ? <Loading /> : <Unreached where={src.title} cause={unreached} retry={retry} />
   if (!e) return notFound(`This plugin isn't in ${src.title}`)
   const alt = !e.installed ? e.standIn : undefined
   const show = (pid: string) => replaceDetail(`plugin/${pid}`)

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { AppWindow, ClipboardCopy, Copy, FileText, Mic, MoreHorizontal, RotateCcw, Settings, SquareTerminal, TextCursorInput, Trash2, TriangleAlert, type LucideIcon } from "lucide-react"
 import {
-  Button, cn, confirmDialog, copyText, dateText, FilterField, fmtDay, fmtLongDay, isDesktop, iso, LoadingSidebarRows, menuBelow, menuFor, notify, notifyError, onDictation, op, openFile,
+  Button, cn, confirmDialog, copyText, dateText, errorText, FilterField, fmtDay, fmtLongDay, isDesktop, iso, Loading, LoadingSidebarRows, menuBelow, menuFor, notify, notifyError, onDictation, op, openFile,
   openPluginSettings, pluginSettings, removals, Segmented, SidebarHeading, stem, useKeptCount, type MenuItem,
 } from "@vaultite"
 import { insertAgain } from "./place"
@@ -94,7 +94,7 @@ export function DictationsView() {
             options={[{ value: "all", label: "All" }, ...(counts.lost ? [{ value: "lost" as const, label: `Didn't land ${counts.lost}` }] : []), ...(counts.companion ? [{ value: "companion" as const, label: "Companion" }] : [])]} />
         )}
       </div>
-      {!data ? (error ? <p className="px-1.5 text-[15px] text-muted-foreground">Couldn't read your dictations.</p> : <section data-size-up><LoadingSidebarRows count={rows} /></section>)
+      {!data ? (error ? <div className="px-1.5"><Loading error={errorText(error, "Couldn't read your dictations")} retry={again} /></div> : <section data-size-up><LoadingSidebarRows count={rows} /></section>)
         : !days.length ? <EmptyList text={text} here={data.here} keep={keep} filtered={show !== "all"} />
         : (
           <div className="flex flex-col gap-5" data-dictations-list>

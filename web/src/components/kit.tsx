@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type HTMLAttributes, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { ChevronRight, RotateCcw, Search, X, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TryAgain } from "@/components/TryAgain"
 import { ink } from "@/lib/ink"
 import { plain } from "@/core/data"
 import { haptic } from "@/core/haptics"
@@ -163,8 +164,7 @@ export function Stat({ label, value, unit, hint }: { label: string; value: React
     <div className="min-w-0">
       <div className="text-[13px] text-muted-foreground max-md:text-[15px]">{label}</div>
       <div className="num mt-0.5 text-[28px] leading-[34px] font-semibold">
-        {value}
-        {unit && <span className="ml-0.5 text-[15px] font-semibold text-muted-foreground">{unit}</span>}
+        {value}{unit && <span className="ml-0.5 text-[15px] font-semibold text-muted-foreground">{unit}</span>}
       </div>
       {hint && <div className="text-[13px] text-muted-foreground max-md:text-[15px]">{hint}</div>}
     </div>
@@ -197,10 +197,10 @@ export function ErrorDetails({ text, className }: { text: string; className?: st
   )
 }
 
-/** A block's data on its way: "Loading…", shimmering, or what went wrong getting it (`error`: "Couldn't ask Tailscale.").
- *  The core draws the same while a block's code loads; a list draws `LoadingRows` (or its own rows with `Bar`s) instead. */
-export function Loading({ error, className }: { error?: ReactNode; className?: string }) {
-  if (error) return <p className={cn("text-[15px] leading-[20px] text-muted-foreground select-text", className)}>{error}</p>
+/** A block's data on its way: "Loading…", shimmering, or what went wrong getting it (`error`: "Couldn't ask Tailscale."),
+ *  with Try again given `retry`. The core draws the same while a block's code loads; a list draws `LoadingRows` instead. */
+export function Loading({ error, retry, className }: { error?: ReactNode; retry?: () => void; className?: string }) {
+  if (error) return <div role="alert" data-loading-failed><p className={cn("text-[15px] leading-[20px] text-muted-foreground select-text", className)}>{error}</p>{retry && <TryAgain onClick={retry} />}</div>
   return <p className={cn("loading-in text-[15px] leading-[20px] text-muted-foreground", className)} aria-busy><span className="shimmer">Loading…</span></p>
 }
 

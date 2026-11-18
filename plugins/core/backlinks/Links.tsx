@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { FileQuestion, FileText, Globe, NotebookPen, SquareArrowOutUpRight } from "lucide-react"
 import {
-  Bar, cn, createNamed, Foldable, get, getStore, HeadingButton, isDesktop, newNoteFolder, openDetail, openFile, openInSplit, openView, post, resolver,
-  SidebarHeading, snippet, startDrag, stem, useFocusedFile, useHeldHeight, useKeptCount, useLive, useNearEnd, usePluginSettings, useStore, useVaultChange, viewInfo, type SidebarCtx, type Store,
+  Bar, cn, createNamed, Foldable, get, getStore, HeadingButton, isDesktop, Loading, newNoteFolder, openDetail, openFile, openInSplit, openView, post, resolver,
+  SidebarHeading, snippet, startDrag, stem, useFocusedFile, useHeldHeight, useKeptCount, useLive, useNearEnd, usePluginSettings, useStore, useVaultChange, viewInfo, type Live, type SidebarCtx, type Store,
 } from "@vaultite"
 import { siteOf } from "./weblinks"
 
@@ -20,11 +20,12 @@ function useLinks(store: Store, path: string) {
   useVaultChange(() => setV(Date.now()), (p) => !p.startsWith("."))
   const [limit, setLimit] = useState(PAGE)
   useEffect(() => setLimit(PAGE), [path])
-  const { data } = useLive<Unlinked>(path && isMd(path) ? `backlinks/unlinked?path=${encodeURIComponent(path)}&limit=${limit}` : null, v)
+  const mentions = useLive<Unlinked>(path && isMd(path) ? `backlinks/unlinked?path=${encodeURIComponent(path)}&limit=${limit}` : null, v)
+  const data = mentions.data
   const unlinked = path && isMd(path) ? data ?? null : { total: 0, files: 0, mentions: [] }
   const more = () => { if (data && data.mentions.length < data.total && data.mentions.length >= limit) setLimit(limit + PAGE) }
-  const got = useLive<FileLinked>(path ? `file/linked?path=${encodeURIComponent(path)}` : null, v).data
-  const answer = got?.path === path ? got : null
+  const links = useLive<FileLinked>(path ? `file/linked?path=${encodeURIComponent(path)}` : null, v)
+  const answer = links.data?.path === path ? links.data : null
   const linked = useMemo(() => answer?.linked.map((l) => ({ ...l, title: stem(l.path) })) ?? null, [answer])
   const outgoing = useMemo(() => {
     if (!answer) return null
@@ -38,7 +39,7 @@ function useLinks(store: Store, path: string) {
     }
     return [...seen.values()].sort((a, b) => Number(!a.file && !a.detail) - Number(!b.file && !b.detail))
   }, [store, path, answer])
-  return { linked, outgoing, unlinked, more, refresh: () => setV(Date.now()) }
+  return { linked, outgoing, unlinked, more, refresh: () => setV(Date.now()), failed: { links: answer ? null : links, unlinked: unlinked ? null : mentions } }
 }
 
 function Item({ icon: Icon, title, context, faint, onOpen, action, tip, path }: {
@@ -77,6 +78,11 @@ function More({ onNear, children }: { onNear: () => void; children: ReactNode })
 
 const empty = (text: string) => <p className="py-1 pl-6 text-[12px] text-tertiary">{text}</p>
 
+function Failed({ live, count }: { live: Live<unknown> | null; count: number }) {
+  if (!live?.error) return <Looking count={count} />
+  return <div className="pl-6"><Loading error={`Couldn't read them. ${live.error}`} retry={live.retry} className="py-1 text-[12px] leading-[16px]" /></div>
+}
+
 function Looking({ count }: { count: number }) {
   if (!count) return <p className="loading-in py-1 pl-6 text-[12px] text-tertiary" aria-busy><span className="shimmer">Looking…</span></p>
   return (
@@ -98,11 +104,11 @@ function Held({ id, children }: { id: string; children: ReactNode }) {
 
 const placeOf = (inNote?: boolean, pane?: string) => (inNote ? "note" : pane ? "tab" : "panel")
 
-function OutgoingLinks({ outgoing, held, open }: { outgoing: Out[] | null; held: string; open: (p: string) => void }) {
+function OutgoingLinks({ outgoing, failed, held, open }: { outgoing: Out[] | null; failed: Live<unknown> | null; held: string; open: (p: string) => void }) {
   return (
     <Foldable data-links-group="outgoing" keep="links.outgoing" title="Outgoing links" count={outgoing ? outgoing.length : null}>
       <Held id={held}>
-        {!outgoing ? <Looking count={0} /> : outgoing.length ? outgoing.map((o) => {
+        {!outgoing ? <Failed live={failed} count={0} /> : outgoing.length ? outgoing.map((o) => {
           const to = o.file, detail = o.detail
           return (
             <Item key={o.key} icon={to || detail ? FileText : FileQuestion} title={o.title} faint={!to && !detail}
@@ -116,7 +122,7 @@ function OutgoingLinks({ outgoing, held, open }: { outgoing: Out[] | null; held:
 }
 
 export function LinksList({ store, path, pane, inNote }: { store: Store; path: string; pane?: string; inNote?: boolean }) {
-  const { linked, outgoing, unlinked, more, refresh } = useLinks(store, path)
+  const { linked, outgoing, unlinked, more, refresh, failed } = useLinks(store, path)
   const [busy, setBusy] = useState("")
   const looking = useKeptCount(`links:unlinked:${path}`, unlinked ? unlinked.mentions.length : undefined, 0, 6)
   const lookingLinked = useKeptCount(`links:linked:${path}`, linked ? linked.length : undefined, 0, 6)
@@ -133,13 +139,13 @@ export function LinksList({ store, path, pane, inNote }: { store: Store; path: s
     <div className="flex flex-col" data-links-for={path}>
       <Foldable data-links-group="linked" keep="links.linked" title="Linked mentions" count={linked ? linked.length : null}>
         <Held id={`links:linked:${at}:${path}`}>
-          {!linked ? <Looking count={lookingLinked} /> : linked.length ? linked.map((l) => (
+          {!linked ? <Failed live={failed.links} count={lookingLinked} /> : linked.length ? linked.map((l) => (
             <Item key={l.path} icon={FileText} title={l.title} onOpen={() => open(l.path)} path={l.path} context={l.line && snippet(l.line)} />
           )) : empty("Nothing links here yet.")}
         </Held>
       </Foldable>
       <Foldable data-links-group="unlinked" keep="links.unlinked" title="Unlinked mentions" count={unlinked ? unlinked.total : null}>
-        {!unlinked ? <Looking count={looking} /> : unlinked.mentions.length ? <>{unlinked.mentions.map((m) => {
+        {!unlinked ? <Failed live={failed.unlinked} count={looking} /> : unlinked.mentions.length ? <>{unlinked.mentions.map((m) => {
           const key = `${m.path}:${m.line}:${m.nth}:${m.col}`
           return (
             <Item key={key} icon={FileText} title={stem(m.path)} context={around(m)} onOpen={() => open(m.path)} path={m.path}
@@ -156,7 +162,7 @@ export function LinksList({ store, path, pane, inNote }: { store: Store; path: s
           <More key={unlinked.mentions.length} onNear={more}>{unlinked.total - unlinked.mentions.length} more…</More>
         )}</> : empty(isMd(path) ? "Its name isn't written anywhere else." : "Only notes have mentions.")}
       </Foldable>
-      {!inNote && <OutgoingLinks outgoing={outgoing} held={`links:outgoing:${at}:${path}`} open={open} />}
+      {!inNote && <OutgoingLinks outgoing={outgoing} failed={failed.links} held={`links:outgoing:${at}:${path}`} open={open} />}
     </div>
   )
 }
@@ -176,14 +182,15 @@ export async function openPageNote(url: string, title: string) {
 function WebLinksList({ url, title, pane }: { url: string; title: string; pane?: string }) {
   const [v, setV] = useState(() => Date.now())
   useVaultChange(() => setV(Date.now()), (p) => !p.startsWith("."))
-  const { data } = useLive<WebLinked>(`backlinks/web?url=${encodeURIComponent(url)}`, v)
+  const live = useLive<WebLinked>(`backlinks/web?url=${encodeURIComponent(url)}`, v)
+  const data = live.data
   const looking = useKeptCount(`links:web:${url}`, data ? data.about.length + data.linked.length : undefined, 0, 6)
   const open = (p: string) => openFile(p, { pane })
   const site = siteOf(url)
   return (
     <div className="flex flex-col" data-links-for={url}>
       <Foldable data-links-group="page" keep="links.page" title="This page" count={data ? data.about.length + data.linked.length : null}>
-        {!data ? <Looking count={looking} /> : <>
+        {!data ? <Failed live={live} count={looking} /> : <>
           {data.about.map(({ path }) => <Item key={`a:${path}`} icon={NotebookPen} title={stem(path)} context="A note on this page" onOpen={() => open(path)} path={path} />)}
           {data.linked.map(({ path, line }) => <Item key={`l:${path}`} icon={FileText} title={stem(path)} context={snippet(line)} onOpen={() => open(path)} path={path} />)}
           {!data.about.length && !data.linked.length && empty("No note links here yet.")}
@@ -194,7 +201,7 @@ function WebLinksList({ url, title, pane }: { url: string; title: string; pane?:
         </>}
       </Foldable>
       {site && <Foldable data-links-group="site" keep="links.site" title={`Elsewhere on ${site}`} count={data ? data.total : null}>
-        {!data ? <Looking count={0} /> : data.elsewhere.length ? <>{data.elsewhere.map(({ path, url: to, line }, i) => (
+        {!data ? <Failed live={live} count={0} /> : data.elsewhere.length ? <>{data.elsewhere.map(({ path, url: to, line }, i) => (
           <Item key={`${path}:${i}`} icon={Globe} title={stem(path)} context={snippet(line)} tip={to} onOpen={() => open(path)} path={path} />
         ))}{data.total > data.elsewhere.length && empty(`${data.total - data.elsewhere.length} more`)}</> : empty("No note links its other pages.")}
       </Foldable>}
