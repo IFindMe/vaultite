@@ -52,7 +52,7 @@ export default async ($: VaultTest) => {
   await sleep(5)
   await vau("command", "sidebar:toggle")
   check("vau command: to the window now in use", uiOf(w2).length === 1 && uiOf(w2)[0].id === "sidebar:toggle" && uiOf(w1).length === 6, [w1.got, w2.got])
-  cr = await vau("open", "x.md", "--split", "left")
+  cr = await vau("open", "x.md", "--split", "sideways")
   check("vau open: a bad split is refused", cr.code === 2, cr)
   const had = w2.got.length, ui = (b: Record<string, unknown>) => uiLive.handle("POST", b), said = ui({ action: "notify", text: " Saved ", button: { open: " Notes/a.md " } }), sent = w2.got.splice(had).at(-1), noOpen = ui({ action: "notify", text: "x", button: { label: "Go" } }), oddIn = ui({ action: "open", path: "a.md", in: 5 })
   check("ui: a notice's button opens its path, trimmed, labelled Open; one with nothing to open, or a pane that isn't a name, is refused", said[1] === 200 && sent.text === "Saved" && sent.button.open === "Notes/a.md" && sent.button.label === "Open" && noOpen[1] === 400 && /button is/.test(noOpen[0].error) && oddIn[1] === 400 && /in is a name/.test(oddIn[0].error), [said, sent, noOpen, oddIn])
@@ -218,7 +218,7 @@ export default async ($: VaultTest) => {
   check("vau prompt: Tab completes names, a group's words, ids once typed", sameJson(await tab("fil"), ["files"]) && (await tab("bundle ")).includes("apply") && (await tab("panels ")).includes("move") && sameJson(await tab("help dev d"), ["dom"]) && sameJson(await tab("dev s"), ["screenshot"]) &&
     (await tab("note.c")).includes("note.create") && (await tab("sand")).includes("sandbox"), [await tab("fil"), await tab("bundle "), await tab("dev s"), await tab("note.c"), await tab("sand")])
   check("vau prompt: Tab completes flags", sameJson(await tab("files --l"), ["--limit"]) && (await tab("files --")).includes("--count") && (await tab("open x --")).includes("--new-tab"))
-  check("vau prompt: Tab completes choices", sameJson(await tab("dev console --level w"), ["warn"]) && sameJson(await tab("open x --split "), ["down", "right"]))
+  check("vau prompt: Tab completes choices", sameJson(await tab("dev console --level w"), ["warn"]) && sameJson(await tab("open x --split "), ["down", "left", "right", "up"]))
   check("vau prompt: Tab completes paths a folder at a time, quoted when they need it", sameJson(await tab("open Peo"), ["People/"]) && sameJson(await tab("open People/A"), ["\"People/Alice Park.md\""]) &&
     sameJson(await tab("open \"Notes/"), ["\"Notes/My idea.md\""]) && sameJson(await tab("open Bob"), ["\"People/Bob Lee.md\""]), [await tab("open Peo"), await tab("open People/A")])
   check("vau prompt: Tab completes palette command ids", sameJson(await tab("command side"), ["sidebar:toggle"]))

@@ -26,6 +26,7 @@ import { typeOps } from "./coreops/types.ts"
 import { versionOps } from "./coreops/version.ts"
 import { updateOps } from "./coreops/update.ts"
 import { commandList } from "./appsource.ts"
+import { SPLITS } from "./splitto.ts"
 import { propTypeOps } from "./coreops/proptypes.ts"
 import { topic, topics } from "./docs.ts"
 import { defineOp, type Op, OpError, quoted } from "./ops.ts"
@@ -121,7 +122,7 @@ Where, as the user says it:
 - in: the pane it opens in, as a new tab there. By where it is in the tab on screen (left, right, top, bottom, middle,
   "top right", "the left side panel"), "this" (the one focused), what it shows (a note's name, a site: github.com,
   words of its tab's title: "the one showing Squad") or its id (vau tabs). With split, the split is beside that pane.
-- split right|down: in a new pane beside or below (the current one, or the one in names).
+- split right|left|down|up: in a new pane on that side of the current one (or the one in names).
 - newTab: a new tab, keeping the current one.
 - container: a web address in that browser container (each its own logins): its name as the user says it (Personal,
   Work, Agents; "my personal one": personal), its id, or none. Left out, the site's rule or the workspace's picks.
@@ -139,7 +140,7 @@ A pane or container nobody has is an error that lists the ones there are.
     kind: "write",
     params: {
       path: { type: "string", format: "path", outside: true, finds: true, required: true, description: "the vault path (Notes/Idea.md, or as the user says it: Today), a folder, a view (view:graph), a web address, or a folder or file elsewhere on this machine (its absolute path)" },
-      split: { type: "string", enum: ["right", "down"], description: "open it in a pane beside (right) or below (down) the current one (or the one `in` names)" },
+      split: { type: "string", enum: [...SPLITS], description: "open it in a new pane on that side (right, left, down: below, up: above) of the current one (or the one `in` names)" },
       newTab: { type: "boolean", description: "in a new tab, keeping the current one" },
       in: { type: "string", description: "the pane to open it in, as a new tab there, as the user names it: where it is (left, right, top right, bottom), this (the focused one), what it shows (a note, a site, its title's words) or its id" },
       container: { type: "string", description: "a web address's browser container, by its name as the user says it (Personal, Work, Agents), its id, or none" },

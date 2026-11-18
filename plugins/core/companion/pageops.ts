@@ -2,6 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { z } from "zod"
 import { localDate } from "../../../core/plugins.ts"
+import { SPLITS } from "../../../core/splitto.ts"
 import { readText, writeNew } from "../../../core/vault.ts"
 import { elevenUsage } from "./voice.ts"
 import { jobTimingsText } from "./jobs.ts"
@@ -159,7 +160,7 @@ companion-usage).
   vau companion page --split right`,
   kind: "write",
   lock: false,
-  params: { split: { type: "string", enum: ["right", "down"], description: "in a pane beside (right) or below (down)" }, newTab: { type: "boolean", description: "in a new tab" }, as: AS },
+  params: { split: { type: "string", enum: [...SPLITS], description: "in a new pane on that side (right, left, down: below, up: above)" }, newTab: { type: "boolean", description: "in a new tab" }, as: AS },
   run: async (p, ctx) => {
     const home = plugin.vault.pagesHome(), at = home ? `${home}/Companion.md` : "Companion.md"
     if (!fs.existsSync(plugin.vault.abs(at))) writeNew(plugin.vault.abs(at), readText(path.join(plugin.dir, "pages", "Companion.md")))

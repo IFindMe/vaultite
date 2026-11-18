@@ -38,7 +38,7 @@ export default async ($: VaultTest) => {
     const said = cliError(e, "no entry for Alice Park; give `entry` or `newTab`, not `nope`; newTab: should be true or false, not a list. Usage: vau lantern.find", ["newTab: should be true or false, not a list", "id is missing (which one)", "entri: lantern.find has no such parameter (did you mean entry?)"])
     check("vau: a word that's a parameter's name stays a word; one the server names is its flag", said.msg === "no entry for Alice Park; give --entry or --new-tab, not `nope`; --new-tab: should be true or false, not a list. Usage: vau lantern.find"
       && said.problems.join("|") === "<id> is missing (which one)|--entri: lantern.find has no such parameter (did you mean --entry?)", said)
-    cr = await vau("open", "x.md", "--split", "left")
+    cr = await vau("open", "x.md", "--split", "sideways")
     check("vau: a bad value's problem names its flag, a mistake in the command line (exit 2)", cr.code === 2 && cr.err.includes("--split: should be"), cr)
   }
   cr = await vau("nope")

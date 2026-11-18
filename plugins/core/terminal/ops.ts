@@ -2,7 +2,7 @@ import { agentModel, awaitsText, MODEL_NAME, PERMISSION_MODES, startAgent, TERMI
 import { fmtAgo, type Machine, OpError, type Plugin, quoted } from "../../../core/plugins.ts"
 import { z } from "zod"
 import { homeOf } from "./backends.ts"
-import { Answer, closeTabs, SessionsTitled, elsewhere, Ended, freshAgent, passOn, Session, sessions, show, shown, TabAt, tabsOf, target, there, Trouble } from "./targets.ts"
+import { Answer, closeTabs, SPLIT, SessionsTitled, elsewhere, Ended, freshAgent, passOn, Session, sessions, show, shown, TabAt, tabsOf, target, there, Trouble } from "./targets.ts"
 
 const Shown = Session.extend({ tabs: z.array(TabAt) })
 const Listing = z.looseObject({ sessions: z.array(Shown), gone: z.array(z.object({ id: z.string(), tabs: z.array(TabAt), agent: z.boolean() })).default([]),
@@ -13,7 +13,6 @@ const Got = z.union([Ended.extend({ ended: z.literal(true) }), Shown.extend({ in
 const Pressed = z.looseObject({ id: z.string(), keys: z.array(z.string()) })
 
 const where = (tabs: TabAt[] | undefined) => (tabs?.length ? `tab in workspace ${[...new Set(tabs.map((t) => t.workspace))].join(", ")}` : "no tab")
-const SPLIT = { type: "string", enum: ["right", "down"], description: "in a pane beside (right) or below (down) the current one, not a new tab (the user's only: an agent's goes behind theirs)" } as const
 const ID = { type: "string", required: true, description: "the terminal: its id, its name or the end of its id (vau terminal lists them); <id>@<machine> for another machine's" } as const
 const OWN = { type: "string", env: "VAULTITE_TERMINAL", description: "the terminal: its id, its name or the end of its id (vau terminal lists them), <id>@<machine> for another machine's; left out, the one you run in (VAULTITE_TERMINAL)" } as const
 const MACHINE = { type: "string", description: "another of the Machines to run it on, by its id (studio); this one when left out" } as const

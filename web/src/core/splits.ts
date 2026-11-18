@@ -277,9 +277,9 @@ function keysTo(id: string, tries = 30) {
   })
 }
 
-/** `to` in a pane beside the focused one (right or below, made if none, or beside one keeping its view); `focusIt` false:
+/** `to` in a pane on `side` of the focused one (made if none, or beside one keeping its view); `focusIt` false:
  *  the focus stays. `paneId`: the new pane's id (a web page coming back to its pane). Returns the pane's id. */
-export function openInSplit(to: string, side: "right" | "bottom" = "right", focusIt = true, paneId?: string): string {
+export function openInSplit(to: string, side: Side = "right", focusIt = true, paneId?: string): string {
   const t = activeTab(), focus = t.focus
   const at = isFloating(focus) ? under(focus) : focus
   const right = neighbourOf(t.root, at, side)

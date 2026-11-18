@@ -479,7 +479,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `openInGroup(to, name, beside?)`: `to` in a new tab, shown, at the end of the tab group named `name` (an agent's: "<agent>/<task>"); none such: a new one after the tab on screen (`beside`: in a split beside the focused pane, its…
 - `openingSoon(path, now?)`
 - `openInList(newTab?)`: Do what a click on the row does (`newTab`: as a ⌘-click, opening a file in a new tab).
-- `openInSplit(to, side?, focusIt?, paneId?)`: `to` in a pane beside the focused one (right or below, made if none, or beside one keeping its view); `focusIt` false: the focus stays.
+- `openInSplit(to, side?, focusIt?, paneId?)`: `to` in a pane on `side` of the focused one (made if none, or beside one keeping its view); `focusIt` false: the focus stays.
 - `openItem(newTab, right?)`: "Open in new tab", with Open to the right in its submenu where there are splits (desktop).
 - `openLinkMenu(link, at, opts?)`
 - `openMenu(at, items, up?, again?, closed?)`

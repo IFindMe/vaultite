@@ -1,6 +1,7 @@
 import { getPrefs } from "@/core/prefs"
 import { isEnabled, PLUGINS, viewFor } from "@/core/plugins"
 import { closest } from "../../../core/appmatch.ts"
+import type { SplitTo } from "../../../core/splitto.ts"
 import type { UiAction } from "@/core/liveMessage"
 
 type Openable = { title: string; names: string[]; target: string; panel?: string; off: boolean }
@@ -62,7 +63,7 @@ export async function blankAfterDrawing(pane: string | null, ms = 1500): Promise
   }
 }
 
-type Open = (path: string, split?: "right" | "down" | null, newTab?: boolean, background?: boolean, container?: string | null, into?: string | null) => { pane: string | null; to: string }
+type Open = (path: string, split?: SplitTo | null, newTab?: boolean, background?: boolean, container?: string | null, into?: string | null) => { pane: string | null; to: string }
 export async function openChecked(m: UiAction & { path: string }, open: Open) {
   const at = open(/^https?:\/\//i.test(m.path) ? m.path : openableTarget(m.path), m.split, !!m.newTab, !!m.background, m.container, m.in)
   const blank = m.background ? null : await blankAfterDrawing(at.pane)

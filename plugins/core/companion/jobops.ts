@@ -1,4 +1,5 @@
 import { OpError, type Plugin, quoted, userSurface } from "../../../core/plugins.ts"
+import { SPLITS } from "../../../core/splitto.ts"
 import { cardOf, choiceIn, jobsText, jobText, linkOf, queuedLine, terminalOf, str } from "./jobs.ts"
 import { BY_THEIR_WORD, NOT_THEIRS, plainWords, wordsOf } from "./jobword.ts"
 import { RESTART } from "./joblife.ts"
@@ -111,13 +112,13 @@ its terminal (companion job-open).
   plugin.op({
     id: "companion.job-open",
     cli: "companion job-open",
-    summary: "Open a job's terminal in a tab (as its card does), or in a split beside or below when they say where: one closed once it was done resumes its conversation first.",
+    summary: "Open a job's terminal in a tab (as its card does), or in a split on the side they say: one closed once it was done resumes its conversation first.",
     help: `  vau companion job-open jd3k2h1g
   vau companion job-open jd3k2h1g --split right`,
     kind: "write",
     lock: false,
     params: { id: { type: "string", required: true, description: "the job's id (or the end of it)" },
-      split: { type: "string", enum: ["right", "down"], description: "in a pane beside (right) or below (down), not a new tab" } },
+      split: { type: "string", enum: [...SPLITS], description: "in a new pane on that side (right, left, down: below, up: above), not a new tab" } },
     args: ["id"],
     run: async (p, ctx) => {
       const j = jobOf(str(p.id))

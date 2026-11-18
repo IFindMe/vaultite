@@ -11,6 +11,7 @@ import { homeFolder, inArchive, isHiddenPath } from "../../../core/fileprops.ts"
 import { dump } from "../../../core/yaml.ts"
 import { notify as notice } from "@/core/notify"
 import { allPanes, tabPath, type Pane } from "../../../core/layout.ts"
+import { splitSide, type SplitTo } from "../../../core/splitto.ts"
 import { isDesktop } from "@/core/platform"
 import { guestEdits, share } from "@/core/share"
 import { clickOpening, closePane, setClickOpens, dropTabs, findOpen, go, guarded, here, keepsTab, openInPane, openTab, panes, activePane, retarget, selectPane, setFocusedPane, targetOf } from "@/core/workspace"
@@ -141,7 +142,7 @@ export function openFolder(path: string, opts: { newTab?: boolean; pane?: string
   go(to, opts.newTab)
 }
 
-function openAsked(path: string, split?: "right" | "down" | null, newTab = false, background = false, container?: string | null, into?: string | null) {
+function openAsked(path: string, split?: SplitTo | null, newTab = false, background = false, container?: string | null, into?: string | null) {
   if (/^https?:\/\//i.test(path)) path = `view:web/${path}`
   if (container) path = inContainer(path, container)
   const t = getStore()?.files
@@ -150,14 +151,13 @@ function openAsked(path: string, split?: "right" | "down" | null, newTab = false
   const to = view ? path : `file:${path.replace(/^file:/, "")}`
   return { pane: openTo(to, split, newTab, background, into), to }
 }
-function openTo(to: string, split?: "right" | "down" | null, newTab = false, background = false, into?: string | null): string | null {
+function openTo(to: string, split?: SplitTo | null, newTab = false, background = false, into?: string | null): string | null {
   const view = to.startsWith("view:")
   if (background) return findOpen(to)?.p.id ?? openTab(to, { background: true })
   if (!isDesktop()) { if (view) afterSheets(() => go(to)); else openFile(to.slice(5)); return null }
   const at = into ? paneNamed(into) : null
-  if (at && split) { selectPane(at.id); return openInSplit(to, split === "down" ? "bottom" : "right") }
+  if (split) { if (at) selectPane(at.id); return openInSplit(to, splitSide(split)) }
   if (at) return openInPane(at.id, to)
-  if (split) return openInSplit(to, split === "down" ? "bottom" : "right")
   if (!view) besideKept()
   go(to, newTab)
   const cur = activePane()

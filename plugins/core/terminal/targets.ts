@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { parseTerminal } from "../../../core/agents.ts"
 import { byUser, type Machine, MACHINE_CLIENT, OpError, type OpCtx, type Plugin, splitMachine } from "../../../core/plugins.ts"
+import { SPLITS, type SplitTo } from "../../../core/splitto.ts"
 import { allPanes, clean } from "../../../core/layout.ts"
 
 export const Answer = z.looseObject({})
@@ -53,7 +54,9 @@ export async function closeTabs(ctx: OpCtx, id: string): Promise<number> {
   }
 }
 
-export async function show(ctx: OpCtx, to: string, split: "right" | "down" | null = null, did = "started a session") {
+export const SPLIT = { type: "string", enum: [...SPLITS], description: "in a new pane on that side (right, left, down: below, up: above) of the current one, not a new tab (the user's only: an agent's goes behind theirs)" } as const
+
+export async function show(ctx: OpCtx, to: string, split: SplitTo | null = null, did = "started a session") {
   const path = `view:terminal/${to}`
   try {
     if (byUser(ctx.who)) return void await ctx.ui({ action: "open", path, ...(split ? { split } : {}), newTab: !split })
@@ -115,6 +118,6 @@ export async function there(plugin: Plugin, ctx: OpCtx, machine: string, op: str
   return out
 }
 
-export async function shown(ctx: OpCtx, id: string, split: "right" | "down" | null = null, did?: string) {
+export async function shown(ctx: OpCtx, id: string, split: SplitTo | null = null, did?: string) {
   try { await show(ctx, id, split, did); return true } catch (e) { if (e instanceof OpError && e.status === 409) return false; throw e }
 }

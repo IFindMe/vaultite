@@ -7,6 +7,7 @@ import type { WebSocket } from "ws"
 import type { Vault } from "./vault.ts"
 import { type TreeWatcher, watchTree } from "./treewatch.ts"
 import { keptOf } from "./kept.ts"
+import { isSplitTo, SPLITS } from "./splitto.ts"
 import { logger } from "./log.ts"
 import { codeOf, isObj, isText, messageOf } from "./values.ts"
 import { z } from "zod"
@@ -372,7 +373,7 @@ export class Live {
     const b = isObj(body) ? body : {}
     let msg: Record<string, unknown>
     if (b.action === "open" && typeof b.path === "string" && b.path.trim()) {
-      if (b.split != null && b.split !== "right" && b.split !== "down") return [{ error: "split is right or down" }, 400]
+      if (b.split != null && !isSplitTo(b.split)) return [{ error: `split is ${SPLITS.join(", ")}` }, 400]
       for (const k of ["container", "in"]) { const v = b[k]; if (v != null && (!isText(v) || !v.trim())) return [{ error: `${k} is a name (a string)` }, 400] }
       msg = { action: "open", path: b.path.trim(), split: b.split ?? null, newTab: !!b.newTab, ...(b.background ? { background: true } : {}),
         ...(isText(b.container) ? { container: b.container.trim() } : {}), ...(isText(b.in) ? { in: b.in.trim() } : {}), ...(typeof b.rid === "string" ? { rid: b.rid } : {}) }

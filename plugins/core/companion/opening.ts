@@ -3,6 +3,7 @@ import fs from "node:fs"
 import os from "node:os"
 import { z } from "zod"
 import { type OpCtx, OpError } from "../../../core/plugins.ts"
+import { SPLITS } from "../../../core/splitto.ts"
 import { requestWriter } from "../../../core/vault.ts"
 import type { Follow } from "./follows.ts"
 import type { Pane } from "../../../core/desktop/places.ts"
@@ -138,7 +139,7 @@ time), each typed in as they watch: it holds nothing else.
   lock: false,
   params: { path: { type: "string", description: "a vault path (or as they say it: Today), a folder, a view (view:graph), a web address, any other address (x-apple.systempreferences:..., mailto:...), or a path on their Mac (~/Downloads)" },
     app: { type: "string", description: "an app on their Mac to open (its name, Calculator, or bundle id), with path or the address in it if given" },
-    split: { type: "string", enum: ["right", "down"], description: "in a pane beside (right) or below (down)" }, newTab: { type: "boolean", description: "in a new tab" },
+    split: { type: "string", enum: [...SPLITS], description: "in a new pane on that side (right, left, down: below, up: above)" }, newTab: { type: "boolean", description: "in a new tab" },
     in: { type: "string", description: "the pane to open it in as a new tab, as they name it: where it is (left, top right), this, what it shows (a note, a site, its title's words) or its id" },
     container: { type: "string", description: "a web page's browser container (its own logins), by its name as they say it: Personal, Work, Agents, or none" },
     vaultite: { type: "boolean", description: "a web page in Vaultite even when they asked from their browser (where it opens, a new tab, by default)" },

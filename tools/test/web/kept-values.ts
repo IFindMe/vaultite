@@ -20,8 +20,11 @@ await section("live socket messages", async () => {
   const n = lm.uiActionOf({ type: "ui", action: "notify", text: "Done", kind: null, button: { label: "Open", open: "Notes/A.md" } }, "notify")
   check("live: a notify with its button", n.text === "Done" && n.kind === null && same(n.button, { label: "Open", open: "Notes/A.md" }), n)
   check("live: a command by id", lm.uiActionOf({ type: "ui", action: "command", id: "workspace:2" }, "command").id === "workspace:2")
-  const left = { action, path: "A.md", split: "left" }
-  check("live: a split that isn't one is left out", lm.uiActionOf(left, left.action).split === undefined)
+  const side = (split: string) => lm.uiActionOf({ action, path: "A.md", split }, action).split
+  check("live: a split on any side reaches the app; one that isn't a side is left out", side("left") === "left" && side("up") === "up" && side("sideways") === undefined)
+  const { beside } = await import("../../../core/layout.ts"), { splitSide } = await import("../../../core/splitto.ts")
+  const sides = (["left", "up"] as const).map((s) => beside({ id: "a", to: "file:a.md" }, "a", { id: "b", to: "file:b.md" }, splitSide(s)))
+  check("split: left and up open the new pane before the one it's beside, in a row and a column", same(sides.map((x) => "kids" in x ? `${x.dir}:${x.kids.map((k) => k.id).join()}` : ""), ["row:b,a", "col:b,a"]), sides)
 })
 
 await section("kept values", async () => {
