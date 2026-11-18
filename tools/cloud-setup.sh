@@ -3,6 +3,10 @@
 # .claude/settings.json's SessionStart hook; outside the cloud it does nothing.
 [ "$CLAUDE_CODE_REMOTE" = true ] || exit 0
 cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/..}" || exit 1
+# (commits are Lucas's, never Claude's: the VM's git says Claude; the hooks strip its trailers and refuse its commits)
+me=tkslucas; mail=84738101+tkslucas@users.noreply.github.com
+git config user.name "$me" && git config user.email "$mail" && git config core.hooksPath .githooks
+[ -n "$CLAUDE_ENV_FILE" ] && printf 'export GIT_AUTHOR_NAME=%s GIT_AUTHOR_EMAIL=%s GIT_COMMITTER_NAME=%s GIT_COMMITTER_EMAIL=%s\n' "$me" "$mail" "$me" "$mail" >> "$CLAUDE_ENV_FILE"
 major=$(sed -n 's/.*node-version: *\([0-9]*\).*/\1/p' .github/workflows/ci.yml | head -1)
 dir=/opt/node${major:-26}
 if [ ! -x "$dir/bin/node" ]; then

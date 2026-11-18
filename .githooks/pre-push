@@ -3,7 +3,24 @@
 # process's launch budget (tools/perf/startup.ts, no build), a few seconds; and an OS-sensitive change (tools/osrisk.ts)
 # must have passed a try run (tools/try.ts). Meanwhile it asks whether main's CI is red and says so, never blocking
 # (tools/mainci.ts). Skip with `git push --no-verify` only to land a fix for main itself; only the try, VAULTITE_TRY=skip.
-while read -r _ sha ref old; do [ "$ref" = refs/heads/main ] && main=1 && to=$sha && from=$old; done
+pushed=$(cat)
+# No commit of Claude's on any branch: authored or committed as Claude, or crediting it (tools/cloud-setup.sh).
+zero=0000000000000000000000000000000000000000
+while read -r _ sha _ old; do
+  { [ -z "$sha" ] || [ "$sha" = $zero ]; } && continue
+  if [ "$old" = $zero ]; then range="$sha --not --remotes"; else range="$old..$sha"; fi
+  # shellcheck disable=SC2086
+  bad=$(git log --format='%h %an <%ae> / %cn <%ce> %(trailers:key=Co-authored-by,valueonly,separator=%x20)' $range | grep -i 'anthropic\.com')
+  [ -z "$bad" ] && continue
+  echo "pre-push: commits of Claude's, to be yours:" >&2; echo "$bad" >&2
+  echo "  git rebase <base> --exec 'git commit --amend --no-edit --reset-author', with git's user.email yours" >&2
+  exit 1
+done <<EOF
+$pushed
+EOF
+while read -r _ sha ref old; do [ "$ref" = refs/heads/main ] && main=1 && to=$sha && from=$old; done <<EOF
+$pushed
+EOF
 [ -n "$main" ] && [ -d node_modules ] || exit 0
 said=$(mktemp) || exit 1
 node tools/mainci.ts --notice >"$said" 2>/dev/null &

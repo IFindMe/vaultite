@@ -1,4 +1,5 @@
 {
+  "attribution": { "commit": "", "pr": "" },
   "hooks": {
     "SessionStart": [
       { "matcher": "startup|resume", "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR\"/tools/cloud-setup.sh", "timeout": 600 }] }
