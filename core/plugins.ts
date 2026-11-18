@@ -675,6 +675,11 @@ export class Plugin {
     return cur === null && !Object.keys(this.localPart(file)).length ? null : this.withLocal(cur ?? {}, file)
   }
 
+  /** When a settings file last changed (ms, as its file says; 0: there's none). */
+  settingsTime(file = "data"): number {
+    return this.vault.configTime(this.settingsName(file))
+  }
+
   /** Write the settings (null removes the file). */
   saveSettings(data: Item | null, file = "data") {
     const keys = this.localKeys(file)
@@ -832,6 +837,11 @@ export class Plugin {
    *  passes it on, the latest write winning); `at`: when it changed (ms), for data from before. Returns whether it changed. */
   keep(name: string, data: unknown, { shared = false, at }: { shared?: boolean; at?: number } = {}): boolean {
     return keptOf(this._vault ? this._vault.path : VAULT_PATH).set(`${this.id}/${name}`, data, { shared, at })
+  }
+
+  /** When what it keeps as `name` last changed (ms, on whichever machine changed it; 0: never). */
+  keptAt(name: string): number {
+    return keptOf(this._vault ? this._vault.path : VAULT_PATH).at(`${this.id}/${name}`)
   }
 
   /** The names it keeps something under, starting with `prefix`. */

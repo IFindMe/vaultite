@@ -1685,6 +1685,10 @@ export class Vault {
     return next
   }
 
+  configTime(name: string): number {
+    try { return fs.statSync(this.abs(`.vaultite/${name}.json`)).mtimeMs } catch { return 0 }
+  }
+
   forgetConfig(name: string) {
     this.settings.delete(name)
   }

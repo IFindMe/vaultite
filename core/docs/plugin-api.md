@@ -38,6 +38,7 @@ Written from the code's own doc comments (tools/plugin_api_doc.ts), so it's what
 - `plugin.seeded(file)`: This plugin's settings with the defaults another app's settings give them under its own (Vault.configWithDefaults): what applies; never saved back (settings() is what's written).
 - `plugin.settingText(key)`: A setting's value now as text, else its manifest's default.
 - `plugin.readSettings(file)`: The settings as they are on disk now, for a read-modify-write: null when there's none; throws ConfigError (from core/vault.ts) when the file is there but can't be read or doesn't parse, which settings() would take for empty.
+- `plugin.settingsTime(file)`: When a settings file last changed (ms, as its file says; 0: there's none).
 - `plugin.saveSettings(data, file)`: Write the settings (null removes the file).
 - `plugin.patchSettings(changes, { nullRemoves)`: Change some keys (null removes one unless `nullRemoves` is false); returns the settings after. A declared one's value is checked against its manifest declaration (400).
 - `plugin.settingFile(key, fallback)`: One file a setting names (`key`; `fallback` when unset or unusable: Me's "ME.md"): returns its path now, from the vault's top, ending in .md. The setting follows the file moved through the app, so what agents are told stays right.
@@ -50,6 +51,7 @@ Written from the code's own doc comments (tools/plugin_api_doc.ts), so it's what
 - `plugin.otherLocalDirs()`: Its localDir() for each other vault served on this machine (each by its own server), with the vault it's for: what carries from one vault to the next on a machine, like the companion's talk.
 - `plugin.kept(name, fallback?)`: What it keeps that isn't the user's (runtime state: what's open, a place in a video; core/kept.ts): in this server's memory and on its own disk, never in the vault. A new copy each time, or `fallback` while there's none.
 - `plugin.keep(name, data, { shared)`: Keep `data` as `name` (null forgets it); `shared`: the other machines serving this vault have it too (Machines passes it on, the latest write winning); `at`: when it changed (ms), for data from before. Returns whether it changed.
+- `plugin.keptAt(name)`: When what it keeps as `name` last changed (ms, on whichever machine changed it; 0: never).
 - `plugin.keptNames(prefix)`: The names it keeps something under, starting with `prefix`.
 - `plugin.readCache(fallback)`: Its cache of live data (kept as `cache`, shared: what one machine fetched or counted, every machine shows).
 - `plugin.writeCache(data, { here)`: Replace its cache; `here`: only this machine's (what each machine works out itself, like what files' bytes say).

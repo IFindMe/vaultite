@@ -48,6 +48,8 @@ export default async ($: VaultTest) => {
     const cw = await vau("workspace")
     check("vau workspace: lists them", cw.code === 0 && cw.out.includes("no workspaces yet"), cw)
 
+    await sharedAcrossMachines($)
+
     // Moving to another workspace (POST /api/workspaces/move): a tab (all its panes), or a pane out of its split as a tab
     // of its own, to the end of the target's list, not shown there; applied to the file as it is.
     writeWs(({ workspaces: [
@@ -392,4 +394,27 @@ async function deletes($: VaultTest, names: () => string) {
   check("vau workspace delete: an unused one says so", un.code === 1 && un.err.includes("unused"), un)
   ;[st, body] = await api("DELETE", "workspaces/5")
   check("workspaces: deleting an unused one changes nothing", st === 200 && names() === "One again" && body.moves.seq === seq + 2, [st, body.moves])
+}
+
+async function sharedAcrossMachines($: VaultTest) {
+  const { VAULT, WS_DIR, api, check, exists, read, write } = $
+  const shared = (await import("../../../core/kept.ts")).keptOf(VAULT), f6 = `${WS_DIR}/6.json`
+  shared.merge([{ name: "workspaces/own/6", at: Date.now(), data: { name: "Phone", icon: "smartphone" } }])
+  let [st, body] = await api("GET", "workspaces")
+  check("workspaces shared: one another machine made shows here before its file arrives", st === 200 && body.workspaces[5]?.name === "Phone" && !exists(f6), body.workspaces)
+  write(f6, JSON.stringify({ name: "Older" }))
+  ;[, body] = await api("GET", "workspaces")
+  check("workspaces shared: its file arriving late, older than what was shared, doesn't undo it", body.workspaces[5]?.name === "Phone", body.workspaces)
+  write(f6, JSON.stringify({ name: "Phone", icon: "smartphone" }))
+  await api("GET", "workspaces")
+  write(f6, JSON.stringify({ name: "Pocket", icon: "smartphone" }))
+  ;[, body] = await api("GET", "workspaces")
+  check("workspaces shared: its file changed by hand is taken in and shared", body.workspaces[5]?.name === "Pocket" &&
+    shared.isShared("workspaces/own/6") && shared.get<Any>("workspaces/own/6", null)?.name === "Pocket", [body.workspaces, shared.get("workspaces/own/6", null)])
+  ;[st] = await api("PUT", "workspaces/6", { name: "Tablet" })
+  check("workspaces shared: a rename is shared at once, with its file", st === 200 && shared.get<Any>("workspaces/own/6", null)?.name === "Tablet" &&
+    JSON.parse(read(f6)).name === "Tablet", [shared.get("workspaces/own/6", null), read(f6)])
+  ;[st] = await api("DELETE", "workspaces/6")
+  ;[, body] = await api("GET", "workspaces")
+  check("workspaces shared: deleting one is shared too", st === 200 && !body.workspaces[5] && JSON.stringify(shared.get("workspaces/own/6", null)) === "{}" && !exists(f6), [body.workspaces, shared.get("workspaces/own/6", null)])
 }

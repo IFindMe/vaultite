@@ -15,10 +15,12 @@ const RUNTIME = ["layout", "state"]
 const filePart = (d: Item) => Object.fromEntries(Object.entries(d).filter(([k]) => !RUNTIME.includes(k)))
 const keptPart = (d: Item) => Object.fromEntries(Object.entries(d).filter(([k]) => RUNTIME.includes(k)))
 const keptOfSlot = (i: number) => plugin.kept<Item>(String(i + 1), {})
+const ownName = (i: number) => `own/${i + 1}`, seenName = (i: number) => `seen/${i + 1}`
+const ownOf = (i: number): Item => plugin.kept<Item | null>(ownName(i), null) ?? filePart(plugin.settings({}, String(i + 1)))
 
 export function slots(): (Item | null)[] {
   const list = Array.from({ length: MAX }, (_, i) => {
-    const x = { ...filePart(plugin.settings({}, String(i + 1))), ...keptOfSlot(i) }
+    const x = { ...ownOf(i), ...keptOfSlot(i) }
     if (!Object.keys(x).length || isBlank(x, defaultSidebars)) return null
     const { sidebars, ...rest } = x
     const own = readSidebars(sidebars)
@@ -34,11 +36,22 @@ function save(list: (Item | null)[]) {
     const next = d && !isBlank(d, defaultSidebars) ? d : null
     const run = next ? keptPart(next) : {}
     plugin.keep(String(i + 1), Object.keys(run).length ? run : null, { shared: true })
-    const own = next ? filePart(next) : {}, had = plugin.settings({}, String(i + 1))
-    if (JSON.stringify(own) === JSON.stringify(had)) continue
+    const own = next ? filePart(next) : {}
+    if (JSON.stringify(own) === JSON.stringify(ownOf(i))) continue
     readable(i)
     plugin.saveSettings(Object.keys(own).length ? own : null, String(i + 1))
+    plugin.keep(ownName(i), own, { shared: true })
+    plugin.keep(seenName(i), JSON.stringify(own))
   }
+}
+
+function takeHandEdit(i: number, own: Item) {
+  const text = JSON.stringify(own), seen = plugin.kept<string | null>(seenName(i), null)
+  if (text === seen) return
+  plugin.keep(seenName(i), text)
+  const shared = plugin.kept<Item | null>(ownName(i), null), at = plugin.settingsTime(String(i + 1))
+  if (seen === null) { if (!shared || at > plugin.keptAt(ownName(i))) plugin.keep(ownName(i), own, { shared: true, at: at || 1 }); return }
+  if (!shared || JSON.stringify(shared) === seen) plugin.keep(ownName(i), own, { shared: true })
 }
 
 let lookedAt = ""
@@ -49,11 +62,13 @@ plugin.onSync((vault) => {
   for (let i = 0; i < MAX; i++) {
     let d: Item | null
     try { d = plugin.readSettings(String(i + 1)) } catch { continue }
-    if (!d || !RUNTIME.some((k) => k in d!)) continue
-    // not by the file's time: a coarse clock (Linux) can date it before what was kept a moment earlier
-    plugin.keep(String(i + 1), { ...keptOfSlot(i), ...keptPart(d) }, { shared: true })
-    const own = filePart(d)
-    plugin.saveSettings(Object.keys(own).length ? own : null, String(i + 1))
+    const own = d ? filePart(d) : {}
+    if (d && RUNTIME.some((k) => k in d!)) {
+      // not by the file's time: a coarse clock (Linux) can date it before what was kept a moment earlier
+      plugin.keep(String(i + 1), { ...keptOfSlot(i), ...keptPart(d) }, { shared: true })
+      plugin.saveSettings(Object.keys(own).length ? own : null, String(i + 1))
+    }
+    takeHandEdit(i, own)
   }
   migrateLayouts()
 })

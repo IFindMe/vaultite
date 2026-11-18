@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Workspaces: one made, renamed or recoloured on one machine (or the phone) shows on the others at once, instead of
+  waiting for iCloud to bring its file.
 - Agents: a session whose turn is over while its own background work runs (a command, a monitor, a job it handed
   off and waits on) shows it's waiting and on what, "Waiting on <it>, since 9:58 PM", in its tab, the Terminals and
   Agents panels, its chat and its job's card, apart from working and from done.

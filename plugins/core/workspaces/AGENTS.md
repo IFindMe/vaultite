@@ -8,7 +8,8 @@ sidebar. Dragging one in the switcher (or `vau workspace reorder <n> <to>`) renu
 
 What the user sets of each is its own file, `.vaultite/plugins/workspaces/<n>.json` (none: nothing set); what's open in
 it (`layout`, `state`) is kept by the server, not in the vault (shared with the other machines, live: `vau kept
-workspaces/`). `GET /api/workspaces` (and `vau workspace list --json`) has both together; `PUT /api/workspaces/<n>`
+workspaces/`). The other machines get what the user set at once too, before iCloud brings the file: an edit to the
+file is taken in and passed on. `GET /api/workspaces` (and `vau workspace list --json`) has both together; `PUT /api/workspaces/<n>`
 changes either. `1.json`:
 ```
 {"name": "Writing", "sidebars": {"left": ["search:search", "files:files"], "right": [], "collapsed": []},
