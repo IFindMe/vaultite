@@ -1,5 +1,5 @@
 import "./test/isolate.ts"
-import { deviceOf, lostSaid, seeOn } from "../plugins/core/companion/showsaid.ts"
+import { deviceOf, lostSaid, seeOn, unawaitedSteps } from "../plugins/core/companion/showsaid.ts"
 import { parseTour, type Played } from "../plugins/core/companion/tour.ts"
 
 let passed = 0, failed = 0
@@ -8,6 +8,15 @@ function check(name: string, ok: boolean, info?: string) {
   failed++
   console.log(`FAIL ${name}${info === undefined ? "" : `\n     ${info}`}`)
 }
+const picker = parseTour({}, `1. Right-click a tab and choose Rename: the name turns into a field [ring "Tab name"].
+2. Type a new one [point "Tab name"].
+3. Press Enter to keep it [ring "Tab name"].`, "x")[0]
+const awaited = parseTour({}, `1. Open the Files panel [point "Files"] (wait: click).
+2. Then pick a folder [ring "Notes"] (do: click "Notes").
+3. Its notes are listed here [frame "Notes"].
+4. Click one to open it [point "Ideas"].`, "x")[0]
+check("unawaited: a step telling them to click or open with nothing waiting on it is found, as its next step's things come only after it; one that waits, does it or is last isn't",
+  unawaitedSteps(picker).join() === "1,2" && !unawaitedSteps(awaited).length, JSON.stringify([unawaitedSteps(picker), unawaitedSteps(awaited)]))
 const lost = (p: Partial<Played>) => lostSaid({ ended: "lost", steps: [{ n: 1, how: "played", ms: 1 }, { n: 2, how: "lost", ms: 1, ...p }] })
 
 check("lost: not found, said as one sentence", lost({ why: "not found: New chat", missing: ["New chat"] }) === `I can't find "New chat" on your screen now, so I can't show you that part.`)

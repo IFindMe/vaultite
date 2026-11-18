@@ -12,6 +12,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Sites: Amazon, Product Hunt, Substack, TikTok and Twitch say who you're signed in as; Stripe, Notion, Figma,
   Spotify, Netflix and Grok (with x.ai) show signed in, and Slack does even when it won't say who. YouTube sits under
   your Google account in every container, also where it keeps only its own login cookies.
+- Companion: Show me plays a job's tour live as a guide, waiting for you to click what opens a menu or picker
+  instead of skipping it and stopping at the next step.
 - iPhone: Download on a file or image opens the share sheet (Save Image, Save to Files) instead of showing the
   file in the app's own window with no way back.
 - iPhone: a voice note shows its words as they're said (through the server's cloud recognizer, Soniox, else the

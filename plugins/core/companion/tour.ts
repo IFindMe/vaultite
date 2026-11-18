@@ -208,7 +208,7 @@ export async function play(t: Tour, mode: Mode, fx: Fx, signal?: AbortSignal, fr
         const none = !out.length && aims.every((a) => !a?.ok)
         const healed = !none && await fx.fallback(step, missing, signal).catch(() => false)
         if (signal?.aborted) return { ended: "stopped", steps: [...out, { n: step.n, how: "stopped", ms: Date.now() - t0 }] }
-        if (!healed) { out.push({ n: step.n, how: "lost", ms: Date.now() - t0, why: `not found: ${missing.join(", ")}`, missing }); return { ended: "lost", steps: out } }
+        if (!healed) { out.push({ n: step.n, how: "lost", ms: Date.now() - t0, why: `not found: ${missing.join(", ")} (${[...new Set(aims.flatMap((a) => (a && !a.ok ? [a.why] : [])))].join("; ")})`, missing }); return { ended: "lost", steps: out } }
         how = "model"
       } else {
         const hidden = aims.find((a): a is Extract<Aim, { ok: true }> => !!a?.ok && !a.shown)

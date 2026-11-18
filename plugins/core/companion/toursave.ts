@@ -6,6 +6,7 @@ import { safeName } from "../../../core/vault.ts"
 import { z } from "zod"
 import { messageOf } from "./errors.ts"
 import { nativeSteps, parseTour, type Step, type Tour, tourFromAnswer, tourText } from "./tour.ts"
+import { unawaitedSteps } from "./showsaid.ts"
 import { fileTitle } from "../../../core/desktop/names.ts"
 import { saveFiles } from "./vaultfiles.ts"
 import { proofUrl, recordProof } from "./proofvideo.ts"
@@ -153,7 +154,9 @@ its steps what to do there; Show me says them, or plays its video, never looks f
       }
       await ctx.api("PUT", "file", { path, text: tourText({ ...tour, steps, ...(job ? { job } : {}), ...(video ? { video: video.path, ...(video.times ? { times: video.times } : {}) } : {}) }) })
       const native = nativeSteps(tour).filter((n) => !steps.find((s) => s.n === n)?.after)
+      const unawaited = unawaitedSteps({ steps })
       const warning = [native.length ? `step${native.length > 1 ? "s" : ""} ${native.join(", ")} name${native.length > 1 ? "" : "s"} the Mac's own UI (the menu bar, the notch, a notification), which neither a recording nor Vaultite's window shows: give ${native.length > 1 ? "each" : "it"} an (after: <png>) still of it (and a (before: <png>)), and say in its words what to open to see it live` : "",
+        unawaited.length ? `step${unawaited.length > 1 ? "s" : ""} ${unawaited.join(", ")} tell${unawaited.length > 1 ? "" : "s"} them to do something (click, open, choose) with no (wait:) or (do:) on it, so what it opens isn't on screen when the next step looks for it, and Show me stops there: split it into a step on what to click with (wait: click), which Show me waits for them to do, and one on what it opened` : "",
         job && !video ? "no video: a proof is one by default (--record on your own copy of the change, or --video), so the user sees it before it's merged" : "",
         video && video.bytes > 12 << 20 ? `its video is ${Math.round(video.bytes / (1 << 20))} MB: keep a proof short (fewer, shorter steps)` : ""].filter(Boolean).join("; ")
       return { path, steps: tour.steps.length, ...(job ? { job } : {}), ...(video ? { video: video.path, size: video.bytes < 1 << 20 ? `${Math.max(1, Math.round(video.bytes / 1024))} KB` : `${Math.round(video.bytes / 104857.6) / 10} MB`, ...(video.ms ? { seconds: Math.round(video.ms / 1000) } : {}) } : {}), ...(warning ? { warning } : {}) }

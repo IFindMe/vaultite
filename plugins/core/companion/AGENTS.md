@@ -243,7 +243,7 @@ above that), act, run it again, and never end your turn.
   on its own copy of the change (`tour-save "<the change>" --job <id> --record <its server>`, in `Guides/Proofs/`), so
   it shows wherever the change is (a branch, another machine): a video card by the notch (no helper: its note in the
   app), each step's words said as it comes. "Show me it live" (`job-show <id> --live`) plays its tour on Vaultite's
-  window instead, each step's `(before: <png>)` flipped over its thing, opened where its things are; a change not in
+  window instead (guide: a step's `(wait:)` or `(do:)` waits for them to do it), each step's `(before: <png>)` flipped over its thing, opened where its things are; a change not in
   the app on this Mac yet is said so, with Merge it first. A proof with no video plays live: by default (the setting
   `jobs_proof`: auto) a job landing itself saves only its tour, few of those being watched; `always` records every one, `never` none. Then their
   choice: Keep and merge (a job with a change of its own: its warm worker is told to land it as its repo's

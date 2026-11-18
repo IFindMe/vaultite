@@ -41,7 +41,9 @@ anchors:                     # optional, written by tour-save: what tells a targ
   Every thing a step names is found by its words on that page first: one that isn't there fails, listing what is.
 - Once the job is ready it knocks "Ready to show you the blue save button"; "show me" plays the video by the notch
   (`companion job-show <id>`), saying each step's words as it comes, then asks Keep and merge, Needs changes or Not yet (one already on main: Keep or Needs changes).
-  "Show me it live" (`--live`) plays the tour on Vaultite's window instead, when the change is in the app there. The
+  "Show me it live" (`--live`) plays the tour on Vaultite's window instead, when the change is in the app there, as a
+  guide: a step that opens something waits for them to click it. tour-save warns of a step that tells them to click
+  or open with no `(wait:)` or `(do:)` on it: the next step's things aren't there until it's done. The
   worker's report embeds the video (`vau inbox report ... --video <its path>`).
 - `vau companion tour <note> [--mode show|guide|do] [--wait]` plays one; `companion tour-save "<title>"` saves the last
   answer on screen as one ("save that as a tour"), or `--text` the steps given, to `Guides/<title>.md`.

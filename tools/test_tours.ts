@@ -166,7 +166,7 @@ Some words before the steps.
   log.length = 0
   const away = await play(t, "show", fx({ aim: async () => ({ ok: false, why: "gone" }) }))
   check("player: nothing of its first step on screen: it stops there without the model, said once plainly",
-    away.ended === "lost" && away.steps.length === 1 && !log.some((x) => /^(model|show) /.test(x)) && lostLine(t.title, away) === `I can't show "Start a chat" here: "Chats" isn't on your screen.`, [log, away, lostLine(t.title, away)])
+    away.ended === "lost" && away.steps.length === 1 && /\(gone\)/.test(away.steps[0].why ?? "") && !log.some((x) => /^(model|show) /.test(x)) && lostLine(t.title, away) === `I can't show "Start a chat" here: "Chats" isn't on your screen.`, [log, away, lostLine(t.title, away)])
   // (they spoke while the model played a step: the tour stops there, the model's ask for it handed the stop)
   const ctl2 = new AbortController()
   let given: AbortSignal | undefined

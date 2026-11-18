@@ -24,3 +24,6 @@ export function seeOn(t: Pick<Tour, "steps">, device: string): string {
   const how = steps.length ? `To see it there: ${steps.join(" ")}` : `Open it on ${device} to see it.`
   return `That change is on ${device}, so it doesn't show on this Mac. ${how}`
 }
+
+const ACTS = /^(?:(?:now|then|first|next|just),?\s+)?(?:right-click|double-click|click|tap|open|choose|pick|select|press|type|hover|drag|swipe)\b/i
+export const unawaitedSteps = (t: Pick<Tour, "steps">) => t.steps.slice(0, -1).filter((s) => ACTS.test(s.said.trim()) && !s.wait && !s.do?.length).map((s) => s.n)

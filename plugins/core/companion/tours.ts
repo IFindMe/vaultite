@@ -114,7 +114,8 @@ export function toursOf(plugin: Plugin, o: {
       sleep: (ms) => rest(ms, ctl.signal),
     }
     const done = play(tour, mode, fx, ctl.signal, from).then((r) => {
-      log.info(`"${tour.title}" (${mode}): ${r.ended} after ${r.steps.length} steps in ${Math.round((Date.now() - began) / 1000)} s${r.steps.some((x) => x.how === "model") ? `, the model played ${r.steps.filter((x) => x.how === "model").map((x) => x.n).join(", ")}` : ""}`)
+      const why = r.ended === "lost" ? r.steps.at(-1)?.why : undefined
+      log.info(`"${tour.title}" (${mode}): ${r.ended} after ${r.steps.length} steps in ${Math.round((Date.now() - began) / 1000)} s${why ? ` (${why})` : ""}${r.steps.some((x) => x.how === "model") ? `, the model played ${r.steps.filter((x) => x.how === "model").map((x) => x.n).join(", ")}` : ""}`)
       const lost = o2.quiet ? "" : lostLine(tour.title, r)
       if (lost) void s.say(lost).catch(() => {})
       if (file && from === 1 && playedThrough(r)) void promote(file.ctx, file.path).catch((e) => log.info(`${file.path} played through but stays a draft: ${messageOf(e)}`))
@@ -282,7 +283,7 @@ scroll, a move or a relabel; gone, it says so. Kept ones (k1, k2: what you point
       return tour.title
     },
     askable: () => rows().filter((r) => r.ask?.length).map((r) => ({ path: /\.md$/i.test(r.id) ? r.id : `${r.id}.md`, ask: r.ask! })),
-    show: (name: string, s: Screen, tour: Tour) => start(name, s, tour, "show", 1, undefined, { quiet: true }),
+    show: (name: string, s: Screen, tour: Tour) => start(name, s, tour, "guide", 1, undefined, { quiet: true }),
     escapedAt: () => escaped,
   }
 }
