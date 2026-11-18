@@ -145,3 +145,5 @@ export function languageOf(text: string, hints: string[] = [], fallback = hints[
   if (hints.length && known.length < 2) return known[0] ?? fallback
   return languageIn(text, hints) ?? fallback
 }
+
+export const SAID_OFTEN = { handed: "Handed that off to a background agent.", passed: "Passed that on to its job.", merge: "Told its job to merge it.", sent: "Sent to the job." }

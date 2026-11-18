@@ -15,6 +15,7 @@ import { happened, timelineOn } from "./timeline.ts"
 import { displayShot, QUIET, screenAsk, SHOTS } from "./helperask.ts"
 import { type Agent, draw, front, hidden, host, type Shot } from "./helperbase.ts"
 import { live } from "./helperlive.ts"
+import { islandUnder } from "./knockhelper.ts"
 import { ELEMENTS, type ScreenEvent, TEXT, UNDER, WINDOW, WINDOWS } from "./screenwire.ts"
 import type { LiveMessage } from "./homewire.ts"
 import { z } from "zod"
@@ -160,8 +161,9 @@ export async function pointedAt(name: string, p: Point, w: AppWindowInfo | null,
   const { near: appNear, ...there } = inApp ?? {}, near = Array.isArray(appNear) && appNear.length ? pageNear(appNear) : axNear
   // (the app's name with its bundle id: an agent told only com.acme.utils took the name for a guess)
   const app = win ? { app: win.bundle, ...(win.name ? { appName: win.name } : {}), window: win.window, title: win.title } : under ? { app: under.bundle, ...(under.name ? { appName: under.name } : {}) } : {}
+  const said = islandUnder(p) ?? under?.text
   return { ...there, ...app, sx: Math.round(p.x), sy: Math.round(p.y),
-    ...(text?.ok && text.text ? { screen: text.text } : {}), ...(shot ? { shot: shot.file, shotAt: shot.frame } : {}), ...(under ? { under: under.text } : {}), ...(near.length ? { near } : {}),
+    ...(text?.ok && text.text ? { screen: text.text } : {}), ...(shot ? { shot: shot.file, shotAt: shot.frame } : {}), ...(said ? { under: said } : {}), ...(near.length ? { near } : {}),
     ...(floating.length ? { floating } : {}), ...(w?.window ? { shotWindow: w.window } : {}), displays: screen.getAllDisplays().map((d) => d.bounds) }
 }
 /** What's at a screen point of the home vault's window, as its page knows it (a note's line, a pane's row, the app's UI):

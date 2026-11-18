@@ -11,6 +11,16 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   shows its icon, colour and name: a click on the name renames it, right-click or its … button has the switcher's menu
   (icon, colour, container, duplicate, delete), and New workspace beside the filter makes one, named in place. Drag the
   switcher's button onto a pane to open the page there.
+- The notch's island stays true: a session that needed you leaves it once you answer it in its terminal, it goes on by
+  itself or ends, and a job's ready card once the job changes or you open it. Clicking one that ended says so instead
+  of opening an empty terminal (a job's resumes); a job notification's button on a question it moved past says so and
+  opens the job. Talking over a session there tells the companion which one it is.
+- The companion's stock lines ("Handed that off to a background agent.", "Passed that on to its job.") play from this
+  Mac once a cloud voice made them, as does any short line it says again, so they cost no voice credits after the
+  first time; another voice or speed makes them anew.
+- Workspaces: All tabs is now the Workspaces page. Each workspace there shows its icon, colour and name: a click on the
+  name renames it, right-click or its … button has the switcher's menu (icon, colour, container, duplicate, delete), and
+  New workspace at the end makes one, named in place. Drag the switcher's button onto a pane to open the page there.
 - Workspaces: up to nine (⌃1 to ⌃9). The switcher lists only the ones in use and a New workspace row; deleting one
   moves the ones after it a number lower (Undo puts it back where it was), and `vau workspace delete <n>` does it too.
 - Browser: drag a page's container from its address bar onto a pane, its edge or the tabs to see that container's

@@ -8,6 +8,7 @@ import type { Result, Tour } from "./tour.ts"
 import { deviceOf, lostSaid, seeOn } from "./showsaid.ts"
 import type { Screen } from "./tours.ts"
 import { messageOf } from "./errors.ts"
+import { SAID_OFTEN } from "../../../core/desktop/spoken.ts"
 
 const log = logger("companion")
 
@@ -20,7 +21,7 @@ const REVIEWED_MS = 10 * 60_000
 export type ProofDeps = {
   jobs: { list: () => Job[]; find: (id: string) => Job; seen: (ids: string[]) => void; tell: (ctx: OpCtx, id: string, text: string, shown?: string) => Promise<void>
     land: (ctx: OpCtx, id: string) => Promise<void>; shipped: (id: string) => Promise<boolean>; close: (ctx: OpCtx, id: string) => Promise<void>; unsure: (id: string, m: Moment | undefined, which?: string) => string }
-  knocks: { knock: (p: { from: string; who: string; line: string; urgency?: string; open?: string; hold?: number }) => Knock; settle: (from: string) => void }
+  knocks: { knock: (p: { from: string; who: string; line: string; urgency?: string; open?: string; hold?: number; job?: string }) => Knock; settle: (from: string) => void }
   tours: { proofOf: (id: string) => { path: string; tour: Tour; problems: string[] } | null; show: (name: string, s: Screen, tour: Tour) => Promise<Result> }
   name: () => string
   screen: (name: string, tour: Tour) => Screen | null
@@ -61,7 +62,7 @@ export function proofOps(plugin: Plugin, d: ProofDeps) {
     const urgency = await d.urgency()
     if (urgency === "off") return true
     try {
-      d.knocks.knock({ from: terminalOf(j), who: j.title, line: readyLine(j, change), urgency, hold: READY_HOLD_MS, ...(change ? { open: `job:${j.id}` } : {}) })
+      d.knocks.knock({ from: terminalOf(j), who: j.title, line: readyLine(j, change), urgency, hold: READY_HOLD_MS, job: j.id, ...(change ? { open: `job:${j.id}` } : {}) })
     } catch (e) { log.error(`${j.id}'s ready knock: ${messageOf(e)}`) }
     return true
   }
@@ -241,7 +242,7 @@ saves it: companion tour-save "<the change>" --job <its id> --record <its own se
         pending = null
         reviewed = null
         void d.jobs.tell(ctx, p.job, `The user looked at what you made and it needs changes. They said: ${JSON.stringify(text.slice(0, 2000))}`, text)
-          .then(() => d.say("Sent to the job."), (e) => d.say(`It didn't reach the job: ${messageOf(e)}`)).catch(() => {})
+          .then(() => d.say(SAID_OFTEN.sent), (e) => d.say(`It didn't reach the job: ${messageOf(e)}`)).catch(() => {})
         return true
       }
       const c = choiceSaid(text, p.asked)

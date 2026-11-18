@@ -4,6 +4,7 @@ import { app } from "electron"
 import { spawn, type ChildProcess } from "node:child_process"
 import path from "node:path"
 import { cloudVoice, type CloudConfig, type CloudVoice, failedWhy } from "./tts.ts"
+import { phraseStore, withPhrases } from "./ttscache.ts"
 import { voice, type Voice } from "./voicelogic.ts"
 import type { Heard } from "../core/desktop/screenmarks.ts"
 import { voiceSwift } from "./swiftbuild.ts"
@@ -50,6 +51,7 @@ export function companionVoice(o: {
   let child: ChildProcess | null = null, starting: Promise<ChildProcess | null> | null = null, idle: ReturnType<typeof setTimeout> | null = null
   let keys: { at: number; port: number; k: z.infer<typeof KEYS> } | null = null
   const clouds = new Map<string, CloudVoice>()
+  const phrases = phraseStore(path.join(app.getPath("userData"), "voice-phrases"))
   /** A sample's provider, for that answer alone; the Soniox voice of an answer by another agent than the companion. */
   let only: Provider | null = null, as: string | null = null
   /** Pieces sent to it and not played to their end yet (the player's numbers). */
@@ -167,7 +169,7 @@ export function companionVoice(o: {
     let v = clouds.get(config)
     if (!v) {
       for (const [x, old] of clouds) if (x.includes(`"provider":"${p}"`)) { old.close(); clouds.delete(x) }
-      v = cloudVoice(c)
+      v = withPhrases(cloudVoice(c), c, phrases)
       clouds.set(config, v)
     }
     return v

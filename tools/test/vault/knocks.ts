@@ -121,6 +121,23 @@ export default async ($: VaultTest) => {
       [a(29, 6), a(29, 12), a(23, 6), a(18, 18), a(2, 2)])
   }
 
+  {
+    const T = 3_000_000
+    const k = { ...K.makeKnock({ id: "m1", from: "claude-1", who: "Lighthouse", line: "Which branch?" }, T), state: "told" as const, shown: T }
+    const at = (s: Partial<{ listed: boolean | null; working: boolean; restedAt: number }>, listedAt = T + 6000) => K.mootWhy(k, { listedAt, session: { listed: true, working: false, restedAt: T + 6000, ...s } })
+    check("moot: a knock stands while its session rests, waiting on them, and while nobody listed it since", at({}) === null && at({ listed: false }, T - 1) === null && at({ working: true, restedAt: T - 10 }) === null, [at({}), at({ working: true, restedAt: T - 10 })])
+    check("moot: its terminal gone from a list read after it, it ended; its machine not heard from, it stands", at({ listed: false }) === "its session ended" && at({ listed: null }) === null)
+    check("moot: rested after it and working again (answered in its terminal, or it went on), it no longer stands", at({ working: true }) === "its session went on")
+    const job = { ...K.makeKnock({ id: "m2", from: "claude-2", who: "Fix footer", line: "Ready to show you", hold: K.READY_HOLD_MS, job: "j1" }, T), state: "told" as const }
+    const of = (j: Any) => K.mootWhy(job, { listedAt: T + 6000, job: j, session: { listed: false, working: false, restedAt: 0 } })
+    check("moot: a job's knock stands while its job is as it was, unopened (its terminal ending aside)", of({ state: "ready for review", at: T - 5, seen: false }) === null)
+    check("moot: …and goes once it changed state, was opened, or is gone", of({ state: "working", at: T + 9000, seen: false }) === "its job is working now" &&
+      of({ state: "ready for review", at: T - 5, seen: true }) === "they opened its job" && of(null) === "its job is gone")
+    check("moot: one that's over stays as it was", K.mootWhy({ ...k, state: "opened" }, { listedAt: T + 6000, session: { listed: false, working: false, restedAt: 0 } }) === null && K.over(K.settleMoot(k, "x")))
+    const ps = K.presencesOf([{ id: "claude-3", agent: "claude", state: "blocked" }], [], new Map(), T, { jobs: new Map([["claude-3", "j9"]]) })
+    check("presences: a job's session says which job it is (opened as a job: its terminal resumed if it ended)", ps[0]?.job === "j9", ps)
+  }
+
   // The island's place: joined to the notch; right of another app's island there (Vorssaint's, as read on a 15-inch
   // MacBook Air: the notch 646-825, its window over it), aside while that one's open; top centre with no notch.
   {
@@ -173,9 +190,35 @@ export default async ($: VaultTest) => {
     check("knocks op: ignore (by the end of its id) ends it", b.did?.state === "ignored" && b.did.id === id, b)
     const [stX] = await api("POST", "ops/companion.knocks", { ignore: "nope" })
     check("knocks op: no such knock is a 404", stX === 404)
-    await api("POST", "ops/companion.knock", { line: "Which account?", terminal: "claude-test1", who: "Deploy" })
-    ;[st, b] = await api("POST", "ops/companion.knocks", { mute: (await api("POST", "ops/companion.knocks", {}))[1].knocks.find((k: Any) => k.from === "claude-test1").id })
-    const [, after] = await api("POST", "ops/companion.knock", { line: "Still waiting", terminal: "claude-test1", who: "Deploy" })
+    const [, deploy] = await api("POST", "ops/terminal.start", { command: "sleep 600", name: "deploy" })
+    await api("POST", "ops/companion.knock", { line: "Which account?", terminal: deploy.id, who: "Deploy" })
+    ;[st, b] = await api("POST", "ops/companion.knocks", { mute: (await api("POST", "ops/companion.knocks", {}))[1].knocks.find((k: Any) => k.from === deploy.id).id })
+    const [, after] = await api("POST", "ops/companion.knock", { line: "Still waiting", terminal: deploy.id, who: "Deploy" })
+    await api("POST", "ops/terminal.end", { id: deploy.id })
     check("knocks op: mute ignores its session's knocks, the next ones too", b.did?.state === "ignored" && after.state === "ignored", [b.did, after])
+
+    const osc = (x: string) => `printf '\\033]7501;state=${x}\\033\\\\'`
+    const [, waits] = await api("POST", "ops/terminal.start", { command: `${osc("idle")}; IFS= read -r l; ${osc("working")}; sleep 600`, name: "knock-waits" })
+    const [, ends] = await api("POST", "ops/terminal.start", { command: `${osc("idle")}; sleep 600`, name: "knock-ends" })
+    const stateOf = async (id: string) => (await api("POST", "ops/terminal.get", { id }))[1].state
+    for (let i = 0; i < 100 && ((await stateOf(waits.id)) !== "idle" || (await stateOf(ends.id)) !== "idle"); i++) await $.sleep(50)
+    const [, k1] = await api("POST", "ops/companion.knock", { line: "Which branch?", terminal: waits.id, who: "Waits" })
+    const [, k2] = await api("POST", "ops/companion.knock", { line: "Ready to look", terminal: ends.id, who: "Ends" })
+    const [, k3] = await api("POST", "ops/companion.knock", { line: "On the studio", terminal: "claude-x@studio", who: "Elsewhere" })
+    const stateNow = async (id: string) => (await api("POST", "ops/companion.knocks", {}))[1].knocks.find((x: Any) => x.id === id)
+    check("knocks op: knocks from sessions at rest stand", (await stateNow(k1.id))?.state === "waiting" && (await stateNow(k2.id))?.state === "waiting", [await stateNow(k1.id), await stateNow(k2.id)])
+    await api("POST", "ops/terminal.send", { id: waits.id, text: "main" })
+    for (let i = 0; i < 100 && (await stateOf(waits.id)) !== "working"; i++) await $.sleep(50)
+    await api("POST", "ops/terminal.end", { id: ends.id })
+    const isListed = async (id: string) => (await api("POST", "ops/terminal.list", {}))[1].sessions.some((x: Any) => x.id === id)
+    for (let i = 0; i < 100 && await isListed(ends.id); i++) await $.sleep(50)
+    const [w1, w2, w3] = [await stateNow(k1.id), await stateNow(k2.id), await stateNow(k3.id)]
+    check("knocks op: answered in its terminal (it works again), its knock goes, saying why", w1?.state === "moot" && w1.why === "its session went on", w1)
+    check("knocks op: its terminal ended, its knock goes", w2?.state === "moot" && w2.why === "its session ended", w2)
+    check("knocks op: one from a machine not heard from stands", w3?.state === "waiting", w3)
+    const [, listed] = await api("POST", "ops/companion.knocks", {})
+    check("knocks op: gone from the notch's presences too", !listed.presences.some((p: Any) => p.knock === k1.id || p.knock === k2.id), listed.presences)
+    await api("POST", "ops/terminal.end", { id: waits.id })
+    await api("POST", "ops/companion.knocks", { ignore: k3.id })
   }
 }

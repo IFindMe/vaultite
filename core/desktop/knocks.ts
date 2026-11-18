@@ -3,9 +3,11 @@ import { hasNews, waitsOnUser } from "../attention.ts"
 
 export const URGENCIES = ["low", "normal", "high"] as const
 export type Urgency = typeof URGENCIES[number]
-export type KnockState = "waiting" | "showing" | "later" | "told" | "ignored" | "opened" | "expired"
+export type KnockState = "waiting" | "showing" | "later" | "told" | "ignored" | "opened" | "expired" | "moot"
 export type Knock = { id: string; from: string; who: string; line: string; urgency: Urgency; at: number; until: number; state: KnockState
   shown?: number; later?: number
+  why?: string
+  job?: string
   open?: string
   hold?: number }
 
@@ -18,7 +20,7 @@ export const AWAY_MS = 5 * 60_000
 export const LATER_MS = 60_000
 export const LIVES: Record<Urgency, number> = { high: 15 * 60_000, normal: 60 * 60_000, low: 4 * 3600_000 }
 const RANK: Record<Urgency, number> = { high: 0, normal: 1, low: 2 }
-const OVER = new Set<KnockState>(["ignored", "opened", "expired"])
+const OVER = new Set<KnockState>(["ignored", "opened", "expired", "moot"])
 export const over = (k: Knock) => OVER.has(k.state)
 
 export function duration(s: string) {
@@ -28,7 +30,7 @@ export function duration(s: string) {
   return Number(m[1]) * (unit.startsWith("s") ? 1000 : unit.startsWith("h") ? 3600_000 : unit === "d" ? 86_400_000 : 60_000)
 }
 
-export function makeKnock(p: { id: string; from: string; who: string; line: string; urgency?: string; life?: number; open?: string; hold?: number }, now: number): Knock {
+export function makeKnock(p: { id: string; from: string; who: string; line: string; urgency?: string; life?: number; open?: string; hold?: number; job?: string }, now: number): Knock {
   const line = p.line.replace(/\s+/g, " ").trim()
   if (!line) throw new Error("a knock needs its line: what it wants, in a few words")
   const urgency = (p.urgency || "normal") as Urgency
@@ -36,8 +38,12 @@ export function makeKnock(p: { id: string; from: string; who: string; line: stri
   const life = p.life ?? LIVES[urgency]
   if (!(life > 0)) throw new Error("a knock's life is a duration: 90s, 30m, 2h")
   if (p.hold !== undefined && !(p.hold > 0 && p.hold <= 120_000)) throw new Error("a knock's hold is a duration up to 2m: 15s")
-  return { id: p.id, from: p.from, who: p.who.trim().slice(0, 60) || "A session", line: line.length > 140 ? `${line.slice(0, 139)}…` : line,
-    urgency, at: now, until: now + Math.min(life, 86_400_000), state: "waiting", ...(p.open ? { open: p.open } : {}), ...(p.hold ? { hold: p.hold } : {}) }
+  const k: Knock = { id: p.id, from: p.from, who: p.who.trim().slice(0, 60) || "A session", line: line.length > 140 ? `${line.slice(0, 139)}…` : line,
+    urgency, at: now, until: now + Math.min(life, 86_400_000), state: "waiting" }
+  if (p.open) k.open = p.open
+  if (p.hold) k.hold = p.hold
+  if (p.job) k.job = p.job
+  return k
 }
 
 export function addKnock(ks: Knock[], k: Knock, muted: (from: string) => boolean): Knock[] {
@@ -86,8 +92,25 @@ export const graceOver = (k: Knock, now: number) => k.state === "showing" && now
 export const graceWaits = (k: Knock, p: { talking: boolean; still: number; locked?: boolean }) =>
   k.state === "showing" && (p.talking || (!!k.hold && (!!p.locked || p.still >= HERE_MS)))
 
+export type SessionNow = { listed: boolean | null; working: boolean; restedAt: number }
+export type JobNow = { state: string; at: number; seen: boolean } | null
+/** Why a knock no longer stands: its job changed or was opened, or its session ended or rested and works again. */
+export function mootWhy(k: Knock, o: { job?: JobNow; session?: SessionNow; listedAt: number }): string | null {
+  if (over(k)) return null
+  if (o.job !== undefined) {
+    const j = o.job
+    return !j ? "its job is gone" : j.at > k.at ? `its job is ${j.state} now` : j.seen ? "they opened its job" : null
+  }
+  const s = o.session
+  if (!k.from || !s || o.listedAt < k.at) return null
+  if (s.listed === false) return "its session ended"
+  return s.working && s.restedAt >= k.at ? "its session went on" : null
+}
+export const settleMoot = (k: Knock, why: string): Knock => ({ ...k, state: "moot", why })
+
 export type PresenceState = "needs you" | "ready" | "working" | "done"
-export type Presence = { id: string; who: string; tint: string; state: PresenceState; since: number; step?: string; line?: string; knock?: string; urgency?: Urgency; terminal?: string; open?: string }
+export type Presence = { id: string; who: string; tint: string; state: PresenceState; since: number; step?: string; line?: string; knock?: string; urgency?: Urgency; terminal?: string; open?: string
+  job?: string }
 export type TermRow = { id: string; agent?: string | null; state?: string; needs?: boolean; review?: boolean; name?: string; title?: string; machineLabel?: string; msg?: string }
 export const DONE_MS = 15 * 60_000
 export const PRESENCE_GROUPS: { state: PresenceState; label: string }[] = [
@@ -98,7 +121,8 @@ const stateOf = (r: TermRow): PresenceState | null =>
   waitsOnUser(r) ? "needs you" : r.state === "working" ? "working" : hasNews(r) ? "ready" : r.state === "done" || r.state === "error" ? "done" : null
 
 export function presencesOf(rows: TermRow[], knocks: Knock[], seen: Map<string, { state: PresenceState; since: number }>, now: number,
-  { titles = new Map<string, string>(), ready = new Set<string>(), skip = new Set<string>() }: { titles?: Map<string, string>; ready?: Set<string>; skip?: Set<string> } = {}): Presence[] {
+  { titles = new Map<string, string>(), ready = new Set<string>(), skip = new Set<string>(), jobs = new Map<string, string>() }:
+  { titles?: Map<string, string>; ready?: Set<string>; skip?: Set<string>; jobs?: Map<string, string> } = {}): Presence[] {
   const out = new Map<string, Presence>()
   for (const r of rows) {
     let state = r.agent ? stateOf(r) : null
@@ -119,5 +143,6 @@ export function presencesOf(rows: TermRow[], knocks: Knock[], seen: Map<string, 
     if (p) Object.assign(p, knocked)
     else out.set(k.from || `knock:${k.id}`, { id: k.from || `knock:${k.id}`, who: k.who, tint: agentTint(k.from || k.who), ...knocked, ...(k.from && !k.from.includes(":") ? { terminal: k.from } : {}) })
   }
+  for (const p of out.values()) { const job = p.terminal && jobs.get(p.terminal); if (job) p.job = job }
   return [...out.values()].sort((a, b) => RANKED[a.state] - RANKED[b.state] || (a.state === "done" ? b.since - a.since : a.since - b.since))
 }

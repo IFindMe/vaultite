@@ -1,4 +1,5 @@
 import { ONLY_OS } from "./jobos.ts"
+import { SAID_OFTEN } from "../../../core/desktop/spoken.ts"
 import { type OpCtx, OpError, type Plugin, quoted } from "../../../core/plugins.ts"
 import { cardOf, followTask, type Handoff, type Queued, str } from "./jobs.ts"
 import type { Machines } from "./jobmachines.ts"
@@ -114,11 +115,11 @@ resumes), with land for their word to merge it, and ask false when their ask isn
         }
         if (fresh) j.asked = fresh.t
         if (title) await retitle(ctx, j, title)
-        await told(p.land === true ? { kind: "land", title: j.title, line: "Told its job to merge it." } : { kind: "follow", title: j.title, line: "Passed that on to its job." })
+        await told(p.land === true ? { kind: "land", title: j.title, line: SAID_OFTEN.merge } : { kind: "follow", title: j.title, line: SAID_OFTEN.passed })
         return cardOf(j)
       }
       const j = await begin(ctx, task, ask, p, by)
-      await told(j.state === "waiting" ? { kind: "kept", title: j.title, line: `${j.where.label} is offline: the job starts there once it's back.` } : { kind: "new", title: j.title, line: "Handed that off to a background agent." })
+      await told(j.state === "waiting" ? { kind: "kept", title: j.title, line: `${j.where.label} is offline: the job starts there once it's back.` } : { kind: "new", title: j.title, line: SAID_OFTEN.handed })
       return { ...cardOf(j), why: j.where.why, ...(j.state === "waiting" ? { queued: true } : {}) }
   }
 }

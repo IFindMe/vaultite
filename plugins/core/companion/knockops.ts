@@ -1,7 +1,8 @@
 import { z } from "zod"
 import type { OpCtx, Plugin } from "../../../core/plugins.ts"
 import { OpError } from "../../../core/plugins.ts"
-import { actOn, addKnock, duration, expire, type Knock, type KnockAct, makeKnock, over, type Presence, presencesOf, type PresenceState, type TermRow, URGENCIES } from "../../../core/desktop/knocks.ts"
+import { actOn, addKnock, duration, expire, type JobNow, type Knock, type KnockAct, makeKnock, mootWhy, over, type Presence, presencesOf, type PresenceState, settleMoot,
+  type TermRow, URGENCIES } from "../../../core/desktop/knocks.ts"
 import { type Job, terminalOf } from "./jobs.ts"
 import { messageOf } from "./errors.ts"
 import type { Message } from "./rooms.ts"
@@ -10,7 +11,7 @@ const str = (v: unknown) => (typeof v === "string" ? v : "")
 const KEEP_MS = 86_400_000
 const MUTE_MS = 12 * 3600_000
 const EVERY_MS = 6000
-const Listed = z.object({ sessions: z.array(z.unknown()).optional() })
+const Listed = z.object({ sessions: z.array(z.unknown()).optional(), machines: z.record(z.string(), z.string()).optional(), trouble: z.unknown().optional() })
 const Row = z.object({ id: z.string(), agent: z.string().nullable().optional(), state: z.string().optional(), needs: z.boolean().optional(), name: z.string().optional(),
   title: z.string().optional(), msg: z.string().optional() })
 const Heard = z.object({ act: z.enum(["show", "later", "told", "ignore", "open"]), id: z.unknown().optional(), mute: z.unknown().optional() })
@@ -30,6 +31,8 @@ export function knockOps(plugin: Plugin, d: Deps) {
   const named = (k: Knock) => (k.from ? { ...k, from: local(k.from) } : k)
 
   let rows: TermRow[] = []
+  let listedAt = 0, answered = new Set<string>()
+  const rested = new Map<string, number>()
   const seen = new Map<string, { state: PresenceState; since: number }>()
   let presences: Presence[] = []
   let sent = ""
@@ -38,7 +41,7 @@ export function knockOps(plugin: Plugin, d: Deps) {
     const jobs = d.jobs(), titles = new Map(jobs.map((j) => [local(terminalOf(j)), j.title]))
     const ready = new Set(jobs.filter((j) => j.state === "ready for review").map((j) => local(terminalOf(j))))
     const none = d.off() || d.hidden()
-    presences = none ? [] : presencesOf(rows, ks.map(named), seen, now, { titles, ready })
+    presences = none ? [] : presencesOf(rows, ks.map(named), seen, now, { titles, ready, jobs: new Map(jobs.map((j) => [local(terminalOf(j)), j.id])) })
     const m = { t: "knocks", knocks: none ? [] : ks.filter((k) => !over(k)), presences }
     const text = JSON.stringify(m)
     if (text === sent && !force) return
@@ -50,20 +53,36 @@ export function knockOps(plugin: Plugin, d: Deps) {
     for (const k of expire(ks, now)) {
       if (now - k.at > KEEP_MS && over(k)) plugin.keep(`knocks/${k.id}`, null)
       else if (k.state !== ks.find((x) => x.id === k.id)?.state) put(k)
+      else { const why = mootWhy(k, nowOf(k)); if (why) put(settleMoot(k, why)) }
     }
     return all()
   }
-  let reading = false, again = false
-  async function readTerminals(): Promise<void> {
-    if (reading) { again = true; return }
-    if (!d.listening() || d.off() || d.hidden()) return tell()
-    reading = true
+  function nowOf(k: Knock) {
+    const from = local(k.from), j = k.job ? d.jobs().find((x) => x.id === k.job) : undefined
+    const job: JobNow | undefined = k.job ? (j ? { state: j.state, at: j.at, seen: j.seen } : null) : undefined
+    if (!from || from.includes(":")) return { job, listedAt }
+    const row = rows.find((r) => r.id === from), machine = from.includes("@") ? from.slice(from.lastIndexOf("@") + 1) : ""
+    return { job, listedAt, session: { listed: row ? true : answered.has(machine) ? false : null, working: row?.state === "working", restedAt: rested.get(from) ?? 0 } }
+  }
+  let reading: Promise<void> | null = null, again = false
+  async function readTerminals(asked = false): Promise<void> {
+    if ((!asked && !d.listening()) || d.off() || d.hidden()) return tell()
+    if (reading) { again = true; return reading }
+    reading = read().finally(() => { reading = null })
+    await reading
+    if (again) { again = false; return readTerminals(asked) }
+  }
+  async function read() {
+    const began = Date.now()
     try {
-      const r = await plugin.runOp("terminal.list", { machine: "all" })
-      rows = (Listed.safeParse(r.result).data?.sessions ?? []).flatMap((s) => Row.safeParse(s).data ?? [])
-    } catch {} finally { reading = false }
+      const r = await plugin.runOp("terminal.list", { machine: "all" }), listed = Listed.safeParse(r.result).data
+      rows = (listed?.sessions ?? []).flatMap((s) => Row.safeParse(s).data ?? [])
+      answered = new Set([...(listed && !listed.trouble ? [""] : []), ...Object.entries(listed?.machines ?? {}).filter(([, v]) => v === "ok").map(([k]) => k)])
+      for (const row of rows) if (row.state !== "working") rested.set(row.id, Math.max(began, rested.get(row.id) ?? 0))
+      for (const id of rested.keys()) if (!rows.some((x) => x.id === id)) rested.delete(id)
+      listedAt = began
+    } catch {}
     tell()
-    if (again) { again = false; return readTerminals() }
   }
   const timer = setInterval(() => void readTerminals(), EVERY_MS)
   timer.unref?.()
@@ -77,9 +96,11 @@ export function knockOps(plugin: Plugin, d: Deps) {
     return job?.title || row?.name || row?.title || ctx.who.agent || "A session"
   }
 
-  function knock(p: { from: string; who: string; line: string; urgency?: string; life?: number; open?: string; hold?: number }) {
+  function knock(p: { from: string; who: string; line: string; urgency?: string; life?: number; open?: string; hold?: number; job?: string }) {
     let k: Knock
     try { k = makeKnock({ id: `k${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, ...p, from: qualified(p.from) }, Date.now()) } catch (e) { throw new OpError(messageOf(e), 400) }
+    const row = rows.find((r) => r.id === local(k.from))
+    if (row && row.state !== "working") rested.set(row.id, k.at + 1)
     const before = new Map(all().map((x) => [x.id, x.state])), ks = addKnock(all(), k, isMuted)
     for (const x of ks) if (x.id === k.id || x.state !== before.get(x.id)) put(x)
     tell()
@@ -108,8 +129,9 @@ export function knockOps(plugin: Plugin, d: Deps) {
 and ready to look at, a question only they can answer, a failure. The line shows beside the notch at a pause (never
 while the companion speaks or they talk), waits a moment for "not now" (then it comes back at their next break; --hold
 keeps its card up longer to be read, as a job's ready knock does for 15s), then folds into the island by design: it
-stays as its session's presence, needing them, till they open it or its life ends. A newer knock from the same session
-replaces its last. Urgency: low comes at a longer pause, high at any pause in the talk. Only the companion speaks.
+stays as its session's presence, needing them, till they open it, its session moves on (they answer it in its
+terminal, it ends; a job's ready knock: its job changes or is opened) or its life ends. A newer knock from the same
+session replaces its last. Urgency: low comes at a longer pause, high at any pause in the talk. Only the companion speaks.
 
   vau companion knock "Lighthouse tests pass: ready for you to look"
   vau companion knock "Which account should the deploy use?" --urgency high
@@ -133,7 +155,7 @@ replaces its last. Urgency: low comes at a longer pause, high at any pause in th
       const hold = str(p.hold) ? duration(str(p.hold)) : undefined
       if (hold !== undefined && !(hold > 0)) throw new OpError(`hold is a duration (15s, 1m), not ${str(p.hold)}`, 400)
       const from = qualified(str(p.terminal).trim())
-      if (!rows.length) await readTerminals()
+      if (!rows.length) await readTerminals(true)
       return knock({ from, who: str(p.who) || whoIs(from, ctx), line: str(p.line), urgency: str(p.urgency) || undefined, life, open: str(p.open) || undefined, hold })
     },
     text: (k: Knock) => (k.state === "ignored" ? `Knock ${k.id} kept, unshown: the user ignored ${k.who} for now.` : d.hidden() ? `Knocked (${k.id}), kept: the island by the notch is off (the setting island), so it doesn't come up.` : `Knocked (${k.id}): it comes up by the notch at their next pause.`),
@@ -161,13 +183,14 @@ its proof (companion job-show), one without opens its terminal.
       mute: { type: "string", description: "a knock's id: every knock from its session ignored for 12 hours" },
       opened: { type: "string", description: "a knock's id: they opened it, it's over" },
     },
-    run: (p) => {
+    run: async (p) => {
+      await readTerminals(true)
       const did = str(p.later) ? act(str(p.later), "later") : str(p.ignore) ? act(str(p.ignore), "ignore") : str(p.mute) ? act(str(p.mute), "ignore", true) : str(p.opened) ? act(str(p.opened), "open") : null
       return { ...(did ? { did } : {}), knocks: tidy(Date.now()).sort((a, b) => b.at - a.at).slice(0, 20).map(named), presences }
     },
     text: (r: { did?: Knock; knocks: Knock[]; presences: Presence[] }) => {
       const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60_000); return m < 1 ? "now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago` }
-      const ks = r.knocks.map((k) => `${k.id}  ${k.state}  ${k.urgency}  ${k.who}: ${k.line}  ${ago(k.at)}${k.from ? `  from ${k.from}` : ""}`)
+      const ks = r.knocks.map((k) => `${k.id}  ${k.state}${k.why ? ` (${k.why})` : ""}  ${k.urgency}  ${k.who}: ${k.line}  ${ago(k.at)}${k.from ? `  from ${k.from}` : ""}`)
       const ps = r.presences.map((p) => `${p.who}: ${p.state}${p.line ? `, "${p.line}"` : ""}${p.terminal ? `  (${p.terminal})` : ""}`)
       return `${r.did ? `${r.did.id} is ${r.did.state} now.\n\n` : ""}Knocks:\n${ks.length ? ks.join("\n") : "(none lately)"}\n\nBy the notch:\n${ps.length ? ps.join("\n") : "(no session in the background)"}`
     },

@@ -10,7 +10,7 @@ import { macAddon } from "./macaddons.ts"
 import { icon } from "./menu.ts"
 import { endWalk, startWalk, walkOn, walkScene } from "./walk.ts"
 import { asked, QUIET } from "./helperask.ts"
-import { DONE, host, op, prefs } from "./helperbase.ts"
+import { DONE, hint, host, op, OpFailed, prefs } from "./helperbase.ts"
 import { DECISIONS, HOLD } from "./homewire.ts"
 import { z } from "zod"
 import { live } from "./helperlive.ts"
@@ -96,24 +96,38 @@ async function openJob(j: HelperJob) {
   live.say({ t: "job-seen", ids: [j.id] })
   if (!j.link || !host) return
   host.openHome()
-  // (a window just opening has no page to open it in yet)
-  for (let i = 0; i < 20; i++) {
-    if (await op("companion.job-open", { id: j.id }, DONE).catch(() => op("ui.open", { path: j.link }, DONE)).then(() => true, () => false)) return
-    await new Promise((r) => setTimeout(r, 500))
-  }
+  const why = await whyNot(() => op("companion.job-open", { id: j.id }, DONE))
+  if (why && await whyNot(() => op("ui.open", { path: j.link }, DONE))) hint(why)
 }
-/** A session by the notch opened: its terminal in Vaultite, or what its knock names; a job's ready knock shows its
- *  change (its proof, companion job-show) over this Mac's displays. */
-export async function openPresence(p: Presence) {
-  if (!host) return
+export async function openPresence(p: Presence): Promise<string | null> {
+  if (!host) return null
   host.openHome()
-  const job = p.open?.startsWith("job:") ? p.open.slice(4) : ""
-  const displays = screen.getAllDisplays().map((d) => d.bounds)
-  const go = () => (job ? op("companion.job-show", { id: job, displays }, DONE) : p.terminal ? op("ui.open", { path: `view:terminal/${p.terminal}` }, DONE) : p.open ? op("ui.open", { path: p.open }, DONE) : Promise.resolve({}))
-  // (a window just opening has no page to open it in yet)
-  for (let i = 0; i < 20; i++) {
-    if (await go().then(() => true, () => false)) return
-    await new Promise((r) => setTimeout(r, 500))
+  const show = p.open?.startsWith("job:") ? p.open.slice(4) : ""
+  const shown = show ? await whyNot(() => op("companion.job-show", { id: show, displays: screen.getAllDisplays().map((d) => d.bounds) }, DONE)) : "nothing to show"
+  if (!shown) return null
+  if (p.job) {
+    const why = await whyNot(() => op("companion.job-open", { id: p.job }, DONE))
+    if (!why || !p.terminal) return why
+  }
+  if (p.terminal) return openTerminal(p.terminal, p.who)
+  if (p.open && !show) return whyNot(() => op("ui.open", { path: p.open }, DONE))
+  return show ? shown : null
+}
+async function openTerminal(id: string, who: string) {
+  const t = await answerOf(() => op("terminal.get", { id }, TERMINAL))
+  if ("why" in t) return /no terminal/.test(t.why) ? `${who} has ended` : t.why
+  if (t.ok.ended || t.ok.id !== id.replace(/@.*$/, "")) return `${who} has ended`
+  return whyNot(() => op("ui.open", { path: `view:terminal/${id}` }, DONE))
+}
+const TERMINAL = z.looseObject({ id: z.string(), ended: z.boolean().optional() })
+const whyNot = async <T>(run: () => Promise<T>) => { const r = await answerOf(run); return "why" in r ? r.why : null }
+async function answerOf<T>(run: () => Promise<T>): Promise<{ ok: T } | { why: string }> {
+  for (let i = 0; ; i++) {
+    try { return { ok: await run() } } catch (e) {
+      const failed = e instanceof OpFailed ? e : null, waiting = !failed || /no app window/.test(failed.why) || failed.status >= 500
+      if (!waiting || i >= 19) return { why: failed?.why ? failed.why.replace(/ \(.*\)$/, "") : "Vaultite didn't answer" }
+      await new Promise((r) => setTimeout(r, 500))
+    }
   }
 }
 /** A job ended or needs them: a notification, whose click opens it; what it waits on, its buttons answer there. */
@@ -124,8 +138,11 @@ export function jobNotice(j: HelperJob) {
   if (!Notification.isSupported()) return
   const n = new Notification({ title: note.title, body: note.body, silent: true, actions: note.choices.map((text) => ({ type: "button" as const, text })) })
   n.on("click", () => void openJob(j))
-  // (a choice that no longer fits, its prompt gone or changed: the job opens instead)
-  n.on("action", (_e, i) => void op("companion.job-answer", { id: j.id, choice: String(i + 1) }, DONE).catch(() => openJob(j)))
+  // (a choice that no longer fits, its prompt gone or changed: said so, and the job opens instead)
+  n.on("action", (_e, i) => void op("companion.job-answer", { id: j.id, choice: String(i + 1) }, DONE).then(() => hint(`Answered ${j.title}`), (e: Error) => {
+    hint(e instanceof OpFailed && e.status === 409 ? `${j.title} moved on from that question` : `Couldn't answer ${j.title}: opening it`)
+    return openJob(j)
+  }))
   n.show()
 }
 const KEY_SAID = new Map(Object.entries({ fn: "fn", right_option: "right ⌥", right_command: "right ⌘", left_control: "left ⌃", right_control: "right ⌃", control_option: "⌃⌥", fn_control: "fn⌃" }))

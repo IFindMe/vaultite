@@ -59,11 +59,17 @@ export let prefs: Prefs = { fn: true, keys: DEFAULTS.dictation.keys?.default ?? 
   hideFromShares: true, quietOnCalls: true }
 export let based = ""
 export const DONE = z.unknown()
+export class OpFailed extends Error {
+  readonly status: number
+  readonly why: string
+  constructor(id: string, status: number, why: string) { super(`${id} answered ${status}${why ? `: ${why}` : ""}`); this.status = status; this.why = why }
+}
+const FAILED = z.object({ error: z.string() })
 export async function op<B extends object, S extends z.ZodType>(id: string, body: B, answer: S): Promise<z.output<S>> {
   const home = host?.home()
   if (!home) throw new Error("no vault is open")
   const r = await fetch(`http://127.0.0.1:${home.port}/api/ops/${id}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Vaultite-Client": "app/desktop" }, body: JSON.stringify(body) })
-  if (!r.ok) throw new Error(`${id} answered ${r.status}`)
+  if (!r.ok) throw new OpFailed(id, r.status, FAILED.safeParse(await r.json().catch(() => null)).data?.error ?? "")
   return answer.parse(await r.json())
 }
 export type Agent = { name: string; tint: string; state: string; t?: number; seen?: boolean; why?: string; app?: string; window?: number; find?: string; sx?: number; sy?: number; display?: number; path?: string

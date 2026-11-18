@@ -22,10 +22,10 @@ export type KnockHost = {
   cue: (name: "knock") => void
   /** Say an urgent knock aloud, in the companion's voice, once nothing else is said. */
   speak: (text: string) => void
-  /** Open a presence's session in Vaultite (its terminal), or what its knock names. */
-  open: (p: Presence) => void
-  /** Type words into a session's terminal and press Enter; whether it went. */
-  send: (terminal: string, text: string) => Promise<boolean>
+  /** Open a presence's session in Vaultite (its terminal), or what its knock names: null once it opened, else why not. */
+  open: (p: Presence) => Promise<string | null>
+  /** Type words into a session's terminal and press Enter: null once it went, else why not, for the user. */
+  send: (terminal: string, text: string) => Promise<string | null>
   /** A word by the pointer, a moment. */
   hint: (text: string) => void
   /** How long the user's been still (ms): a scripted copy stands one in. */
@@ -59,9 +59,7 @@ export function knockHost(h: KnockHost) {
   islandActs({
     open: (id) => {
       const p = presences.find((x) => x.id === id || x.knock === id)
-      if (!p) return
-      if (p.knock) act(p.knock, "open")
-      host?.open(p)
+      if (p) openIt(p)
     },
     later: (id) => act(id, "later"),
     // (as if its time ran out: told, its presence still in the island; dismissing isn't answering)
@@ -177,8 +175,7 @@ export function knockSaid(text: string) {
   if (!k) return false
   if (reply === "open") {
     const p = presences.find((x) => x.knock === k.id) ?? { id: k.from || k.id, who: k.who, tint: agentTint(k.from || k.who), state: "needs you" as const, since: now, ...(k.from && !k.from.includes(":") ? { terminal: k.from } : {}), ...(k.open ? { open: k.open } : {}) }
-    act(k.id, "open")
-    host.open(p)
+    openIt(p)
   } else act(k.id, reply === "mute" ? "ignore" : reply, reply === "mute")
   return true
 }
@@ -189,19 +186,34 @@ export function toPresence(text: string, at: { x: number; y: number }) {
   const id = presenceAt(at), p = id ? presences.find((x) => x.id === id) : null
   if (!host || !p?.terminal || !text.trim()) return false
   const h = host
-  void h.send(p.terminal, text.trim()).then((ok) => {
-    h.hint(ok ? `Sent to ${p.who}` : `Couldn't reach ${p.who}`)
-    if (ok && p.knock) act(p.knock, "open")
+  void h.send(p.terminal, text.trim()).then((why) => {
+    h.hint(why ?? `Sent to ${p.who}`)
+    if (!why && p.knock) act(p.knock, "open")
   })
   return true
 }
 
+/** The session the island shows at `at`, in words for an ask let go there. */
+export function islandUnder(at: { x: number; y: number }) {
+  const id = presenceAt(at), p = id ? presences.find((x) => x.id === id) : null
+  if (!p) return null
+  const what = p.line ?? p.step
+  return `the island by the notch: the session "${p.who}"${p.job ? ` (job ${p.job})` : ""}, ${p.state === "needs you" ? "needing them" : p.state === "ready" ? "ready for review" : p.state}` +
+    `${what ? `, saying "${what}"` : ""}${p.terminal ? `; its terminal ${p.terminal}` : ""}`
+}
 /** The presences as the island has them: the menu bar's menu says the same. */
 export const presencesNow = () => presences
 /** A session needing the user, picked in the menu bar's menu: opened as from the island (its knock answered). */
-export function openFromMenu(p: Presence) {
+export const openFromMenu = (p: Presence) => openIt(p)
+function openIt(p: Presence) {
+  const h = host
+  if (!h) return
   if (p.knock) act(p.knock, "open")
-  host?.open(p)
+  void h.open(p).then((why) => {
+    if (!why) return
+    h.hint(why)
+    if (why.endsWith("ended")) { presences = presences.filter((x) => x.id !== p.id); tick() }
+  })
 }
 
 /** What a scripted copy's island shows (web/qa/helper.mjs). */

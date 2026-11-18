@@ -12,7 +12,7 @@ import { jobNews } from "./helperlogic.ts"
 import { captureHeard, captureHost, recordFor, recordingNow, regionAct, regionMoved, stopCapture } from "./capture.ts"
 import { quitRecorder } from "./recorder.ts"
 import { keepTimeline, timelineHost, timelineRefollow } from "./timeline.ts"
-import { islandNow, knockHost, knockSaid, knocksHeard, stopKnocks, toPresence } from "./knockhelper.ts"
+import { islandNow, islandUnder, knockHost, knockSaid, knocksHeard, stopKnocks, toPresence } from "./knockhelper.ts"
 import { closePanel, drawingActs, dropDrawings, onPanel, overlayActs, panelBounds, showDrawing, showOverlay, watchLayers } from "./overlay.ts"
 import { displayShot as shootDisplay, onScreenEvent, type Req, screenAsk as askHelper, startScreen, stopScreen } from "./screen.ts"
 import { elementPlaces } from "./drawing.ts"
@@ -22,7 +22,7 @@ import { offerHere, offerSaid, stopTakeover, takeoverClick, takeoverDriving, tak
 import { type Needs, offerHeard, offerHost, offerScene, offerTimeline, OFFER_UP_MS } from "./timelineoffer.ts"
 import { asked, LIVE, QUIET, screenAsk, screenAsked, screenDo, stubs, switched } from "./helperask.ts"
 import { fnEvent, FOCUS, OK, SCREEN_EVENT, type ScreenEvent, WINDOW } from "./screenwire.ts"
-import { based, basedAt, BUSY, defaults, dictating, drawWith, front, frontHappened, frontIs, hidden, hint, host, hostIs, notice, op, DONE, prefs, prefsAre, stopFor, type HelperHost } from "./helperbase.ts"
+import { based, basedAt, BUSY, defaults, dictating, drawWith, front, frontHappened, frontIs, hidden, hint, hinted, host, hostIs, notice, op, OpFailed, DONE, prefs, prefsAre, stopFor, type HelperHost } from "./helperbase.ts"
 import { logger } from "../core/log.ts"
 
 const log = logger("helper")
@@ -80,6 +80,7 @@ function takeLock(): Promise<net.Server | null> {
   }))
 }
 
+const notSent = (e: Error) => (e instanceof OpFailed && e.status === 404 ? "That session has ended" : "Couldn't reach that session")
 export async function startHelper(h: HelperHost) {
   if (host) return true
   lock = await takeLock()
@@ -87,7 +88,8 @@ export async function startHelper(h: HelperHost) {
   hostIs(h)
   hear(app, "will-quit", stopHelper)
   if (QUIET) Object.assign(globalThis, { vaultiteHelper: { heard: (m: Req) => { const e = SCREEN_EVENT.safeParse(m); if (e.success) heard(e.data) }, stub: (op: string, v?: Req | null) => (v == null ? stubs.delete(op) : stubs.set(op, v)), presses: () => presses.read(),
-    asked: () => [...asked], screenAsked: () => [...screenAsked], spoken: () => [...spoken], scene: () => lastScene, island: islandNow, knocks: knocksHeard, islandSaid: (text: string, x: number, y: number) => knockSaid(text) || toPresence(text, { x, y }), badge: () => badged, menu: () => menuItems(),
+    asked: () => [...asked], screenAsked: () => [...screenAsked], spoken: () => [...spoken], scene: () => lastScene, island: islandNow, knocks: knocksHeard, islandSaid: (text: string, x: number, y: number) => knockSaid(text) || toPresence(text, { x, y }),
+    islandUnder: (x: number, y: number) => islandUnder({ x, y }), hinted: () => hinted?.text ?? "", badge: () => badged, menu: () => menuItems(),
     walk: (what: string) => walkCall(what), talkSaid: (text: string) => walkHeard(text), walkSaid: (text: string) => { walkPending(text); walkFinal(text) },
     teach: (text: string) => teachHeard(text, Date.now()), capture: (text: string) => captureHeard(text, Date.now()), offer: offerScene, offerSaid: (text: string) => offerHeard(text), refresh: () => refresh(), teachSaid: (text: string) => { teachPending(text); teachFinal(text) }, lesson: lessonScene,
     layers: () => marks.layers(), watched: () => marks.areas(), near: (x: number, y: number) => nearAt({ x, y }),
@@ -124,8 +126,8 @@ export async function startHelper(h: HelperHost) {
     base: () => (live.state.mode === "off" && !walkOn() && !watching() ? null : based || null), ask: screenAsk, cue: (n) => cue(n),
     walk: (what) => (watching() ? lessonAct(what) : walkAct(what)),
     speak: (text) => { if (prefs.voice.mode !== "off" && !quietForCall()) void voiceCall("voice:sample", [{ text, after: true }]).catch(() => {}) },
-    open: (p) => void openPresence(p), hint, view: (to) => void openIn(to), muted: () => mutedUntil > Date.now(),
-    send: (id, text) => op("terminal.send", { id, text }, DONE).then(() => true, () => false), ...(QUIET ? { still: () => Number(process.env.VAULTITE_QA_STILL ?? 2000) } : {}) })
+    open: openPresence, hint, view: (to) => void openIn(to), muted: () => mutedUntil > Date.now(),
+    send: (id, text) => op("terminal.send", { id, text }, DONE).then(() => null, notSent), ...(QUIET ? { still: () => Number(process.env.VAULTITE_QA_STILL ?? 2000) } : {}) })
   onPanel({ send: (name, text) => void askFrom(name, text), mic: () => act(session || starting ? "stop" : "start"), more: panelMenu, play: playQuiet, stop: stopFromBox, notCall,
     // (Esc in its box ends the exchange; the box closed otherwise (clicked away, its close) leaves what it says going on)
     closed: (_name, why) => { if (session?.into === "panel") stopFor(session.sink, true); if (why === "esc") endExchange(); else moveOn(); draw() } })
