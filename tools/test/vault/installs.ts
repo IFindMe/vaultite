@@ -10,6 +10,17 @@ import { messageOf } from "../../../core/values.ts"
 export default async ($: VaultTest) => {
   const { VAULT, api, app, check, exists, read, tmp, write, TOOLS } = $
   const { vplugin, vau, conf } = $.vars
+  {
+    const { asLocked } = await import("../../../core/installs.ts")
+    const dir = path.join(tmp, "unreadable-plugin")
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, "plugin.ts"), "export {}")
+    const modeDeniesReads = process.platform !== "win32" && process.getuid?.() !== 0
+    if (modeDeniesReads) fs.chmodSync(path.join(dir, "plugin.ts"), 0)
+    check("installs: a plugin whose files can't be read isn't as locked, and never throws (iCloud keeping a file back)",
+      asLocked(dir, { source: "github:alice/x", repo: null, tag: null, commit: null, version: "1.0.0", hash: "x", installed: "2026-11-17" }) === false)
+    if (modeDeniesReads) fs.chmodSync(path.join(dir, "plugin.ts"), 0o644)
+  }
   // Plugins from elsewhere (core/installs.ts) from made-up git repos, and tools/plugin-index.ts on made-up GitHub.
   // Signing off: a global commit.gpgSign or tag.gpgSign would ask for a key, or a message, in these repos.
   {

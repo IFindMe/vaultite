@@ -218,8 +218,8 @@ export function readLock(vault: Vault): Record<string, Locked> {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v && typeof v === "object" && typeof (v as Item).source === "string")) as Record<string, Locked>
 }
 
-export function asLocked(dir: string, l: Locked, now = digestOf(dir).content) {
-  return now === l.hash || digestOf(dir, true).content === l.hash
+export function asLocked(dir: string, l: Locked, now?: string) {
+  try { return (now ?? digestOf(dir).content) === l.hash || digestOf(dir, true).content === l.hash } catch { return false }
 }
 
 function writeLock(vault: Vault, id: string, entry: Locked | null) {
