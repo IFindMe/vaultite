@@ -2,10 +2,10 @@ import { createContext, useContext, useEffect, useReducer, useRef, useState, use
 import { editCount, edited, onKeptChange, onVaultChange, settled, startLive, type Paths } from "@/core/live"
 import { get, send } from "@/core/http"
 import { hydratePrefs } from "@/core/prefs"
-import { errorText, notifyError } from "@/core/notify"
+import { notifyError } from "@/core/notify"
 import { span } from "@/core/spans"
 import { trackSoon } from "@/core/unsaved"
-import { failedOf, liveShown, mockedLive, useAskAgain, type Failed, type Live } from "@/core/liveread"
+import { askAgain, failedOf, liveShown, mockedLive, useAskAgain, type Failed, type Live } from "@/core/liveread"
 import { setHere } from "@/core/here"
 import { usePane } from "@/core/pane"
 import { setVaultAppearance, type VaultAppearance } from "@/core/appearance"
@@ -274,10 +274,16 @@ export function usePatched<T>(path: string | null, version?: string | number): L
   return liveShown(path, { path, data: got?.path === path ? got.data : null }, error, retry)
 }
 
-type Loaded = { store: Store | null; error: string | null }
-let loaded: Loaded = { store: null, error: null }
+type Loaded = { store: Store | null; error: unknown }
+let loaded: Loaded = { store: null, error: undefined }
 const listeners = new Set<() => void>()
-const publish = (next: Partial<Loaded>) => { loaded = { ...loaded, ...next }; listeners.forEach((f) => f()) }
+let stopAsking: (() => void) | null = null
+const publish = (next: Partial<Loaded>) => {
+  loaded = { ...loaded, ...next }
+  if (loaded.error === undefined) { stopAsking?.(); stopAsking = null }
+  else stopAsking ??= askAgain(() => void load())
+  listeners.forEach((f) => f())
+}
 /** The store as it is now (for code outside React). */
 export const getStore = () => loaded.store
 export const vaultName = (s: Store | null | undefined) => (s ? (s.vault.sandbox ? "Playground" : s.vault.path.split("/").filter(Boolean).pop() ?? "Vault") : "Vault")
@@ -290,7 +296,7 @@ export const mutate = (f: (s: Store) => Store) => { edited(); if (loaded.store) 
 export function optimistic<T>(change: (s: Store) => Store, write: () => Promise<T>, failed: string): Promise<T> {
   mutate(change)
   const p = write()
-  p.catch((e) => { void reload(); notifyError(e, failed) })
+  p.catch((e) => { if (server) publish({ store: server.store }); void reload(); notifyError(e, failed) })
   return p
 }
 let beforeState: ((s: State) => Promise<void>) | null = null
@@ -338,7 +344,7 @@ function load(): Promise<void> {
         const all = stateOf(answer)
         if (!all) { server = null; again = true; continue }
         if (all === server?.state) {
-          if (loaded.store !== server.store || loaded.error) publish({ store: server.store, error: null })
+          if (loaded.store !== server.store || loaded.error !== undefined) publish({ store: server.store, error: undefined })
           continue
         }
         hydratePrefs(all.config, all.settingDefaults)
@@ -349,10 +355,10 @@ function load(): Promise<void> {
         loading?.mark("vault plugins")
         const { config: _config, vaultPlugins: _plugins, appearance: _appearance, ...store } = all
         server = { v: answer.v, state: all, store }
-        publish({ store, error: null })
+        publish({ store, error: undefined })
         if (loading) { const l = loading; loading = null; requestAnimationFrame(() => { l.mark("draw"); l.end() }) }
       } catch (e) {
-        publish({ error: errorText(e, "Couldn't load the vault") })
+        publish({ error: e })
         startLive()
       }
     } while (again)

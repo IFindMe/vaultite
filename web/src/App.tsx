@@ -609,8 +609,7 @@ export default function App() {
         <div id="main-scroll" className="overflow-x-clip pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
           {store && <PhoneHeader title={tabInfo(activeTab()).label} tab={activeTab()} />}
           <main className="pb-safe relative mx-auto max-w-(--line-width) px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)]">
-            {error && !store && <p className="mt-10 text-muted-foreground">{error}</p>}
-            {!error && !store && <VaultLoading />}
+            {!store && <VaultLoading error={error} />}
             {store && <Guard what="This tab" size="tab" reset={tab} close={() => closeTab(activeTab().id)}>
               <PhoneFiles store={store} pane={activePane().id} path={isFileTab ? filePath : null} />
               {(isNewTab || isViewTab) && <PhoneTab key={isViewTab && viewFor(targetOf(tab), disabled)?.def.argState ? targetOf(tab).split("/")[0] : tab} store={store} to={targetOf(tab)} />}

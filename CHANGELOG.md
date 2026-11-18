@@ -21,7 +21,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   "Sending…" under it; one that can't go comes back to the box with why, and one cut off by a reload is back in the
   box too. A chat tab shows its skeleton while its code comes (a phone fetches it once it has started). The inbox
   says when it can't be reached, with Try again, instead of "Loading…" for ever, and follows again once the
-  connection's back.
+  connection's back. Opening the app, a slow start says it's reading the vault, then "Still loading…"; one that can't
+  reach the server says so with Try again, instead of a blank page, and opens the vault by itself once it's back. A
+  change the server doesn't answer gives up within seconds of the connection being lost, never minutes, and is taken
+  back at once; a slow one on a live connection still runs to its end.
 - Bad connections, everywhere else: a block, panel or page whose data can't be read says what and why with Try again
   (never "Nothing scheduled." or "Couldn't find the daily note."), keeps what it already showed, and asks again by
   itself (soon after, and as the connection comes back). Search says it's still looking in files, or why it couldn't;

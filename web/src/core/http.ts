@@ -1,6 +1,6 @@
 import { tracked } from "@/core/live"
 import { isPhoneDevice } from "@/core/platform"
-import { checkServer } from "@/core/connection"
+import { checkServer, untilUnreachable } from "@/core/connection"
 import { errorIn, plainError } from "../../../core/plainerror.ts"
 
 export function api<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -19,19 +19,22 @@ const early = window.__vauEarly ?? {}
 const takeEarly = (path: string) => { const p = early[path]; delete early[path]; return p?.then((r) => (r.ok ? r : null), () => null) }
 export async function send<T>(method: string, path: string, body?: unknown, cache?: RequestCache): Promise<T> {
   const text = body ? JSON.stringify(body) : undefined
-  let r: Response
+  const write = method === "GET" ? null : untilUnreachable()
+  let r: Response, j: T
   try {
     const got = method === "GET" && !cache ? await takeEarly(path) : null
     r = got ?? await fetch(`api/${path}`, {
       method, cache, keepalive: unloading && method !== "GET" && (text?.length ?? 0) < 60_000,
-      headers: headers(body), body: text, signal: method === "GET" ? AbortSignal.timeout?.(READ_WAIT) : undefined,
+      headers: headers(body), body: text, signal: write?.signal ?? AbortSignal.timeout?.(READ_WAIT),
     })
+    j = r.ok ? await r.json() : await r.json().catch(() => ({}))
   } catch (e) {
-    const thrown = e instanceof DOMException && e.name === "TimeoutError" ? new Error("The server didn't answer") : e
+    const thrown = write?.signal.aborted || (e instanceof DOMException && e.name === "TimeoutError") ? new Error("The server didn't answer") : e
     if (plainError(thrown).network) checkServer()
     throw thrown
+  } finally {
+    write?.end()
   }
-  const j = r.ok ? await r.json() : await r.json().catch(() => ({}))
   if (!r.ok) throw Object.assign(new Error(errorIn(j) || r.statusText || `Error ${r.status}`), { status: r.status })
   return j
 }

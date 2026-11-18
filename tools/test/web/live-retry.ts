@@ -51,6 +51,31 @@ import { type Any, web } from "./lib.ts"
     win.dispatchEvent(new Event("online")); connection.reachedServer(); advance(120_000)
     check("retry: stopped, nothing asks again", asked === after, asked - after)
 
+    const { untilUnreachable, WRITE_CHECK, GRACE, setServerCheck, lostServer, reachedServer, isOffline } = connection
+    let checks = 0
+    setServerCheck(() => checks++)
+    const slow = untilUnreachable()
+    advance(WRITE_CHECK)
+    check("write: unanswered on a live connection, it checks the connection and keeps waiting", checks === 1 && !slow.signal.aborted, { checks })
+    advance(10 * 60_000)
+    check("write: a long call on a live connection is never cut off", !slow.signal.aborted)
+    lostServer()
+    advance(GRACE - 1)
+    const before = slow.signal.aborted
+    advance(1)
+    check("write: once the server's known lost, it gives up", !before && isOffline() && slow.signal.aborted)
+    const late = untilUnreachable()
+    advance(WRITE_CHECK - 1)
+    const waited = !late.signal.aborted
+    advance(1)
+    check("write: one made while offline gets WRITE_CHECK to answer, then gives up", waited && late.signal.aborted)
+    reachedServer()
+    const answered = untilUnreachable()
+    answered.end()
+    lostServer(); advance(GRACE + WRITE_CHECK)
+    check("write: one answered is let go: losing the server later doesn't touch it", !answered.signal.aborted)
+    reachedServer()
+
     const { liveShown }: { liveShown(path: string | null, got: Any, failed: Any, retry: () => void): Any } = await web("core/liveread.ts")
     const failed = { text: "The server didn't answer.", cause: new TypeError("Failed to fetch") }
     const none = liveShown("a", { path: null, data: null }, failed, () => {})

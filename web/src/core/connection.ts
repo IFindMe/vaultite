@@ -45,6 +45,16 @@ export function useOnReconnect(fn: (wasOffline: boolean) => void, on = true) {
 
 export const checkServer = () => checker()
 
+export const WRITE_CHECK = 10_000
+
+export function untilUnreachable() {
+  const c = new AbortController()
+  const lost = () => { if (offline) c.abort() }
+  const late = setTimeout(() => (offline ? lost() : checker()), WRITE_CHECK)
+  subs.add(lost)
+  return { signal: c.signal, end: () => { clearTimeout(late); subs.delete(lost) } }
+}
+
 export const setServerCheck = (fn: () => void) => { checker = fn }
 
 export function lostServer() {
