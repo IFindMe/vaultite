@@ -64,7 +64,7 @@ export default async ($: VaultTest) => {
     // events.wait (an op: kind read, so it holds nothing while it waits) and vau events.
     const c2 = bus.cursor
     const listening = (bus as Any).listeners.size
-    const later = api("POST", "ops/events.wait", { types: "file.moved", timeout: 2 })
+    const later = api("POST", "ops/events.wait", { types: "file.moved", path: "a.md", timeout: 2 })
     // (once it listens: on a busy machine the request may start after a fixed delay)
     for (let i = 0; i < 400 && (bus as Any).listeners.size <= listening; i++) await sleep(5)
     bus.emit("file.moved", { from: "a.md", to: "b.md" })
@@ -72,13 +72,16 @@ export default async ($: VaultTest) => {
     check("events.wait: the next match, with its cursor", st === 200 && body.events.length === 1 && body.events[0].to === "b.md" && body.cursor === body.events[0].cursor, body)
     check("events.wait: an op that waits doesn't hold the vault", app.unlocked("POST", ["ops", "events.wait"]))
     ;[st, body] = await api("POST", "ops/events.wait", { after: c2, timeout: 0 })
-    check("events.wait: after a cursor, what came since, at once", st === 200 && body.events.length === 1 && body.events[0].type === "file.moved", body)
-    ;[st, body] = await api("POST", "ops/events.list?as=text", { types: ["file.moved"], limit: 1 })
+    const sinceC2: Any[] = st === 200 ? body.events : [], seqOfC2 = Number(c2.split(":")[1])
+    const ourMoves = sinceC2.filter((e) => e.type === "file.moved" && e.from === "a.md")
+    check("events.wait: after a cursor, what came since (ours among other tests'), at once", st === 200 && sinceC2.every((e) => e.seq > seqOfC2) &&
+      ourMoves.length === 1 && body.cursor === sinceC2.at(-1)?.cursor, body)
+    ;[st, body] = await api("POST", "ops/events.list?as=text", { types: ["file.moved"], path: "a.md", limit: 1 })
     check("events.list: the recent ones, as JSON lines", st === 200 && /^\{"from":"a\.md"/.test(body) && body.includes("Cursor: "), body)
     const vauOnce = vau("events", "--once", "--type", "op.done", "--timeout", "2")
     setTimeout(() => void api("POST", "ops/ui.command", { id: "theme:dark" }), 30)
     let vr = await vauOnce
-    check("vau events --once: the first match, one JSON line", vr.code === 0 && JSON.parse(vr.out).type === "op.done" && JSON.parse(vr.out).params.id === "theme:dark", vr)
+    check("vau events --once: the first match (maybe another test's op), one JSON line", vr.code === 0 && vr.out.trim().split("\n").length === 1 && JSON.parse(vr.out).type === "op.done", vr)
     vr = await vau("events", "--once", "--type", "nothing.here", "--timeout", "0.05")
     check("vau events --once: nothing in time is exit 1", vr.code === 1 && vr.err.includes("no matching event"), vr)
     vr = await vau("events", "--after", c2, "--type", "file.moved,op.done", "--timeout", "0", "--json")
