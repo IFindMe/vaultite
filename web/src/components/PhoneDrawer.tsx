@@ -5,7 +5,8 @@ import type { Store } from "@/core/data"
 import { route } from "@/core/nav"
 import { usePageLock } from "@/core/pagelock"
 import { useDesktop } from "@/core/platform"
-import { drawerPanels, phoneDock, setDrawerOpener, useSidebars, type Side } from "@/core/plugins"
+import { phoneDock, useSidebars, type Side } from "@/core/plugins"
+import { drawerOut, openDrawer, useDrawer, useHasDrawer } from "@/core/drawer"
 import { usePrefs } from "@/core/prefs"
 import { menuFor } from "@/components/ContextMenu"
 import { shift, useDrawerMotion } from "@/components/drawerMotion"
@@ -15,25 +16,7 @@ import { cn } from "@/lib/utils"
 import { share } from "@/core/share"
 import { SharedWith } from "@/components/SharedWith"
 import { selecting } from "@/core/select"
-import { signal } from "@/core/signal"
 import { closestOf } from "@/core/dom"
-
-let out: Side | null = null
-const subs = signal()
-setDrawerOpener((side) => openDrawer(side))
-
-export function openDrawer(side: Side | null) {
-  if (out === side) return
-  out = side
-  subs.notify()
-}
-export const drawerOut = () => out
-const useDrawer = () => subs.use(() => out)
-export function useHasDrawer(side: Side) {
-  const { disabled } = usePrefs()
-  const s = useSidebars()
-  return drawerPanels(side, s, disabled).length > 0 || (side === "left" && phoneDock(s, disabled).length > 0)
-}
 
 const SIDES = ["left", "right"] as const
 
@@ -67,7 +50,7 @@ export function PhoneDrawers({ vaultMenu, ...props }: BodyProps) {
   return (
     <>
       <div ref={shade} aria-hidden onPointerDown={(e) => drawn && begin(e, drawn)}
-        onClick={() => { if (out) openDrawer(null) }}
+        onClick={() => { if (drawerOut()) openDrawer(null) }}
         className="fixed inset-0 z-40 bg-black/40 md:hidden" style={{ opacity: 0, pointerEvents: "none", touchAction: "pan-y" }} />
       {SIDES.map((s) => has[s] && (
         <div key={s} ref={boxes[s]} data-phone-drawer={drawn === s ? s : undefined} data-drawer-box role="dialog" aria-label={s === "right" ? "Right sidebar" : "Sidebar"} aria-hidden={side !== s} inert={side !== s}
@@ -92,11 +75,11 @@ function closesOnLeaving() {
     if (now === was) return
     was = now
     const typing = document.activeElement?.closest("[data-phone-drawer]") && document.activeElement.matches("input, textarea, [contenteditable]")
-    if (out && !typing) openDrawer(null)
+    if (drawerOut() && !typing) openDrawer(null)
   }
   const quit = new AbortController()
   addEventListener("hashchange", on, quit)
-  addEventListener("keydown", (e) => { if (e.key === "Escape" && out) openDrawer(null) }, quit)
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && drawerOut()) openDrawer(null) }, quit)
   return () => quit.abort()
 }
 

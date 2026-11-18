@@ -83,7 +83,7 @@ import { PullActions } from "@/components/PullActions"
 import { PhoneBar } from "@/components/PhoneBar"
 import { coarse } from "@/core/haptics"
 import { PhoneHeader } from "@/components/PhoneHeader"
-import { drawerOut, openDrawer, PhoneDrawers } from "@/components/PhoneDrawer"
+import { drawerOut, openDrawer } from "@/core/drawer"
 import { Tooltips } from "@/components/Tooltip"
 import { Toaster } from "@/components/Toast"
 import { BundleTrial } from "@/components/BundleTrial"
@@ -101,6 +101,7 @@ import { chooseScheme, schemeName } from "@/components/SchemeChooser"
 import { chooseFont, fontSetting } from "@/components/FontChooser"
 import { chooseNewTabPage, showNewTabSections } from "@/components/NewTab"
 
+const PhoneDrawers = lazy(() => import("@/components/PhoneDrawer").then((m) => ({ default: m.PhoneDrawers })))
 const Setup = lazy(() => import("@/pages/Setup").then((m) => ({ default: m.Setup })))
 const PluginGroupSheet = lazy(() => import("@/pages/Plugins").then((m) => ({ default: m.PluginGroupSheet })))
 const IconPicker = lazy(() => import("@/components/IconPicker"))
@@ -664,7 +665,7 @@ export default function App() {
           onSearch={() => setSearching(true)} onCommands={() => setPalette("commands")} onNewNote={() => void newNote()} />
       )}
       {!desktop && store && <PullActions />}
-      {!desktop && store && <PhoneDrawers store={store} file={filePath} tab={targetOf(tab)} vaultName={vaultName} vaultMenu={vaultMenu} />}
+      {!desktop && store && <Suspense><PhoneDrawers store={store} file={filePath} tab={targetOf(tab)} vaultName={vaultName} vaultMenu={vaultMenu} /></Suspense>}
     </>
   )
 }

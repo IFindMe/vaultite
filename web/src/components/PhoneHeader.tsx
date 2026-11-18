@@ -4,7 +4,7 @@ import { focusedPane, panesOf, type Pane, type Tab } from "../../../core/layout.
 import { besideOf, useSwipe } from "@/core/phoneTabs"
 import { menuBelow } from "@/components/ContextMenu"
 import { NAV_BUTTON } from "@/components/PhoneBar"
-import { openDrawer, useHasDrawer } from "@/components/PhoneDrawer"
+import { openDrawer, useHasDrawer } from "@/core/drawer"
 import { phoneTabMenu, useTabLabels } from "@/components/Tabs"
 import { titleInSight } from "@/components/FileTitle"
 import { usePrefs } from "@/core/prefs"
