@@ -2,7 +2,7 @@ import path from "node:path"
 import { type SampleAsk } from "../../../core/agents.ts"
 import { defineOp, type OpCtx, OpError, quoted } from "../../../core/plugins.ts"
 import { isArchived, type Item, nowStamp, sortBy, str, truthy } from "../../../core/vault.ts"
-import { answerOf, decidedText, type DecisionSpec, linkTo, listOf, optionsText, overlap, sameQuestion, specOf, toldOf } from "./decisions.ts"
+import { answerOf, decidedText, type DecisionSpec, linkTo, listOf, optionsText, overlap, sameQuestion, settledOf, specOf, toldOf } from "./decisions.ts"
 import { clip, previewOf, TERMINAL } from "./model.ts"
 import { latest, resultAt, tldrOf } from "./results.ts"
 import { agentOfTerminal, DAY, holdNow, plugin, selfMachine } from "./server.ts"
@@ -130,12 +130,12 @@ export async function closeSettled(ctx: OpCtx, said: string, by: string, skip: S
   let text = ""
   try {
     text = (await sample({ tier: "quick", signal: AbortSignal.timeout(60_000), prompt,
-      system: "You keep a user's list of open questions tidy. A question is settled when what was just done answers it, does what it asks or decides it, or makes it moot (the thing it's about was removed or replaced). Only clear cases: when unsure, leave it open. Reply with one line per settled question, \"<number>: <why, in a few plain words>\", or the word NONE." })).text
+      system: "You keep a user's list of open questions tidy. A question is settled when what was just done answers it, does what it asks or decides it, or makes it moot (the thing it's about was removed or replaced). Only clear cases: when unsure, it isn't settled. Reply with JSON only, one entry per question: [{\"n\": <its number>, \"settled\": true or false, \"why\": \"<what settled it, in a few plain words>\"}]." })).text
   } catch { return }
-  for (const m of text.matchAll(/^\s*(\d+)\s*[:.)-]\s*(.+)$/gm)) {
-    const r = open[Number(m[1]) - 1]
-    if (!r || str(r.status) !== "new") continue
-    await ctx.api("PUT", `inbox/${encodeURIComponent(r.id)}`, { status: "done", closed: clip(`Settled by ${by}: ${m[2]}`, 300) }).catch(() => {})
+  for (const { n, why } of settledOf(text, open.length)) {
+    const r = open[n - 1]
+    if (str(r.status) !== "new") continue
+    await ctx.api("PUT", `inbox/${encodeURIComponent(r.id)}`, { status: "done", closed: clip(`Settled by ${by}: ${why}`, 300) }).catch(() => {})
   }
 }
 

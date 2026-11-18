@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Inbox: answering a question no longer closes other open ones as "settled" when nothing settled them (they showed
+  "Settled by your answer: NONE" with their options hidden).
 - Desktop: an update no longer sometimes runs the app's own older server for a while, then relaunches and shows
   "A new version of Vaultite is ready" again: a server that started up fast is no longer mistaken for one it can't talk to.
 - Companion: Talk key answers over a note come up to 2 s sooner (a spoken ask no longer waits for the note to save it,

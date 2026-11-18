@@ -27,7 +27,8 @@ export default async ($: VaultTest) => {
     check("merge: a model's match sharing too few words isn't merged", exists("Inbox/Use the blue theme for the dashboard.md") && !/closed:/.test(read("Inbox/Use the blue theme for the dashboard.md")))
     merge = () => "NONE"
 
-    close = (p) => (p.includes("<done>") ? `${numberOf(p, "blue theme")}: the dashboard theme was replaced` : "NONE")
+    const said = (...vs: [string | undefined, boolean, string][]) => JSON.stringify(vs.map(([n, settled, why]) => ({ n: Number(n), settled, why })))
+    close = (p) => (p.includes("<done>") ? said([numberOf(p, "blue theme"), true, "the dashboard theme was replaced"]) : "NONE")
     const [st, b] = await api("POST", "ops/inbox.report", { title: "Dashboard redone", work: "change", tldr: "The dashboard has a new theme.", summary: "Replaced the theme picker." })
     await settled()
     const closed = read("Inbox/.archive/Use the blue theme for the dashboard.md")
@@ -36,10 +37,11 @@ export default async ($: VaultTest) => {
 
     await ask("Rename the Lighthouse page?")
     await ask("Archive the old Lighthouse notes?")
-    close = (p) => (p.includes("(your answer)") ? `${numberOf(p, "old Lighthouse notes")}: renaming covers it` : "NONE")
+    close = (p) => (p.includes("(your answer)") ? said([numberOf(p, "old Lighthouse notes"), true, "renaming covers it"], [numberOf(p, "quieter island"), false, "NONE"]) : "NONE")
     await api("POST", "ops/inbox.decide", { item: "Inbox/Rename the Lighthouse page.md", answer: "Drop" })
     await settled()
-    check("close: an answer settles another decision, saying so", /closed: ["']?Settled by your answer: renaming covers it/.test(read("Inbox/.archive/Archive the old Lighthouse notes.md")),
+    check("close: an answer settles another decision, saying so; one the model says isn't settled stays open", /closed: ["']?Settled by your answer: renaming covers it/.test(read("Inbox/.archive/Archive the old Lighthouse notes.md")) &&
+      /status: new/.test(read("Inbox/Keep the quieter island by the notch.md")),
       read("Inbox/.archive/Archive the old Lighthouse notes.md"))
     close = () => "NONE"
 

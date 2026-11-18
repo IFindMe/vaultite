@@ -1,3 +1,4 @@
+import { z } from "zod"
 import { str } from "../../../core/vault.ts"
 
 export type DecisionSpec = { question: string; title: string; options: string[]; effects: string[]; default: string; blocking: boolean; why: string; warn?: string }
@@ -108,3 +109,15 @@ export const optionsText = (r: Asked, sep = " · ") => listOf(r.options).map((o,
 }).join(sep)
 export const isDecision = (r: Asked) => !!r.question
 export const standingOf = (r: Asked) => (r.answer ? `You chose ${r.answer}` : r.closed ? "Closed" : r.blocking ? "Waits on you" : `Went with ${r.default}`)
+
+const Verdicts = z.array(z.looseObject({ n: z.number(), settled: z.boolean(), why: z.string().optional() }))
+export function settledOf(reply: string, count: number): { n: number; why: string }[] {
+  const at = reply.indexOf("["), end = reply.lastIndexOf("]")
+  if (at < 0 || end < at) return []
+  let got: unknown
+  try { got = JSON.parse(reply.slice(at, end + 1)) } catch { return [] }
+  const v = Verdicts.safeParse(got)
+  if (!v.success) return []
+  return v.data.filter((x) => x.settled && Number.isInteger(x.n) && x.n >= 1 && x.n <= count && str(x.why).trim())
+    .map((x) => ({ n: x.n, why: str(x.why).trim() }))
+}
