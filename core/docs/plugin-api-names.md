@@ -997,7 +997,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `parseCsv(text)`: Rows of fields.
 - `parseDate(text, fmt, opts?)`: The date `text` names in a moment.js format (a week's first day), or null if the format doesn't write it ("2026-13-01" in YYYY-MM-DD); `loose`: what the text starts with, read as moment does.
 - `parseSearch(q, opts?)`: A query as a tree (throws SearchError).
-- `pathAsSaid(tree, raw, at?)`: A path as the user says it ("Today", "notes/idea") made a vault path: exact, with .md, any case, a file's name, or a path from before a folder moved; a web address is its web tab.
+- `pathAsSaid(tree, raw, at?)`: A path as the user says it ("Today", "notes/idea") made a vault path: exact, with .md, any case, a file's name, or (not `exact`, a write's) one from before a folder moved; a web address is its web…
 - `pinFile(entry)`: The file an entry is in (null: a search or a view).
 - `pinKind(entry)`: What an entry is: a path (`file`: a file or a folder), a heading (or block) in a note, a search, or a view (its tab's target: a web page, Inbox, a coding agent's conversation).
 - `pinProblem(vault, entry)`: Why `entry` can't be pinned (a file or folder that isn't in the vault, an empty search), or null.

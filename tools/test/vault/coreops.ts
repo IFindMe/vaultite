@@ -139,6 +139,9 @@ export default async ($: VaultTest) => {
     check("pathAsSaid: a view is kept as is, its arg's last slash too", pathAsSaid(saidTree, " view:web/https://example.com/ ") === "view:web/https://example.com/" && pathAsSaid(saidTree, "view:inbox") === "view:inbox")
     check("pathAsSaid: a file's name still finds it", pathAsSaid(saidTree, "work") === "Work.md" && pathAsSaid(saidTree, "Old/Work") === "Work.md")
     check("pathAsSaid: a hidden folder's file is kept, not another of its name", pathAsSaid(saidTree, ".vaultite/pages/Work.md") === ".vaultite/pages/Work.md")
+    check("pathAsSaid: exact (a write's) keeps a path with folders, a name still finds its file", pathAsSaid(saidTree, "Old/Work", { exact: true }) === "Old/Work" &&
+      pathAsSaid(saidTree, "Old/Work.md", { exact: true }) === "Old/Work.md" && pathAsSaid(saidTree, "work", { exact: true }) === "Work.md" &&
+      pathAsSaid(saidTree, "home/logs/work/run", { exact: true }) === "Home/Logs/Work/Run.md" && pathAsSaid(saidTree, "/Users/alice/Vault/Old/Work.md", { root: "/Users/alice/Vault", exact: true }) === "Old/Work.md")
     // An absolute path: the vault's own in its folder, a vault file from the top, else whole only where a param takes it.
     const vaultAt = { root: "/Users/alice/Vault" }, outsideAt = { ...vaultAt, outside: true }
     check("pathAsSaid: an absolute path in the vault is its vault path", pathAsSaid(saidTree, "/Users/alice/Vault/Home/Logs/Work/Run.md", vaultAt) === "Home/Logs/Work/Run.md" &&
@@ -210,6 +213,27 @@ export default async ($: VaultTest) => {
       /isn't in/.test(await opErr("file.edit", { path: "Notes/Long read.md", old: "nowhere to be found", new: "y" })))
     await app.runOp("file.edit", { path: "Notes/Long read.md", old: "x".repeat(60), new: "y", all: true })
     check("edit_file: all replaces every one", !read("Notes/Long read.md").includes("xxxx") && read("Notes/Long read.md").split("\n").length === 3001)
+    write("Recaps/2026-11-17.md", "Recap\n")
+    await vault.synced()
+    const found = (await app.runOp("file.read", { path: "Old/2026-11-17.md" })).params.path
+    check("read: a path from before its folder moved still finds the file", found === "Recaps/2026-11-17.md", found)
+    const host = app.plugins.find((p) => p.id === "notes")!
+    const tasksAddStandIn = { id: "notes.append-test", summary: "Add a line (a stand-in).", kind: "write" as const,
+      params: { path: { type: "string" as const, format: "path", required: true }, line: { type: "string" as const, required: true } },
+      run: async (p: Any, ctx: Any) => {
+        const cur = await ctx.api("GET", `file?path=${encodeURIComponent(p.path)}`).then((f: Any) => String(f.text), () => "")
+        await ctx.api("PUT", "file", { path: p.path, text: `${cur}${p.line}\n` })
+        return p.path
+      } }
+    host.ops.push(tasksAddStandIn)
+    try {
+      const to = (await app.runOp(tasksAddStandIn.id, { path: "Logs/Daily/2026-11-17.md", line: "- [ ] Call Alice Park" })).result
+      check("write: a missing path is made there, not written into a file of its name elsewhere",
+        to === "Logs/Daily/2026-11-17.md" && read("Logs/Daily/2026-11-17.md") === "- [ ] Call Alice Park\n" && read("Recaps/2026-11-17.md") === "Recap\n", to)
+    } finally { host.ops.splice(host.ops.indexOf(tasksAddStandIn), 1) }
+    const before = read("Notes/Long read.md")
+    check("edit: a missing path is refused, not edited in a file of its name elsewhere",
+      (await opErr("file.edit", { path: "Archive/Long read.md", old: "Line 1 ", new: "Line one " })) !== "" && read("Notes/Long read.md") === before)
     for (let i = 0; i < 25; i++) write(`Paged search/Hit ${String(i).padStart(2, "0")}.md`, `pagedneedle ${"word ".repeat(80)}\n`)
     await vault.synced()
     const s1 = await asMcp("file.search", { query: "pagedneedle", folder: "Paged search", sort: "name" })

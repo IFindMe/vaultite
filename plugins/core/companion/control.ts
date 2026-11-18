@@ -67,7 +67,7 @@ names run the settings' agent, model and effort.
     agent: { type: "string", description: "the coding agent it runs (claude, codex, claude_personal...; default: its name's profile, else the setting)" },
     model: { type: "string", description: "the model it runs (sonnet, opus, gpt-6.1-sol, a full name; default: its name's profile, else the setting, else the agent's own)" },
     effort: { type: "string", enum: ["low", "medium", "high", "xhigh", "max"], description: "its effort (default: its name's profile, else the setting, else the agent's own)" },
-    path: { type: "string", format: "path", description: "the note it was called from: its cursor waits there while it starts" }, line: LINE,
+    path: { type: "string", format: "path", finds: true, description: "the note it was called from: its cursor waits there while it starts" }, line: LINE,
     after: { type: "integer", minimum: 0, description: "the moments after this one wait for it (the ask that started it); default: those from now" } },
   run: async (p, ctx) => {
     if (mode() === "off") await plugin.patchSettings({ mode: "quiet" })

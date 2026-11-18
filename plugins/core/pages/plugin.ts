@@ -186,8 +186,8 @@ ${FLAGS}
   vau pin Dashboards/People.md --vault`,
   kind: "write",
   params: {
-    path: { type: "string", format: "path", required: true, description: "the file or folder (a path, or a name as the user says it), a web address, or a view (view:<name>/<arg>)" },
-    before: { type: "string", format: "path", description: "the pinned page it goes before (else at the end)" },
+    path: { type: "string", format: "path", finds: true, required: true, description: "the file or folder (a path, or a name as the user says it), a web address, or a view (view:<name>/<arg>)" },
+    before: { type: "string", format: "path", finds: true, description: "the pinned page it goes before (else at the end)" },
     label: { type: "string", description: "a view's name in the list (a web page's title); else its tab's" },
     workspace: WORKSPACE, vault: VAULT,
   },
@@ -203,7 +203,7 @@ plugin.op({
   help: `Removes a page from the sidebar's pages. The file isn't touched.\n\n${FLAGS}\n\n  vau unpin Dashboards/Work.md\n  vau unpin Dashboards/Work.md --vault`,
   kind: "write",
   params: {
-    path: { type: "string", format: "path", required: true, description: "the file (a path, or a name as the user says it), a web address or a view" },
+    path: { type: "string", format: "path", finds: true, required: true, description: "the file (a path, or a name as the user says it), a web address or a view" },
     workspace: WORKSPACE, vault: VAULT,
   },
   args: ["path"],

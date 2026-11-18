@@ -394,10 +394,10 @@ type TreeFile = { path: string; type?: unknown }
 
 type Tree = { files?: TreeFile[]; others?: TreeFile[]; folders?: string[] }
 
-/** A path as the user says it ("Today", "notes/idea") made a vault path: exact, with .md, any case, a file's name, or
- *  a path from before a folder moved; a web address is its web tab. Views, folders and misses come back as given ("Logs/Work" never picks Work.md). */
-export function pathAsSaid(tree: Tree, raw: string, at?: { root: string; outside?: boolean }): string {
-  if (at && isOutside(raw.trim())) return absoluteAsSaid(tree, raw.trim(), at.root, !!at.outside)
+/** A path as the user says it ("Today", "notes/idea") made a vault path: exact, with .md, any case, a file's name, or (not
+ *  `exact`, a write's) one from before a folder moved; a web address is its web tab. Views, folders and misses come back as given ("Logs/Work" never picks Work.md). */
+export function pathAsSaid(tree: Tree, raw: string, at?: { root?: string; outside?: boolean; exact?: boolean }): string {
+  if (at?.root !== undefined && isOutside(raw.trim())) return absoluteAsSaid(tree, raw.trim(), at.root, !!at.outside, !!at.exact)
   if (/^https?:\/\//i.test(raw.trim())) return `view:web/${raw.trim()}`
   if (raw.trim().startsWith("view:")) return raw.trim()
   const p = raw.trim().replace(/^\/+/, "").replace(/\/+$/, "")
@@ -417,15 +417,15 @@ export function pathAsSaid(tree: Tree, raw: string, at?: { root: string; outside
   const tail = low.split("/").pop()!.replace(/\.md$/, "")
   const hidden = p.split("/").some((s) => s.startsWith("."))
   return all.find((x) => x === p) ?? by((x) => x === `${p}.md`) ?? by((x) => x.toLowerCase() === low || x.toLowerCase() === `${low}.md`) ??
-    by((x) => stem(x) === low, named) ?? (low.includes("/") && !hidden ? by((x) => stem(x) === tail, named) : null) ?? p
+    by((x) => stem(x) === low, named) ?? (low.includes("/") && !hidden && !at?.exact ? by((x) => stem(x) === tail, named) : null) ?? p
 }
 
-function absoluteAsSaid(tree: Tree, abs: string, root: string, outside: boolean) {
+function absoluteAsSaid(tree: Tree, abs: string, root: string, outside: boolean, exact: boolean) {
   const slashed = (s: string) => s.replace(/\\/g, "/").replace(/\/+$/, "")
   const p = slashed(abs), r = slashed(root)
   // (Windows' paths and a Mac's disk ignore case)
-  if (p.toLowerCase().startsWith(`${r.toLowerCase()}/`)) return pathAsSaid(tree, p.slice(r.length + 1))
-  const inVault = pathAsSaid(tree, p)
+  if (p.toLowerCase().startsWith(`${r.toLowerCase()}/`)) return pathAsSaid(tree, p.slice(r.length + 1), { exact })
+  const inVault = pathAsSaid(tree, p, { exact })
   const known = (tree.folders ?? []).includes(inVault) || [...(tree.files ?? []), ...(tree.others ?? [])].some((f) => f.path === inVault)
   return known || !outside ? inVault : abs
 }

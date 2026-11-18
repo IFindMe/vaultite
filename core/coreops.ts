@@ -138,7 +138,7 @@ A pane or container nobody has is an error that lists the ones there are.
   vau open https://github.com --in "top right" --container work`,
     kind: "write",
     params: {
-      path: { type: "string", format: "path", outside: true, required: true, description: "the vault path (Notes/Idea.md, or as the user says it: Today), a folder, a view (view:graph), a web address, or a folder or file elsewhere on this machine (its absolute path)" },
+      path: { type: "string", format: "path", outside: true, finds: true, required: true, description: "the vault path (Notes/Idea.md, or as the user says it: Today), a folder, a view (view:graph), a web address, or a folder or file elsewhere on this machine (its absolute path)" },
       split: { type: "string", enum: ["right", "down"], description: "open it in a pane beside (right) or below (down) the current one (or the one `in` names)" },
       newTab: { type: "boolean", description: "in a new tab, keeping the current one" },
       in: { type: "string", description: "the pane to open it in, as a new tab there, as the user names it: where it is (left, right, top right, bottom), this (the focused one), what it shows (a note, a site, its title's words) or its id" },
@@ -220,7 +220,7 @@ it as an error (a red icon).
     kind: "write",
     params: {
       text: { type: "string", required: true, description: "what happened, one line" },
-      actionOpen: { type: "string", format: "path", outside: true, description: "a vault file, view or web address its Open button opens, or a file elsewhere on this machine (its absolute path)" },
+      actionOpen: { type: "string", format: "path", outside: true, finds: true, description: "a vault file, view or web address its Open button opens, or a file elsewhere on this machine (its absolute path)" },
       error: { type: "boolean", description: "shown as an error" },
       terminal: { type: "string", env: "VAULTITE_TERMINAL", description: "the app terminal it's about (its id; vau fills it in when it runs in one)" },
     },

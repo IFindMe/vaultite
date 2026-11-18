@@ -74,7 +74,7 @@ plugin's running backend through `plugin.peer("<id>").exports`. The vault's file
 or the API).
 
 **Operations** (what agents and scripts can do with it, `vau docs api`): `plugin.op({ id: "finance.import", summary,
-help, kind: "read" | "write" | "destructive", params: { file: { type: "string", required: true, description } } (`format`: "date", "path", or "json" for any value), args:
+help, kind: "read" | "write" | "destructive", params: { file: { type: "string", required: true, description } } (`format`: "date", "path", or "json" for any value; a "path" is found as the user says it, but a write op's lands exactly where it's given, never on another file of its name: `finds: true` for one it only opens or points at), args:
 ["file"], cli: "finance import", mcp: true, run: async (params, ctx) => result, text: (result) => "Markdown", did:
 (params) => ({ action: "create", text: "Imported " + params.file }) })` is
 one operation, served at once as `POST /api/ops/finance.import`, `vau finance import <file>` (`vau finance.import`),

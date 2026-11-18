@@ -711,7 +711,7 @@ plugin.op({
   help: HELP,
   kind: "write",
   params: {
-    path: { type: "string", format: "path", required: true, description: "the file (a path, or a name as the user says it)" },
+    path: { type: "string", format: "path", finds: true, required: true, description: "the file (a path, or a name as the user says it)" },
     to: N("the workspace to open it in"),
   },
   args: ["path", "to"],

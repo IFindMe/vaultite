@@ -605,7 +605,7 @@ export class App {
     if (paths.length) {
       const tree = F.tree(this.vault)
       for (const [k, p] of paths) {
-        const said = (x: string) => pathAsSaid(tree, x, { root: this.vault.path, outside: p.outside })
+        const said = (x: string) => pathAsSaid(tree, x, { root: this.vault.path, outside: p.outside, exact: op.kind !== "read" && !p.finds })
         params[k] = p.type === "array" ? strings(params[k]).map(said) : said(String(params[k]))
       }
     }

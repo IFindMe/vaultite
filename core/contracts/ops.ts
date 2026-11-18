@@ -24,6 +24,8 @@ export const Schema = z.object({
   commas: z.literal(false).optional(),
   /** A "path" that may be a file outside the vault: an absolute one outside it is kept whole (pathAsSaid). */
   outside: z.literal(true).optional(),
+  /** A "path" only found (opened, pinned), never written: on a write op it still finds a file whose folder moved. */
+  finds: z.literal(true).optional(),
 })
 export type Schema = z.infer<typeof Schema>
 
@@ -38,7 +40,6 @@ export const OpAction = z.object({
   label: z.string(),
   /** Params the app asks for besides the required ones (a book's page). */
   ask: z.array(z.string()).optional(),
-  /** A lucide icon's name. */
   icon: z.string().optional(),
   /** Only archived files (true); without it, only files that aren't. */
   archived: z.boolean().optional(),
