@@ -33,23 +33,33 @@ const timer = setInterval(() => {
 }, w.everyMs)
 
 function report(why, done) {
-  let over = false
+  let over = false, pausedAfterMs = -1
   const finish = (said) => { if (!over) { over = true; done(said) } }
-  setTimeout(() => finish(", no report: its main thread didn't stop to give one in " + Math.round(w.reportWaitMs / 1000) + " s (in a system call, or one long native call)"), w.reportWaitMs)
+  const asked = performance.now(), waited = Math.round(w.reportWaitMs / 1000) + " s"
+  setTimeout(() => finish(pausedAfterMs < 0 ? ", no report: its main thread didn't stop to give one in " + waited + " (in a system call, or one long native call)"
+    : ", no report: its main thread stopped after " + pausedAfterMs + " ms, but its report wasn't written in " + waited), w.reportWaitMs)
   try {
     const s = new (process.getBuiltinModule("node:inspector").Session)()
     s.connectToMainThread()
-    s.on("Debugger.paused", (m) => s.post("Debugger.evaluateOnCallFrame", { callFrameId: m.params.callFrames[0].callFrameId,
-      expression: "JSON.stringify(globalThis.process.report.getReport())", returnByValue: true }, (e, r) => {
-      try {
-        if (e) throw e
-        const json = r.result.value, frames = JSON.parse(json).javascriptStack.stack.filter((l) => !/getReport|^at eval \\(eval at/.test(l.trim()))
-        const file = path.join(w.dir, local().replace("T", "-").replace(/:/g, "") + "-" + process.pid + "-" + why + ".json")
-        fs.mkdirSync(w.dir, { recursive: true })
-        fs.writeFileSync(file, json)
-        finish((frames[0] ? " " + frames[0].trim() : "") + ", its report " + file)
-      } catch (x) { finish(", no report: " + (x && x.message)) }
-    }))
+    // (on macOS a pause is sometimes never answered on a spinning main thread; another one is: no callback, so one
+    // refused as already paused finishes nothing)
+    const again = setInterval(() => s.post("Debugger.pause"), 500)
+    s.on("Debugger.paused", (m) => {
+      if (pausedAfterMs >= 0) return
+      clearInterval(again)
+      pausedAfterMs = Math.round(performance.now() - asked)
+      s.post("Debugger.evaluateOnCallFrame", { callFrameId: m.params.callFrames[0].callFrameId,
+        expression: "JSON.stringify(globalThis.process.report.getReport())", returnByValue: true }, (e, r) => {
+        try {
+          if (e) throw e
+          const json = r.result.value, frames = JSON.parse(json).javascriptStack.stack.filter((l) => !/getReport|^at eval \\(eval at/.test(l.trim()))
+          const file = path.join(w.dir, local().replace("T", "-").replace(/:/g, "") + "-" + process.pid + "-" + why + ".json")
+          fs.mkdirSync(w.dir, { recursive: true })
+          fs.writeFileSync(file, json)
+          finish((frames[0] ? " " + frames[0].trim() : "") + ", its report " + file)
+        } catch (x) { finish(", no report: " + (x && x.message)) }
+      })
+    })
     const failed = (e) => { if (e) finish(", no report: " + e.message) }
     s.post("Debugger.enable", failed)
     s.post("Debugger.pause", failed)
