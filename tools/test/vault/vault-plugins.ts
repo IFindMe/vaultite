@@ -35,11 +35,21 @@ export default async ($: VaultTest) => {
     const shut = path.join(VAULT, ".vaultite/plugins/shut")
     write(".vaultite/plugins/shut/manifest.json", JSON.stringify({ id: "shut", name: "Shut", description: "Made up." }))
     write(".vaultite/plugins/shut/plugin.ts", "export {}\n")
+    // installed and approved while it read, so a start compares it with its lock (adopt), as the M1's did on 2026-11-17
+    await vplugin("shut")
+    app.vaultPlugins.trust.approve("shut", app.vaultPlugins.found.get("shut")!.digest, { source: "Vaultite/plugins/shut" })
+    vault.patchConfig("plugins-lock", { shut: { source: "Vaultite/plugins/shut", repo: null, tag: null, commit: null, version: "1.0.0", hash: "older", installed: "2026-11-01",
+      history: [{ from: "0.9.0", to: "1.0.0", at: "2026-11-01", notes: [] }] } })
     fs.chmodSync(path.join(shut, "plugin.ts"), 0)
+    fs.utimesSync(path.join(shut, "plugin.ts"), new Date(), new Date(Date.now() + 2000)) // as iCloud's eviction: looked at anew
     check("vault plugins: an unreadable file is a problem, not a crash", (await vplugin("shut"))?.problems[0]?.includes("can't be read yet"), await vplugin("shut"))
+    const synced = await app.syncPlugins().then(() => true, (e: unknown) => e)
+    check("vault plugins: ...nor one when a start checks an installed one's files against its lock", synced === true, synced)
     fs.chmodSync(path.join(shut, "plugin.ts"), 0o644)
     check("...and read once it can be", !(await vplugin("shut"))?.problems.some((p: string) => p.includes("can't be read")), await vplugin("shut"))
     fs.rmSync(shut, { recursive: true })
+    vault.patchConfig("plugins-lock", { shut: null })
+    app.vaultPlugins.trust.forget("shut")
   }
   let [, s] = await api("GET", "state")
   check("vault plugins: in /api/state", s.vaultPlugins.some((p: Any) => p.id === "lighthouse"))

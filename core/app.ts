@@ -36,7 +36,7 @@ import { type Listed, Scheduler, scheduleOps, timed } from "./schedule.ts"
 import { digestOf, VaultPlugins } from "./vaultplugins.ts"
 import * as G from "./grants.ts"
 import { byUser, notHereYet, onItsOwn, overConnect, runHook, WriteRefused } from "./writegate.ts"
-import { asLocked, type Fetched, fetchSource, parseSource, readLock } from "./installs.ts"
+import { asLocked, type Fetched, fetchSource, type Locked, parseSource, readLock } from "./installs.ts"
 import { autoUpdates } from "./updates.ts"
 import { disclosuresOf, saysMore } from "./pluginmeta.ts"
 import { browse, PluginIndex } from "./pluginindex.ts"
@@ -188,10 +188,12 @@ export class App {
     const lock = readLock(this.vault)
     const vps = this.vaultPlugins
     for (const vp of vps.found.values()) {
+      // One that couldn't be read (a file iCloud hasn't brought down) can't be compared with its lock: looked at once it reads
+      if (vp.problems.length) continue
       const l = lock[vp.id], a = vps.trust.approval(vp.id)
-      if (!l?.history?.length || !a || a.edits || !asLocked(vp.dir, l, vp.digest.content) || vps.trust.approved(vp.id, vp.digest)) continue
+      if (!l?.history?.length || !a || a.edits || !lockedNow(vp.dir, l, vp.digest.content) || vps.trust.approved(vp.id, vp.digest)) continue
       if (a.source !== l.source || !a.says || saysMore(a.says, disclosuresOf(vp.manifest))) continue
-      if (!vps.enabled().has(vp.id) || vp.problems.length || !autoUpdates(this.vault.config("plugins"), vp.id, l.source)) continue
+      if (!vps.enabled().has(vp.id) || !autoUpdates(this.vault.config("plugins"), vp.id, l.source)) continue
       const key = `${vp.id}\0${vp.digest.content}`
       if (Date.now() - (this.adopting.get(key) ?? 0) < 10 * 60_000) continue
       this.adopting.set(key, Date.now())
@@ -827,6 +829,12 @@ export type BlockRow = { name: string; plugin: string; pluginName: string; tier:
   options: Record<string, OptionDecl> }
 
 const messageOf = (cause: unknown) => String(cause instanceof Error ? cause.message : cause)
+
+/** Whether a vault plugin's files are still as installed; one that stops reading since it was looked at isn't, for now:
+ *  adopting is a background nicety, never a reason for the server's start to end. */
+function lockedNow(dir: string, l: Locked, content: string) {
+  try { return asLocked(dir, l, content) } catch { return false }
+}
 
 export const decodePart = (s: string) => { try { return decodeURIComponent(s) } catch { return s } }
 
