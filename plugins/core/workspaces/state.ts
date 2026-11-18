@@ -1,9 +1,10 @@
 import { ArrowDown, ArrowUp, Box, Copy, LayoutPanelLeft, Palette, Pencil, Plus, Settings2, Smile, Trash2 } from "lucide-react"
 import {
-  askText, cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openFile, openPluginSettings, openView, placePin, post, put, readSidebars,
-  replaceHash, sameSidebars, WORKSPACES as MAX, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
+  askText, cell, colorItems, colorVar, del, devicePref, dotIcon, isColor, mergeTabsSeen, pickIcon, tabsSeenSince, webContainers, getStore, getTabLayout, isViewOpen, notify, notifyError, openPluginSettings, openView, placePin, post, put, readSidebars,
+  sameSidebars, WORKSPACES as MAX, DEVICE, get, plural, viewInfo, savedSidebars, setDefaultSidebars, setTabLayout, sidebarsChanged, startedFresh, workspaceChanged, type MenuItem,
   allPanes, cleanTabLayout as clean, focusedPane, placesIn as placesOfTab, selectTab, shownTab, withMyTabs, withoutPanes, withoutTabs, type Sidebars, type Tab, type TabLayout, type TabList, type WorkspaceHost, type WorkspaceInfo,
 } from "@vaultite"
+import { arrive, settled, keepingOpenedTabs } from "./arrival"
 import { blankLayout, isBlank, isObj, type Obj } from "./blank"
 import { markIcon } from "./Mark"
 import { NO_MOVES, numberNow, type Moves } from "./order"
@@ -15,10 +16,6 @@ type Keys = Partial<Record<keyof Def, unknown>>
 
 const current_ = devicePref<number>("workspace", 0)
 const movesSeen = devicePref<number>("workspace-moves", -1)
-const arrival = location.hash
-let wentTo: string | null = null
-let arrived = false
-for (const ev of ["hashchange", "popstate"]) addEventListener(ev, (e) => { if (e.isTrusted && !arrived) wentTo = location.hash })
 
 export const defaultSidebars = (x: unknown) => x === undefined || sameSidebars(readSidebars(x), savedSidebars())
 function defOf(x: Obj): Def {
@@ -193,8 +190,10 @@ export function saveTabs() {
 }
 let applying = false
 function apply(l: TabLayout | null, merge = false, kept = false) {
+  const next = keepingOpenedTabs(l)
   applying = true
-  try { setTabLayout(l, { merge, kept }) } finally { applying = false }
+  try { setTabLayout(next, { merge, kept }) } finally { applying = false }
+  if (next !== l) saveTabsSoon()
 }
 export const saveTabsSoon = () => { if (applying) return; clearTimeout(timer); timer = window.setTimeout(saveTabs, 1000) }
 
@@ -207,14 +206,6 @@ export function leaving() {
   if (!savePending() || layoutKey(strip(getTabLayout())) === layoutKey(slots()?.[current() - 1]?.layout)) return
   try { sessionStorage.setItem(UNSAVED, String(current())) } catch { /* private mode */ }
   saveTabs()
-}
-
-function arrive() {
-  arrived = true
-  const at = wentTo ?? arrival
-  const m = /^#(file|view)\/([^/]+)/.exec(at)
-  if (m) { try { const to = decodeURIComponent(m[2]); if (m[1] === "file") openFile(to, { newTab: !placesIn(getTabLayout()).includes(`file:${to}`) }); else openView(to, { newTab: !isViewOpen(to) }) } catch {} }
-  else if (at.length > 1 && location.hash !== at) replaceHash(at)
 }
 
 export function sync() {
@@ -235,6 +226,7 @@ function syncTabs() {
       const l = strip(getTabLayout())
       if (layoutKey(l)) patch(first || 1, { layout: l })
       emit(); sidebarsChanged()
+      settled()
       return
     }
     apply(list[first - 1]?.layout ?? null)

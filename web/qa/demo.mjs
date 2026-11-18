@@ -166,7 +166,8 @@ async function visit(name, browser) {
   is("...and keeps what's written there", (await api("POST", "file", { path: NOTE, text: "here" })).status === 201 && await has())
   await pageOf("browser")
   is("another bundle's page has none of it", (await on()) === "browser" && !(await has()))
-  is("...the Browser's opens its live sites", await page.waitForFunction(() => location.hash.startsWith("#view/web"), null, { timeout: 15000 }).then(() => true, () => false), page.url())
+  const sitesKept = async () => page.url().includes("#view/web") && JSON.stringify((await api("GET", "workspaces")).json?.workspaces ?? []).split("view:web/").length > 2
+  is("...the Browser's opens its live sites", await until(sitesKept, 15000), page.url())
   await leave()
   await page.goto(base)
   await drawn()

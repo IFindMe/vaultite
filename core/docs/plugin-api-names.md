@@ -759,6 +759,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `tabSlot(l, slots, pos, axis)`: Where `pos` along the tabs as drawn lands: before which tab (`index`), in which tab group.
 - `tabSlotBeside(l, item, tab)`: Where a tab or pane held on tab `tab`'s middle (springOver) lands: beside it, in its group, on the side it came from (after it, from elsewhere), so that row holds still under the pointer, not…
 - `tabsMenu(ids, phone?)`: What tabs selected together can do: close them (or the others), pin them, group them, move them to a window.
+- `tabsOpenedSinceLoad(l?)`
 - `tabsSeenSince(saved)`: Whether a pane was seen here later than `saved` (the workspace's file) says, by more than a quarter of the archive time: worth a write of its own.
 - `tagName(t)`: A tag written the way it's matched: no #, no slashes at its ends.
 - `tagsOf(fm, body)`: A file's tags: its frontmatter `tags` (or `tag`), then its inline #tags, each once.

@@ -63,7 +63,7 @@ export { BrandIcon, GitHubIcon } from "@/core/icons"
 // The tabs and splits as a whole (Workspaces keeps one per workspace).
 export { getWorkspace as getTabLayout, onWorkspaceChange as onTabLayoutChange, replaceWorkspace as setTabLayout, mineInto as withMyTabs, panesClosed, tabsInWorkspace } from "@/core/workspace"
 export { type Workspace as TabLayout } from "../../core/layout.ts"
-export { startedFresh } from "@/core/workspace"
+export { openedSinceLoad as tabsOpenedSinceLoad, startedFresh } from "@/core/workspace"
 // When each tab was last on screen, which archives unpinned ones unseen a while (Tabs' setting): Workspaces carries it.
 export { mergeSeen as mergeTabsSeen, seenSince as tabsSeenSince, setArchiveAfter, touchSeen as touchTabsSeen } from "@/core/workspace"
 export { archivedTabs, archiveUnseen, removeArchived, reopenArchived, restoreArchived, retargetArchived, useArchivedTabs, type ArchivedTab } from "@/core/tabarchive"

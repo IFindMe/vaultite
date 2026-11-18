@@ -76,6 +76,8 @@ function noteFile() {
 let state = load()
 const changed = signal()
 export const here = (): TabList => listIn(state)
+const cameBackWith = new Set(here().tabs.map((t) => t.id))
+export const openedSinceLoad = (l: TabList = here()): Tab[] => l.tabs.filter((t) => !cameBackWith.has(t.id) && !isBlankTab(t))
 noteFile()
 
 export function set(next: TabList) {
