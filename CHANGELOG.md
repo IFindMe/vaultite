@@ -88,7 +88,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   folders and rewriting links to the moved file now happen off the main thread, in steps, so the app, terminals and
   agents keep their connection meanwhile, where the watchdog used to kill and restart the server after 30 seconds.
   When the watchdog does kill it, its log line has the local time and names what held the vault, the function the
-  main thread was in and a report of it (`data/reports`, the last 20; SIGUSR2 writes one too). It watches the start as
+  main thread was in and a report of it (`data/reports`, the last 20, without environment variables; SIGUSR2 writes one
+  too), its JS stack kept even when a loaded machine is too slow for the full report. It watches the start as
   well: one not ready in 20 minutes is restarted, and `GET /api/health` says where a start is before the vault is read.
   Device sync's hourly shadow check no longer holds the server (it was killed an hour after each start), scheduled jobs
   wait a minute after a start and start a few seconds apart, and a service whose starts fail because of the machine

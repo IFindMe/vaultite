@@ -11,6 +11,8 @@ export const WATCHDOG: Watchdog = { stallMs: 30_000, startStallMs: 120_000, memS
 // inspector's pause interrupts running JS (not a system call, nor one long native call), and the report is taken there.
 const WATCHER_JS = `
 const { workerData: w } = process.getBuiltinModule("node:worker_threads"), fs = process.getBuiltinModule("node:fs"), path = process.getBuiltinModule("node:path")
+process.report.excludeEnv = true
+process.report.excludeNetwork = true
 const beat = new Int32Array(w.sab), start = new Int32Array(w.start, 0, 2)
 const text = (sab, at, n) => new TextDecoder().decode(new Uint8Array(sab, at, n).slice())
 const local = () => new Date(Date.now() - Atomics.load(beat, 1) * 60000).toISOString().slice(0, 19)
@@ -36,29 +38,34 @@ function report(why, done) {
   let over = false, pausedAfterMs = -1
   const finish = (said) => { if (!over) { over = true; done(said) } }
   const asked = performance.now(), waited = Math.round(w.reportWaitMs / 1000) + " s"
-  let late = setTimeout(() => finish(", no report: its main thread didn't stop to give one in " + waited + " (in a system call, or one long native call)"), w.reportWaitMs)
+  const file = path.join(w.dir, local().replace("T", "-").replace(/:/g, "") + "-" + process.pid + "-" + why + ".json")
+  const save = (json) => { fs.mkdirSync(w.dir, { recursive: true }); fs.writeFileSync(file, json) }
+  let givesUp = setTimeout(() => finish(", no report: its main thread didn't stop to give one in " + waited + " (in a system call, or one long native call)"), w.reportWaitMs)
   try {
     const s = new (process.getBuiltinModule("node:inspector").Session)()
     s.connectToMainThread()
     // (on macOS a pause is sometimes never answered on a spinning main thread; another one is: no callback, so one
     // refused as already paused finishes nothing)
-    const again = setInterval(() => s.post("Debugger.pause"), 500)
+    const again = setInterval(() => s.post("Debugger.pause"), 500), urls = new Map()
+    s.on("Debugger.scriptParsed", (m) => urls.set(m.params.scriptId, m.params.url))
     s.on("Debugger.paused", (m) => {
       if (pausedAfterMs >= 0) return
       clearInterval(again)
+      clearTimeout(givesUp)
       pausedAfterMs = Math.round(performance.now() - asked)
-      clearTimeout(late)
-      late = setTimeout(() => finish(", no report: its main thread stopped after " + pausedAfterMs + " ms, but its report wasn't written in " + waited + " more"), w.reportWaitMs)
+      const stack = m.params.callFrames.map((f) => "at " + (f.functionName || "<anonymous>") + " (" + urls.get(f.location.scriptId) + ":" + (f.location.lineNumber + 1) + ":" + (f.location.columnNumber + 1) + ")")
+      const at = stack[0] ? " " + stack[0] : ""
+      let kept
+      try { save(JSON.stringify({ javascriptStack: { message: "the main thread as the watchdog paused it", stack } })); kept = ", its JS stack " + file }
+      catch (x) { kept = ", no report: " + (x && x.message) }
+      givesUp = setTimeout(() => finish(at + kept + " (its main thread stopped after " + pausedAfterMs + " ms, but its full report wasn't taken in " + waited + " more)"), w.reportWaitMs)
       s.post("Debugger.evaluateOnCallFrame", { callFrameId: m.params.callFrames[0].callFrameId,
         expression: "JSON.stringify(globalThis.process.report.getReport())", returnByValue: true }, (e, r) => {
         try {
           if (e) throw e
-          const json = r.result.value, frames = JSON.parse(json).javascriptStack.stack.filter((l) => !/getReport|^at eval \\(eval at/.test(l.trim()))
-          const file = path.join(w.dir, local().replace("T", "-").replace(/:/g, "") + "-" + process.pid + "-" + why + ".json")
-          fs.mkdirSync(w.dir, { recursive: true })
-          fs.writeFileSync(file, json)
-          finish((frames[0] ? " " + frames[0].trim() : "") + ", its report " + file)
-        } catch (x) { finish(", no report: " + (x && x.message)) }
+          save(r.result.value)
+          finish(at + ", its report " + file)
+        } catch (x) { finish(at + kept + " (its full report: " + (x && x.message) + ")") }
       })
     })
     const failed = (e) => { if (e) finish(", no report: " + e.message) }
