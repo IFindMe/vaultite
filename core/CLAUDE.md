@@ -49,7 +49,8 @@
 
 ## Updates
 - `update/` is the one update engine, with no Electron in it: the service's hosts (`update/servicestore.ts` on its
-  root store, run through `bin/vaultite-server`, macOS and Linux; `selfupdate.ts`, its checkout in place, Windows and
+  root store, run through `bin/vaultite-server`, macOS and Linux (a shim that never changes in its checkout: the
+  launcher it runs, `bin/vaultite-launch.mjs`, is the current root's); `selfupdate.ts`, its checkout in place, Windows and
   older installs) and the desktop app's (`electron/storehost.ts`, on the root store where its marker is) drive it.
   What only one host needs goes in that host. A server run from a root keeps its LOCAL in the checkout (data/).
 - A store root (`update/store.ts`) is read-only once made, and its `node_modules` is a deps set shared by every root
@@ -59,6 +60,10 @@
   0555, the same fingerprint): change them together, and know a change to roots.mjs is a new shell.
 - `update/plan.ts` decides what a new root restarts: whatever isn't known (a commit's changes, the graph, a fingerprint)
   takes the heavier action.
+- The service's launcher (`bin/vaultite-launch.mjs`) runs current; once its server stopped as it started 3 times, good,
+  to tell its code from this machine's: current is bad once good starts fine after it. When good fails too (the vault
+  unreadable, the load), it's the machine's trouble: none is marked bad, and each start waits longer, never past a
+  watchdog's 3 missed minutes. VAULTITE_SERVICE tells the server a service manager restarts it (`core/watchdog.ts`).
 - The store's gc keeps current, good, a root made in the last 10 minutes (about to be current) and every root a live
   process leased (`update/lease.ts`: the keepers, the app's servers and main): whatever runs from a root leases it.
 - A host's own CI gate (`ci`: the desktop app's, storepolicy.ts) needs no GitHub origin; the default asks GitHub.

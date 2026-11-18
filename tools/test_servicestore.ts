@@ -26,6 +26,7 @@ const commit = (files: Record<string, string>, msg: string) => {
 const server = (n: number) => `console.log(JSON.stringify({ server: ${n}, cwd: process.cwd(), local: process.env.VAULTITE_LOCAL }))\n`
 commit({ ".gitignore": "node_modules\nweb/dist/\nelectron/build.json\ndata/\n", "package.json": JSON.stringify({ name: "lighthouse", type: "module" }),
   "package-lock.json": "{}", "server.ts": server(1), "web/src/a.ts": "1\n", "bin/vaultite-server": fs.readFileSync("bin/vaultite-server", "utf8"),
+  "bin/vaultite-launch.mjs": fs.readFileSync("bin/vaultite-launch.mjs", "utf8"),
   "electron/shell/inputs.json": JSON.stringify({ files: ["electron/shell"], package: ["name"], electron: "package-lock.json" }), "electron/shell/boot.mjs": "// the shell\n" }, "first")
 execFileSync("git", ["clone", "--quiet", origin, checkout], { stdio: "pipe", env: gitEnv() })
 
@@ -34,7 +35,7 @@ const recipe: Recipe = {
     { name: "web build", run: async (c) => { fs.mkdirSync(path.join(c.root, "web", "dist"), { recursive: true }); fs.writeFileSync(path.join(c.root, "web", "dist", "index.html"), "<!doctype html>") } },
     { name: "stamp", run: async (c) => { fs.mkdirSync(path.join(c.root, "electron"), { recursive: true }); fs.writeFileSync(path.join(c.root, "electron", "build.json"), JSON.stringify({ commit: git(c.root, "rev-parse", "HEAD") })) } },
   ],
-  keyFiles: ["server.ts", "bin/vaultite-server", "web/dist/index.html"],
+  keyFiles: ["server.ts", "bin/vaultite-server", "bin/vaultite-launch.mjs", "web/dist/index.html"],
   preflight: [],
 }
 // (what reaches the server: server.ts; the web app: web/)
@@ -112,6 +113,23 @@ await section("every root stopping as it starts (the vault unreadable, the load)
   check("once a server started, its next start doesn't wait", fs.realpathSync(trampoline().cwd) === cur && !launched[0].includes("waits"), launched)
   fs.rmSync(path.join(store, "current.json")); fs.rmSync(path.join(store, "good.json"))
   check("no root to run: the checkout's own server", trampoline().server === 1)
+})
+
+await section("a root's own launcher runs, as the checkout's never updates; the checkout's when the root's won't load", async () => {
+  const own = fs.readFileSync("bin/vaultite-launch.mjs", "utf8"), at = "export async function launch({ checkout }) {"
+  const marked = own.replace(at, `${at}\n  console.error("the root's launcher")`)
+  check("(the launcher has the line the test marks)", marked !== own)
+  const fresh = async (files: Record<string, string>, msg: string) => {
+    const sha = commit(files, msg)
+    await checkForUpdate(await host(checkout))
+    fs.rmSync(path.join(store, "service-start.json"), { force: true })
+    launched.length = 0
+    return { sha, ran: trampoline() }
+  }
+  const c5 = await fresh({ "bin/vaultite-launch.mjs": marked, "server.ts": server(5) }, "the launcher changes")
+  check("the current root's launcher starts its server", current() === c5.sha && c5.ran.server === 5 && launched[0].includes("the root's launcher"), { ran: c5.ran, launched, logged })
+  const c6 = await fresh({ "bin/vaultite-launch.mjs": "export const launch = (\n", "server.ts": server(6) }, "the launcher breaks")
+  check("a launcher that won't load: the checkout's starts the root's server", current() === c6.sha && c6.ran.server === 6 && launched[0].includes("launcher didn't load"), { ran: c6.ran, launched, logged })
 })
 
 execFileSync("chmod", ["-R", "u+w", tmp]) // (roots are read-only)

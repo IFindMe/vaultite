@@ -97,7 +97,7 @@ export function serverRecipe(): Recipe {
       { name: "web build", run: (c) => c.exec("npm", ["run", "build"], { cwd: c.root, env: { ...c.env, VAULTITE_CLEAN_BUILD: "1" } }).then(() => {}) },
       { name: "stamp", run: (c) => c.exec(c.node, ["electron/stamp.ts"], { cwd: c.root, env: { ...c.env, VAULTITE_CHANNEL: "main" } }).then(() => {}) },
     ],
-    keyFiles: ["server.ts", "package.json", "bin/vau", "bin/vaultite-server", "electron/build.json", "web/dist/index.html"],
+    keyFiles: ["server.ts", "package.json", "bin/vau", "bin/vaultite-server", "bin/vaultite-launch.mjs", "electron/build.json", "web/dist/index.html"],
     preflight: [serverBoots],
   }
 }
