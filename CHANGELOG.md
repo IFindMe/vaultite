@@ -72,8 +72,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Workspaces: All tabs is now the Workspaces page, a board of the workspaces side by side in lanes of one height, as
   many to a row as the pane fits (filled evenly: four are one row, or two by two), the current one outlined. Each lane
   shows its icon, colour and name: a click on the name renames it, right-click or its … button has the switcher's menu
-  (icon, colour, container, duplicate, delete), and New workspace beside the filter makes one, named in place. Drag the
-  switcher's button onto a pane to open the page there.
+  (icon, colour, container, duplicate, delete), and New workspace beside the filter makes one, named in place (both
+  stay where they are while you rename or filter). Drag the switcher's button onto a pane to open the page there.
 - The notch's island stays true: a session that needed you leaves it once you answer it in its terminal, it goes on by
   itself or ends, and a job's ready card once the job changes or you open it. Clicking one that ended says so instead
   of opening an empty terminal (a job's resumes); a job notification's button on a question it moved past says so and

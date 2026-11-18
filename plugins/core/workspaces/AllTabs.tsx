@@ -86,15 +86,15 @@ export default function AllTabs({ store }: { store: Store }) {
     </Lane>
   )
   return (
-    <div data-all-tabs data-own-drops className="@container mx-auto pb-10" style={{ maxWidth: Math.max(READING_WIDTH, lanes.length * LANE_WIDTH) }}>
+    <div data-all-tabs data-own-drops className="@container mx-auto pb-10" style={{ maxWidth: Math.max(READING_WIDTH, desks.length * LANE_WIDTH) }}>
       <PageHeader title="Workspaces" subtitle={`${plural(total, "tab")} in ${plural(desks.length, "workspace")}`}>
-        <div className="flex items-center justify-end gap-2 max-md:basis-full md:basis-80">
-          {free && !query && !naming && <NewDesk n={free} start={() => setNaming(free)} />}
-          <FilterField value={q} onChange={setQ} placeholder="Filter tabs" className="basis-48 md:max-w-64" />
+        <div className="flex items-center justify-end gap-2 max-md:basis-full">
+          {free && <NewDesk n={free} naming={naming === free} start={() => { setQ(""); setNaming(free) }} />}
+          <FilterField value={q} onChange={setQ} placeholder="Filter tabs" className="md:w-48 md:flex-none" />
         </div>
       </PageHeader>
       {query && !lanes.length ? <Empty>No tabs match "{query}".</Empty>
-        : <div data-all-tabs-board className={cn("grid gap-3", EVEN_ROWS_BY_LANES[lanes.length])}>{lanes.map(lane)}</div>}
+        : <div data-all-tabs-board className={cn("grid gap-3", EVEN_ROWS_BY_LANES[desks.length])}>{lanes.map(lane)}</div>}
     </div>
   )
 }
@@ -132,8 +132,8 @@ function DeskHead({ d, here, naming, name }: { d: Desk; here: number; naming: bo
   )
 }
 
-function NewDesk({ n, start }: { n: number; start: () => void }) {
-  return <Button look="secondary" size="small" data-all-tabs-new={n} onClick={start} className="md:h-7.5"><Plus className="-ml-0.5 size-3.5" strokeWidth={2.25} />New workspace</Button>
+function NewDesk({ n, naming, start }: { n: number; naming: boolean; start: () => void }) {
+  return <Button look="secondary" size="small" data-all-tabs-new={n} disabled={naming} onClick={start} className="md:h-7.5"><Plus className="-ml-0.5 size-3.5" strokeWidth={2.25} />New workspace</Button>
 }
 
 const whereOf = (here: number, n: number, w: number): Where => ({ n, thisWindow: n === here && w === 0 && !isPopout(), otherWorkspace: n !== here })
