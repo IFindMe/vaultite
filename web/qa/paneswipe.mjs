@@ -1,13 +1,16 @@
 // A phone's split tab swiped between its panes (core/phoneTabs.ts swipePanes) with real touches at 390px: a slow drag
-// follows the finger with the next pane beside it, a flick goes, a short drag springs back, vertical scrolls and the
-// ends aren't taken, a page caught mid-flight stays under the finger. Prints frame timings. Then WebKit (iOS's engine)
-// with synthetic touches: the same moves, no real scrolling. WRITES Qa swipe/: throwaway.
+// follows the finger with the next pane beside it, a flick goes, a short drag springs back, vertical scrolls aren't taken,
+// past the ends a sidebar comes in, a page caught mid-flight stays under the finger. Prints frame timings. Then WebKit
+// (iOS's engine) with synthetic touches: the same moves, no real scrolling. WRITES Qa swipe/, sidebars: throwaway.
 //   node web/qa/paneswipe.mjs <base url> [out dir]
-import { mkdirSync } from "node:fs"
+import { mkdirSync, writeFileSync } from "node:fs"
+import path from "node:path"
 import { qa, until, wait, webkitLaunch } from "./lib/qa.mjs"
 const { args: [B, OUT = "/var/tmp/paneswipe-shots/"], browser, check, watch, done } = await qa(import.meta.url, { motion: true })
 mkdirSync(OUT, { recursive: true })
 const api = (method, p, body) => fetch(`${B}api/${p}`, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined })
+const VAULT = (await (await fetch(`${B}api/vault`)).json()).path
+writeFileSync(path.join(VAULT, ".vaultite/sidebars.json"), JSON.stringify({ left: ["files:files"], right: ["outline:outline"], collapsed: [] }))
 const long = (name) => `# ${name}\n\n${Array.from({ length: 60 }, (_, i) => `${name} paragraph ${i + 1}: words enough to wrap across the phone's width, twice at least.`).join("\n\n")}\n`
 const NAMES = ["Swipe one", "Swipe two", "Swipe three"]
 for (const n of [...NAMES, "Tab before", "Tab after"]) await api("POST", "file", { path: `Qa swipe/${n}.md`, text: long(n) })
@@ -79,7 +82,6 @@ try {
   check("a split tab of three: three dots, the first shown", (await P.locator("[data-pane-dots] button").count()) === 3 && (await at()) === 0, await at())
   const Y = 500, X = 200
 
-  // ---------- a slow drag: the page and the next one follow the finger ----------
   const slow = await frames("slow drag", async () => {
     await finger(X, Y, line(-150, 4, 600), false)
     await wait(50)
@@ -97,12 +99,10 @@ try {
   })
   check("slow drag: the header's name crossfades to the next pane's as far as it's come", head.name === "Swipe two" && head.next > 0.25 && head.next < 0.5 && Math.abs(head.now + head.next - 1) < 0.05, head)
   check("...and the next dot darkens on its way (between the others)", head.d1 !== head.d0 && head.d1 !== head.d2, head)
-  // Back a little, held, and let go short of halfway: it springs back.
   await finger(X - 150, Y, line(80, 0, 200), false)
   await touch("touchEnd", X - 70, Y); await wait(700)
   check("short of halfway, held: springs back, the same pane", (await shift()) === 0 && (await at()) === 0, [await shift(), await at()])
 
-  // Slow, past halfway, still at the end: it goes on to the next.
   await frames("slow drag past half and settle", async () => {
     await finger(X + 150, Y, [...line(-260, 0, 700), [-260, 0, 120]])
     await wait(700)
@@ -110,7 +110,6 @@ try {
   check("slow, past halfway: the next pane", (await at()) === 1 && (await shift()) === 0, [await at(), await shift()])
   check("...its page is the one on screen", (await lefts()).shown !== null && Math.abs((await lefts()).shown - 16) < 30, await lefts())
 
-  // ---------- a flick: short and fast goes ----------
   const flick = await frames("flick and settle", async () => {
     await finger(X, Y, line(-70, 0, 64))
     await wait(700)
@@ -118,19 +117,18 @@ try {
   check("a flick (70px in 64ms) goes to the next pane", (await at()) === 2 && (await shift()) === 0, [await at(), await shift()])
   check("flick: no long tasks while it settles", flick.longTasks === 0, flick)
 
-  // ---------- the end: it gives a little, springs back ----------
+  // ---------- the end: the right sidebar comes in ----------
   await finger(X, Y, line(-200, 0, 400), false)
-  const band = await shift()
-  check("past the last pane: it gives, less than the finger", band !== null && band < -10 && band > -110, band)
+  const past = { shift: await shift(), drawer: await P.evaluate(() => !!document.querySelector("[data-phone-drawer=right]")) }
+  check("past the last pane: the page stays, the right sidebar follows the finger", past.shift === 0 && past.drawer, past)
   await touch("touchEnd", X - 200, Y); await wait(700)
-  check("...and springs back, still the last", (await shift()) === 0 && (await at()) === 2, [await shift(), await at()])
+  check("...and opens, still the last pane", (await P.evaluate(() => document.documentElement.dataset.drawer)) === "right" && (await at()) === 2, [await shift(), await at()])
+  await P.keyboard.press("Escape"); await until(() => P.evaluate(() => !document.querySelector("[data-phone-drawer]")), 3000)
 
-  // ---------- vertical scrolls stay the page's ----------
   const y0 = await P.evaluate(() => scrollY)
   await finger(X, 600, line(8, -300, 300))
   await wait(400)
   check("a vertical drag scrolls the page, no sideways move", (await P.evaluate(() => scrollY)) > y0 + 100 && (await shift()) === 0 && (await at()) === 2, [y0, await P.evaluate(() => scrollY), await shift()])
-  // Mostly down with some sideways (a thumb's arc): still a scroll.
   const y1 = await P.evaluate(() => scrollY)
   await finger(X, 600, line(60, -240, 300))
   await wait(400)
@@ -265,11 +263,9 @@ try {
   check("webkit: ...let go there, it lands on a pane", (await wShift()) === 0 && (await wAt()) >= 1, [await wShift(), await wAt()])
   if ((await wAt()) === 1) { await wFinger(200, 500, line(-70, 0, 64)); await wSettled() }
   await wFinger(200, 500, line(-200, 0, 300), false)
-  const wBand = await wShift()
-  check("webkit: past the last pane it gives, less than the finger", wBand < -10 && wBand > -110, wBand)
+  check("webkit: past the last pane the page leaves the swipe to the right sidebar", (await wShift()) === 0 && (await wAt()) === 2, [await wShift(), await wAt()])
   await wLift(0)
   await wSettled()
-  check("webkit: ...and springs back", (await wShift()) === 0 && (await wAt()) === 2, [await wShift(), await wAt()])
   const wb = await W.locator("[data-phone-bar]").boundingBox()
   await wFinger(200, wb.y + 22, line(-70, 0, 64)); await wSettled()
   check("webkit: the bar flicked left shows the next tab", (await W.locator("[data-phone-title]").innerText()) === "Tab after" && (await wShift()) === 0, [await W.locator("[data-phone-title]").innerText(), await wShift()])

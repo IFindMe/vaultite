@@ -7,13 +7,14 @@ import { haptic } from "@/core/haptics"
 import { selecting } from "@/core/select"
 import { cn } from "@/lib/utils"
 import { nodeOf } from "@/core/dom"
-import { edgeTouch } from "@/core/edgetouch"
+import { claimSideways, releaseSideways, sidewaysOwner } from "@/core/sideways"
 
 /** `removes`: it takes the row away (Done, Delete) at once, like Mail's, back if `run` fails or the row stays. `run`
  *  gets the row's box, for a menu it opens (Snooze ▸). */
 export type SwipeAction = { label: string; icon: LucideIcon; run: (row?: DOMRect) => unknown; danger?: boolean; removes?: boolean }
 
 const BUTTON = 74
+const taken = () => !!getDrag() || !!document.querySelector("[role=menu]") || !!sidewaysOwner()
 let shut: (() => void) | null = null
 
 /** `actions`: asked for when a swipe starts (none: the row doesn't swipe), so rows that are never swiped make no buttons.
@@ -35,6 +36,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
   // Stable (refs only): a redraw mustn't change `shut`, or a press on its own button closes it first and iOS drops it.
   const place = useCallback((x: number, animate = false) => {
     at.current = x
+    box.current?.toggleAttribute("data-swiped", x !== 0)
     const r = row.current, u = under.current
     if (!r || !u) return
     const t = animate ? "220ms cubic-bezier(.2,.8,.2,1)" : ""
@@ -76,12 +78,13 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
   }
 
   const down = (e: React.PointerEvent) => {
-    if (e.pointerType !== "touch" || selecting() || edgeTouch()) return
+    if (e.pointerType !== "touch" || selecting()) return
     swiped.current = false
     if (shut && shut !== close) shut()
     if (!at.current) {
       const drawer = row.current?.closest<HTMLElement>("[data-phone-drawer]")?.dataset.phoneDrawer
       way.current = drawer === "left" ? 1 : -1
+      if (box.current) box.current.dataset.swipeWay = String(way.current)
     }
     g.current?.quit?.()
     g.current = { x: e.clientX, y: e.clientY, from: at.current, axis: null, full: !!at.current, room: Math.abs(at.current) }
@@ -92,7 +95,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
     const mx = e.clientX - s.x, my = e.clientY - s.y
     if (!s.axis) {
       if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) {
-        if (getDrag() || document.querySelector("[role=menu]")) { s.axis = "pass"; return }
+        if (taken()) { s.axis = "pass"; return }
         if (!s.from && Math.sign(mx) !== way.current) { s.axis = "pass"; return }
         if (!s.from && behind) {
           s.room = own.current?.scrollWidth ?? 0
@@ -105,6 +108,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
           s.room = list.length * BUTTON
         }
         s.axis = "x"
+        claimSideways("row")
         try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
         s.quit = onAway(() => { if (g.current === s) { g.current = null; settle(s) } })
       } else if (Math.abs(my) > 8) { s.axis = "y"; return }
@@ -127,6 +131,7 @@ export function SwipeRow({ actions, under: behind, children, className, ...rest 
     settle(s)
   }
   const settle = (s: { room: number; quit?: () => void }) => {
+    releaseSideways("row")
     s.quit?.()
     if (Math.abs(at.current) > s.room / 2) { place(way.current * s.room, true); shut = close }
     else close()

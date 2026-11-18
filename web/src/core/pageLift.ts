@@ -1,7 +1,8 @@
 import { onAway } from "@/core/away"
 import { haptic } from "@/core/haptics"
 import { LIFT_RADIUS, pageRect } from "@/core/motion"
-import { openSwitcher, swipingSideways } from "@/core/phoneTabs"
+import { openSwitcher } from "@/core/phoneTabs"
+import { eatClick, sidewaysOwner } from "@/core/sideways"
 import { shootTab } from "@/core/tabShots"
 import { nodeOf } from "@/core/dom"
 
@@ -52,11 +53,6 @@ function clear(ps: Part[]) {
   }
   delete document.documentElement.dataset.pageLift
 }
-function eatClick() {
-  const eat = (c: Event) => { c.stopPropagation(); c.preventDefault() }
-  addEventListener("click", eat, { capture: true, once: true })
-  setTimeout(() => removeEventListener("click", eat, { capture: true }), 400)
-}
 
 export function liftFrom(bar: HTMLElement, off: () => boolean) {
   let g: { id: number; x: number; y: number; on: boolean; ready: boolean; dx: number; dy: number; t: number; v: number; els: Part[] } | null = null
@@ -71,7 +67,7 @@ export function liftFrom(bar: HTMLElement, off: () => boolean) {
     if (!g || e.pointerId !== g.id) return
     const dy = Math.max(0, g.y - e.clientY), dx = Math.abs(e.clientX - g.x)
     if (!g.on) {
-      if ((dx > 12 && dx > dy) || swipingSideways()) { g = null; return }
+      if ((dx > 12 && dx > dy) || sidewaysOwner()) { g = null; return }
       if (dy < 10) return
       g.on = true
       try { bar.setPointerCapture(e.pointerId) } catch { /* not a live pointer */ }

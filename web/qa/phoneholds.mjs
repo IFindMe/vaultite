@@ -1,4 +1,4 @@
-// Phones' edges and held fingers: components/PhoneDrawer.tsx, core/edgetouch.ts, core/phoneTabs.ts, components/ContextMenu.tsx,
+// Phones' edges and held fingers: components/PhoneDrawer.tsx, core/sideways.ts, core/phoneTabs.ts, components/ContextMenu.tsx,
 // core/nav.ts, components/PhoneBar.tsx, plugins/core/editing/menu.ts. WRITES Qa holds/: node web/qa/phoneholds.mjs <base url> [out dir]
 import { mkdirSync } from "node:fs"
 import { app } from "./lib/app.mjs"

@@ -1282,12 +1282,12 @@ html[data-electron][data-platform=win32]:not([data-fullscreen]):is(:not([data-ri
 html[data-electron][data-platform=win32] [data-right-corner] > [data-title-row] { transition: padding-right var(--motion-spring) var(--spring); }
 
 /* Phones: the window scrolls under the fixed header (PhoneHeader), so a heading scrolled to ([[Note#Heading]]) stops
-   below it rather than under it. Nothing but a scroller pans sideways: a sideways drag is the app's (a drawer opened from
-   the screen's edge, PhoneDrawer.tsx, wherever it starts, the screen below a short page too; rows' swipes). touch-action
+   below it rather than under it. Nothing but a scroller pans sideways: a sideways drag is the app's (a drawer opened by a
+   swipe anywhere, PhoneDrawer.tsx, the screen below a short page too; rows' swipes; core/sideways.ts says whose). touch-action
    stops at the nearest scroller, so everything in a drawer says so too, or its panels' scroller would hand a sideways
    swipe to the browser (pointercancel) before the drawer or a row sees it. */
 html[data-phone] { scroll-padding-top: calc(env(safe-area-inset-top) + 3.5rem); }
-html[data-phone], :where([data-phone]) [data-phone-drawer] * { touch-action: pan-y pinch-zoom; }
+html[data-phone], :where([data-phone]) [data-drawer-box] * { touch-action: pan-y pinch-zoom; }
 /* Phones: Back/Forward move like a browser's (core/motion.ts sets data-motion). The pictures of the screen before and
    after (old/new root) are moved; the phone's bar is a group of its own and stays put. */
 ::view-transition-old(root), ::view-transition-new(root) { mix-blend-mode: normal; transform-origin: 0 0; }

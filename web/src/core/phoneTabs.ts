@@ -3,7 +3,6 @@ import { folderOf } from "@/core/files"
 import { activePane, activeTab, here, onWorkspaceChange, panes, selectPane, selectTab } from "@/core/workspace"
 import { onAway } from "@/core/away"
 import { haptic } from "@/core/haptics"
-import { trackSoon } from "@/core/unsaved"
 import { fingerHolding } from "@/core/drag"
 import { openNewTab, opensSwitcher } from "@/core/launcher"
 import { zoomIn, zoomNew, zoomOut } from "@/core/motion"
@@ -16,7 +15,7 @@ import { cell } from "@/core/signal"
 import { share } from "@/core/share"
 import { shootTab, shotOf } from "@/core/tabShots"
 import { elementOf, htmlOf } from "@/core/dom"
-import { EDGE } from "@/core/edgetouch"
+import { claimSideways, drawerOn, EDGE, eatClick, movesItself, releaseSideways, rowTakes, selectingIn, sidewaysOwner } from "@/core/sideways"
 
 export async function openSwitcher(from?: { page: DOMRect; reset: () => void }) {
   if (!from) await shootTab()
@@ -63,8 +62,6 @@ const page = () => document.querySelector<HTMLElement>("#main-scroll > main")
 export type Swipe = "panes" | "tabs"
 const swipe = cell<Swipe | null>(null)
 export const useSwipe = swipe.use
-export const swipingSideways = () => sideways
-let sideways = false
 
 export function besideOf(k: Swipe | null): { pane: Pane; tab: Tab; side: -1 | 1 }[] {
   const l = here(), t = activeTab()
@@ -78,16 +75,17 @@ export function besideOf(k: Swipe | null): { pane: Pane; tab: Tab; side: -1 | 1 
   return near(ps, ps.findIndex((p) => p.id === t.focus)).map(([p, side]) => ({ pane: p, tab: t, side }))
 }
 
-function ownsSideways(el: Element | null, top: Element, dx: number) {
-  if (!el || el.closest("input, textarea, select, [contenteditable=true]:focus, [data-keeps-touch]")) return true
-  for (let a: Element | null = el; a && a !== top; a = a.parentElement) {
-    const cs = getComputedStyle(a), ta = cs.touchAction
-    if (ta === "none" || (ta.includes("pan-y") && !ta.includes("pan-x"))) return true
-    if (/auto|scroll/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 1) {
-      if (dx < 0 ? a.scrollLeft + a.clientWidth < a.scrollWidth - 1 : a.scrollLeft > 0) return true
-    }
-  }
-  return false
+const toward = (dx: number) => (dx < 0 ? 1 : -1)
+export const panesTake = (el: Element | null, dx: number) =>
+  panes().length > 1 && !!el && !!page()?.contains(el) && besideOf("panes").some((b) => b.side === toward(dx))
+
+const ownsSideways = (el: Element | null, top: Element, dx: number) => rowTakes(el, dx) || movesItself(el, top, dx)
+
+function leaves(kind: Swipe, mx: number, my: number, el: Element | null, heard: HTMLElement | null) {
+  if (Math.abs(mx) <= Math.abs(my) * 1.15 || document.documentElement.dataset.pageLift !== undefined || sidewaysOwner()) return true
+  if (kind !== "panes") return false
+  if (!besideOf("panes").some((b) => b.side === toward(mx)) && drawerOn(mx > 0 ? "left" : "right")) return true
+  return !!heard && ownsSideways(el, heard, mx)
 }
 
 export function swipeSideways() {
@@ -121,7 +119,7 @@ export function swipeSideways() {
     m.style.willChange = "transform"
   }
   const rest = () => {
-    sideways = false
+    releaseSideways("pager")
     if (!m) return
     put(0)
     delete m.dataset.swiping
@@ -159,7 +157,7 @@ export function swipeSideways() {
     g = null
     d?.quit?.()
     if (d?.axis === "x") settle(Math.abs(pos) > step() / 2 ? Math.sign(pos) * step() : 0)
-    else sideways = false
+    else releaseSideways("pager")
   }
 
   const start = (e: TouchEvent, k: Swipe, bar = k === "tabs") => {
@@ -170,12 +168,11 @@ export function swipeSideways() {
       halt()
       g = { id: t.identifier, x: t.clientX, y: t.clientY, from: pos, axis: "x", lock: t.clientX, moves: [[e.timeStamp, t.clientX]], kind, bar }
       g.quit = onAway(drop)
-      sideways = true
+      claimSideways("pager")
       return
     }
     if (!besideOf(k).length || t.clientX < EDGE || t.clientX > innerWidth - EDGE) return
-    const sel = getSelection()
-    if (k === "panes" && sel && !sel.isCollapsed && heard?.contains(sel.anchorNode)) return
+    if (k === "panes" && heard && selectingIn(heard)) return
     g = { id: t.identifier, x: t.clientX, y: t.clientY, from: pos, axis: null, lock: t.clientX, moves: [[e.timeStamp, t.clientX]], kind: k, bar }
   }
   const move = (e: TouchEvent, block = true) => {
@@ -187,15 +184,14 @@ export function swipeSideways() {
     const mx = t.clientX - d.x, my = t.clientY - d.y
     if (!d.axis) {
       if (Math.hypot(mx, my) < SLOP) return
-      const lifting = document.documentElement.dataset.pageLift !== undefined
-      if (Math.abs(mx) <= Math.abs(my) * 1.15 || lifting || (d.kind === "panes" && heard && ownsSideways(elementOf(e.target), heard, mx))) { g = null; return }
+      if (leaves(d.kind, mx, my, elementOf(e.target), heard)) { g = null; return }
       m = page()
       if (!m) { g = null; return }
       d.axis = "x"
       d.lock = t.clientX
       d.quit = onAway(drop)
       kind = d.kind
-      sideways = true
+      claimSideways("pager")
       lay()
     }
     // iOS can start a scroll in a scroller inside the page whatever its touch-action says.
@@ -212,10 +208,7 @@ export function swipeSideways() {
     g = null
     d.quit?.()
     if (d.axis !== "x") return
-    const eat = (c: Event) => { c.stopPropagation(); c.preventDefault() }
-    addEventListener("click", eat, { capture: true, once: true })
-    const off = trackSoon("a swipe's click eaten", () => true)
-    setTimeout(() => { removeEventListener("click", eat, { capture: true }); off() }, 400)
+    eatClick()
     const v = e.type === "touchend" ? fling(d.moves, e.timeStamp) : 0
     const { lo, hi } = ends()
     const to = stopFor([...(lo ? [lo] : []), 0, ...(hi ? [hi] : [])], pos, v)
