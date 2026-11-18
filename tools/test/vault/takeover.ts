@@ -260,6 +260,10 @@ export default async ($: VaultTest) => {
       /didn't|but "Advanced" is still folded/.test(T.doneText({ ok: true, effect: still })) && T.doneText({ ok: true, how: "ax", effect: opened }).startsWith("Done (through Accessibility): \"Advanced\" is open now"))
     const plain = { ...before, role: "button", state: {} }
     check("takeover: a plain button with nothing near it changed isn't called a failure", T.effectOf("click", { ok: true, before: plain, target: plain, near }, near)?.ok === true)
+    const box = (value: string) => ({ ...before, role: "textbox", label: "Prompt", state: { expanded: false, value } }), into = (value: string) => T.effectOf("fill", { ok: true, before: box(""), target: box(value), near }, near, "Look into the Lighthouse costs")
+    check("takeover: typing is judged by the words it holds, never by a fold the field reports; a key or scroll by no fold either",
+      into("\n")?.ok === false && /"Prompt" doesn't hold the words/.test(into("\n")!.saw) && into("Look into the Lighthouse costs today")?.ok === true &&
+      T.effectOf("press", { ok: true, before: box(""), target: box(""), near }, near)?.ok === true)
   }
 
   // (Windows runs no script by its #! line, and has no Mac helpers to run)

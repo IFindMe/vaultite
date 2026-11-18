@@ -83,8 +83,8 @@ function overlay(check: Check) {
     takes({ x: 700, y: 400 }, { boxes: [], pressing: true }) && !takes({ x: 1200, y: 10 }, { pressing: true }) && !takes({ x: 760, y: 700 }, { pressing: true }))
   check("overlay: hidden or not answering, it never takes it",
     !takes({ x: 760, y: 10 }, { shown: false }) && !takes({ x: 760, y: 10 }, { stalled: true, pressing: true }))
-  check("levels: the island over a cursor's conversation over the companion's screen, a kept-on-top window under them all",
-    S.LEVELS.island[1] > S.LEVELS.panel[1] && S.LEVELS.panel[1] > S.LEVELS.screen[1] && S.LEVELS.panel[0] === S.LEVELS.screen[0] && S.LEVELS.onTop[0] === "floating")
+  check("levels: the island over take-over's offers over a cursor's conversation over the companion's screen, a kept-on-top window under them all",
+    S.LEVELS.island[1] > S.LEVELS.card[1] && S.LEVELS.card[1] > S.LEVELS.panel[1] && S.LEVELS.panel[1] > S.LEVELS.screen[1] && S.LEVELS.panel[0] === S.LEVELS.screen[0] && S.LEVELS.onTop[0] === "floating")
 }
 
 function spot(check: Check) {

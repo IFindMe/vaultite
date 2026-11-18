@@ -74,8 +74,8 @@ export const OUT = `.card { animation: takeover-out ${FADE_MS}ms ease-in both !i
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
 const tintOf = (t: string) => HEX[t] ?? HEX.orange
 
-function floating(b: Electron.Rectangle, mouse: boolean, sized = false) {
-  const w = overlayWindow({ ...b, focusable: false, acceptFirstMouse: true, webPreferences: { sandbox: true, contextIsolation: true, javascript: false, enablePreferredSizeMode: sized } }, "screen")
+function floating(b: Electron.Rectangle, mouse: boolean, sized = false, layer: Parameters<typeof overlayWindow>[1] = "screen") {
+  const w = overlayWindow({ ...b, focusable: false, acceptFirstMouse: true, webPreferences: { sandbox: true, contextIsolation: true, javascript: false, enablePreferredSizeMode: sized } }, layer)
   if (!mouse) takePointer(w, false)
   return w
 }
@@ -115,7 +115,7 @@ function show(id: string, c: Card) {
   const W = 368, d = screen.getDisplayNearestPoint(c.at).workArea
   const others = () => [...shown.entries()].filter(([k, w]) => k !== id && !w.isDestroyed()).map(([, w]) => w.getBounds())
   const place = (h: number) => ({ width: W, height: h, ...cardSpot(c.at, { width: W, height: h }, d, others()) })
-  const w = floating(place(118), true, true)
+  const w = floating(place(118), true, true, "card")
   // (a scripted copy's is drawn but unseen: its Run is clicked through the page)
   quiet(w, w.webContents)
   shown.set(id, w)

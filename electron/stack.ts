@@ -93,12 +93,13 @@ export const LEVELS = {
   onTop: ["floating", 0],
   /** A tab's card dragged past its window (dragghost.ts). */
   ghost: ["pop-up-menu", 0],
-  /** The companion over the whole screen, take-over's border and cards. */
+  /** The companion over the whole screen, take-over's border. */
   screen: ["screen-saver", 0],
-  /** A cursor's conversation, over the companion's screen. */
+  /** A cursor's conversation, over the companion's screen; take-over's offers over it, as it opens by the same pointer. */
   panel: ["screen-saver", 1],
+  card: ["screen-saver", 2],
   /** The notch's island, over everything of the app's. */
-  island: ["screen-saver", 2],
+  island: ["screen-saver", 3],
 } as const satisfies Record<string, readonly ["floating" | "pop-up-menu" | "screen-saver", number]>
 export type Layer = keyof typeof LEVELS
 

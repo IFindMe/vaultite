@@ -32,10 +32,15 @@ export type Done = { ok: boolean; why?: string; text?: string; how?: string; nea
   behind?: boolean
   before?: Thing; target?: Thing; effect?: { ok: boolean; saw: string } }
 
-export function effectOf(action: string, r: Done, was: Near[]): Done["effect"] | undefined {
+const CLICKS = new Set(["click", "dblclick", "rightclick", "check", "uncheck"])
+export function effectOf(action: string, r: Done, was: Near[], typed = ""): Done["effect"] | undefined {
   if (!r.ok || (!r.before && !r.target)) return undefined
+  const t = r.target ?? r.before, label = JSON.stringify(t?.label || "it"), held = t?.state.value, start = typed.trim().slice(0, 30)
+  if ((action === "fill" || action === "type") && start && held !== undefined) return held.includes(start) ? { ok: true, saw: `${label} holds the words now` }
+    : { ok: false, saw: `${label} doesn't hold the words (it reads ${JSON.stringify(held.slice(0, 60))})` }
   const a = action === "expand" || action === "collapse" || action === "select" ? action : "click"
   const changed = (r.near ?? []).map((e) => thingText(e)).join("\n") !== was.map((e) => thingText(e)).join("\n")
+  if (a === "click" && !CLICKS.has(action)) return { ok: true, saw: changed ? "it changed" : "nothing near it changed, so look at the screen to be sure" }
   const e = stepEffect(a, r.before ?? null, r.target ?? null, changed), s = r.target?.state ?? r.before?.state ?? {}
   return !e.ok && s.expanded === undefined && s.checked === undefined && s.selected === undefined && r.target ? { ok: true, saw: "nothing near it changed, so look at the screen to be sure" } : e
 }

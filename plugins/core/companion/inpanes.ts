@@ -127,7 +127,7 @@ async function screenAct(p: ScreenParams, name: string) {
     const r = await takeover.act(step, { agent: name, tint: agentOf(name).tint, ask: str(p.ask) || undefined }), was = nearBy.get(key(name)) ?? []
     const near = (r.near ?? []).flatMap((e) => { const t = thingFrom(e); return t?.id ? [{ ...t, id: t.id }] : [] }), read = { ...r, ...(r.near ? { near } : {}) }
     if (near.length) nearBy.set(key(name), near)
-    const effect = effectOf(str(p.action), read, was), effected = effect ? { ...read, effect } : read
+    const effect = effectOf(str(p.action), read, was, str(p.value)), effected = effect ? { ...read, effect } : read
     return { screen: true, ...effected, text: doneText(effected) }
   } finally { done() }
 }
