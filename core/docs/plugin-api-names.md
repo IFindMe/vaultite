@@ -732,7 +732,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `subscribeScoped(f)`: Subscribe to the current workspace and what's kept in it (for useSyncExternalStore with a getter of your own).
 - `SwipeAction`: `removes`: it takes the row away (Done, Delete) at once, like Mail's, back if `run` fails or the row stays.
 - `SwipeRow({ actions, under, children, className, … })`: `actions`: asked for when a swipe starts (none: the row doesn't swipe), so rows that are never swiped make no buttons.
-- `Switch({ on, onChange, label, disabled })`: A small switch in the app's accent colour.
+- `Switch({ on, onChange, label, disabled, why })`: A small switch in the accent colour: a promise from `onChange` shows it pending; `why` (can't change now) shows on click.
 - `switchPreview(text, …, value, set)`: A switch's preview: Off and On.
 - `systemNotify(title, body?)`: In the desktop app, the Mac's notification (`title`, a line of `body`): resolves true when the user clicks it (the window then comes to the front), false when it's dismissed; null in a browser, or…
 - `Tab`: A tab: its panes in a tree of splits (one pane, mostly), the one `focus`ed, and the one filling it for now (`zoom`, tmux's).

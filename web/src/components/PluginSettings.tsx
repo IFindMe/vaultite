@@ -5,9 +5,9 @@ import { patch, put } from "@/core/http"
 import type { Plugin } from "@/core/define"
 import { openFile, readFile } from "@/core/files"
 import { useVaultChange } from "@/core/live"
-import { afterSheets } from "@/core/nav"
+import { afterSheets, openDetail } from "@/core/nav"
 import { notifyError } from "@/core/notify"
-import { isEnabled, names, setSwitch, tileTint } from "@/core/plugins"
+import { isEnabled, names, offText, setSwitch, switchedOn, tileTint } from "@/core/plugins"
 import { pluginSettings, settingsFile } from "@/core/pluginSettings"
 import { grantsOf, setGrant } from "@/core/grants"
 import { usePrefs } from "@/core/prefs"
@@ -35,13 +35,15 @@ export function PluginSettings({ store, plugin, embedded = false }: { store: Sto
   const { disabled } = usePrefs()
   const on = isEnabled(plugin.id, disabled)
   const blocked = (plugin.requires ?? []).filter((r) => !isEnabled(r, disabled))
+  const held = switchedOn(plugin) && (!!plugin.meta?.approval || !!plugin.problems?.length)
   return (
     <div data-plugin-settings-sheet={plugin.id}>
       {!embedded && <SheetHead icon={plugin.icon} tint={tileTint(plugin.id)} title={plugin.name} sub={brief(plugin.description)} />}
       {!on && (
         <div className="mb-5 flex min-h-11 items-center gap-3 rounded-card bg-muted px-3.5">
-          <span className="flex-1 text-[15px] text-muted-foreground">{blocked.length ? `Off: it needs ${names(blocked)}` : "Off"}</span>
-          <Switch on={false} onChange={() => setSwitch(plugin, true)} label={`${plugin.name} plugin`} disabled={!!blocked.length} />
+          <span className="flex-1 text-[15px] text-muted-foreground" data-plugin-off-why>{held ? capitalize(offText(plugin, disabled).slice(plugin.name.length + 1)) : blocked.length ? `Off: it needs ${names(blocked)}` : "Off"}</span>
+          {held ? <Button onClick={() => openDetail(`plugin/${plugin.id}`)} data-plugin-off-review={plugin.id}>Review</Button>
+            : <Switch on={false} onChange={() => setSwitch(plugin, true)} label={`${plugin.name} plugin`} why={blocked.length ? `Turn on ${names(blocked)} to use ${plugin.name}` : undefined} />}
         </div>
       )}
       <div className="space-y-5" data-settings-body><SheetBody store={store} plugin={plugin} on={on} embedded={embedded} /></div>

@@ -23,6 +23,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   instead of skipping it and stopping at the next step.
 - Settings: a plugin's page draws Updates, About and the rest as the same cards as its settings, with quieter section
   titles lined up with the rows, and its preview no longer leaves a big empty box.
+- Plugins: a switch never does nothing. It moves at once while it saves, a failed save or allow says why and moves
+  back, one that can't turn on says why when clicked, and turning on a plugin whose code changed since this machine
+  allowed it asks first, naming the files. Another machine's Inbox item (a plugin paused on the M1) opens a sheet about
+  that machine, with its Allow, instead of this machine's plugin page.
 - iPhone: Download on a file or image opens the share sheet (Save Image, Save to Files) instead of showing the
   file in the app's own window with no way back.
 - iPhone: a voice note shows its words as they're said (through the server's cloud recognizer, Soniox, else the
