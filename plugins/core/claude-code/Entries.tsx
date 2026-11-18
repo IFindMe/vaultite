@@ -165,8 +165,6 @@ export function TurnView({ t, kids, live, id, pending, Message, status }: TurnPr
 const PROSE = "chat-prose"
 const CARET = "chat-caret"
 
-/** Text as it streams: the words come in a few letters a frame, catching up with what's arrived, so it flows rather
- *  than jumping a chunk at a time. Drawn whole at once when things are kept still. */
 function useFlow(text: string, live: boolean) {
   const [n, setN] = useState(text.length)
   const len = text.length
@@ -208,7 +206,7 @@ function Words({ text, live }: { text: string; live: boolean }) {
   return <div ref={ref} data-entry="text" data-live={writing || undefined}><Markdown text={shown} className={PROSE} /></div>
 }
 
-function UserMessage({ e, Message }: { e: User; Message?: Driven["Message"] }) {
+export function UserMessage({ e, Message }: { e: User; Message?: Driven["Message"] }) {
   const [big, setBig] = useState<number | null>(null)
   return (
     <div className="flex flex-col items-end gap-1.5" data-entry="user">

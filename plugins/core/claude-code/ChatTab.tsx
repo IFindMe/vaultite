@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ArrowDown, History } from "lucide-react"
-import { glide, moves, notifyError, trackSoon, useDesktop } from "@vaultite"
+import { cn, glide, moves, notifyError, trackSoon, useDesktop } from "@vaultite"
 import "./chat.css"
 import { type Driven, drivenOf } from "./driven"
 import { nameTab, NEW } from "./titles"
@@ -10,6 +10,8 @@ import { layout, Status, TurnView, TranscriptOf, type Transcript } from "./Entri
 import { Composer, type Queued } from "./Composer"
 import { Head, Welcome, Skeleton, Kinfolk, Failed, Away, Unread } from "./Head"
 import { knowChat } from "./chatmenu"
+import { landed, settle, useOutbox } from "./outbox"
+import { Outgoing } from "./Outgoing"
 
 
 export function ChatView({ id, setArg }: { id: string; setArg: (arg: string) => void }) {
@@ -33,6 +35,9 @@ function ChatOf({ id, setArg, c, d, back }: { id: string; setArg: (arg: string) 
   const working = c.s?.state === "working" || c.s?.state === "starting"
   const live = working || c.s?.state === "waiting"
   const pending = c.entries.filter((e): e is Ask => e.k === "ask" && !e.answer && !!c.s?.asks.includes(e.id))
+  const chat = fresh ? NEW : id, outs = useOutbox(chat)
+  const told = outs.filter((o) => !o.docked && !landed(o, c.entries))
+  useEffect(() => { for (const o of outs) if (!o.docked && landed(o, c.entries)) settle(chat, o.key) }, [chat, outs, c.entries])
   useEffect(() => {
     if (fresh) return
     knowChat(id, { ready: c.ready, running: !!c.s, busy: c.s?.state === "working" || c.s?.state === "waiting", tui: c.tui, driven: !!c.driven })
@@ -75,7 +80,17 @@ function ChatOf({ id, setArg, c, d, back }: { id: string; setArg: (arg: string) 
   const going = live && (!lastEnded || late)
   const status = going && c.s ? <Status entries={c.entries} since={askedAt ? Date.parse(askedAt) : c.s.at} state={c.s.state} asking={pending.length > 0} /> : null
   const composer = <Composer id={id} fresh={fresh} c={c} o={o} asks={pending} working={working} queued={queued} setArg={setArg}
-    onSent={(m) => { f.stick(); if (m.queued) setSentQueued([...queued, { id: m.uuid ?? "", text: m.text }]) }} />
+    onSend={f.stick} onQueued={(q) => setSentQueued([...queued, q])} />
+  if (fresh && told.length) {
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-background" data-chat="new" data-state="starting">
+        <div className="isolate flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+          <Outgoing outs={told} className="chat-talk mx-auto mt-auto flex w-full chat-column flex-col gap-3 px-5 pt-5 pb-8 max-md:px-4" />
+        </div>
+        {composer}
+      </div>
+    )
+  }
   if (fresh) {
     return (
       <div className="flex h-full min-h-0 flex-col bg-background" data-chat="new" data-state="new">
@@ -92,7 +107,7 @@ function ChatOf({ id, setArg, c, d, back }: { id: string; setArg: (arg: string) 
       <div className="relative flex min-h-0 flex-1 flex-col">
       <div ref={f.scroller} onScroll={f.onScroll} className="isolate min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div ref={f.content} className="chat-talk mx-auto w-full chat-column px-5 pt-5 pb-8 max-md:px-4">
-          {!c.ready ? <Skeleton note={c.unreachable} retry={c.retry} /> : c.failed && !c.entries.length ? <Unread id={id} retry={c.retry} /> : !c.found ? <p className="py-10 text-center text-[15px] text-muted-foreground">This session isn't on this machine, or it's in a private account.</p> : (
+          {!c.ready ? (told.length ? <Outgoing outs={told} className="flex flex-col gap-3" /> : <Skeleton note={c.unreachable} retry={c.retry} />) : c.failed && !c.entries.length ? <Unread id={id} retry={c.retry} /> : !c.found ? <p className="py-10 text-center text-[15px] text-muted-foreground">This session isn't on this machine, or it's in a private account.</p> : (
             <>
               <Kinfolk id={id} state={c.s?.state ?? ""} />
               {c.start > 0 && (
@@ -108,6 +123,7 @@ function ChatOf({ id, setArg, c, d, back }: { id: string; setArg: (arg: string) 
                   {going && !turns.length && status}
                 </div>
               </TranscriptOf.Provider>
+              <Outgoing outs={told} className={cn("flex flex-col gap-3", turns.length > 0 && "mt-8")} />
               {c.s?.state === "error" && c.s.error && <div className="mt-5"><Failed id={id} error={c.s.error} c={c} /></div>}
             </>
           )}

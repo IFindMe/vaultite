@@ -9,7 +9,11 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Bad connections: a note or file on its way shows its skeleton, then "Still loading…" with Try again; one that can't
   be read says why ("Couldn't open this note: the server didn't answer") instead of "isn't in the vault any more", and
   opens by itself when the connection's back. When the server can't be reached for a while the app says so ("Can't
-  connect to Vaultite · Try now"), and "Reconnected" takes its place.
+  connect to Vaultite · Try now"), and "Reconnected" takes its place. A chat message shows the moment it's sent,
+  "Sending…" under it; one that can't go comes back to the box with why, and one cut off by a reload is back in the
+  box too. A chat tab shows its skeleton while its code comes (a phone fetches it once it has started). The inbox
+  says when it can't be reached, with Try again, instead of "Loading…" for ever, and follows again once the
+  connection's back.
 - Browser: sign-ins work in the user's own tabs. claude.ai's Authorize (Claude Code's login) and other buttons that
   wait for the page to have focus take the first click even while a toast or an agent's card is over the page; a tab
   opened from another app's link takes the keyboard; a popup, a new tab or a blocked popup's Open stays in its opener's

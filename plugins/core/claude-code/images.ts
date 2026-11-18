@@ -15,6 +15,12 @@ export function keepPictures(key: string, ps: Picture[]) {
   for (const p of draftPictures(key)) if (!ps.includes(p)) URL.revokeObjectURL(p.url)
   if (ps.length) drafts.set(key, ps); else drafts.delete(key)
 }
+export function takePictures(key: string) {
+  const ps = draftPictures(key)
+  drafts.delete(key)
+  return ps
+}
+export const dropPictures = (ps: Picture[]) => { for (const p of ps) URL.revokeObjectURL(p.url) }
 
 export const picturesIn = (files: Iterable<File> | ArrayLike<File>) => Array.from(files).filter((f) => f.type.startsWith("image/"))
 

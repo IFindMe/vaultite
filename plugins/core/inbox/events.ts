@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { agentsOn, canRunAgents, cell, clickOpening, del, detailPath, fetchMachines, focusedPane, get, getTabLayout, haptic, shownTab, isDesktop, isOutside, isViewOpen, notify, notifyError, onMachine, op, openAgent, openDetail, openFile, openOutside, openView, openWebLink, post, splitMachine, type Agent, type TabLayout } from "@vaultite"
+import { agentsOn, canRunAgents, cell, onReconnect, clickOpening, del, detailPath, fetchMachines, focusedPane, get, getTabLayout, haptic, shownTab, isDesktop, isOutside, isViewOpen, notify, notifyError, onMachine, op, openAgent, openDetail, openFile, openOutside, openView, openWebLink, post, splitMachine, type Agent, type TabLayout } from "@vaultite"
 import { snoozed, snoozeMs } from "./snooze"
 import { isMessage, waitsOnYou } from "./threads"
 import type { InboxEvent } from "./types"
@@ -24,14 +24,24 @@ let users = 0
 let retry = 0
 let timer: ReturnType<typeof setTimeout> | null = null
 let seen: Map<string, number> | null = null
+let openedAt = 0
 const STALE = 2 * 60_000
+const DOWN_AFTER = 3
+const FRESH = 5_000
+const OPEN_WAIT = 8_000
+const down = cell(false)
+export const useInboxDown = down.use
 
 function open() {
-  timer = null
+  if (timer) { clearTimeout(timer); timer = null }
   const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/inbox/live`)
   sock = ws
-  ws.onopen = () => { retry = 0 }
+  openedAt = Date.now()
+  const late = setTimeout(() => { if (sock === ws) ws.close() }, OPEN_WAIT)
+  ws.onopen = () => clearTimeout(late)
   ws.onmessage = (m) => {
+    retry = 0
+    down.set(false)
     let msg: { t?: string; events?: InboxEvent[]; hold?: Hold | null }
     try { msg = JSON.parse(String(m.data)) } catch { return }
     if (msg.t !== "events" || !Array.isArray(msg.events)) return
@@ -44,21 +54,47 @@ function open() {
     }
   }
   ws.onclose = () => {
-    if (sock === ws) sock = null
-    if (users > 0 && !timer) timer = setTimeout(open, Math.min(30_000, 1000 * 2 ** retry++))
+    clearTimeout(late)
+    if (sock !== ws) return
+    sock = null
+    if (++retry >= DOWN_AFTER) down.set(true)
+    if (users > 0 && !timer) timer = setTimeout(open, Math.min(30_000, 500 * 2 ** retry))
   }
 }
 
+function reopen(evenIfOpen = false) {
+  if (users === 0 || (sock && !evenIfOpen && sock.readyState <= WebSocket.OPEN)) return
+  if (sock) { const s = sock; sock = null; s.onclose = null; s.close() }
+  open()
+}
+
+export function retryInbox() {
+  retry = Math.min(retry, DOWN_AFTER - 1)
+  down.set(false)
+  reopen(true)
+}
+
+const back = () => reopen(sock?.readyState === WebSocket.OPEN && Date.now() - openedAt > FRESH)
+const wake = () => { if (document.visibilityState === "visible") reopen() }
+
 export function follow() {
-  if (users++ === 0 && !sock && !timer) open()
+  if (users++ === 0) {
+    if (!sock && !timer) open()
+    const unback = onReconnect(back)
+    addEventListener("online", wake)
+    document.addEventListener("visibilitychange", wake)
+    stopFollowing = () => { unback(); removeEventListener("online", wake); document.removeEventListener("visibilitychange", wake) }
+  }
   return () => {
     if (--users > 0) return
+    stopFollowing()
     if (timer) { clearTimeout(timer); timer = null }
     sock?.close()
     sock = null
     seen = null
   }
 }
+let stopFollowing = () => {}
 
 export function markRead(ids?: string[]) {
   const want = ids ? new Set(ids) : null

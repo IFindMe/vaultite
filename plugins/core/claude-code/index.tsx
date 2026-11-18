@@ -4,6 +4,7 @@ import { ClaudeIcon } from "./ClaudeIcon"
 import { chatTitle, NEW } from "./titles"
 import { useChatRuns } from "./runs"
 import { chatMenu } from "./chatmenu"
+import { ChatLoading } from "./skeleton"
 
 // Not React.lazy: React holds back what suspended for ~300 ms.
 type ChatViewType = typeof import("./ChatTab").ChatView
@@ -14,12 +15,13 @@ function ChatView(props: ComponentProps<ChatViewType>) {
   const [failed, setFailed] = useState<{ error: unknown } | null>(null)
   useEffect(() => { if (!View) loadChat().then((m) => setView(() => m.ChatView), (error) => setFailed({ error })) }, [View])
   if (failed) throw failed.error
-  return View ? <View {...props} /> : null
+  return View ? <View {...props} /> : <ChatLoading fresh={!props.id || props.id === NEW} />
 }
+const AFTER_PHONE_LAUNCH = 6000
 function PreloadChat() {
   useEffect(() => {
-    if (matchMedia("(pointer: coarse)").matches) return
     const load = () => void loadChat().catch(() => {})
+    if (matchMedia("(pointer: coarse)").matches) { const t = setTimeout(load, AFTER_PHONE_LAUNCH); return () => clearTimeout(t) }
     if (typeof requestIdleCallback !== "function") { const t = setTimeout(load, 2000); return () => clearTimeout(t) }
     const t = requestIdleCallback(load, { timeout: 5000 })
     return () => cancelIdleCallback(t)

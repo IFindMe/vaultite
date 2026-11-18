@@ -8,21 +8,22 @@ import type { Mode } from "./chatprotocol"
 import { useChat } from "./useChat"
 import { type Ask, type Options, STRONG, home, modelLabel, folderName, EFFORT, MODE_SHORT } from "./chatbits"
 import { AskCard, type AskKeys } from "./Asks"
-import { type Picture, MAX_PICTURES, draftPictures, keepPictures, picturesIn, readPicture } from "./images"
+import { type Picture, MAX_PICTURES, draftPictures, keepPictures, picturesIn, readPicture, takePictures } from "./images"
+import { type Out, deliver, draftKey, draftOf, keepDraft, onBack, sent, settle, useOutbox, wordsIn } from "./outbox"
 
 type UserEntry = Extract<Entry, { k: "user" }>
 type Picks = { model?: string; effort?: string; mode?: Mode; account?: string; cwd?: string }
 export type Queued = { id: string; text: string }
 
-export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSent }: { id: string; fresh: boolean; c: ReturnType<typeof useChat>; o: Options | null
+export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSend, onQueued }: { id: string; fresh: boolean; c: ReturnType<typeof useChat>; o: Options | null
   asks: Ask[]
   working: boolean; queued: Queued[]; setArg: (arg: string) => void
-  onSent: (sent: { uuid?: string; text: string; queued: boolean }) => void }) {
-  const DRAFT = `vaultite.chat.${fresh ? NEW : id}`
-  const [text, setText] = useState(() => { try { return localStorage.getItem(DRAFT) ?? "" } catch { return "" } })
+  onSend: () => void; onQueued: (q: Queued) => void }) {
+  const chat = fresh ? NEW : id, DRAFT = draftKey(chat)
+  const [text, setText] = useState(() => draftOf(chat))
   const [pics, setPics] = useState<Picture[]>(() => draftPictures(DRAFT))
   const [reading, setReading] = useState(0)
-  const [sending, setSending] = useState(false)
+  const outs = useOutbox(chat)
   const [dropping, setDropping] = useState(false)
   const [saved, save] = useScopedState<Picks>("claude-code:chat", {}, "workspace")
   const [next, setNext] = useState<Picks>({})
@@ -31,8 +32,9 @@ export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSen
   const picker = useRef<HTMLInputElement>(null)
   const askKeys = useRef<AskKeys | null>(null)
   const pending = asks[0] ?? null
-  const keep = (v: string) => { setText(v); try { if (v.trim()) localStorage.setItem(DRAFT, v); else localStorage.removeItem(DRAFT) } catch { /* private mode */ } }
+  const keep = (v: string) => { setText(v); keepDraft(chat, v) }
   const keepPics = (ps: Picture[]) => { setPics(ps); keepPictures(DRAFT, ps) }
+  useEffect(() => onBack(chat, () => { setText(draftOf(chat)); setPics(draftPictures(DRAFT)) }), [chat, DRAFT])
   useLayoutEffect(() => { const f = field.current; if (f) { f.style.height = "auto"; f.style.height = `${f.scrollHeight}px` } }, [text])
   useEffect(() => { if (fresh) field.current?.focus({ preventScroll: true }) }, [fresh])
 
@@ -80,27 +82,26 @@ export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSen
   const blocked = !fresh && c.ready && (c.tui !== null || !c.found)
   const said = text.trim()
   const away = !fresh && !!c.unreachable
-  const ready = (!!said || pics.length > 0) && !sending && !blocked && !reading && !away
-  const send = async () => {
+  const ready = (!!said || pics.length > 0) && !blocked && !reading && !away && !(fresh && outs.length)
+  const send = () => {
     if (!ready) return
-    setSending(true)
-    const images = pics.map((p) => ({ data: p.data, type: p.type }))
-    try {
-      if (fresh) {
-        const r = await op<{ id: string }>("claude-code.chat-start", { prompt: said, ...(images.length ? { images } : {}), ...(saved.cwd ? { cwd: saved.cwd } : {}), ...(saved.account ? { account: saved.account } : {}),
-          ...(saved.model ? { model: saved.model } : {}), ...(saved.effort ? { effort: saved.effort } : {}), ...(saved.mode ? { mode: saved.mode } : {}) })
-        keep(""); keepPics([])
-        setArg(r.id)
-        onSent({ text: said, queued: false })
-      } else {
-        const r = await op<{ uuid?: string; answered?: string }>("claude-code.chat-send", { id, text: said, ...(images.length ? { images } : {}), ...next })
-        keep(""); keepPics([])
-        setNext({})
-        onSent({ uuid: r?.uuid || undefined, text: said, queued: r?.uuid !== "" && (working || !!r?.answered) })
-      }
-    } catch (e) { notifyError(e, fresh ? "Couldn't start the chat" : "Couldn't send it") }
-    setSending(false)
+    const out: Out = { key: crypto.randomUUID(), text: said, pictures: takePictures(DRAFT), docked: !fresh && (working || !!pending), wordsBefore: wordsIn(chat, c.entries, said) }
+    const images = out.pictures.map((p) => ({ data: p.data, type: p.type })), picked = next
+    keep(""); setPics([]); setNext({})
+    onSend()
     field.current?.focus({ preventScroll: true })
+    if (fresh) {
+      void deliver(chat, out, () => op<{ id: string }>("claude-code.chat-start", { prompt: said, ...(images.length ? { images } : {}), ...(saved.cwd ? { cwd: saved.cwd } : {}), ...(saved.account ? { account: saved.account } : {}),
+        ...(saved.model ? { model: saved.model } : {}), ...(saved.effort ? { effort: saved.effort } : {}), ...(saved.mode ? { mode: saved.mode } : {}) }), "Couldn't start the chat")
+        .then((r) => { if (r) { setArg(r.id); sent(chat, out.key, "", r.id) } })
+      return
+    }
+    void deliver(chat, out, () => op<{ uuid?: string; answered?: string }>("claude-code.chat-send", { id, text: said, ...(images.length ? { images } : {}), ...picked }), "Couldn't send it")
+      .then((r) => {
+        if (!r) return
+        if (r.uuid !== "" && (working || r.answered)) onQueued({ id: r.uuid ?? "", text: said })
+        if (out.docked || r.answered) settle(chat, out.key); else sent(chat, out.key, r.uuid ?? "")
+      })
   }
   const stop = async () => {
     let taken: UserEntry[] = []
@@ -118,7 +119,7 @@ export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSen
     const empty = !text && !pics.length, ask = askKeys.current
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
-      if (empty && ask?.yes) ask.yes(); else void send()
+      if (empty && ask?.yes) ask.yes(); else send()
     } else if (e.key === "Escape" && empty && ask?.no) { e.preventDefault(); ask.no() }
     else if (e.key === "Escape" && working && empty) { e.preventDefault(); void stop() }
     else if (empty && ask?.pick && /^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); ask.pick(Number(e.key)) }
@@ -155,17 +156,15 @@ export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSen
       <div className="mx-auto flex w-full chat-column flex-col gap-2">
         {pending && <AskCard key={pending.id} e={pending} id={id} pending docked of={[1, asks.length]} bind={(k) => { askKeys.current = k }} />}
         {queued.map((q, n) => (
-          <div key={q.id} data-queued
-            className="chat-queued flex max-w-[85%] items-center gap-2 rounded-[18px] border-[0.5px] border-dashed border-foreground/25 bg-muted/50 py-1 pr-1 pl-2.5 text-[14px] max-md:text-[16px]">
-            <Clock className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
-            <span className="line-clamp-2 min-w-0 break-words" data-tip="Queued: Claude reads it between its steps">{q.text || "Pictures"}</span>
+          <QueuedRow key={q.id} text={q.text} tip="Queued: Claude reads it between its steps">
             {/* Claude Code gives queued messages back only all at once, by stopping its turn */}
             {n === queued.length - 1 ? (
               <button type="button" data-queued-edit onClick={() => void stop()} data-tip="Stops Claude's turn and puts what you queued back here to edit or remove"
                 className="shrink-0 cursor-pointer rounded-full px-2.5 py-1 text-[12px] text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground max-md:min-h-11 max-md:text-[14px]">Stop and edit</button>
-            ) : <span className="shrink-0 pr-2 text-[12px] text-tertiary max-md:text-[13px]">Queued</span>}
-          </div>
+            ) : <span className={ASIDE}>Queued</span>}
+          </QueuedRow>
         ))}
+        {outs.filter((q) => q.docked).map((q) => <QueuedRow key={q.key} text={q.text} sending><span className={ASIDE}>Sending…</span></QueuedRow>)}
         <div ref={box} data-dropping={dropping || undefined}
           className={cn("chat-box relative rounded-card border-[0.5px] border-border chat-float bg-card transition-[border-color,box-shadow] duration-150 focus-within:border-foreground/25",
             dropping && "ring-2 ring-foreground/15")}>
@@ -210,7 +209,7 @@ export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSen
                 <Square className="size-3 fill-current max-md:size-3.5" />
               </button>
             ) : (
-              <button type="button" aria-label={working && !pending ? "Queue" : "Send"} disabled={!ready} onClick={() => void send()} data-send
+              <button type="button" aria-label={working && !pending ? "Queue" : "Send"} disabled={!ready} onClick={send} data-send
                 data-tip={away ? `Can't send: ${c.unreachable}` : working && !pending ? "Queue it: Claude reads it between its steps" : undefined}
                 className={cn("grid size-8 shrink-0 place-items-center rounded-full transition-colors duration-150 max-md:size-11",
                   ready ? cn("cursor-pointer", STRONG) : "chat-send-off")}>
@@ -220,6 +219,19 @@ export function Composer({ id, fresh, c, o, asks, working, queued, setArg, onSen
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+const ASIDE = "shrink-0 pr-2 text-[12px] text-tertiary max-md:text-[13px]"
+
+function QueuedRow({ text, tip, sending, children }: { text: string; tip?: string; sending?: boolean; children: ReactNode }) {
+  return (
+    <div data-queued data-out={sending ? "sending" : undefined}
+      className="chat-queued flex max-w-[85%] items-center gap-2 rounded-[18px] border-[0.5px] border-dashed border-foreground/25 bg-muted/50 py-1 pr-1 pl-2.5 text-[14px] max-md:text-[16px]">
+      <Clock className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
+      <span className="line-clamp-2 min-w-0 break-words" data-tip={tip}>{text || "Pictures"}</span>
+      {children}
     </div>
   )
 }

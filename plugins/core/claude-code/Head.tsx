@@ -8,6 +8,7 @@ import { type Seen, listedOf, see, seenOf } from "./seen"
 import { useChat } from "./useChat"
 import { type Options, TINT, home, modelLabel, folderName } from "./chatbits"
 import { chatMenu, terminalOk, toTerminal } from "./chatmenu"
+import { TalkSkeleton } from "./skeleton"
 
 function whereOf(c: ReturnType<typeof useChat>, o: Options | null, last: Seen | null) {
   const model = c.s?.model || c.model || last?.model, cwd = c.cwd || last?.cwd
@@ -90,13 +91,7 @@ const ICON = "grid size-7 cursor-pointer place-items-center rounded-control text
 
 export function Skeleton({ note, retry }: { note?: string; retry?: () => void }) {
   if (note) return <Unreached title={note} body="The chat shows here once it answers." retry={retry} />
-  return (
-    <div className="loading-in space-y-5 pt-2" aria-busy>
-      <div className="ml-auto h-10 rounded-[18px] bg-muted" style={{ width: "40%" }} />
-      <div className="space-y-2.5">{["92%", "80%", "60%"].map((w) => <div key={w} className="h-3.5 rounded-chip bg-muted" style={{ width: w }} />)}</div>
-      <div className="space-y-2.5 pt-2">{["40%", "33%"].map((w) => <div key={w} className="chat-skel-2 h-3.5 rounded-chip" style={{ width: w }} />)}</div>
-    </div>
-  )
+  return <TalkSkeleton />
 }
 
 export function Away({ text }: { text: string }) {

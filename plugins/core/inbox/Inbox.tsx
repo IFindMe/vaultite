@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { Inbox as InboxIcon, ListChecks, Trash2 } from "lucide-react"
 import {
-  cn, del, Empty, Loading, LoadingRows, notifyError, Panel, startSelecting, useKeptCount, useSelecting, useTick, type Store,
+  cn, del, Empty, Loading, LoadingRows, notifyError, Panel, ReadFailed, startSelecting, useKeptCount, useOffline, useSelecting, useTick, type Store,
 } from "@vaultite"
-import { markSeen, useEvents } from "./events"
+import { markSeen, retryInbox, useEvents, useInboxDown } from "./events"
 import type { InboxEvent } from "./types"
 import { latestOf } from "./threads"
 import { listsOf, useBack, useCount, openInbox, SELECT } from "./items"
@@ -16,15 +16,16 @@ function Lists({ store, events: ne, results: nr, fresh, touched, all: dealt }: {
   all?: boolean
 }) {
   const { ready, events } = useEvents()
+  const down = useInboxDown()
   const l = listsOf(store, events, fresh)
   useTick()
   useBack(store)
   useInboxSelect(store)
-  const loading = !!ne && !ready
+  const loading = !!ne && !ready && !down
   const live = ne ? [...l.pinned.events, ...l.needs, ...l.messages] : []
   const kept = ne ? `inbox:${dealt ? "page" : "block"}:events` : null
-  const rows = useKeptCount(kept, loading ? undefined : live.length)
-  const bodies = useKeptCount(kept && `${kept}:bodies`, loading ? undefined : live.filter((e) => e.body || e.machineLabel).length, 0)
+  const rows = useKeptCount(kept, ready ? live.length : undefined)
+  const bodies = useKeptCount(kept && `${kept}:bodies`, ready ? live.filter((e) => e.body || e.machineLabel).length : undefined, 0)
   const row = (e: InboxEvent) => <EventRow key={e.id} e={e} fresh={fresh?.has(e.id)} touched={touched} />
   const past = dealt && <><Reports store={store} /><Snoozed store={store} /><Settled store={store} fresh={fresh} /></>
   const results = l.review.slice(0, nr)
@@ -33,9 +34,11 @@ function Lists({ store, events: ne, results: nr, fresh, touched, all: dealt }: {
   const active = [...(ne ? l.needs.map(row) : []),
     ...byLatest([...results.map((r) => ({ at: latestOf(r), row: <ResultRow key={r.id} r={r} /> })), ...(ne ? l.messages.map((e) => ({ at: e.t, row: row(e) })) : [])])]
   const empty = dealt ? "Nothing needs you." : "Nothing needs you. When an agent needs a decision from you, it shows here."
-  if (!l.decisions.length && !pinned.length && !active.length && !live.length && !(loading && rows)) return <>{loading ? <Loading /> : <Empty>{empty}</Empty>}{dealt && <div className="mt-4 flex flex-col gap-4" data-select-list={SELECT}>{past}</div>}</>
+  const unreached = !!ne && !ready && down
+  if (!l.decisions.length && !pinned.length && !active.length && !live.length && !(loading && rows)) return <>{unreached ? <Unreached /> : loading ? <Loading /> : <Empty>{empty}</Empty>}{dealt && <div className="mt-4 flex flex-col gap-4" data-select-list={SELECT}>{past}</div>}</>
   return (
     <div className="flex flex-col gap-4" data-select-list={SELECT} data-keylist>
+      {unreached && <Unreached />}
       <DecisionsSection rows={l.decisions} max={dealt ? 100 : Math.max(ne, 3)} />
       <Section title="Pinned" attr="data-inbox-pinned" rows={pinned} max={dealt ? 50 : Math.max(ne, nr)} />
       <Section title="Active" attr="data-inbox-active" rows={active} max={dealt ? 100 : Math.max(ne, nr)}
@@ -43,6 +46,15 @@ function Lists({ store, events: ne, results: nr, fresh, touched, all: dealt }: {
       {past}
     </div>
   )
+}
+
+const UNREACHED = { value: undefined, error: new Error("The server didn't answer"), slow: false, retry: retryInbox }
+const Unreached = () => <div data-inbox-down><ReadFailed read={UNREACHED} what="Couldn't load the inbox" /></div>
+
+function Stale() {
+  const down = useInboxDown(), { ready } = useEvents(), offline = useOffline()
+  if (!down || !ready || offline) return null
+  return <p role="status" data-inbox-stale className="loading-in mb-3 text-[13px] text-muted-foreground max-md:text-[15px]">Not up to date: can't reach the inbox. Trying again…</p>
 }
 
 export function InboxBlock({ store, options }: { store: Store; options: Record<string, unknown> }) {
@@ -90,6 +102,7 @@ export function InboxPage({ store, focused }: { store: Store; focused: boolean }
       <p className="mb-4 text-[13px] text-muted-foreground max-md:text-[15px]">
         What your agents need you to decide, each with its options; the ones they wait on come first. What they finished is in the morning brief and under Reports today.
       </p>
+      <Stale />
       <Lists store={store} events={20} results={100} fresh={fresh} touched={touched} all />
     </div>
   )

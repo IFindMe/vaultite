@@ -579,6 +579,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `QUIET_AFTER`: How long a run that asks nothing stays in the panels' view once it came to rest, before it folds under Earlier, unless the user set otherwise (the Agents plugin's setting `fold`).
 - `range(from, n)`
 - `rawUrl(path, opts?)`: The address of a file's bytes (a vault path, or an outside file's absolute path).
+- `ReadFailed({ read, what, className })`
 - `readFile(path)`: A file's text.
 - `Reading`
 - `ReadingBlock`: A note's block as reading offers it to a plugin (`reading`): the note, the block's Markdown, what it is, its lines in the file (0-based, frontmatter counted, as the editor's positions are; where…

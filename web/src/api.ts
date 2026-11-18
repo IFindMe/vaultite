@@ -166,6 +166,8 @@ export { checklist, commandItems, menuAbove, menuBelow, menuFor, menuShowing, op
 export { onVaultChange, touches, useVaultChange } from "@/core/live"
 export { useRead, type Reading } from "@/core/reading"
 export { isOffline, onReconnect, useOffline } from "@/core/connection"
+/** A read that failed, in its view's place: what failed and why, with Try again (`read`: a Reading, useRead's or one like it). */
+export { ReadFailed } from "@/components/Pending"
 export { DEVICE } from "@/core/device"
 export { afterSheets, backDetail, openDetail, replaceDetail, replaceHash, scrollPage } from "@/core/nav"
 /** A scroll's `behavior`: smooth, unless Reduce motion or animations off keep things still. */
