@@ -36,8 +36,7 @@ function report(why, done) {
   let over = false, pausedAfterMs = -1
   const finish = (said) => { if (!over) { over = true; done(said) } }
   const asked = performance.now(), waited = Math.round(w.reportWaitMs / 1000) + " s"
-  setTimeout(() => finish(pausedAfterMs < 0 ? ", no report: its main thread didn't stop to give one in " + waited + " (in a system call, or one long native call)"
-    : ", no report: its main thread stopped after " + pausedAfterMs + " ms, but its report wasn't written in " + waited), w.reportWaitMs)
+  let late = setTimeout(() => finish(", no report: its main thread didn't stop to give one in " + waited + " (in a system call, or one long native call)"), w.reportWaitMs)
   try {
     const s = new (process.getBuiltinModule("node:inspector").Session)()
     s.connectToMainThread()
@@ -48,6 +47,8 @@ function report(why, done) {
       if (pausedAfterMs >= 0) return
       clearInterval(again)
       pausedAfterMs = Math.round(performance.now() - asked)
+      clearTimeout(late)
+      late = setTimeout(() => finish(", no report: its main thread stopped after " + pausedAfterMs + " ms, but its report wasn't written in " + waited + " more"), w.reportWaitMs)
       s.post("Debugger.evaluateOnCallFrame", { callFrameId: m.params.callFrames[0].callFrameId,
         expression: "JSON.stringify(globalThis.process.report.getReport())", returnByValue: true }, (e, r) => {
         try {

@@ -55,7 +55,7 @@ else {
 }
 
 const REPORTS = path.join(tmp, "reports")
-const TEST_GIVES_UP_MS = 10_000, WATCHDOG_GIVES_UP_ON_ITS_REPORT_MS = TEST_GIVES_UP_MS / 3
+const TEST_GIVES_UP_MS = 15_000, WATCHDOG_GIVES_UP_ON_ITS_REPORT_MS = TEST_GIVES_UP_MS / 4
 const WATCHED = (o: Partial<Watchdog>, then: string) => `import { killWhenStuck } from ${JSON.stringify(core("watchdog.ts"))}
 import { ready } from ${JSON.stringify(core("startup.ts"))}
 killWhenStuck({ stallMs: 1500, startStallMs: 1500, memStallMs: 400, memMB: 1e6, everyMs: 100, startupMs: 60_000, reportWaitMs: ${WATCHDOG_GIVES_UP_ON_ITS_REPORT_MS}, ...${JSON.stringify(o)} }, ${JSON.stringify(REPORTS)})
