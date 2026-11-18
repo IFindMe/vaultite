@@ -9,6 +9,7 @@ export type Events = { events: InboxEvent[]; unread: number; needs: number; read
 export const GATE_DETAIL = "inbox-gate"
 export const SESSION_DETAIL = "inbox-session"
 export const ELSEWHERE_DETAIL = "inbox-elsewhere"
+export const sessionTitle = (id: string) => getEvents().events.find((e) => e.id === id)?.title ?? "Session"
 export const elsewhereTitle = (id: string) => getEvents().events.find((e) => e.id === id)?.title ?? "Inbox"
 const state = cell<Events>({ events: [], unread: 0, needs: 0, ready: false, hold: null })
 const fresh = new Set<(e: InboxEvent) => void>()

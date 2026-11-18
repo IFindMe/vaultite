@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { AlarmClockOff, ArrowDown, ArrowUp, BellOff, Check, CheckCheck, Clock, FolderInput, Inbox as InboxIcon, Mail, MailOpen, MessageSquareReply, Pin, RotateCcw } from "lucide-react"
 import { AmbientButton, backDetail, definePlugin, getStore, onTabLayoutChange, notify, openFile, stampMs, systemNotify, useAgentChoices, useStore, viewOnScreen, type Store } from "@vaultite"
-import { ElsewhereSheet } from "./Elsewhere"
-import { ELSEWHERE_DETAIL, elsewhereTitle, focusedTarget, follow, GATE_DETAIL, getEvents, heldNow, markRead, markUnread, onFresh, pinEvents, openEvent, SESSION_DETAIL, subscribeEvents, targetOf, useEvents, viewOf } from "./events"
-import { SessionSheet, sessionTitle } from "./Session"
+import { ELSEWHERE_DETAIL, elsewhereTitle, focusedTarget, follow, GATE_DETAIL, getEvents, heldNow, markRead, markUnread, onFresh, pinEvents, openEvent, SESSION_DETAIL, sessionTitle, subscribeEvents, targetOf, useEvents, viewOf } from "./events"
+import { LazyElsewhereSheet, LazySessionSheet } from "./Lazy"
 import { ReplyBlock } from "./Reply"
 import { DecisionsBlock } from "./DecisionRows"
 import { InboxBlock, InboxPage } from "./Inbox"
@@ -131,8 +130,8 @@ export default definePlugin({
   views: { inbox: { icon: InboxIcon, title: () => "Inbox", render: ({ store, focused }) => <InboxPage store={store} focused={focused} /> } },
   details: {
     [GATE_DETAIL]: { title: (_s, [id]) => gateTitle(id), render: (_s, [id]) => <GateSheet id={id} /> },
-    [SESSION_DETAIL]: { title: (_s, [id]) => sessionTitle(id), render: (_s, [id]) => <SessionSheet id={id} /> },
-    [ELSEWHERE_DETAIL]: { title: (_s, [id]) => elsewhereTitle(id), render: (_s, [id]) => <ElsewhereSheet id={id} /> },
+    [SESSION_DETAIL]: { title: (_s, [id]) => sessionTitle(id), render: (_s, [id]) => <LazySessionSheet id={id} /> },
+    [ELSEWHERE_DETAIL]: { title: (_s, [id]) => elsewhereTitle(id), render: (_s, [id]) => <LazyElsewhereSheet id={id} /> },
     [SNOOZE_DETAIL]: { title: () => "Snooze until", render: (_s, keys) => <SnoozeSheet keys={keys} /> },
   },
   blocks: { inbox: ({ store, options }) => <InboxBlock store={store} options={options} />, reply: (ctx) => <ReplyBlock {...ctx} />, decisions: (ctx) => <DecisionsBlock {...ctx} /> },

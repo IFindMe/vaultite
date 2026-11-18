@@ -1,5 +1,6 @@
 import { useSwitches, type SwitchDef } from "@/core/switches"
-import { ResetButton, SettingRow, Switch } from "@/components/kit"
+import { ResetButton, SettingRow } from "@/components/kit"
+import { Switch } from "@/components/Switch"
 import { switchPictures } from "@/components/SettingPictures"
 import { brief } from "@/core/brief"
 

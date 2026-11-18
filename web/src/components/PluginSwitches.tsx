@@ -3,7 +3,8 @@ import { PLUGINS, setSwitch, switchedOn, usePlugins } from "@/core/plugins"
 import { usePrefs } from "@/core/prefs"
 import { hasSettings, openPluginSettings, settingsTitle } from "@/core/pluginSettings"
 import { switchRow } from "@/core/switches"
-import { SettingRow, Switch } from "@/components/kit"
+import { SettingRow } from "@/components/kit"
+import { Switch } from "@/components/Switch"
 
 const switchesIn = (section: string) => PLUGINS.filter((p) => p.switchIn?.section === section)
 

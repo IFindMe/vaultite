@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { Bot, Check, Clock, Pin, PinOff, RotateCcw, X } from "lucide-react"
 import { Button, cn, detailPath, Empty, fmtAgo, haptic, Markdown, notify, notifyError, openDetail, SheetHead, useAgents } from "@vaultite"
-import { agentOf, answerable, answerAsk, getEvents, markEventsDone, markRead, openSession, pinEvents, snoozable, unsettle, SESSION_DETAIL, useEvents } from "./events"
+import { agentOf, answerable, answerAsk, markEventsDone, markRead, openSession, pinEvents, snoozable, unsettle, SESSION_DETAIL, useEvents } from "./events"
 import { leaveSheet } from "./keyboard"
 import { snoozeBelow } from "./Snoozing"
 import { Questions } from "./Questions"
@@ -16,7 +16,6 @@ const WHY: Record<string, string> = {
 
 const BLOCKED = ["permission", "question", "auth", "plan"]
 
-export const sessionTitle = (id: string) => getEvents().events.find((e) => e.id === id)?.title ?? "Session"
 
 const answer = (e: InboxEvent, a: "approve" | "deny") => (haptic("medium"), answerAsk(e, a)).then(
   () => notify(a === "approve" ? "Approved" : "Denied"), (err) => notifyError(err, "Couldn't answer it"))
