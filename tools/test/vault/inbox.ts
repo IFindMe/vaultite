@@ -252,6 +252,17 @@ export default async ($: VaultTest) => {
       fromHook({ type: "agent-turn-complete", "input-messages": ["Merge it"] })?.prompt === "Merge it")
     check("hook: what a waiting agent asks", fromHook({ hook_event_name: "Notification", notification_type: "permission_prompt", message: "x" })?.kind === "permission" &&
       fromHook({ hook_event_name: "Notification", notification_type: "elicitation_dialog", tool_input: { questions: [{ question: "Which port?" }] } })?.msg === "Asks: Which port?")
+    {
+      const { forgetTells, TELL_BURST } = await import("../../../plugins/core/inbox/store.ts")
+      forgetTells()
+      const burst: Any[] = []
+      for (let i = 0; i <= TELL_BURST; i++) burst.push((await api("POST", "inbox/events", { source: "vau", kind: "info", title: `Burst ${i}`, terminal: `claude-burst${i}` }))[1].event)
+      const [, plain] = await api("POST", "inbox/events", { source: "vau", kind: "info", title: "Not an agent's" })
+      check("inbox events: agents' news told at most a burst a minute (the process's: forgotten, as earlier areas count), the rest quietly; news no agent sends always told",
+        burst.slice(0, TELL_BURST).every((e) => e.nt === e.t) && !burst[TELL_BURST].nt && burst[TELL_BURST].state === "open" && plain.event.nt === plain.event.t, [burst, plain])
+      for (const e of [...burst, plain.event]) await api("DELETE", `inbox/events/${e.id}`)
+      forgetTells()
+    }
     const rows = async (): Promise<Any[]> => { await settled(); return (await api("GET", "inbox/events"))[1].events }
     ;[st, b] = await api("POST", "inbox/hook?agent=claude&terminal=claude-k3j2h1g0", { hook_event_name: "Notification", notification_type: "permission_prompt", session_id: "abc", message: "Claude needs your permission to use Bash" })
     let row = (await rows()).find((e) => e.terminal === "claude-k3j2h1g0")

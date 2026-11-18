@@ -134,8 +134,10 @@ export function put(e: InboxEvent, old: InboxEvent | null, es: InboxEvent[], new
   return e
 }
 
-const TELL_GAP = 60_000, TELL_BURST = 6
+const TELL_GAP = 60_000
+export const TELL_BURST = 6
 const toldAt: number[] = []
+export const forgetTells = () => { toldAt.length = 0 }
 function mayTell(old: InboxEvent | null, e: InboxEvent) {
   const now = Date.now()
   if (old?.nt && old.state === "open" && !old.read && !old.snoozed && old.ask === e.ask && now - old.nt < TELL_GAP) return false
