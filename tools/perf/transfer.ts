@@ -92,7 +92,7 @@ async function stop(s: Server) {
 class Tally {
   reqs = new Map<string, { url: string; type: string; start: number; end: number; enc: number; dec: number; cached: boolean; api: boolean }>()
   socketSent = 0; socketDec = 0; socketMsgs = 0
-  frames: string[] = []
+  frames: string[] = []; t0 = performance.now()
   last = 0
   down0: number; up0: number; h10: number
   cdp: CDPSession; net: Netem; origin: string; page: Page
@@ -119,16 +119,18 @@ class Tally {
     const frame = (e: { response: { opcode: number; payloadData: string } }) => {
       const n = e.response.opcode === 2 ? Math.floor(e.response.payloadData.length * 3 / 4) : Buffer.byteLength(e.response.payloadData)
       t.socketMsgs++; t.socketDec += n; t.last = performance.now()
-      if (PRINT) t.frames.push(`${e.response.opcode === 2 ? "bin " : ""}${String(n).padStart(7)} ${e.response.payloadData.slice(0, 120)}`)
+      if (PRINT) t.frames.push(`${(performance.now() - t.t0).toFixed(0).padStart(6)}ms ${e.response.opcode === 2 ? "bin " : ""}${String(n).padStart(7)} ${e.response.payloadData.slice(0, 120)}`)
     }
     cdp.on("Network.webSocketFrameReceived", frame)
     cdp.on("Network.webSocketFrameSent", frame)
     return t
   }
-  reset() { this.frames = []; this.reqs.clear(); this.socketSent = this.socketDec = this.socketMsgs = 0; this.down0 = this.net.down.bytes; this.up0 = this.net.up.bytes; this.h10 = this.net.h1Bytes() }
+  reset() { this.t0 = performance.now(); this.frames = []; this.reqs.clear(); this.socketSent = this.socketDec = this.socketMsgs = 0; this.down0 = this.net.down.bytes; this.up0 = this.net.up.bytes; this.h10 = this.net.h1Bytes() }
   print(name: string) {
     console.log(`  ${name}:`)
     for (const f of this.frames) console.log(`    socket ${f}`)
+    const live = [...this.reqs.values()].filter((x) => !x.cached && x.type !== "WebSocket"), t0 = Math.min(...live.map((x) => x.start)), at = (s: number) => `${((s - t0) * 1000).toFixed(0)}ms`
+    console.log(`    serial: ${serialChain(live).map((x) => `${x.url.slice(0, 50)} ${at(x.start)}-${at(x.end)}`).join(" > ")}`)
     for (const x of [...this.reqs.values()].sort((a, b) => b.enc - a.enc)) console.log(`    ${x.cached ? "cached" : String(x.enc).padStart(7)} ${String(x.dec).padStart(8)} ${x.type.padEnd(10)} ${((x.end - x.start) * 1000).toFixed(0).padStart(5)}ms ${x.url.slice(0, 90)}`)
   }
   get count() { return this.reqs.size + this.socketMsgs }
@@ -144,18 +146,17 @@ class Tally {
     sent.socket = this.net.h1Bytes() - this.h10
     decoded.socket = this.socketDec
     return { wire: down + up, down, up, sent, decoded, requests: live.length, api: live.filter((x) => x.api).length,
-      cached: [...this.reqs.values()].filter((x) => x.cached).length, serial: serial(live), socketMsgs: this.socketMsgs, ms: Math.round(ms) }
+      cached: [...this.reqs.values()].filter((x) => x.cached).length, serial: serialChain(live).length, socketMsgs: this.socketMsgs, ms: Math.round(ms) }
   }
 }
 
-function serial(xs: { start: number; end: number }[]) {
-  const s = [...xs].sort((a, b) => a.end - b.end)
-  const best: number[] = []
+function serialChain<T extends { start: number; end: number }>(xs: T[]): T[] {
+  const s = [...xs].sort((a, b) => a.end - b.end), best: T[][] = []
   for (let i = 0; i < s.length; i++) {
-    best[i] = 1
-    for (let j = 0; j < i; j++) if (s[j].end <= s[i].start) best[i] = Math.max(best[i], best[j] + 1)
+    best[i] = [s[i]]
+    for (let j = 0; j < i; j++) if (s[j].end <= s[i].start && best[j].length >= best[i].length) best[i] = [...best[j], s[i]]
   }
-  return Math.max(0, ...best)
+  return best.reduce((a, b) => (b.length > a.length ? b : a), [])
 }
 
 async function quiet(t: Tally, ms = 1500) {

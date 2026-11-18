@@ -89,6 +89,7 @@ export async function netem(target: string, profile: Profile): Promise<Netem> {
     })
     req.on("error", () => { if (!stream.destroyed) stream.close(http2.constants.NGHTTP2_INTERNAL_ERROR) })
     stream.on("close", () => req.destroy())
+    stream.on("error", () => req.destroy())
     stream.pipe(req)
   })
   h2.on("sessionError", () => {})

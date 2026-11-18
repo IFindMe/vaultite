@@ -68,7 +68,7 @@ function stateOf(now: Now, since: number) {
 }
 
 const watchers = new Map<WebSocket, boolean>()
-const lastList = new Map<boolean, string>()
+const sent = new WeakMap<WebSocket, string>()
 let listTimer: ReturnType<typeof setTimeout> | null = null
 let poll: ReturnType<typeof setInterval> | null = null
 let follow: ReturnType<typeof setInterval> | null = null
@@ -230,12 +230,12 @@ async function sendOnce() {
   for (const local of [true, false]) {
     const to = [...watchers].filter(([, l]) => l === local).map(([ws]) => ws)
     if (!to.length) continue
-    const text = JSON.stringify({ t: "sessions", list: (await list(local)).map(({ activity: _, ...x }) => x) })
-    if (text === lastList.get(local)) continue
-    lastList.set(local, text)
-    for (const ws of to) if (ws.readyState === ws.OPEN) ws.send(text)
+    const text = await sessionsText(local)
+    for (const ws of to) send(ws, text)
   }
 }
+const sessionsText = async (local: boolean) => JSON.stringify({ t: "sessions", list: (await list(local)).map(({ activity: _, ...x }) => x) })
+const send = (ws: WebSocket, text: string) => { if (ws.readyState === ws.OPEN && sent.get(ws) !== text) { sent.set(ws, text); ws.send(text) } }
 
 export function listChanged() {
   lastLocal = null
@@ -249,7 +249,7 @@ plugin.socket("terminals", async (ws, req, { query }) => {
   const local = !!query.local
   watchers.set(ws, local)
   if (!local) makeSpare(fromReq(req))
-  ws.send(JSON.stringify({ t: "sessions", list: await list(local) }))
+  send(ws, await sessionsText(local))
   poll ??= setInterval(() => void sendList(), 2000)
   if (!local) {
     follow ??= setInterval(() => void followMachines(), 30000)
