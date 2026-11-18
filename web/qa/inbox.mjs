@@ -326,8 +326,8 @@ const done1 = prow("[data-state=open][data-kind=session]").first()
 const doneId = await done1.getAttribute("data-event")
 await done1.hover()
 await done1.getByRole("button", { name: "Settle" }).click()
-check("Done on a thread's row: out of the panel", !!(await until(async () => (await prow(`[data-event="${doneId}"]`).count()) === 0)) &&
-  (await api("GET", "inbox/events")).events.find((e) => e.id === doneId)?.state === "done")
+check("Done on a thread's row: out of the panel, and settled on the server", !!(await until(async () => (await prow(`[data-event="${doneId}"]`).count()) === 0 &&
+  (await api("GET", "inbox/events")).events.find((e) => e.id === doneId)?.state === "done")))
 
 await page.goto(`${B}#file/${enc(PAGE)}`)
 const block = page.locator("[data-inbox-active]").first()
