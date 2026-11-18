@@ -117,8 +117,10 @@ export function openPluginSettings(id: string, key?: string) {
   openDetail(`plugin-settings/${encodeURIComponent(id)}`)
 }
 
+export const goingToIn = (id: string) => (goingTo?.id === id ? goingTo.key : null)
+
 export function takeGoingTo(id: string) {
-  const g = goingTo?.id === id ? goingTo.key : null
+  const g = goingToIn(id)
   goingTo = null
   return g
 }

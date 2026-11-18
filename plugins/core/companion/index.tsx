@@ -1,6 +1,6 @@
 import { lazy, useEffect, useSyncExternalStore } from "react"
 import { Crosshair, Play, MessageCircle, MessageCirclePlus, MessageSquarePlus, MessagesSquare, Power, Undo2 } from "lucide-react"
-import { answerPlaceAt, cn, currentEditor, definePlugin, menuAbove, notify, notifyError, op, share, useFocusedFile, type MenuItem } from "@vaultite"
+import { answerPlaceAt, cn, currentEditor, definePlugin, menuAbove, notify, notifyError, op, share, useAgentChoices, useFocusedFile, type MenuItem } from "@vaultite"
 import { drawDriven } from "@plugins/claude-code/driven"
 import { askDrawing, watchCanvases } from "./canvas"
 import { ConversationsIcon, ConversationsPanel, ConversationsView } from "./Conversations"
@@ -114,9 +114,13 @@ const doItItem = (view: Parameters<NonNullable<typeof loaded>["taskHere"]>[0], p
   return task ? [{ label: "Do it", icon: Play, run: () => doTask(task) }] : []
 }
 
+const useAnyAgent = () => useAgentChoices()
+const useClaudeAccount = () => useAgentChoices("claude")
+
 export default definePlugin({
   editor: async (ctx) => (ctx.kind === "markdown" && ctx.path ? [(await load()).companionExtension(ctx), ...(share ? [] : (await load()).doItEditor(ctx.path))] : []),
   doTask: share ? undefined : doTask,
+  settingChoices: { agent: useAnyAgent, jobs_agent: useClaudeAccount },
   background: () => <Background />,
   answers: share ? undefined : { click: clickUi, read: readUi, check: checkUi },
   blocks: { "companion-conversation": () => <ConversationBlock />, "companion-usage": () => <UsageBlock /> },

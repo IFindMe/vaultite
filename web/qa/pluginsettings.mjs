@@ -1,5 +1,5 @@
-// Plugins' settings sheets (components/PluginSettings.tsx) and the Settings page's search, every way to open a sheet,
-// 390px. Writes plugins.json, several plugins' settings and a vault plugin (put back / removed): throwaway server only.
+// Plugins' settings sheets (components/PluginSettings.tsx, SettingsForm.tsx, SettingField.tsx, SettingLists.tsx) and
+// Settings' search, every way to open a sheet, 390px. Writes plugins.json, plugins' settings and a vault plugin (put back): throwaway server only.
 //   node web/qa/pluginsettings.mjs <base url> <vault path> [out dir]
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { qa, until, wait } from "./lib/qa.mjs"
@@ -66,8 +66,12 @@ try {
       goal: { type: "number", default: 3, min: 1, max: 14, label: "Weekly goal", description: "sessions a week" },
       unit: { type: "enum", values: ["km", "mi"], default: "km", label: "Unit", description: "how distances read" },
       tags: { type: "list", label: "Tags", description: "tags each entry gets" },
+      outdoor: { type: "boolean", default: false, label: "Outdoors", description: "runs outside" },
+      route: { type: "string", when: "outdoor", unset: "Any", label: "Route", description: "the way it goes" },
       where: { type: "string", folder: true, default: "Runs", label: "Folder", description: "where entries go" },
       dirs: { type: "list", folder: true, label: "Watched folders", description: "folders whose files count" },
+      coach: { type: "enum", values: ["calm", "strict"], default: "calm", group: "Coach", advanced: true, label: "Coach's tone", description: "how it talks" },
+      pace: { type: "number", min: 0.5, max: 2, step: 0.05, default: 1, group: "Coach", advanced: true, label: "Pace", description: "times the usual" },
     } }, null, 2))
   const plugins = json(".vaultite/plugins.json") ?? {}
   // Workspaces on (off by default): its sheet and its menu's Settings… are tested; Vim off (off by default): an off
@@ -181,7 +185,6 @@ try {
     await find.fill("")
     check("...cleared, the menu is back", !!(await until(() => page.locator("[data-settings-list]").count(), 4000)))
 
-    // Plugins: a row goes to the plugin's page, its settings on it.
     await go(page, "plugins")
     await until(() => page.locator("[data-plugin-row]").count(), 4000)
     check("Plugins: no gears, Vim's not here (its switch is in Editor)", await page.locator("main [data-settings-section=plugins] [data-plugin-gear]").count() === 0 && await page.locator("[data-plugin-row=vim]").count() === 0)
@@ -203,29 +206,42 @@ try {
     await s.locator("[role=radio]", { hasText: "Hover" }).click()
     check("form: a choice writes only its key", !!(await until(() => json(".vaultite/plugins/page-preview/data.json")?.trigger === "hover", 4000)), json(".vaultite/plugins/page-preview/data.json"))
     const delay = s.locator("[data-setting=delay] input")
+    check("form: a default is its value, in a muted tone", (await delay.inputValue()) === "500" && (await delay.getAttribute("data-default")) !== null, await delay.inputValue())
     await delay.fill("99999"); await delay.press("Enter"); await wait(300)
     check("form: out of range says why and isn't saved", (await s.locator("[data-setting=delay]").innerText()).includes("at most 5000") && json(".vaultite/plugins/page-preview/data.json")?.delay === undefined,
       await s.locator("[data-setting=delay]").innerText())
     await delay.fill("300"); await delay.press("Enter")
     check("form: a number is saved", !!(await until(() => json(".vaultite/plugins/page-preview/data.json")?.delay === 300, 4000)), json(".vaultite/plugins/page-preview/data.json"))
-    check("form: says where they're kept", (await s.locator("[data-settings-where]").innerText()).includes(".vaultite/plugins/page-preview/data.json"))
+    check("form: headed by what the plugin does, in a line", (await s.innerText()).includes("Point at a [[link]] for a moment to see that note in a popover"))
     await shot(page, "3-form-page-preview-desktop")
     await s.locator("[role=radio]", { hasText: "Auto" }).click()
     check("form: the default again removes the key", !!(await until(() => { const d = json(".vaultite/plugins/page-preview/data.json"); return d && !("trigger" in d) && d.delay === 300 }, 4000)),
       json(".vaultite/plugins/page-preview/data.json"))
-    // A change on disk shows at once.
     writeFileSync(file(".vaultite/plugins/page-preview/data.json"), JSON.stringify({ delay: 750 }) + "\n")
     check("form: follows the file", !!(await until(async () => (await delay.inputValue()) === "750", 4000)), await delay.inputValue())
+    const edit = s.locator("[data-settings-edit-json]")
+    check("form: Edit as JSON at its end, the file's path its tooltip", (await edit.getAttribute("data-tip")) === ".vaultite/plugins/page-preview/data.json" && !(await s.locator("[data-settings-where]").count()))
+    await edit.click()
+    check("...opens the file in a tab", !!(await until(async () => decodeURIComponent(await page.evaluate(() => location.hash)).includes(".vaultite/plugins/page-preview/data.json") &&
+      !(await page.locator("dialog[open]").count()), 4000)), await page.evaluate(() => location.hash))
+
+    await go(page, "settings/plugin-settings/inbox")
+    const ib = sheet(page, "inbox")
+    await until(() => ib.locator("[data-setting]").count(), 4000)
+    const groups = await ib.locator("[data-settings-group]").evaluateAll((els) => els.map((el) => [el.dataset.settingsGroup, [...el.querySelectorAll("[data-setting]")].map((r) => r.dataset.setting)]))
+    check("form: grouped under headings, in the manifest's order", JSON.stringify(groups.map(([g]) => g)) === JSON.stringify(["Notifications", "Voice notes", "History"]) &&
+      groups[0][1].includes("toasts") && groups[1][1].includes("dispatch") && !(await ib.innerText()).includes("Options"), groups)
+    check("form: its one folder in a group of its own, no Folders heading, said right", await ib.locator('[data-setting="folder-inbox"]').count() === 1 &&
+      !(await ib.innerText()).includes("Folders") && (await ib.locator('[data-setting="folder-inbox"]').innerText()).includes("Where its new files go"), await ib.innerText())
+    check("form: no field asks for commas", !(await ib.innerText()).includes("commas") && await ib.locator("[data-setting=muted] [data-list-add]").count() === 1)
     await closeSheet(page)
 
-    // A long choice unfolds in place: Search field's sort.
     const ss = await part(page, "files", "search")
     await until(() => ss.count(), 4000)
     await ss.locator("[data-setting=sort] > button").click(); await wait(200)
     await ss.locator("[data-setting=sort] [role=radio]", { hasText: "Modified time (new to old)" }).click()
     check("form: a long choice unfolds and picks", !!(await until(() => json(".vaultite/plugins/search/data.json")?.sort === "modified", 4000)), json(".vaultite/plugins/search/data.json"))
 
-    // A custom panel: Pinned (through the command palette).
     await page.keyboard.press("ControlOrMeta+p"); await wait(300); await page.keyboard.type("pinned settings"); await wait(300)
     check("palette: \"Open <Name> settings\"", (await page.locator("[role=option]").allInnerTexts()).some((t) => t.includes("Open Pinned settings")), await page.locator("[role=option]").allInnerTexts())
     await page.keyboard.press("Enter")
@@ -248,7 +264,6 @@ try {
     await fs_.locator("[data-setting=showHidden] [role=switch]").click()
     check("...off again: the key goes", !!(await until(() => !json(".vaultite/files.json")?.showHidden, 4000)), json(".vaultite/files.json"))
 
-    // No form: the file itself (Logs).
     await openPage(page, "logs")
     check("no form: its data.json, drawn", !!(await until(async () => await onPage(page, "logs").locator("[data-settings-json] .json-view").count() >= 1 &&
       (await onPage(page, "logs").innerText()).includes(json(".vaultite/plugins/logs/data.json").areas[0].name), 4000)), await pluginPage(page, "logs").innerText())
@@ -257,14 +272,30 @@ try {
     check("...Open: the file in a tab", !!(await until(async () =>
       decodeURIComponent(await page.evaluate(() => location.hash)).includes(".vaultite/plugins/logs/data.json"), 4000)), await page.evaluate(() => location.hash))
 
-    // A vault plugin's declared settings.
     await openPage(page, "qa-tracker")
     const vs = onPage(page, "qa-tracker")
     await until(() => vs.count(), 4000)
-    await vs.locator("[data-setting=tags] input").fill("Run, Outdoors"); await vs.locator("[data-setting=tags] input").press("Enter")
-    check("vault plugin: its declared settings as a form", !!(await until(() => JSON.stringify(json(`${VP}/data.json`)?.tags) === '["Run","Outdoors"]', 4000)), json(`${VP}/data.json`))
+    await vs.locator("[data-setting=tags] [data-list-add]").click()
+    await vs.locator("[data-setting=tags] [data-list-add-field]").fill("Run, Outdoors"); await vs.locator("[data-setting=tags] [data-list-add-field]").press("Enter")
+    check("vault plugin: its declared settings as a form; a list's Add takes words", !!(await until(() => JSON.stringify(json(`${VP}/data.json`)?.tags) === '["Run","Outdoors"]', 4000)), json(`${VP}/data.json`))
+    await vs.locator("[data-setting=tags] button[aria-label='Remove Run']").click()
+    check("...a chip's x takes one out, kept as a list", !!(await until(() => JSON.stringify(json(`${VP}/data.json`)?.tags) === '["Outdoors"]', 4000)), json(`${VP}/data.json`))
 
-    // A folder setting: the vault's folders, fuzzy, in a palette over the sheet; one typed that isn't there is made.
+    const route = vs.locator("[data-setting-row=route]"), outdoor = vs.locator("[data-setting-row=outdoor]")
+    const left = (l) => l.evaluate((el) => el.querySelector("[data-setting]").getBoundingClientRect().left)
+    check("when: dimmed and set in under the one it hangs on", (await route.getAttribute("data-inactive")) !== null && (await left(route)) > (await left(outdoor)) + 10 &&
+      (await route.locator("input").getAttribute("placeholder")) === "Any")
+    await outdoor.locator("[role=switch]").click()
+    check("...that one on, it applies", !!(await until(async () => (await route.getAttribute("data-inactive")) === null && json(`${VP}/data.json`)?.outdoor === true, 4000)),
+      [await route.getAttribute("data-inactive"), json(`${VP}/data.json`)])
+    await outdoor.locator("[role=switch]").click()
+    await until(() => json(`${VP}/data.json`)?.outdoor === undefined, 4000)
+    const coach = vs.locator('[data-settings-fold="Coach"]')
+    check("advanced: a group of them folds behind its name, saying its values", (await coach.getAttribute("aria-expanded")) === "false" && (await coach.innerText()).includes("Calm") &&
+      !(await vs.locator("[data-setting=coach]").count()), await coach.innerText())
+    await coach.click()
+    check("...opens in place; a small range is a slider", !!(await until(() => vs.locator("[data-setting=coach]").count(), 4000)) && await vs.locator("[data-setting=pace] input[type=range]").count() === 1)
+
     const some = readdirSync(VAULT, { withFileTypes: true }).find((d) => d.isDirectory() && !d.name.startsWith("."))?.name ?? ""
     await vs.locator("[data-setting=where] [data-folder-field]").click()
     const pal = page.locator("[role=dialog][aria-label=Folder]")

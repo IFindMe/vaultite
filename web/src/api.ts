@@ -122,7 +122,7 @@ export { fileAt, iconOf, isListedPage, isPage, namedIcon, offPlugin, pageOf, tin
 // Attachments (a pasted image, a recording): the folder they go in for a note, and saving files there as embeds.
 export { attachmentFolder, pasteAttachments, saveAttachments } from "@/core/conventions"
 export {
-  accountsOf, askedAt, canRunAgents, chooseDefaultPlace, choosePlace, getDefaultPlace, defaultPlaceOf, mintedHere, openAgent, openPlace, openTerminal, places, resolvePlace, setDefaultPlace, terminalId, useDefaultPlace,
+  accountsOf, askedAt, useAgentChoices, canRunAgents, chooseDefaultPlace, choosePlace, getDefaultPlace, defaultPlaceOf, mintedHere, openAgent, openPlace, openTerminal, places, resolvePlace, setDefaultPlace, terminalId, useDefaultPlace,
   useAccountNames, useTerminalAccount, type AgentAccount, type DefaultPlace, type Place,
 } from "@/core/agents"
 // Your other machines (Machines plugin): their terminals are <id>@<machine>, their API is machines/<machine>/<path>.
@@ -288,9 +288,11 @@ export { ActionButtons, AddButton } from "@/components/NewTab"
 export { Files as FilesPage } from "@/pages/Files"
 export { folderBar, folderName, FolderPage, folderTabMenu } from "@/pages/Folder"
 export { FilesSettings, filesSettingsSearch } from "@/components/FilesSettings"
-// A plugin's settings sheet (components/PluginSettings.tsx), and one setting drawn as its form row.
+// A plugin's settings sheet (components/PluginSettings.tsx), one setting drawn as its form row, and one of its own for its panel.
 export { hasSettings, openPluginSettings, pluginSettings, settingsFile } from "@/core/pluginSettings"
-export { Field as SettingField, usePluginSettings } from "@/components/PluginSettings"
+export { usePluginSettings } from "@/components/PluginSettings"
+export { Field as SettingField } from "@/components/SettingField"
+export { PluginSetting } from "@/components/SettingsForm"
 export type { SettingDecl, SettingDecls } from "../../core/blocks.ts"
 export { SearchPage } from "@/pages/Search"
 // A ```query fence drawn: the files its search finds, live.

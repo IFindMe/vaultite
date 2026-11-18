@@ -1,16 +1,16 @@
 import { useState } from "react"
-import { Group, notify, notifyError, op, plural, post, secretDialog, SettingRow, useLive } from "@vaultite"
+import { Button, Group, notify, notifyError, op, plural, PluginSetting, post, Section, secretDialog, SettingRow, useLive } from "@vaultite"
 import { forgetFormatted, touchesLibrary } from "./client.ts"
 import { useLibraryVersion } from "./hooks.ts"
 import type { StatusAnswer, ZoteroState } from "./wire.ts"
 
 type Side = ZoteroState & { on: boolean }
 
-function zoteroSub(s: Side, web: boolean): string {
-  if (!s.on) return web ? "Your library on zotero.org, for a server that isn't the computer Zotero runs on" : "Off"
-  if (s.state === "ready") return `${plural(s.items, "reference")} in ${s.libraries.join(", ")}`
+function zoteroSub(s: Side, web: boolean): string | undefined {
+  if (!s.on) return web ? "Your library on zotero.org, for a server that isn't the computer Zotero runs on" : undefined
+  if (s.state === "ready") return `${plural(s.items, "reference")} in ${s.libraries.join(", ")}${web ? "" : s.bbt ? `, Better BibTeX ${s.bbt}` : ", without Better BibTeX"}`
   if (s.state === "off") return "Not read yet"
-  if (s.state === "unreachable" && !web) return `Open Zotero on this computer to read it${s.items ? ` (citing the ${plural(s.items, "reference")} it had)` : ""}`
+  if (s.state === "unreachable" && !web) return `Zotero isn't open${s.items ? `: citing the ${plural(s.items, "reference")} it had` : ""}`
   return s.detail
 }
 
@@ -35,14 +35,23 @@ export function Sources() {
   if (!s) return null
   const local = s.zotero.local, web = s.zotero.web
   return (
-    <Group>
-      <SettingRow label="Library" sub={`${plural(s.items, "reference")} to cite, ${plural(s.notes, "literature note")}`} value={busy ? "Reading…" : "Read again"} chevron={null} onClick={() => void refresh()} data-references-refresh />
-      <SettingRow label="Zotero on this computer" sub={zoteroSub(local, false)} value={local.on && local.state === "ready" ? (local.bbt ? `Better BibTeX ${local.bbt}` : "No Better BibTeX") : undefined} chevron={null} data-references-zotero />
-      <SettingRow label="Zotero web library" sub={zoteroSub(web, true)} value={web.on ? "Disconnect" : "Connect…"} chevron={null} onClick={() => void setWebKey(web.on).then(() => setV((n) => n + 1))} data-references-zotero-web />
-      {s.files.map((f) => (
-        <SettingRow key={f.path} label={f.path} sub={f.problems.length ? `${plural(f.count, "reference")}; ${f.problems[0]}${f.problems.length > 1 ? ` (and ${f.problems.length - 1} more)` : ""}` : plural(f.count, "reference")}
-          chevron={null} data-references-file={f.path} />
-      ))}
-    </Group>
+    <Section title="Sources">
+      <Group>
+        <SettingRow label="Library" sub={`${plural(s.items, "reference")} to cite, ${plural(s.notes, "literature note")}`} data-references-library>
+          <Button look="outline" size="small" busy={busy} onClick={() => void refresh()} data-references-refresh>Read again</Button>
+        </SettingRow>
+        <PluginSetting plugin="references" k="findBibliographies" />
+        <PluginSetting plugin="references" k="bibliographies" />
+        {s.files.map((f) => (
+          <SettingRow key={f.path} label={f.path} sub={f.problems.length ? `${plural(f.count, "reference")}; ${f.problems[0]}${f.problems.length > 1 ? ` (and ${f.problems.length - 1} more)` : ""}` : plural(f.count, "reference")}
+            data-references-file={f.path} />
+        ))}
+        <PluginSetting plugin="references" k="zoteroLocal" sub={zoteroSub(local, false)} />
+        <PluginSetting plugin="references" k="zoteroGroups" />
+        <SettingRow label="Zotero web library" sub={zoteroSub(web, true)} data-references-zotero-web>
+          <Button look="outline" size="small" onClick={() => void setWebKey(web.on).then(() => setV((n) => n + 1))}>{web.on ? "Disconnect" : "Connect…"}</Button>
+        </SettingRow>
+      </Group>
+    </Section>
   )
 }

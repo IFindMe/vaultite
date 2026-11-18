@@ -10,13 +10,14 @@
       "type": "string",
       "default": "YYYY-MM-DD",
       "label": "Date format",
-      "description": "the date format daily notes are named in (YYYY-MM-DD, YYYY/MM/YYYY-MM-DD for a folder each month...)"
+      "description": "how daily notes are named (YYYY-MM-DD, YYYY/MM/YYYY-MM-DD for a folder each month...)"
     },
     "template": {
       "type": "string",
       "default": "",
+      "unset": "None",
       "label": "Template",
-      "description": "a note new daily notes start from, its path without .md (Templates/Daily); none: they start empty"
+      "description": "a note new daily notes start from; its path without .md (Templates/Daily), and none: they start empty"
     }
   },
   "blocks": {

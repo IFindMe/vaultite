@@ -1,6 +1,6 @@
 const MAX = 80, CODE = /`[^`]*`/g, HIDDEN = "∶"
 
-export function brief(text: string | undefined, values: string[] = []) {
+export function brief(text: string | undefined, values: string[] = [], code = false) {
   let t = (text ?? "").trim().replace(CODE, (m) => m.replace(/[:;.]/g, HIDDEN))
   for (let was = ""; was !== t;) { was = t; t = t.replace(/\s*\([^()]*\)/g, "") }
   const [first, ...rest] = t.split(/(?<=[\w'"%`])(?:[.:;!?] | — )/)
@@ -10,6 +10,7 @@ export function brief(text: string | undefined, values: string[] = []) {
     if (at > 24) t = t.slice(0, at)
   }
   if (rest.length && values.some((v) => t.toLowerCase().startsWith(v.toLowerCase()))) return ""
-  t = t.replaceAll(HIDDEN, ":").replace(/`/g, "")
+  t = t.replaceAll(HIDDEN, ":")
+  if (!code) t = t.replace(/`/g, "")
   return t && t[0].toUpperCase() + t.slice(1)
 }

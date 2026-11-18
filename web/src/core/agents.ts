@@ -1,11 +1,12 @@
-import { useEffect, useSyncExternalStore } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { SquareTerminal, type LucideIcon } from "lucide-react"
 import { choose } from "@/components/Chooser"
 import { get } from "@/core/http"
 import { isViewOpen, openView } from "@/core/files"
 import { fetchMachines, machinePath, onMachine, otherMachines, type Machine } from "@/core/machines"
 import { notify } from "@/core/notify"
-import { agentsOn, isEnabled, type Agent } from "@/core/plugins"
+import { agentsOn, isEnabled, useAgents, type Agent } from "@/core/plugins"
+import type { SettingChoice } from "@/core/define"
 import { getPrefs } from "@/core/prefs"
 import { useStateFor } from "@/core/statefor"
 import { currentWorkspace, scopedState, useScopedState } from "@/core/scope"
@@ -117,6 +118,23 @@ function accountName(agent: string, machine: string, id?: string) {
 }
 let named: typeof accountName = (...args) => accountName(...args)
 const hearNames = (f: () => void) => { namesHeard.add(f); return () => { namesHeard.delete(f) } }
+export function useAgentChoices(only?: string): SettingChoice[] {
+  const agents = useAgents().filter((a) => !only || a.name === only)
+  const [lists, setLists] = useState<Record<string, AgentAccount[]>>({})
+  const names = agents.map((a) => a.name).join()
+  useEffect(() => {
+    let live = true
+    for (const a of agentsOn().filter((x) => names.split(",").includes(x.name))) {
+      void accountsOf(a, "").then((l) => { if (live) setLists((had) => ({ ...had, [a.name]: l })) })
+    }
+    return () => { live = false }
+  }, [names])
+  return agents.flatMap((a) => {
+    const list = lists[a.name] ?? []
+    return list.length > 1 ? list.map((x, i) => ({ value: i ? `${a.name}_${x.id}` : a.name, label: `${a.label} (${x.label})` })) : [{ value: a.name, label: a.label }]
+  })
+}
+
 /** Agents' accounts' names (accountName): another function each time more are read. */
 export const useAccountNames = () => useSyncExternalStore(hearNames, () => named)
 

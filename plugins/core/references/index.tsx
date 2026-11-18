@@ -43,6 +43,7 @@ const references = definePlugin({
   background: () => <DrawnCitations />,
   settingsPanel: () => <LazySources />,
   settingsPanelFirst: true,
+  settingsPanelDraws: ["findBibliographies", "bibliographies", "zoteroLocal", "zoteroGroups"],
   slash: () => [{ id: "references:cite", title: "Citation", section: "Insert", keywords: "cite reference zotero bibliography pandoc", detail: "[@key]",
     run: () => startCiting() }],
   commands: [

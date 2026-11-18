@@ -54,6 +54,11 @@ only settings (`data.json`, `<name>.json`) is settings, not a plugin.
   summary covers"}}`. Its settings sheet draws them as a form; `default` is what it does when the key is left out. An
   enum that only changes how something looks can take `"preview": true`: its palette picker shows each value as the
   selection moves (`pluginSettings(id)` reads as that value meanwhile, saved nowhere), so follow `onChange`.
+  The form's layout: `"group"` puts a setting under a heading; `"when"` hangs it on a setting before it in its group
+  (`"transcribe"`, a switch on, or `{"engine": ["whisper"]}`), set in under that one and dimmed while it doesn't apply;
+  `"unset"` names what leaving it out does when its default can't (`"Automatic"`); `"advanced": true` folds it under
+  its group's Advanced row, and a group of only those folds whole behind a row of its name; a number's `"step"` (with
+  its `min` and `max`) draws it as a slider.
 
 **`plugin.ts`** (optional; the server, Node, TypeScript as-is: no enums, `import type` for types, imports name the
 `.ts` file): `import { Plugin } from "@vaultite/core/plugins.ts"`, `export const plugin = new Plugin(import.meta.url)`,

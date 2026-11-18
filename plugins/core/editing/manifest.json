@@ -9,7 +9,7 @@
     "toolbar": {
       "type": "list",
       "label": "Keys over the keyboard",
-      "description": "on a phone, the keys over the keyboard while you write, in the order you pick them",
+      "description": "on a phone, in the order you pick them; the keys over the keyboard while you write",
       "values": [
         "editor:undo",
         "editor:redo",

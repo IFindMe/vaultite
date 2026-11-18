@@ -12,6 +12,6 @@
     { "file": "CLAUDE.md", "why": "a line pointing Claude at the vault's rules", "generated": true }
   ],
   "settings": {
-    "rootFiles": { "type": "boolean", "default": false, "label": "Point AIs at the rules", "description": "adds one line pointing at .vaultite/AGENTS.md to the vault's AGENTS.md and CLAUDE.md, for agents started outside the app; off takes it out" }
+    "rootFiles": { "type": "boolean", "default": false, "label": "Point AIs at the rules", "description": "for agents started outside the app; adds one line pointing at .vaultite/AGENTS.md to the vault's AGENTS.md and CLAUDE.md, and off takes it out" }
   }
 }

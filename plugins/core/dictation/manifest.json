@@ -9,16 +9,7 @@
   "settings": {
     "engine": {
       "type": "enum",
-      "values": [
-        "auto",
-        "soniox",
-        "deepgram",
-        "assemblyai",
-        "openai",
-        "elevenlabs",
-        "apple",
-        "parakeet"
-      ],
+      "values": ["auto", "soniox", "deepgram", "assemblyai", "openai", "elevenlabs", "apple", "parakeet"],
       "labels": {
         "auto": "Automatic",
         "soniox": "Soniox",
@@ -31,7 +22,8 @@
       },
       "default": "auto",
       "label": "Recognizer",
-      "description": "automatic: Soniox when its key is set (vau secret \"Soniox API key\" | vau dictation key), else Parakeet when its model is on this Mac and the language is English, else Apple's (macOS 26). The cloud ones (Soniox, Deepgram, AssemblyAI, OpenAI, ElevenLabs) need their key on the server (vau dictation key --provider ...); when one can't, this Mac's finishes. Parakeet is English only and uses the model Handy or Hex downloaded"
+      "description": "automatic: Soniox when its key is set (vau secret \"Soniox API key\" | vau dictation key), else Parakeet when its model is on this Mac and the language is English, else Apple's (macOS 26). The cloud ones (Soniox, Deepgram, AssemblyAI, OpenAI, ElevenLabs) need their key on the server (vau dictation key --provider ...); when one can't, this Mac's finishes. Parakeet is English only and uses the model Handy or Hex downloaded",
+      "group": "Recognition"
     },
     "phone": {
       "type": "enum",
@@ -39,39 +31,27 @@
       "labels": { "same": "The recognizer above", "iphone": "The iPhone's own" },
       "default": "same",
       "label": "On the iPhone",
-      "description": "what the iPhone app's voice notes are heard with as you speak; its own never sends the audio to the cloud"
+      "description": "what the iPhone app's voice notes are heard with as you speak; its own never sends the audio to the cloud",
+      "group": "Recognition"
     },
     "language": {
       "type": "string",
       "label": "Language",
-      "description": "a language's code, like en or pt-BR, for Apple's recognizer; left out, the Mac's"
+      "description": "a code like en or pt-BR; what Apple's recognizer hears, and a cloud one too while Languages you speak is empty; left out, the Mac's",
+      "group": "Recognition",
+      "when": {
+        "engine": ["auto", "soniox", "deepgram", "assemblyai", "openai", "elevenlabs", "apple"]
+      },
+      "unset": "Automatic"
     },
     "languages": {
       "type": "list",
       "label": "Languages you speak",
-      "description": "codes like en and pt: what a cloud recognizer listens for, switching between them on its own; left out, the language above and the Mac's"
-    },
-    "silence": {
-      "type": "number",
-      "default": 0,
-      "min": 0,
-      "max": 600,
-      "label": "Stop after silence",
-      "description": "seconds without speech before a tapped dictation stops on its own; 0 never: it listens until you stop it"
-    },
-    "fn": {
-      "type": "boolean",
-      "default": true,
-      "label": "Dictate anywhere",
-      "description": "on a Mac, the dictation keys dictate in any app, as ⌘J does here (the companion has keys of its own)"
-    },
-    "keys": {
-      "type": "list",
-      "values": ["fn_control", "fn", "right_option", "right_command", "left_control", "right_control"],
-      "labels": { "fn_control": "fn⌃ (fn and Control)", "fn": "fn", "right_option": "Right Option", "right_command": "Right Command", "left_control": "Left Control", "right_control": "Right Control" },
-      "default": ["fn_control"],
-      "label": "Dictation keys",
-      "description": "the keys that dictate: fn⌃ held together, or fn, a right modifier or Control alone; a tap starts and the next stops, hold while you speak, or double tap for hands-free. A key the companion talks with (its Talk keys) isn't one"
+      "description": "codes like en and pt: what a cloud recognizer listens for, switching between them on its own; left out, the language above and the Mac's",
+      "group": "Recognition",
+      "when": {
+        "engine": ["auto", "soniox", "deepgram", "assemblyai", "openai", "elevenlabs"]
+      }
     },
     "microphone": {
       "local": true,
@@ -80,21 +60,56 @@
       "values": ["auto", "default", "builtin"],
       "labels": { "auto": "Automatic", "default": "System default", "builtin": "Built-in mic" },
       "label": "Microphone",
-      "description": "auto: the system's input, but the built-in (or a wired) mic while Bluetooth headphones play, as their own mic would drop them to call quality; default: always the system's input; builtin: the Mac's own; or a mic's name (the desktop app lists this Mac's)"
+      "description": "auto: the system's input, but the built-in (or a wired) mic while Bluetooth headphones play, as their own mic would drop them to call quality; default: always the system's input; builtin: the Mac's own; or a mic's name (the desktop app lists this Mac's)",
+      "group": "Recognition"
+    },
+    "keys": {
+      "type": "list",
+      "values": ["fn_control", "fn", "right_option", "right_command", "left_control", "right_control"],
+      "labels": {
+        "fn_control": "fn⌃ (fn and Control)",
+        "fn": "fn",
+        "right_option": "Right Option",
+        "right_command": "Right Command",
+        "left_control": "Left Control",
+        "right_control": "Right Control"
+      },
+      "default": ["fn_control"],
+      "label": "Dictation keys",
+      "description": "the keys that dictate: fn⌃ held together, or fn, a right modifier or Control alone; a tap starts and the next stops, hold while you speak, or double tap for hands-free. A key the companion talks with (its Talk keys) isn't one",
+      "group": "Keys"
+    },
+    "fn": {
+      "type": "boolean",
+      "default": true,
+      "label": "Dictate anywhere",
+      "description": "on a Mac, in any app, as ⌘J does here (the companion has keys of its own)",
+      "group": "Keys"
+    },
+    "silence": {
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 600,
+      "label": "Stop after silence",
+      "description": "seconds before a tapped dictation stops; 0 never: it listens until you stop it",
+      "group": "Keys"
     },
     "history": {
       "local": true,
       "type": "boolean",
       "default": true,
       "label": "Keep dictations",
-      "description": "each dictation's words, kept about 30 days on this Mac only (the app's data, never the vault or another machine) for the Dictations list, landed or not"
+      "description": "for the Dictations list, about 30 days; each one's words, on this Mac only (the app's data, never the vault or another machine), landed or not",
+      "group": "Kept on this Mac"
     },
     "keep_audio": {
       "local": true,
       "type": "boolean",
       "default": false,
       "label": "Keep the last dictation's audio",
-      "description": "what the microphone heard last, kept on this Mac (the app's logs folder, dictation-last.wav) to replay it when a recognizer gets words wrong; each dictation replaces it"
+      "description": "to replay it when a recognizer gets words wrong; what the microphone heard last, kept on this Mac (the app's logs folder, dictation-last.wav), each dictation replacing it",
+      "group": "Kept on this Mac"
     }
   }
 }

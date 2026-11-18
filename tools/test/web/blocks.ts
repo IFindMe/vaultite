@@ -1,4 +1,5 @@
 import { check } from "../lib.ts"
+import { web } from "./lib.ts"
 
 // The block contract (core/blocks.ts, shared): options checked against a declaration, defaults filled in.
 const B = await import("../../../core/blocks.ts")
@@ -45,20 +46,51 @@ check("blocks: the doc for AIs, from the declarations", B.blocksDoc({ card: decl
 check("blocks: a missing text side reads as the description", B.fallbackText("Fake", decl) === "_(Fake: a made-up card; drawn in the app only)_")
 
 // A plugin's settings, declared like block options plus a label (core/blocks.ts SettingDecl).
-const setting = { trigger: { type: "enum", values: ["auto", "hover"], default: "auto", preview: true, label: "Show a preview", labels: { auto: "Auto" }, description: "when it shows" },
+const setting = { trigger: { type: "enum", values: ["auto", "hover"], default: "auto", preview: true, group: "Links", label: "Show a preview", labels: { auto: "Auto" }, description: "when it shows" },
   delay: { type: "number", default: 500, min: 0, label: "Delay", description: "how long first, in ms" }, file: { type: "string", label: "File", description: "a file" } }
 check("settings: a sound declaration has no problems (a key named like a common block option too)", !B.settingDeclProblems(setting, "m").length, B.settingDeclProblems(setting, "m"))
 const badSettings = B.settingDeclProblems({ a: { type: "boolean", description: "x" }, b: { type: "enum", values: ["x"], labels: { y: "Y" }, label: "B", description: "x" },
   c: { type: "number", default: "five", label: "C", description: "x" }, d: { type: "boolean", required: true, label: "D", description: "x" }, e: "nope",
-  f: { type: "number", preview: true, label: "F", description: "x" } }, "m")
+  f: { type: "number", preview: true, label: "F", description: "x" }, i: { type: "boolean", group: "lower case", label: "I", description: "x" } }, "m")
 check("settings: a declaration's own problems", ["setting 'a' needs a label", "setting 'b': labels names 'y'", "setting 'c': its default should be a number",
-  "setting 'd': a setting is never required", "setting 'e' must be an object", "setting 'f': preview is true, on an enum"].every((w) => badSettings.some((b) => b.includes(w))), badSettings)
+  "setting 'd': a setting is never required", "setting 'e' must be an object", "setting 'f': preview is true, on an enum", "setting 'i': group is a heading"].every((w) => badSettings.some((b) => b.includes(w))), badSettings)
 const oddValues = (() => { try { return B.settingDeclProblems({ g: { type: "list", values: 5, default: ["a"], label: "G", description: "x" }, h: { type: "enum", values: 7, default: "a", labels: { a: "A" }, label: "H", description: "x" } }, "m") } catch (e) { return [`threw: ${e}`] } })()
 check("settings: values that aren't a list are a problem, the default checked without them, never a crash", oddValues.filter((p: string) => p.includes("values must be a list")).length === 2 && !oddValues.some((p: string) => p.startsWith("threw")), oddValues)
 check("settings: not an object", B.settingDeclProblems([], "m")[0]?.includes("settings must be an object") && !B.settingDeclProblems(undefined, "m").length)
 check("settings: read from a manifest", Object.keys(B.settingsOf({ settings: setting })).join() === "trigger,delay,file" && !Object.keys(B.settingsOf({})).length)
-check("settings: the doc for AIs", B.settingsDoc("page-preview", setting as never).startsWith("Settings, `.vaultite/plugins/page-preview/data.json` (each optional; the plugin's settings in the app too):\n- `trigger` (one of auto, hover, default auto): when it shows")
+check("settings: the doc for AIs", B.settingsDoc("page-preview", setting as never).startsWith("Settings, `.vaultite/plugins/page-preview/data.json` (each optional; the plugin's settings in the app too):\n- `trigger`, Show a preview (one of auto, hover, default auto): when it shows")
   && B.settingsDoc("x", {}) === "", B.settingsDoc("page-preview", setting as never))
+
+const laid: import("../../../core/blocks.ts").SettingDecls = { engine: { type: "enum", values: ["auto", "apple", "whisper"], default: "auto", label: "Engine", description: "x" },
+  on: { type: "boolean", default: true, label: "On", description: "x" },
+  model: { type: "enum", values: ["small", "big"], when: { engine: ["whisper", "auto"] }, unset: "Automatic", label: "Model", description: "x" },
+  lang: { type: "string", when: "on", unset: "The Mac's", label: "Language", description: "x" },
+  logins: { type: "list", when: { on: [false] }, advanced: true, label: "Logins", description: "x" },
+  speed: { type: "number", min: 0.5, max: 2, step: 0.05, label: "Speed", description: "x" } }
+check("settings: when, unset and advanced, declared soundly", !B.settingDeclProblems(laid, "m").length, B.settingDeclProblems(laid, "m"))
+const badLaid = B.settingDeclProblems({ a: { type: "boolean", label: "A", description: "x", group: "G" }, b: { type: "string", when: "a", label: "B", description: "x" },
+  c: { type: "string", when: "d", label: "C", description: "x" }, d: { type: "boolean", label: "D", description: "x" }, f: { type: "enum", values: ["x", "y"], default: "x", label: "F", description: "x" },
+  e: { type: "string", when: "f", label: "E", description: "x" }, g: { type: "string", when: { f: ["z"] }, label: "G", description: "x" },
+  h: { type: "string", default: "set", unset: "Automatic", label: "H", description: "x" }, i: { type: "string", advanced: "yes", label: "I", description: "x" },
+  j: { type: "number", step: 1, label: "J", description: "x" } }, "m")
+check("settings: their problems", ["setting 'b': when names a setting before it in its group", "setting 'c': when names a setting before it", "setting 'e': when \"f\" is for a switch",
+  "setting 'g': when's values are some of f's", "setting 'h': unset says what it does left out", "setting 'i': advanced is true", "setting 'j': step is a number above 0, on a number with a min and a max"].every((w) => badLaid.some((b) => b.includes(w))), badLaid)
+const laidDoc = B.settingsDoc("x", laid)
+check("settings: the doc says when one applies", laidDoc.includes("Applies while `engine` is whisper or auto.") && laidDoc.includes("Applies while `on` is on."), laidDoc)
+{
+  const F = await web("core/settingsform.ts")
+  const decls: import("../../../core/blocks.ts").SettingDecls = { ...laid, pace: { type: "number", group: "Coach", advanced: true, default: 1, label: "Pace", description: "x" },
+    tone: { type: "enum", values: ["calm"], default: "calm", group: "Coach", advanced: true, label: "Tone", description: "x" } }
+  const values = new Map([["engine", "apple"], ["on", "true"]])
+  const textOf = (k: string) => values.get(k) ?? String(decls[k]?.default ?? "")
+  check("form: a setting applies while the one it hangs on says so", !F.applies(decls, "model", textOf) && F.applies(decls, "lang", textOf) && !F.applies(decls, "logins", textOf), [...values])
+  values.set("on", "false"); values.set("engine", "whisper")
+  check("...and follows it", F.applies(decls, "model", textOf) && !F.applies(decls, "lang", textOf) && F.applies(decls, "logins", textOf))
+  check("form: set in a step for each it hangs under", F.depthOf(decls, "engine") === 0 && F.depthOf(decls, "model") === 1)
+  const groups = F.formGroups(decls)
+  check("form: advanced ones fold; a group of only those folds whole", groups.length === 2 && groups[0].advanced.join() === "logins" && !groups[0].folded && groups[1].folded &&
+    F.summaryOf(decls, groups[1].advanced, textOf) === "1 · Calm", groups)
+}
 
 // The editor's suggestions inside a block's fence (web/src/editor/blockOptions.ts).
 // (CodeMirror's CompletionContext needs a page; the source reads only its state, pos and explicit)

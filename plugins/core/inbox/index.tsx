@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { AlarmClockOff, ArrowDown, ArrowUp, BellOff, Check, CheckCheck, Clock, FolderInput, Inbox as InboxIcon, Mail, MailOpen, MessageSquareReply, Pin, RotateCcw } from "lucide-react"
-import { AmbientButton, backDetail, definePlugin, getStore, onTabLayoutChange, notify, openFile, stampMs, systemNotify, useStore, viewOnScreen, type Store } from "@vaultite"
+import { AmbientButton, backDetail, definePlugin, getStore, onTabLayoutChange, notify, openFile, stampMs, systemNotify, useAgentChoices, useStore, viewOnScreen, type Store } from "@vaultite"
 import { focusedTarget, follow, GATE_DETAIL, getEvents, heldNow, markRead, markUnread, onFresh, pinEvents, openEvent, SESSION_DETAIL, subscribeEvents, targetOf, useEvents, viewOf } from "./events"
 import { SessionSheet, sessionTitle } from "./Session"
 import { ReplyBlock } from "./Reply"
@@ -117,8 +117,11 @@ function useMinute(on: boolean) {
   useEffect(() => { if (!on) return; const t = setInterval(() => tick((n) => n + 1), 30_000); return () => clearInterval(t) }, [on])
 }
 
+const useAnyAgent = () => useAgentChoices()
+
 export default definePlugin({
   ambient: { new: { title: "Inbox", sort: 30, render: () => <InboxNew /> } },
+  settingChoices: { dispatch: useAnyAgent },
   background: ({ store }) => <Background store={store} />,
   header: { inbox: { sort: 50, phoneBar: true, render: (ctx) => <InboxButton {...ctx} /> } },
   sidebar: {

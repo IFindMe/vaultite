@@ -2,7 +2,7 @@ import { blockName, blocksIn } from "./sections.ts"
 import { load } from "./yaml.ts"
 import { isNumber, isObj as isMap, messageOf, strings } from "./values.ts"
 
-type OptionType = "string" | "number" | "boolean" | "list" | "map" | "enum"
+export type OptionType = "string" | "number" | "boolean" | "list" | "map" | "enum"
 export type OptionDecl = {
   type: OptionType | OptionType[]
   description: string
@@ -216,7 +216,7 @@ export function fallbackText(pluginName: string, decl: BlockDecl | null | undefi
   return decl?.description ? `_(${pluginName}: ${decl.description}; drawn in the app only)_` : `_(${pluginName} draws this block in the app only)_`
 }
 
-const ONE_LINE = (s: unknown) => typeof s === "string" && !!s.trim() && !s.includes("\n")
+const ONE_LINE = (s: unknown): s is string => typeof s === "string" && !!s.trim() && !s.includes("\n")
 
 export function declProblems(blocks: unknown, where: string): string[] {
   if (blocks === undefined) return []
@@ -265,14 +265,14 @@ function optionProblems(o: unknown, ok: string): string[] {
   return out
 }
 
-export function optionText(k: string, d: OptionDecl) {
+export function optionText(k: string, d: OptionDecl, label?: string) {
   const bits = [typeText(d)]
   if (d.default !== undefined) bits.push(`default ${typeof d.default === "string" ? d.default : JSON.stringify(d.default)}`)
   if (d.min !== undefined && d.max !== undefined) bits.push(`${d.min} to ${d.max}`)
   else if (d.min !== undefined) bits.push(`at least ${d.min}`)
   else if (d.max !== undefined) bits.push(`at most ${d.max}`)
   if (d.required) bits.push("required")
-  return `\`${k}\` (${bits.join(", ")}): ${d.description}`
+  return `\`${k}\`${label ? `, ${label}` : ""} (${bits.join(", ")}): ${d.description}`
 }
 
 export function blocksDoc(decls: BlockDecls): string {
@@ -299,7 +299,18 @@ export type SettingDecl = OptionDecl & { label: string; labels?: Record<string, 
   lines?: boolean
   /** A text whose choices only the server knows (this machine's shells): a route under /api/ answering
    *  {choices: [{value, label}]}, which the form offers ("" is the default). */
-  choices?: string }
+  choices?: string
+  /** The heading it's under in the form, with the others naming it; settings without one come before the first. */
+  group?: string
+  /** Applies only while a setting before it in its group is on ("transcribe") or one of some values ({"engine": ["apple"]}). */
+  when?: SettingWhen
+  /** What it does when left out, where its default can't say it ("Automatic", "None"). */
+  unset?: string
+  /** Folded under its group's Advanced row (a group of only these folds whole): what few change. */
+  advanced?: boolean
+  /** A number's step: with its min and max, the form draws a slider. */
+  step?: number }
+export type SettingWhen = string | Record<string, (string | number | boolean)[]>
 export type SettingDecls = Record<string, SettingDecl>
 
 export function settingsOf(manifest: unknown): SettingDecls {
@@ -314,8 +325,9 @@ export function settingDeclProblems(settings: unknown, where: string): string[] 
   for (const [k, d] of Object.entries(settings)) {
     const at = `${where}: setting '${k}'`
     if (!isMap(d)) { out.push(`${at} must be an object with a type, a label and a description`); continue }
-    const { local, folder, lines, choices, preview, ...opt } = d
+    const { local, folder, lines, choices, preview, group, when, unset, advanced, step, ...opt } = d
     if (local !== undefined && typeof local !== "boolean") out.push(`${at}: local must be true or false`)
+    out.push(...layoutProblems(Object.entries(settings), k, { group, when, unset, advanced, step, empty: isEmpty(opt.default), range: typesGiven(opt).join() === "number" && isNumber(opt.min) && isNumber(opt.max) }, at))
     if (preview !== undefined && (preview !== true || !typesGiven(opt).every((t) => t === "enum"))) out.push(`${at}: preview is true, on an enum`)
     if (folder !== undefined && (folder !== true || !typesGiven(opt).every((t) => t === "string" || t === "list"))) out.push(`${at}: folder is true, on a string or a list`)
     if (lines !== undefined && (lines !== true || !typesGiven(opt).every((t) => t === "list"))) out.push(`${at}: lines is true, on a list`)
@@ -333,9 +345,53 @@ export function settingDeclProblems(settings: unknown, where: string): string[] 
   return out
 }
 
+const isEmpty = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length)
+
+type Entries = [key: string, decl: unknown][]
+const HEADING = /^[A-Z]/
+
+function layoutProblems(settings: Entries, k: string, d: { group: unknown; when: unknown; unset: unknown; advanced: unknown; step: unknown; empty: boolean; range: boolean }, at: string): string[] {
+  const out: string[] = []
+  if (d.group !== undefined && !(ONE_LINE(d.group) && HEADING.test(d.group))) out.push(`${at}: group is a heading, a few words in sentence case ("Notifications")`)
+  if (d.when !== undefined) out.push(...whenProblems(settings, k, d.when, at))
+  if (d.unset !== undefined && !(ONE_LINE(d.unset) && HEADING.test(d.unset) && d.empty)) out.push(`${at}: unset says what it does left out, in sentence case ("Automatic"), on a setting with no default to show`)
+  if (d.advanced !== undefined && d.advanced !== true) out.push(`${at}: advanced is true`)
+  if (d.step !== undefined && !(isNumber(d.step) && d.step > 0 && d.range)) out.push(`${at}: step is a number above 0, on a number with a min and a max`)
+  return out
+}
+
+export function whenOf(when: SettingWhen): [string, string[] | null] {
+  if (!isMap(when)) return [when, null]
+  const [k, values] = Object.entries(when)[0]
+  return [k, values.map(String)]
+}
+const whenText = (when: SettingWhen | undefined) => {
+  if (!when) return ""
+  const [k, values] = whenOf(when)
+  return values ? ` Applies while \`${k}\` is ${values.join(" or ")}.` : ` Applies while \`${k}\` is on.`
+}
+
+const whenParts = (when: unknown): [string | null, unknown] =>
+  ONE_LINE(when) ? [when, null] : isMap(when) && Object.keys(when).length === 1 ? Object.entries(when)[0] : [null, null]
+
+function parentOf(entries: Entries, k: string, on: string | null) {
+  const indexOf = (key: string | null) => entries.findIndex(([x]) => x === key)
+  const parent: unknown = entries[indexOf(on)]?.[1], own: unknown = entries[indexOf(k)]?.[1]
+  return isMap(parent) && isMap(own) && indexOf(on) < indexOf(k) && parent.group === own.group ? parent : null
+}
+
+function whenProblems(settings: Entries, k: string, when: unknown, at: string): string[] {
+  const [on, values] = whenParts(when), parent = parentOf(settings, k, on)
+  if (!parent) return [`${at}: when names a setting before it in its group, "<key>" (a switch) or {"<key>": [<values>]}`]
+  const isSwitch = typesGiven(parent).join() === "boolean"
+  if (values === null) return isSwitch ? [] : [`${at}: when "${on}" is for a switch; for a choice, {"${on}": [<values>]}`]
+  const of = isSwitch ? ["true", "false"] : Array.isArray(parent.values) ? parent.values.map(String) : []
+  return Array.isArray(values) && values.length && values.every((v) => of.includes(String(v))) ? [] : [`${at}: when's values are some of ${on}'s (${of.join(", ")})`]
+}
+
 export function settingsDoc(id: string, decls: SettingDecls): string {
   const keys = Object.keys(decls)
   if (!keys.length) return ""
   return [`Settings, \`.vaultite/plugins/${id}/data.json\` (each optional; the plugin's settings in the app too):`,
-    ...keys.map((k) => `- ${optionText(k, decls[k]).replace(/\(a (text|list)/, (m, t) => decls[k].folder ? `(${t === "list" ? "a list of folders" : "a folder"}` : m)}${decls[k].local ? " (this machine's own: bundles never save or set it)" : ""}`)].join("\n")
+    ...keys.map((k) => `- ${optionText(k, decls[k], decls[k].label).replace(/\(a (text|list)/, (m, t) => decls[k].folder ? `(${t === "list" ? "a list of folders" : "a folder"}` : m)}${whenText(decls[k].when)}${decls[k].local ? " (this machine's own: bundles never save or set it)" : ""}`)].join("\n")
 }

@@ -11,6 +11,6 @@
   "requires": ["inbox"],
   "enhances": ["claude-code", "codex", "opencode", "terminal"],
   "settings": {
-    "agents_answer": { "type": "boolean", "default": true, "label": "Agents answer their subagents", "description": "an agent may answer the questions its subagents ask (never their permissions, which only you answer); off, those questions wait for you in the inbox" }
+    "agents_answer": { "type": "boolean", "default": true, "label": "Agents answer their subagents", "description": "their questions, never their permissions (only you answer those); off, those questions wait for you in the inbox" }
   }
 }

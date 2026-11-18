@@ -6,11 +6,11 @@ import { addContainer, argOf, chosenFor, colorOf, destination, keepOutside, open
 import { iconCame, siteIcon, spinnerIcon } from "./icons"
 import { framedSite } from "./framed"
 import { painted } from "./layers"
-import { PermissionsSection } from "./PermissionsSection"
-import { manageContainers, SitesPanel, sitesPanelMenu, SitesSettings, SitesView } from "./Sites"
+import { DesktopSettings } from "./DesktopSettings"
+import { manageContainers, SitesPanel, sitesPanelMenu, SitesView } from "./Sites"
 import { extensionPageName, extensionsChanged, hasExtensions, popupChanged, setExtensionsOpener } from "./extstate"
 import { liveTitle } from "./livetitles"
-import { EDIT_DETAIL, ENTRY_DETAIL, entryTitle, NEW_DETAIL, PasswordsSetting } from "./passwordstore"
+import { EDIT_DETAIL, ENTRY_DETAIL, entryTitle, NEW_DETAIL } from "./passwordstore"
 import { askImport, browsersHere, findBrowsers } from "./importer"
 import "./types"
 import { openBookmark, starOf } from "./Star"
@@ -370,7 +370,7 @@ export default definePlugin({
     { id: "web:import-chrome", name: "Import from Chrome…", desktop: true, when: () => browsersHere().some((s) => s.browser === "chrome"), run: () => askImport("chrome"), icon: Download },
   ],
   ambient: { playing: { title: "Web pages playing", sort: 55, render: () => <Playing /> }, downloads: { title: "Downloads", sort: 56, render: () => <DownloadsChip /> } },
-  settingsPanel: () => <><SitesSettings /><PermissionsSection /><PasswordsSetting /></>,
+  settingsPanel: () => <DesktopSettings />,
   settingsSearch: [{ key: "sites", label: "Sites and logins", description: "the sites signed in to in the default logins and each container's: sign out, clear trackers" },
     { key: "permissions", label: "Site permissions", description: "what each site may use (camera, microphone, location, notifications), in each container: allow, block or ask" },
     { key: "passwords", label: "Passwords", description: "your KeePass file (KeePassXC's, Strongbox's), its passwords listed, edited and filled in pages" }],

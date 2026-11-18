@@ -452,15 +452,13 @@ export function SitesSettings() {
   return (
     <div data-setting="sites">
     <Section title="Sites and logins">
-      {!webPages?.sites ? <p className="text-[15px] text-muted-foreground">Sites and their logins are in Vaultite's desktop app.</p> : (
-        <div data-web-sites-settings>
-          <Group>{all.map((l) => <SiteList key={l.prof} logins={l} look="settings" />)}</Group>
-          <div className="mt-2"><Button size="small" onClick={() => newContainer()}>New container…</Button></div>
-          <p className="mt-1.5 px-1 text-[13px] leading-[18px] text-muted-foreground">
-            Each container signs in to sites on its own. Sign out deletes a site's cookies and what it keeps in the browser there; right-click a container for its options.
-          </p>
-        </div>
-      )}
+      <div data-web-sites-settings>
+        <Group>{all.map((l) => <SiteList key={l.prof} logins={l} look="settings" />)}</Group>
+        <div className="mt-2"><Button size="small" onClick={() => newContainer()}>New container…</Button></div>
+        <p className="mt-1.5 px-1 text-[13px] leading-[18px] text-muted-foreground">
+          Each container signs in to sites on its own. Sign out deletes a site's cookies and what it keeps in the browser there; right-click a container for its options.
+        </p>
+      </div>
     </Section>
     </div>
   )

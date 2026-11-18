@@ -61,6 +61,10 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - The companion's stock lines ("Handed that off to a background agent.", "Passed that on to its job.") play from this
   Mac once a cloud voice made them, as does any short line it says again, so they cost no voice credits after the
   first time; another voice or speed makes them anew.
+- Plugins' settings read like Settings' own: grouped under headings, headed by what the plugin does, a short line
+  under each setting. A setting that only matters while another is on sits under it, dimmed until it applies;
+  defaults show as values ("Automatic" where empty means that); lists of sites, logins or codes are chips with Add;
+  what few change folds away (the companion's Jobs, its voices' details); and Edit as JSON opens the settings file.
 - Workspaces: All tabs is now the Workspaces page. Each workspace there shows its icon, colour and name: a click on the
   name renames it, right-click or its … button has the switcher's menu (icon, colour, container, duplicate, delete), and
   New workspace at the end makes one, named in place. Drag the switcher's button onto a pane to open the page there.

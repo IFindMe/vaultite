@@ -1,29 +1,28 @@
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from "react"
-import { refuse } from "@/core/animation"
-import { Check, ChevronDown, ChevronRight, FileJson, Folder, Plus, X, type LucideIcon } from "lucide-react"
-import { type Store, useLive, useStore } from "@/core/data"
+import { Fragment, useEffect, useMemo, useState } from "react"
+import { FileJson, type LucideIcon } from "lucide-react"
+import type { Store } from "@/core/data"
 import { patch, put } from "@/core/http"
-import type { Plugin, SettingChoice } from "@/core/define"
-import { folderList, openFile, readFile } from "@/core/files"
+import type { Plugin } from "@/core/define"
+import { openFile, readFile } from "@/core/files"
 import { useVaultChange } from "@/core/live"
 import { afterSheets } from "@/core/nav"
 import { notifyError } from "@/core/notify"
 import { isEnabled, names, setSwitch, tileTint } from "@/core/plugins"
-import { pluginSettings, revealRow, settingsFile, takeGoingTo, valueLabel } from "@/core/pluginSettings"
+import { goingToIn, pluginSettings, revealRow, settingsFile, takeGoingTo } from "@/core/pluginSettings"
 import { grantsOf, setGrant } from "@/core/grants"
 import { usePrefs } from "@/core/prefs"
-import { capitalize, cn } from "@/lib/utils"
+import { capitalize } from "@/lib/utils"
 import { brief } from "@/core/brief"
-import { Group, Loading, Section, Segmented, SettingRow, SheetHead, Switch } from "@/components/kit"
+import { Group, Loading, Section, SettingRow, SheetHead, Switch } from "@/components/kit"
+import { Button } from "@/components/Button"
 import { JsonView } from "@/components/JsonView"
 import { Catch } from "@/components/Guard"
-import { chooseFolder } from "@/components/FolderPicker"
-import { valueProblem, type SettingDecl, type SettingDecls } from "../../../core/blocks.ts"
+import { Field } from "@/components/SettingField"
+import { SettingsForm } from "@/components/SettingsForm"
 
-const panelFailed = () => <p className="text-[15px] text-muted-foreground">Its settings couldn't be drawn. Its settings file is below.</p>
+const panelFailed = () => <p className="text-[15px] text-muted-foreground">Its settings couldn't be drawn: Edit as JSON, below, still opens them.</p>
 
 type Data = Record<string, unknown>
-const types = (d: SettingDecl) => (Array.isArray(d.type) ? d.type : [d.type])
 
 /** A plugin's settings (its data.json), followed live: null while they load, {} when there are none; `set` writes
  *  those keys (null removes one), shown at once and put back if the write fails. */
@@ -35,89 +34,69 @@ export function usePluginSettings(id: string): [Data | null, (changes: Data) => 
 export function PluginSettings({ store, plugin, embedded = false }: { store: Store; plugin: Plugin; embedded?: boolean }) {
   const { disabled } = usePrefs()
   const on = isEnabled(plugin.id, disabled)
-  const drawn = on && plugin.settingsPanel ? plugin.settingsPanelDraws ?? [] : []
-  const decls = Object.fromEntries(Object.entries(plugin.settingsDecls ?? {}).filter(([k]) => !drawn.includes(k)))
-  const declared = Object.keys(decls).length > 0
-  const hasFile = (store.pluginSettings ?? []).includes(plugin.id)
   const blocked = (plugin.requires ?? []).filter((r) => !isEnabled(r, disabled))
-  const panel = on && plugin.settingsPanel && <Catch fallback={panelFailed}>{plugin.settingsPanel({ store })}</Catch>
+  const reveal = useMemo(() => goingToIn(plugin.id), [plugin.id])
   useEffect(() => {
     const key = takeGoingTo(plugin.id)
     if (key) revealRow(`[data-plugin-settings-sheet="${CSS.escape(plugin.id)}"] [data-setting="${CSS.escape(key)}"]`)
   }, [plugin.id])
   return (
     <div data-plugin-settings-sheet={plugin.id}>
-      {!embedded && <SheetHead icon={plugin.icon} tint={tileTint(plugin.id)} title={plugin.name} />}
+      {!embedded && <SheetHead icon={plugin.icon} tint={tileTint(plugin.id)} title={plugin.name} sub={brief(plugin.description)} />}
       {!on && (
-        <div className="mb-5 flex min-h-11 items-center gap-3 rounded-[10px] bg-muted px-3.5">
+        <div className="mb-5 flex min-h-11 items-center gap-3 rounded-card bg-muted px-3.5">
           <span className="flex-1 text-[15px] text-muted-foreground">{blocked.length ? `Off: it needs ${names(blocked)}` : "Off"}</span>
           <Switch on={false} onChange={() => setSwitch(plugin, true)} label={`${plugin.name} plugin`} disabled={!!blocked.length} />
         </div>
       )}
-      <div className="space-y-5" data-settings-body>
-        {panel && plugin.settingsPanelFirst && panel}
-        {declared && <SettingsForm id={plugin.id} decls={decls} titled={!!panel && !embedded} offers={plugin.settingChoices} />}
-        {panel && !plugin.settingsPanelFirst && panel}
-        <Homes store={store} plugin={plugin.id} />
-        <Writes store={store} plugin={plugin.id} />
-        {!declared && !(plugin.settingsPanel && on) && (hasFile ? <SettingsJson path={settingsFile(plugin.id)} /> : !embedded && (
-          <p className="text-[15px] text-muted-foreground">Nothing set yet.</p>
-        ))}
-        {!embedded && (declared || drawn.length > 0 || hasFile) && <Where path={settingsFile(plugin.id)} lead={hasFile ? "Kept in" : "Kept, once set, in"}
-          open={hasFile ? () => openFile(settingsFile(plugin.id)) : undefined} />}
-      </div>
+      <div className="space-y-5" data-settings-body><SheetBody store={store} plugin={plugin} on={on} embedded={embedded} reveal={reveal} /></div>
     </div>
   )
 }
 
-export function Where({ path, lead, icon: Icon = FileJson, open }: { path: string; lead: string; icon?: LucideIcon; open?: () => void }) {
+function SheetBody({ store, plugin, on, embedded, reveal }: { store: Store; plugin: Plugin; on: boolean; embedded: boolean; reveal: string | null }) {
+  const drawn = on && plugin.settingsPanel ? plugin.settingsPanelDraws ?? [] : []
+  const decls = Object.fromEntries(Object.entries(plugin.settingsDecls ?? {}).filter(([k]) => !drawn.includes(k)))
+  const declared = Object.keys(decls).length > 0
+  const hasFile = (store.pluginSettings ?? []).includes(plugin.id)
+  const panel = on && plugin.settingsPanel && <Catch fallback={panelFailed}>{plugin.settingsPanel({ store })}</Catch>
+  const homes = (store.filing?.homes ?? []).filter((h) => h.plugin === plugin.id)
+  const home = homes.length === 1 ? <Home key="home" home={homes[0]} only /> : null
+  const bare = !declared && !panel
   return (
-    <div className="flex items-center gap-2 text-[13px] leading-[18px] text-muted-foreground" data-settings-where>
-      <Icon className="size-4 shrink-0" strokeWidth={2} />
-      <span className="min-w-0 flex-1 break-all">{lead} <code className="text-[12px]">{path}</code></span>
-      {open && (
-        <button type="button" onClick={() => afterSheets(open)} data-settings-open
-          className="h-7 shrink-0 cursor-pointer rounded-[6px] border-[0.5px] border-border bg-card px-2.5 text-[13px] text-foreground hover:bg-foreground/[0.05]">
-          Open
-        </button>
-      )}
-    </div>
+    <>
+      {panel && plugin.settingsPanelFirst && panel}
+      {declared ? <SettingsForm id={plugin.id} decls={decls} offers={plugin.settingChoices} lead={home} reveal={reveal} /> : home && <Group>{home}</Group>}
+      {panel && !plugin.settingsPanelFirst && panel}
+      {homes.length > 1 && <Section title="Folders"><Group>{homes.map((h) => <Home key={h.key} home={h} />)}</Group></Section>}
+      <Writes store={store} plugin={plugin.id} />
+      {bare && hasFile && <SettingsJson path={settingsFile(plugin.id)} />}
+      {bare && !hasFile && !embedded && !homes.length && <p className="text-[15px] text-muted-foreground">Nothing set yet.</p>}
+      {!embedded && (declared || drawn.length > 0 || hasFile) && <EditJson path={settingsFile(plugin.id)} has={hasFile} />}
+    </>
   )
 }
 
-function SettingsForm({ id, decls, titled, offers }: { id: string; decls: SettingDecls; titled: boolean; offers?: Record<string, Offer> }) {
-  const [data, save] = usePluginSettings(id)
-  const seeds = useStore().store?.settingDefaults?.[`plugins/${id}/data`]
-  const declOf = (k: string): SettingDecl => (seeds && Object.hasOwn(seeds, k) ? { ...decls[k], default: seeds[k] } : decls[k])
-  if (!data) return <Group><div className="min-h-12" aria-busy /></Group>
-  const set = (k: string, v: unknown) => {
-    const d = declOf(k)
-    const next = v === undefined || v === null || v === "" || JSON.stringify(v) === JSON.stringify(d.default) ? null : v
-    save({ [k]: next }).catch((e) => notifyError(e, "Couldn't save it"))
+function EditJson({ path, has }: { path: string; has: boolean }) {
+  const open = async () => {
+    try { if (!has) await put("file", { path, text: "{}\n" }) } catch (e) { return notifyError(e, "Couldn't make its settings file") }
+    afterSheets(() => openFile(path))
   }
-  const form = (
-    <Group>
-      {Object.keys(decls).map((k) => <Field key={k} k={k} d={declOf(k)} value={data[k]} set={(v) => set(k, v)} offer={offers?.[k]} />)}
-    </Group>
+  return (
+    <Button look="quiet" size="small" className="-ml-1.5 gap-1.5 px-1.5" data-tip={path} data-settings-edit-json onClick={() => void open()}>
+      <FileJson className="size-3.5" strokeWidth={2} />Edit as JSON
+    </Button>
   )
-  return titled ? <Section title="Options">{form}</Section> : form
 }
 
-function Homes({ store, plugin }: { store: Store; plugin: string }) {
-  const homes = (store.filing?.homes ?? []).filter((h) => h.plugin === plugin)
-  if (!homes.length) return null
-  const save = (key: string, v: unknown) =>
-    patch("config/folders", { [key]: typeof v === "string" ? v : null }).catch((e) => notifyError(e, "Couldn't save it"))
+type HomeOf = NonNullable<Store["filing"]>["homes"][number]
+function Home({ home: h, only = false }: { home: HomeOf; only?: boolean }) {
+  const save = (v: unknown) =>
+    patch("config/folders", { [h.key]: v || null }).catch((e) => notifyError(e, "Couldn't save it"))
   return (
-    <Section title="Folders">
-      <Group>
-        {homes.map((h) => (
-          <Field key={h.key} k={`folder-${h.key}`} value={h.set ? h.folder : undefined} set={(v) => void save(h.key, v)}
-            d={{ type: "string", folder: true, default: h.folder, label: homes.length > 1 ? `${h.label} folder` : "Folder",
-              description: `where new ${h.label.toLowerCase()} go` }} />
-        ))}
-      </Group>
-    </Section>
+    <Field k={`folder-${h.key}`} value={h.set ? h.folder : undefined} set={(v) => void save(v)}
+      d={{ type: "string", folder: true, default: h.folder, label: only ? "Folder" : `${h.label} folder`,
+        description: only ? "where its new files go" : `where new ${h.type} files go` }} />
   )
 }
 
@@ -137,222 +116,18 @@ function Writes({ store, plugin }: { store: Store; plugin: string }) {
   )
 }
 
-const field = "h-8 min-w-0 rounded-[7px] border-[0.5px] border-border bg-background px-2 text-[16px] outline-none focus:border-primary md:h-7 md:text-[14px]"
-
-export function subOf(d: SettingDecl): ReactNode {
-  const full = capitalize(d.description ?? "").replace(/\.$/, "")
-  const short = brief(d.description, [...(d.values ?? []).map(String), ...Object.values(d.labels ?? {})])
-  if (!short) return undefined
-  return short === full ? short : <span data-tip={`${full}.`}>{short}</span>
-}
-
-/** One setting as a form row, by its declaration: what the sheet draws for each declared key, and a plugin's panel can
- *  use for settings kept elsewhere (File explorer's, in .vaultite/files.json). `set(undefined)` puts the default back. */
-export function Field({ k, d, value, set, offer }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void; offer?: Offer }) {
-  const ts = types(d)
-  if (offer && ts.length === 1 && ts[0] === "string") return <OfferedChoice k={k} d={d} value={value} set={set} offer={offer} />
-  const shown = value ?? d.default
-  const sub = subOf(d)
-  const attrs = { "data-setting": k }
-  if (ts.length === 1 && ts[0] === "boolean") {
-    return (
-      <SettingRow label={d.label} sub={sub} {...attrs}>
-        <Switch on={shown === true} onChange={set} label={d.label} />
-      </SettingRow>
-    )
-  }
-  if (ts.length === 1 && ts[0] === "enum" && d.values?.length) return <Choice k={k} d={d} value={shown} set={set} />
-  if (d.choices && ts.length === 1 && ts[0] === "string") return <ServerChoice k={k} d={d} value={value} set={set} />
-  if (d.values?.length && ts.length === 1 && ts[0] === "string") return <Presets k={k} d={d} value={value} set={set} />
-  if (ts.length === 1 && ts[0] === "number") return <NumberField k={k} d={d} value={value} set={set} />
-  if (ts.length === 1 && ts[0] === "list" && d.values?.length) return <Chips k={k} d={d} value={shown} set={set} />
-  if (d.folder && ts.length === 1 && ts[0] === "list") return <Folders k={k} d={d} value={value} set={set} />
-  if (d.folder && ts.length === 1 && ts[0] === "string") return <FolderField k={k} d={d} value={value} set={set} />
-  const words = !Array.isArray(value) || value.every((x) => typeof x === "string" || typeof x === "number")
-  if (ts.every((t) => t === "string" || t === "list") && words) return <TextField k={k} d={d} value={value} set={set} list={ts.includes("list")} />
-  return <SettingRow label={d.label} sub={<>{sub}{sub && ". "}Edit it in the file below</>} {...attrs} />
-}
-
-
-type Offer = () => SettingChoice[] | null
-function OfferedChoice({ k, d, value, set, offer }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void; offer: Offer }) {
-  const list = offer()
-  if (!list) return <Field k={k} d={d} value={value} set={set} />
-  const shown = typeof value === "string" && value ? value : String(d.default ?? "")
-  const all = list.some((c) => c.value === shown) || !shown ? list : [...list, { value: shown, label: d.labels?.[shown] ?? `${shown} (not connected)` }]
-  const enumOf: SettingDecl = { ...d, type: "enum", values: all.map((c) => c.value), labels: Object.fromEntries(all.map((c) => [c.value, c.label])) }
-  return <Choice k={k} d={enumOf} value={shown} set={set} />
-}
-
-function ServerChoice({ k, d, value, set }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void }) {
-  const { data } = useLive<{ choices: { value: string; label: string }[] }>(d.choices!)
-  const list = data?.choices ?? []
-  if (!list.length) return <SettingRow label={d.label} sub={subOf(d)} value={typeof value === "string" ? value : ""} data-setting={k} />
-  const enumOf: SettingDecl = { ...d, type: "enum", values: list.map((c) => c.value), labels: Object.fromEntries(list.map((c) => [c.value, c.label])) }
-  return <Choice k={k} d={enumOf} value={typeof value === "string" ? value : String(d.default ?? "")} set={set} />
-}
-
-function Presets({ k, d, value, set }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void }) {
-  const values = (d.values ?? []).map(String), shown = typeof value === "string" ? value : String(d.default ?? "")
-  const [own, setOwn] = useState(false)
-  const custom = own || !values.includes(shown)
-  const choices: SettingDecl = { ...d, type: "enum", values: [...values, CUSTOM], labels: { ...d.labels, [CUSTOM]: "Custom" } }
+export function Where({ path, lead, icon: Icon = FileJson, open }: { path: string; lead: string; icon?: LucideIcon; open?: () => void }) {
   return (
-    <>
-      <Choice k={k} d={choices} value={custom ? CUSTOM : shown} set={(v) => { setOwn(v === CUSTOM); if (v !== CUSTOM) set(v) }} />
-      {custom && <TextField k={`${k}-custom`} d={{ ...d, label: "Custom", description: "", default: undefined }} value={values.includes(shown) ? "" : shown} set={set} list={false} />}
-    </>
-  )
-}
-const CUSTOM = "\0custom"
-
-function Choice({ k, d, value, set }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void }) {
-  const [open, setOpen] = useState(false)
-  const values = d.values ?? []
-  const back = (s: string) => values.find((v) => String(v) === s)
-  const short = values.length <= 3 && values.every((v) => valueLabel(d, v).length <= 12)
-  if (short) {
-    return (
-      <SettingRow stack label={d.label} sub={subOf(d)} data-setting={k}>
-        <Segmented className="w-full sm:w-auto sm:shrink-0 [&>button]:whitespace-nowrap" label={d.label} value={value === undefined ? "" : String(value)}
-          options={values.map((v) => ({ value: String(v), label: valueLabel(d, v) }))} onChange={(s) => set(back(s))} />
-      </SettingRow>
-    )
-  }
-  return (
-    <div data-setting={k}>
-      <SettingRow label={d.label} sub={subOf(d)} value={value === undefined ? "" : valueLabel(d, value)} onClick={() => setOpen(!open)}
-        chevron={open ? ChevronDown : ChevronRight} aria-expanded={open} />
+    <div className="flex items-center gap-2 text-[13px] leading-[18px] text-muted-foreground" data-settings-where>
+      <Icon className="size-4 shrink-0" strokeWidth={2} />
+      <span className="min-w-0 flex-1 break-words">{lead} <code className="text-[12px]">{path.split("/").map((p, i) => <Fragment key={i}>{i > 0 && <>/<wbr /></>}{p}</Fragment>)}</code></span>
       {open && (
-        <div role="radiogroup" aria-label={d.label} className="-mt-1 pb-2 pl-1">
-          {values.map((v) => {
-            const on = String(v) === String(value)
-            return (
-              <button key={String(v)} type="button" role="radio" aria-checked={on} onClick={() => { set(v); setOpen(false) }}
-                className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-2 text-left text-[15px] hover:bg-foreground/[0.04] md:min-h-9 md:text-[14px]">
-                <Check className={cn("size-4 shrink-0 text-primary", !on && "invisible")} strokeWidth={2.5} />
-                {valueLabel(d, v)}
-              </button>
-            )
-          })}
-        </div>
+        <button type="button" onClick={() => afterSheets(open)} data-settings-open
+          className="h-7 shrink-0 cursor-pointer rounded-control border-[0.5px] border-border bg-card px-2.5 text-[13px] text-foreground hover:bg-foreground/[0.05]">
+          Open
+        </button>
       )}
     </div>
-  )
-}
-
-function NumberField({ k, d, value, set }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void }) {
-  const [typed, setTyped] = useState<string | null>(null)
-  const text = typed ?? (typeof value === "number" ? String(value) : "")
-  const n = text.trim() === "" ? null : Number(text)
-  const why = n === null ? "" : Number.isNaN(n) ? "should be a number" : valueProblem(d, n)
-  const save = () => { if (typed !== null && !why) set(n); if (!why) setTyped(null) }
-  return (
-    <SettingRow label={d.label} sub={why ? <span className="text-ink-(--red)">{capitalize(why)}</span> : subOf(d)} data-setting={k}>
-      <input inputMode="decimal" aria-label={d.label} value={text} placeholder={d.default !== undefined ? String(d.default) : ""}
-        aria-invalid={!!why || undefined} onChange={(e) => setTyped(e.target.value)} onBlur={save}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (why) refuse(e.currentTarget); else e.currentTarget.blur() } else if (e.key === "Escape") { e.stopPropagation(); setTyped(null) } }}
-        className={cn(field, "w-20 text-right tabular-nums", why && "border-[var(--red)]")} />
-    </SettingRow>
-  )
-}
-
-function TextField({ k, d, value, set, list }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void; list: boolean }) {
-  const [typed, setTyped] = useState<string | null>(null)
-  const lines = list && d.lines === true, sep = lines ? "\n" : ", "
-  const asText = (v: unknown) => (Array.isArray(v) ? v.join(sep) : typeof v === "string" || typeof v === "number" ? String(v) : "")
-  const text = typed ?? asText(value)
-  const save = () => {
-    if (typed === null) return
-    const t = typed.trim()
-    set(list ? (t ? t.split(lines ? /\r?\n/ : ",").map((s) => s.trim()).filter(Boolean) : null) : t)
-    setTyped(null)
-  }
-  const keys = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !lines) { e.preventDefault(); e.currentTarget.blur() } else if (e.key === "Escape") { e.stopPropagation(); setTyped(null) }
-  }
-  return (
-    <SettingRow stack label={d.label} sub={<>{subOf(d)}{lines ? " (one per line)" : list ? " (separate them with commas)" : ""}</>} data-setting={k}>
-      {lines
-        ? <textarea aria-label={d.label} value={text} placeholder={asText(d.default)} spellCheck={false} autoComplete="off" rows={Math.min(8, Math.max(3, text.split("\n").length + 1))}
-          onChange={(e) => setTyped(e.target.value)} onBlur={save} onKeyDown={keys} className={cn(field, "h-auto w-full resize-y py-1.5 font-mono md:h-auto sm:w-72")} />
-        : <input aria-label={d.label} value={text} placeholder={asText(d.default)} spellCheck={false} autoComplete="off"
-          onChange={(e) => setTyped(e.target.value)} onBlur={save} onKeyDown={keys} className={cn(field, "w-full sm:w-48")} />}
-    </SettingRow>
-  )
-}
-
-function useFolders() {
-  const files = useStore().store?.files
-  return useMemo(() => new Set(files ? folderList(files) : []), [files])
-}
-const missing = (f: string) => <span className="text-ink-(--red)">There's no folder {f}</span>
-
-function FolderField({ k, d, value, set }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void }) {
-  const folders = useFolders()
-  const v = typeof value === "string" ? value.replace(/^\/+|\/+$/g, "") : ""
-  return (
-    <SettingRow stack label={d.label} sub={v && !folders.has(v) ? missing(v) : subOf(d)} data-setting={k}>
-      <div className="flex w-full items-center gap-1 sm:w-56">
-        <button type="button" aria-label={d.label} onClick={() => chooseFolder(d.label, set)} data-folder-field
-          className={cn(field, "flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left hover:bg-foreground/[0.03]")}>
-          <Folder className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
-          <span className={cn("min-w-0 flex-1 truncate", !v && "text-muted-foreground")}>{v || String(d.default ?? "") || "Choose a folder"}</span>
-        </button>
-        {v && (
-          <button type="button" aria-label={`Clear ${d.label.toLowerCase()}`} data-tip="Back to its default" onClick={() => set(null)}
-            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-[6px] text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground md:size-7">
-            <X className="size-3.5" strokeWidth={2.25} />
-          </button>
-        )}
-      </div>
-    </SettingRow>
-  )
-}
-
-function Folders({ k, d, value, set }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void }) {
-  const folders = useFolders()
-  const list = (Array.isArray(value) ? value : []).map((x) => String(x).replace(/^\/+|\/+$/g, "")).filter(Boolean)
-  const chip = "flex min-h-8 items-center gap-1 rounded-full border-[0.5px] text-[14px] md:min-h-7 md:text-[13px]"
-  return (
-    <SettingRow stack label={d.label} sub={subOf(d)} data-setting={k}>
-      <div className="flex flex-wrap gap-1.5 sm:max-w-[60%] sm:justify-end">
-        {list.map((f) => (
-          <span key={f} data-folder-chip={f} data-tip={folders.has(f) ? undefined : `There's no folder ${f}`}
-            className={cn(chip, "pr-0.5 pl-2.5", folders.has(f) ? "border-border" : "border-[var(--red)] text-ink-(--red)")}>
-            {f}
-            <button type="button" aria-label={`Remove ${f}`} onClick={() => { const rest = list.filter((x) => x !== f); set(rest.length ? rest : null) }}
-              className="grid size-6 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground">
-              <X className="size-3" strokeWidth={2.25} />
-            </button>
-          </span>
-        ))}
-        <button type="button" data-folder-add onClick={() => chooseFolder(d.label, (f) => { if (!list.includes(f)) set([...list, f]) })}
-          className={cn(chip, "cursor-pointer border-border px-2.5 text-muted-foreground hover:text-foreground")}>
-          <Plus className="size-3.5" strokeWidth={2.25} /> Add a folder
-        </button>
-      </div>
-    </SettingRow>
-  )
-}
-
-function Chips({ k, d, value, set }: { k: string; d: SettingDecl; value: unknown; set: (v: unknown) => void }) {
-  const list = Array.isArray(value) ? value : []
-  return (
-    <SettingRow below label={d.label} sub={subOf(d)} data-setting={k}>
-      <div className="flex flex-wrap gap-1.5">
-        {(d.values ?? []).map((v) => {
-          const on = list.includes(v)
-          return (
-            <button key={String(v)} type="button" aria-pressed={on} onClick={() => set(on ? list.filter((x) => x !== v) : [...list, v])}
-              className={cn("min-h-8 cursor-pointer rounded-full border-[0.5px] px-3 text-[14px] md:min-h-7 md:text-[13px]",
-                on ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground")}>
-              {valueLabel(d, v)}
-            </button>
-          )
-        })}
-      </div>
-    </SettingRow>
   )
 }
 
@@ -367,5 +142,5 @@ function SettingsJson({ path }: { path: string }) {
     setFile({ text })
     put("file", { path, text, base }).catch((e) => { read(); notifyError(e, "Couldn't save it") })
   }
-  return <div className="rounded-[10px] bg-foreground/[0.04] px-3 py-2" data-settings-json><JsonView text={file.text} editable onChange={change} /></div>
+  return <div className="rounded-card bg-foreground/[0.04] px-3 py-2" data-settings-json><JsonView text={file.text} editable onChange={change} /></div>
 }

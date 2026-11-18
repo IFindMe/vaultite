@@ -13,11 +13,11 @@
     "machines"
   ],
   "settings": {
-    "shell": { "local": true, "type": "string", "choices": "terminals/shells", "label": "Shell", "description": "the shell new terminals start; those already running keep theirs" },
+    "shell": { "local": true, "type": "string", "choices": "terminals/shells", "unset": "Default", "label": "Shell", "description": "for new terminals; those already running keep theirs" },
     "cursor": { "type": "enum", "values": ["block", "bar", "underline"], "default": "block", "preview": true, "label": "Terminal cursor", "description": "its shape in every terminal" },
     "cursorBlink": { "type": "boolean", "default": true, "label": "Blink the terminal cursor", "description": "while the terminal has the keyboard" },
     "scrollback": { "type": "number", "default": 10000, "min": 100, "max": 1000000, "label": "Scrollback", "description": "lines of history each new terminal keeps" },
-    "allowUsers": { "local": true, "type": "list", "label": "Other tailnet logins", "description": "others on your tailnet who may open terminals, like someone@example.com" },
-    "allowRemote": { "local": true, "type": "boolean", "default": false, "label": "Anyone who reaches the app", "description": "any device that reaches the app may open terminals: only on a network you trust" }
+    "allowRemote": { "local": true, "type": "boolean", "default": false, "group": "Who may open terminals", "label": "Anyone who reaches the app", "description": "only on a network you trust; any device that reaches the app may open terminals" },
+    "allowUsers": { "local": true, "type": "list", "group": "Who may open terminals", "when": { "allowRemote": [false] }, "label": "Other tailnet logins", "description": "others on your tailnet, like someone@example.com" }
   }
 }

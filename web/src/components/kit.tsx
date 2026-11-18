@@ -470,7 +470,7 @@ export function Slider({ value, min = 0, max = 100, step = 1, label, onInput, on
 
 /** Inset grouped list, like iOS Settings (detail sheets). */
 export const Group = ({ children }: { children: ReactNode }) => (
-  <div data-setting-group className="rounded-[10px] bg-foreground/[0.04] px-3"><List>{children}</List></div>
+  <div data-setting-group className="rounded-card bg-foreground/[0.04] px-3"><List>{children}</List></div>
 )
 
 export function GroupNote({ children, above, className, ...rest }: { children: ReactNode; above?: boolean; className?: string } & Record<`data-${string}`, string | boolean | undefined>) {

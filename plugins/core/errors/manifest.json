@@ -7,8 +7,8 @@
   "description": "The errors the app and the server hit, kept on this machine: when the app stopped or a block failed, with what you were doing, and the server's own. The same error again is one line with a count; the first new error of a kind (the app's, the server's) since the server started shows a toast, the rest are only listed.",
   "tint": "red",
   "settings": {
-    "keep_days": { "type": "number", "default": 30, "min": 1, "max": 365, "label": "Days to keep", "description": "how long errors are kept on this machine" },
-    "notify": { "type": "boolean", "default": true, "label": "Tell me about new errors", "description": "a toast for the first new error since the server started; the rest are only listed here" }
+    "keep_days": { "type": "number", "default": 30, "min": 1, "max": 365, "label": "Days to keep", "description": "errors, kept on this machine" },
+    "notify": { "type": "boolean", "default": true, "label": "Tell me about new errors", "description": "a toast for the first since the server started; the rest are only listed here" }
   },
   "blocks": {
     "errors": {

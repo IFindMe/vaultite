@@ -18,13 +18,13 @@
       "type": "string",
       "default": "YYYY-MM-DD",
       "label": "Date format",
-      "description": "how {{date}} and Insert current date write a date (YYYY MM DD, dddd D MMMM...)"
+      "description": "how `{{date}}` and Insert current date write a date (YYYY MM DD, dddd D MMMM...)"
     },
     "timeFormat": {
       "type": "string",
       "default": "HH:mm",
       "label": "Time format",
-      "description": "how {{time}} and Insert current time write a time (HH:mm, h:mm A...)"
+      "description": "how `{{time}}` and Insert current time write a time (HH:mm, h:mm A...)"
     }
   }
 }

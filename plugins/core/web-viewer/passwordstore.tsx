@@ -131,8 +131,7 @@ export function PasswordsSetting() {
   return (
     <div data-setting="passwords" className="mt-6">
       <Section title="Passwords">
-        {!hasPasswords() ? <p className="text-[15px] text-muted-foreground">Your passwords open in Vaultite's desktop app.</p>
-          : <SettingRow label="Your passwords" value={status === undefined ? "" : status ? fileName(status.file) : "Not set up"} onClick={showPasswords} />}
+        <SettingRow label="Your passwords" value={status === undefined ? "" : status ? fileName(status.file) : "Not set up"} onClick={showPasswords} />
       </Section>
     </div>
   )

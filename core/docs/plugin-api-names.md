@@ -564,6 +564,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `pluginEditorExtensions(ctx)`
 - `pluginFileGroups(path, skip?, folder?)`: Plugins' `fileMenu` items (a folder's: `folderMenu`) for the plugins that are on (but `skip`: a plugin's own menu), by `section`: navigate, share (in sight even in a tab's short menu), more, away…
 - `PluginHost`: What hosts plugins (hostPlugins): its plugins' byline on the Plugins page and the answers to its plugins' buttons.
+- `PluginSetting({ plugin, k, sub })`: One of a plugin's declared settings as its form draws it, for its settingsPanel to place (settingsPanelDraws).
 - `pluginSettings(id)`: A plugin's settings (its data.json) as module state, one per plugin: read on first use and whenever the file changes.
 - `PluginState`
 - `plural(n, word, many?)`: A count and its noun: "1 file", "3 files" (`many`: a plural that isn't the word + s).
@@ -665,7 +666,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `SettingChoice`: One of the choices a setting offers: what's saved, and what the form shows for it.
 - `SettingDecl`: A plugin's settings declared like a block's options plus `label`, `labels` and `local` (this machine's own: bundles skip it).
 - `SettingDecls`
-- `SettingField({ k, d, value, set, offer })`: One setting as a form row, by its declaration: what the sheet draws for each declared key, and a plugin's panel can use for settings kept elsewhere (File explorer's, in .vaultite/files.json).
+- `SettingField({ offer, … })`: One setting as a form row, by its declaration (a panel's own too: File explorer's, in files.json); `set(undefined)` puts the default back; `sub`: what it's doing now, in place of its description.
 - `SettingRow({ label, sub, stack, below, value, onClick, chevron, preview, children, className, … })`: A setting: name and line on the left, control on the right (`stack`: under it on phones; `below`: always, a chip list); `onClick`: a button with `value` and a chevron; `preview`: pictures of what…
 - `settingsFile(id)`: Where a plugin's settings are kept.
 - `SettingsSearchEntry`: A row of its settings panel, for the Settings page's search: what it says, and `key`, the row's `data-setting`, to go to it.
@@ -793,6 +794,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `unhighlight(view)`: Take out the coloured highlight the selection is in, marks and colour (false if it's in none: plain ones toggle as the other marks do).
 - `Unreachable`
 - `useAccountNames()`: Agents' accounts' names (accountName): another function each time more are read.
+- `useAgentChoices(only?)`
 - `useAgentRoute(route, options, query?, version?)`: A plugin's `route` for a block, with `query`, on its options' `machine` (this one when it's none or this) and `account` (and `for`: a plugin whose accounts come first): `on` names another machine…
 - `useAgentRuns(on?)`: Every agent the plugins that are on know of, in order; whether some haven't said yet (`loading`), and which can't be reached (`unreachable`).
 - `useAgents()`

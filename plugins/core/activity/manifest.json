@@ -9,10 +9,10 @@
   "tint": "indigo",
   "writes": [{ "folder": "Recaps", "why": "a recap of each day", "generated": true }],
   "settings": {
-    "keep_days": { "type": "number", "default": 14, "min": 1, "max": 365, "label": "Days to keep", "description": "how long events and timings are kept on this machine" },
-    "reads": { "type": "boolean", "default": false, "label": "Record reads", "description": "what agents and scripts read and search is recorded too, not only what they change" },
-    "recaps": { "type": "boolean", "default": true, "label": "Write day recaps", "description": "each day's recap goes in the vault (Recaps/<date>.md; move the folder and new ones follow), with the text you changed quoted, to keep" },
-    "capture_folders": { "type": "list", "folder": true, "label": "Capture folders", "description": "folders whose new files are captures, like Transcripts for a transcriber's exports (clips and bookmarks are found without it)" }
+    "keep_days": { "type": "number", "default": 14, "min": 1, "max": 365, "label": "Days to keep", "description": "events and timings, kept on this machine" },
+    "reads": { "type": "boolean", "default": false, "label": "Record reads", "description": "what agents and scripts read and search; not only what they change" },
+    "recaps": { "type": "boolean", "default": true, "label": "Write day recaps", "description": "one note a day, `Recaps/<date>.md`; it quotes the text you changed, to keep, and new ones follow the folder if you move it" },
+    "capture_folders": { "type": "list", "folder": true, "label": "Capture folders", "description": "new files there count as captures (like a transcriber's Transcripts); clips and bookmarks are found without it" }
   },
   "blocks": {
     "activity": {

@@ -13,13 +13,13 @@
       "type": "boolean",
       "default": false,
       "label": "Label your notes",
-      "description": "a note or file you make in the app (New note, the quick switcher, a template, a pasted image) or with the CLI is written with the first value; off, a note without a label is yours, and its header shows none"
+      "description": "your new notes and files labelled yours; with the first origin value, in the app (New note, the quick switcher, a template, a pasted image) or with the CLI. Off, a note without a label is yours, and its header shows none"
     },
     "label_agents": {
       "type": "boolean",
       "default": true,
       "label": "Label agents' notes",
-      "description": "a note or file an agent makes through the API (MCP, the CLI under a coding agent, curl) is written with an origin, and a new image says so inside"
+      "description": "notes and files agents make, with an origin; through the API (MCP, the CLI under a coding agent, curl), and a new image says so inside"
     },
     "authorship": {
       "type": "enum",
@@ -33,7 +33,7 @@
       "type": "string",
       "default": "ai",
       "label": "Agents' label",
-      "description": "the value those notes and files get, one of the values above; also what a file whose bytes say an AI made it shows"
+      "description": "the origin agents' notes and files get; one of its values, and what a file whose bytes say an AI made it shows"
     }
   }
 }
