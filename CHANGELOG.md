@@ -69,6 +69,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   Device sync's hourly shadow check no longer holds the server (it was killed an hour after each start), scheduled jobs
   wait a minute after a start and start a few seconds apart, and a service whose starts fail because of the machine
   (the vault unreadable, heavy load) tries again with a growing wait instead of marking its code bad.
+  Hearing of thousands of changed files at once (iCloud touching each) no longer stalls it either. When the watchdog does kill it, its log line has the local time and names what held the vault.
 - Jobs: a follow-up to a job whose agent quit (its terminal back at a shell prompt) starts the agent again in the
   background, resuming its conversation with the follow-up, instead of typing it into the shell; the job shows failed,
   not ready for review, when its agent quit mid-work. `vau terminal send` refuses text for an agent that has left its

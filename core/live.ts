@@ -142,25 +142,31 @@ export class Live {
 
   /** Without the folders FSEvents tells of beside what changed in them (iCloud touches each one above a write) and the
    *  vault's own: for `.vaultite`, every window read every live card and setting again. A folder told alone stays. */
-  private narrow(paths: string[]) {
+  private async narrow(paths: string[]) {
     let root = this.rootName
-    if (!root) try { root = this.rootName = path.basename(fs.realpathSync(this.vault.path)) } catch { /* gone: nothing is its */ }
-    return paths.filter((p) => {
-      if (p === "" || (p === root && !fs.existsSync(path.join(this.vault.path, p)))) return false
-      if (!paths.some((q) => q.startsWith(p + "/"))) return true
-      try { return !fs.statSync(path.join(this.vault.path, p)).isDirectory() } catch { return true }
-    })
+    if (!root) try { root = this.rootName = path.basename(await fs.promises.realpath(this.vault.path)) } catch { /* gone: nothing is its */ }
+    const above = new Set<string>()
+    for (const q of paths) for (let i = q.indexOf("/"); i > 0; i = q.indexOf("/", i + 1)) above.add(q.slice(0, i))
+    const stat = (p: string) => fs.promises.stat(path.join(this.vault.path, p)).catch(() => null)
+    const kept = await Promise.all(paths.map(async (p) => {
+      if (p === "" || (p === root && !await stat(p))) return false
+      if (!above.has(p)) return true
+      return !(await stat(p))?.isDirectory()
+    }))
+    return paths.filter((_, i) => kept[i])
   }
 
   private flushing = false
   private async flush() {
     this.timer = null
     this.went = Date.now()
-    const paths = this.all ? null : this.narrow([...this.pending]).sort()
+    const told = this.all ? null : [...this.pending]
     this.pending.clear()
     this.all = false
     this.flushing = true
+    let paths = told
     try {
+      paths = told && (await this.narrow(told)).sort()
       await this.vault.hear(paths)
     } catch (e) {
       log.error("hearing the vault's changes failed", e)

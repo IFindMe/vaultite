@@ -26,6 +26,8 @@ let log = ""
 server.stdout!.on("data", (d) => { log += d })
 server.stderr!.on("data", (d) => { log += d })
 
+const touchEachNoteAsICloudDoes = () => { for (let i = 0; i < NOTES; i++) fs.chmodSync(path.join(VAULT, `Notes/F${i % 40}/Note ${i}.md`), 0o600) }
+
 type Answer = { status: number; text: string; ms: number }
 const call = (p: string, body?: { from: string; to: string }) => new Promise<Answer>((resolve) => {
   const t = performance.now(), done = (status: number, text: string) => resolve({ status, text, ms: performance.now() - t })
@@ -47,6 +49,7 @@ try {
   check("the server reads the vault", up, log.slice(-1500))
   if (!up) throw new Error("the server never read the vault")
   fs.writeFileSync(SLOW, "")
+  touchEachNoteAsICloudDoes()
   await sleep(300)
   const waits: number[] = []
   let moving = true

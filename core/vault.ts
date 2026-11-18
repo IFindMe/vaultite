@@ -740,16 +740,19 @@ export class Vault {
   }
 
   async hear(rels: string[] | null): Promise<boolean> {
-    const told = rels?.filter((r) => !unseen(r) && !this.indexed(r))
+    const seen = rels?.filter((r) => !unseen(r))
+    const now = seen ? await statsOf(seen.map((r) => this.abs(r))) : []
+    const told = seen?.filter((r, i) => !this.indexedAs(r, now[i] ?? undefined))
     if (told && !told.length) return false
     if (!told || this.next || !this.vouched() || told.some((r) => !this.entries.has(r) && !this.others.has(r))) {
-      for (const r of rels ?? [null]) this.heard(r)
+      this.stale = true
+      this.heardCount += told?.length ?? 1
       return this.synced({ trusting: true })
     }
     this.heardCount++
     return this.lock(async () => {
       if (!this.vouched()) return this.sync()
-      const stats = told.map((r) => fs.statSync(this.abs(r), { bigint: true, throwIfNoEntry: false }))
+      const stats = (await statsOf(told.map((r) => this.abs(r)))).map((st) => st ?? undefined)
       if (this.walks(told, stats)) return this.sync()
       const md = told.filter((r, i) => stats[i] && r.endsWith(".md"))
       const { texts, late } = await this.readAll(md)
@@ -770,15 +773,18 @@ export class Vault {
   }
 
   private indexed(rel: string) {
-    const was = this.entries.get(rel)?.stat ?? this.others.get(rel)
-    if (this.entries.get(rel)?.broken) return false
     try {
-      const st = fs.statSync(this.abs(rel), { bigint: true, throwIfNoEntry: false })
-      if (!was) return !st && this.letGo.has(rel)
-      return !!st && st.isFile() && sameStat(was, statFrom(st))
+      return this.indexedAs(rel, fs.statSync(this.abs(rel), { bigint: true, throwIfNoEntry: false }))
     } catch {
       return false
     }
+  }
+
+  private indexedAs(rel: string, st: fs.BigIntStats | undefined) {
+    const was = this.entries.get(rel)?.stat ?? this.others.get(rel)
+    if (this.entries.get(rel)?.broken) return false
+    if (!was) return !st && this.letGo.has(rel)
+    return !!st && st.isFile() && sameStat(was, statFrom(st))
   }
 
   async reread(rels: string[]): Promise<boolean> {

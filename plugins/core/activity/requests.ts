@@ -1,5 +1,5 @@
 import fs from "node:fs"
-import type { RequestEnd, RequestStart } from "../../../core/plugins.ts"
+import { logger, type RequestEnd, type RequestStart } from "../../../core/plugins.ts"
 import { lookup, whoFrom, withCaller, withSession } from "./callers.ts"
 import { describe, failed, opKind } from "./describe.ts"
 import { changed, naming, record } from "./events.ts"
@@ -7,6 +7,7 @@ import type { Actor, ActivityEvent } from "./model.ts"
 import { MINUTE, plugin } from "./store.ts"
 import { busy, timing } from "./timings.ts"
 
+const log = logger("activity")
 const CLAIM = 2500
 const BOOT = Date.now()
 
@@ -82,15 +83,20 @@ export const recaps = { dirty: true }
 export const ownWrites = new Map<string, number>()
 function ownRecap(p: string) { const t = ownWrites.get(p); return t !== undefined && Date.now() - t < 10_000 }
 
+let told = Promise.resolve()
 plugin.onChange((paths) => {
   busy()
   if (!paths) return
-  const now = Date.now()
-  for (const p of paths) {
-    if (QUIET.test(p) || ownRecap(p)) continue
-    recaps.dirty = true
-    let mtime: number | null = null
-    try { mtime = fs.statSync(plugin.vault.abs(p)).mtimeMs } catch {}
+  const now = Date.now(), loud = paths.filter((p) => !QUIET.test(p) && !ownRecap(p))
+  if (!loud.length) return
+  recaps.dirty = true
+  const mtimes = Promise.all(loud.map((p) => fs.promises.stat(plugin.vault.abs(p)).then((st) => st.mtimeMs, () => null)))
+  told = told.then(async () => attribute(loud, await mtimes, now)).catch((e) => log.error("couldn't tell who changed files", e))
+})
+
+function attribute(paths: string[], mtimes: (number | null)[], now: number) {
+  for (const [i, p] of paths.entries()) {
+    const mtime = mtimes[i] ?? null
     const w = mtime !== null
       ? writeAt(mtime)
       : writes.findLast((x) => now - (x.end + AFTER) < 1500)
@@ -118,7 +124,7 @@ plugin.onChange((paths) => {
     }, CLAIM)
     claimTimer.unref()
   }
-})
+}
 
 export function claim(rel: string) {
   if (unclaimed?.paths.delete(rel) && !unclaimed.paths.size) unclaimed = null
