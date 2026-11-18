@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Agents: a session whose turn is over while its own background work runs (a command, a monitor, a job it handed
+  off and waits on) shows it's waiting and on what, "Waiting on <it>, since 9:58 PM", in its tab, the Terminals and
+  Agents panels, its chat and its job's card, apart from working and from done.
 - iPhone: Download on a file or image opens the share sheet (Save Image, Save to Files) instead of showing the
   file in the app's own window with no way back.
 - iPhone: a voice note shows its words as they're said (through the server's cloud recognizer, Soniox, else the

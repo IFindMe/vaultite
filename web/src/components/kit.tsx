@@ -56,10 +56,10 @@ export function IconAction({ action, className, children }: { action?: { label: 
 }
 
 /** A status dot's kind. Only work moves; the colours want the user: `true` (yellow), ask (yellow, ringing once: blocked
- *  on them), unread (blue, an answer to read), error (red). */
-export type Dot = boolean | "working" | "ask" | "unread" | "error"
+ *  on them), unread (blue, an answer to read), error (red); waits, hollow: its own background work runs and wakes it. */
+export type Dot = boolean | "working" | "waits" | "ask" | "unread" | "error"
 const DOTS: Record<"true" | Exclude<Dot, boolean>, string> = {
-  true: "bg-[var(--yellow)]", working: "bg-foreground breathe motion-reduce:animate-none", ask: "bg-[var(--yellow)] dot-ping", unread: "bg-[var(--blue)]", error: "bg-[var(--red)]",
+  true: "bg-[var(--yellow)]", working: "bg-foreground breathe motion-reduce:animate-none", waits: "border-[1.5px] border-foreground bg-background breathe motion-reduce:animate-none", ask: "bg-[var(--yellow)] dot-ping", unread: "bg-[var(--blue)]", error: "bg-[var(--red)]",
 }
 
 /** An icon with a status dot on its corner while `on` (an agent at work, waiting for you), the same wherever the icon

@@ -1,8 +1,9 @@
+import { type Awaits, sameAwaits } from "../../../core/agents.ts"
 import { shown, type Kind, type Said, type SessionState } from "./osc7501.ts"
 
 export type From = "osc7501" | "hooks" | "screen" | "agent" | "backend" | "shell"
 
-export type Word = { state: SessionState; from: From; kind?: Kind; msg?: string }
+export type Word = { state: SessionState; from: From; kind?: Kind; msg?: string; awaits?: Awaits }
 
 export type Phase = { state: "quiet" } | { state: "missing" } | Word | Ended
 
@@ -21,6 +22,7 @@ export type Term = {
   wrote: { text: string | null; at: number } | null
   ask: Ask | null
   waits: Kind | null
+  awaits: Awaits | null
   backend: "working" | "idle" | "blocked" | null
   front: boolean | null
   starting: boolean
@@ -39,16 +41,17 @@ export type Event =
   | { type: "hooks"; text: string | null; at: number }
   | { type: "ask"; ask: Ask | null }
   | { type: "waits"; kind: Kind | null }
+  | { type: "awaits"; awaits: Awaits | null }
   | { type: "backend"; state: string | undefined }
   | { type: "front"; program: boolean; seen: number }
   | { type: "end"; keep: boolean }
   | { type: "exit"; code: number; signal: number; lost: boolean }
 
-export type Now = { agent: string; state: SessionState; kind?: Kind; msg?: string; from: From }
+export type Now = { agent: string; state: SessionState; kind?: Kind; msg?: string; from: From; awaits?: Awaits }
 
 const AGENT_APPS: Record<string, string> = { "claude-code": "claude" }
 
-export const fresh = (agent: string): Term => ({ agent, osc: null, hooks: null, wrote: null, ask: null, waits: null, backend: null, front: null, starting: false, heard: 0,
+export const fresh = (agent: string): Term => ({ agent, osc: null, hooks: null, wrote: null, ask: null, waits: null, awaits: null, backend: null, front: null, starting: false, heard: 0,
   phase: { state: "quiet" }, ending: null, at: 0, since: 0 })
 
 const isWord = (p: Phase): p is Word => "from" in p
@@ -85,12 +88,21 @@ function said(t: Term): Word | null {
 
 const kindOf = (p: Phase) => ("kind" in p ? p.kind : undefined)
 const msgOf = (p: Phase) => ("msg" in p ? p.msg : undefined)
-const same = (a: Phase, b: Phase) => a.state === b.state && kindOf(a) === kindOf(b) && msgOf(a) === msgOf(b)
+const awaitsOfPhase = (p: Phase) => ("awaits" in p ? p.awaits : undefined)
+const same = (a: Phase, b: Phase) => a.state === b.state && kindOf(a) === kindOf(b) && msgOf(a) === msgOf(b) && sameAwaits(awaitsOfPhase(a), awaitsOfPhase(b))
+const resting = (s: SessionState) => s === "idle" || s === "done"
+function withAwaits(p: Phase, a: Awaits | null): Phase {
+  if (!isWord(p)) return p
+  const w: Word = { ...p }
+  delete w.awaits
+  if (a && resting(p.state)) w.awaits = a
+  return w
+}
 
 function settle(n: Term, was: Term, now: number, gone = false): Term {
   const p = was.phase, w = said(n)
   const next: Phase = n.hooks?.state === "missing" ? { state: "missing" }
-    : w ?? (gone ? { state: "idle", from: "shell" } : isWord(p) ? { state: "idle", from: p.from } : p)
+    : withAwaits(w ?? (gone ? { state: "idle", from: "shell" } : isWord(p) ? { state: "idle", from: p.from } : p), gone ? null : n.awaits)
   if (same(next, p)) return { ...n, phase: p }
   return { ...n, phase: next, at: now, since: next.state === "working" && p.state !== "working" ? now : n.since }
 }
@@ -100,6 +112,7 @@ function left(n: Term, was: Term, now: number): Term {
   n.hooks = n.hooks?.state === "missing" ? n.hooks : null
   n.ask = null
   n.waits = null
+  n.awaits = null
   const p = was.phase
   const gone = isWord(p) ? p.state !== "idle" : p.state === "quiet" && was.front === true && !!n.agent
   return settle(n, was, now, gone)
@@ -131,6 +144,7 @@ export function step(t: Term, ev: Event, now: number): Term {
       break
     case "ask": n.ask = ev.ask; n.heard = now; break
     case "waits": n.waits = ev.kind; n.heard = now; break
+    case "awaits": n.awaits = ev.awaits; break
     case "backend": {
       const s = ev.state === "working" || ev.state === "idle" ? ev.state : ev.state === "waiting" ? "blocked" : null
       if (s === n.backend) return t
@@ -145,7 +159,7 @@ export function step(t: Term, ev: Event, now: number): Term {
     case "end": return { ...n, ending: { keep: ev.keep } }
     case "exit": {
       const by = n.ending, how = by ? { code: 0, signal: SIGHUP, lost: false } : { code: ev.code, signal: ev.signal, lost: ev.lost }
-      return { ...n, osc: null, hooks: null, ask: null, waits: null, backend: null, starting: false, ending: null, at: now,
+      return { ...n, osc: null, hooks: null, ask: null, waits: null, awaits: null, backend: null, starting: false, ending: null, at: now,
         phase: { state: "ended", ...how, by } }
     }
   }
@@ -156,16 +170,18 @@ export function nowOf(t: Term): Now | null {
   const p = t.phase
   if (!isWord(p)) return null
   const app = p.from === "osc7501" ? t.osc?.status?.app : undefined
-  return { agent: t.agent || (app ? AGENT_APPS[app] ?? app : ""), state: p.state, ...("kind" in p && p.kind ? { kind: p.kind } : {}), ...(p.msg ? { msg: p.msg } : {}), from: p.from }
+  const now: Now = { agent: t.agent || (app ? AGENT_APPS[app] ?? app : ""), state: p.state, ...("kind" in p && p.kind ? { kind: p.kind } : {}), ...(p.msg ? { msg: p.msg } : {}), from: p.from }
+  if (p.awaits) now.awaits = p.awaits
+  return now
 }
 
 export function label(p: Phase) {
   if (p.state === "ended") return `ended (${p.lost ? "lost" : p.signal ? `signal ${p.signal}` : `exit ${p.code}`})`
   if (!isWord(p)) return p.state
-  return `${p.state}${"kind" in p && p.kind ? `: ${p.kind}` : ""} (${p.from})`
+  return `${p.state}${"kind" in p && p.kind ? `: ${p.kind}` : ""}${p.awaits ? `, waiting on ${p.awaits.n} background task${p.awaits.n > 1 ? "s" : ""}` : ""} (${p.from})`
 }
 
-export const moved = (a: Phase, b: Phase) => a.state !== b.state || kindOf(a) !== kindOf(b)
+export const moved = (a: Phase, b: Phase) => a.state !== b.state || kindOf(a) !== kindOf(b) || !awaitsOfPhase(a) !== !awaitsOfPhase(b)
 
 export function closes(t: Term) {
   const p = t.phase

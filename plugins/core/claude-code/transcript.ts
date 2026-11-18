@@ -1,4 +1,4 @@
-import { type Asking, truncate, type Entry, type Head, type Tool } from "../../../core/agents.ts"
+import { type Asking, type Awaits, truncate, type Entry, type Head, type Tool } from "../../../core/agents.ts"
 import { NOT_SAID, questionsOf, resultText, summarize, userText } from "./chatlog.ts"
 // (a transcript line: untrusted JSON, each field checked where it's read)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -9,7 +9,7 @@ export const WANTED = ['"type":"user"', '"type":"assistant"', '"ai-title"', '"cu
 export class Conversation {
   entries: Entry[] = []
   head: Head = { title: "", cwd: "", model: "", first: "", last: "", branch: "" }
-  background = new Set<string>()
+  background = new Map<string, Task>()
   auto: { text: string; at: string } | null = null
   private promptId = ""
   private tasks = new Map<string, string>()
@@ -32,6 +32,11 @@ export class Conversation {
     if (id) this.promptId = id
     const origin = d.origin?.kind
     this.auto = meta || (typeof origin === "string" && origin !== "human") || NOT_SAID.test(text) ? { text, at } : null
+  }
+
+  private task(t: Tool | undefined, id: string, at: string) {
+    const had = this.background.get(id)
+    return had ?? { on: (t?.summary || t?.name || "a background task").slice(0, 80), input: t?.input.slice(0, 2000) ?? "", since: Date.parse(t?.at || at) || 0 }
   }
 
   line(text: string) {
@@ -72,7 +77,7 @@ export class Conversation {
           // (TaskStop ends one with no notice after it)
           if (t?.name === "TaskStop" || t?.name === "KillShell") { const u = this.tasks.get(/"(?:task|shell)_id": "([^"]+)"/.exec(t.input)?.[1] ?? ""); if (u) this.background.delete(u); continue }
           const task = backgroundTask(resultText(c.content))
-          if (task && !(t?.name === "Monitor" && /"persistent": true/.test(t.input))) { this.background.add(id); this.tasks.set(task, id) }
+          if (task && !(t?.name === "Monitor" && /"persistent": true/.test(t.input))) { this.background.set(id, this.task(t, id, at)); this.tasks.set(task, id) }
         }
         return
       }
@@ -98,11 +103,19 @@ export class Conversation {
           input: truncate(typeof input === "string" ? input : JSON.stringify(input, null, 2)), result: null, error: false, at }
         this.tools.set(t.id, t)
         this.entries.push(t)
-        if (input.run_in_background === true) this.background.add(t.id)
+        if (input.run_in_background === true) this.background.set(t.id, this.task(t, t.id, at))
         this.lastMsg = ""
       }
     }
   }
+}
+
+type Task = { on: string; input: string; since: number }
+export function awaitsOf(background: Map<string, Task>, named: (input: string) => string = () => ""): Awaits | null {
+  const all = [...background.values()].sort((a, b) => a.since - b.since)
+  const job = all.map((t) => ({ t, job: named(t.input) })).find((x) => x.job)
+  const first = job?.t ?? all[0]
+  return first ? { on: job ? `the job "${job.job}"` : first.on, since: first.since, n: all.length } : null
 }
 
 export function backgroundTask(result: string) {

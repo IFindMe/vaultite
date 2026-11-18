@@ -416,7 +416,8 @@ function chatCore(plugin: Plugin, d: ChatDeps) {
   }
   const turnNow = (id: string) => {
     const s = hosted.get(id)
-    return s?.turn ? { session: id, prompt: s.turn.prompt, text: s.turn.text, at: s.at, final: s.state !== "working", ...(titleOf(id) ? { title: titleOf(id) } : {}) } : null
+    return s?.turn ? { session: id, prompt: s.turn.prompt, text: s.turn.text, at: s.at, final: s.state !== "working", ...(titleOf(id) ? { title: titleOf(id) } : {}),
+      awaits: s.background ? s.awaits : undefined } : null
   }
 
 

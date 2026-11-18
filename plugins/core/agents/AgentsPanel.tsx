@@ -14,7 +14,7 @@ const KINDS: { kind: AgentRun["kind"]; icon: LucideIcon; label: string; one: str
   { kind: "cloud", icon: Cloud, label: "Cloud", one: "In the cloud" },
 ]
 const kindOf = (k: AgentRun["kind"]) => KINDS.find((x) => x.kind === k)!
-const ORDER: AgentRun["state"][] = ["needs", "working", "done"]
+const ORDER: AgentRun["state"][] = ["needs", "working", "waiting", "done"]
 const FILTER = "agents:filter"
 const EARLIER = "agents:earlier"
 const KEPT = "agents:agents"
@@ -40,23 +40,25 @@ function useWhere() {
   }, [machines])
 }
 
-const stateWords = (r: AgentRun) => (r.state === "needs" ? "needs you" : r.state === "working" ? "working" : r.failed ? "failed" : r.unread ? "done, unread" : "done")
-const dotOf = (r: AgentRun) => (r.state === "needs" ? "ask" as const : r.state === "working" ? "working" as const : r.failed ? "error" as const : r.unread ? "unread" as const : false)
+const stateWords = (r: AgentRun) => (r.state === "needs" ? "needs you" : r.state === "working" ? "working" : r.state === "waiting" ? "waiting on its background work"
+  : r.failed ? "failed" : r.unread ? "done, unread" : "done")
+const dotOf = (r: AgentRun) => (r.state === "needs" ? "ask" as const : r.state === "working" ? "working" as const : r.failed ? "error" as const : r.unread ? "unread" as const
+  : r.state === "waiting" ? "waits" as const : false)
 function open(r: AgentRun, e: MouseEvent) {
   const newTab = e.metaKey || e.ctrlKey || e.button === 1
   if (r.to) openView(r.to, { newTab: newTab || !isViewOpen(r.to) })
   else r.open?.(newTab)
 }
 
-type Lead = "ask" | "working" | "error" | "unread" | "rest"
+type Lead = "ask" | "working" | "waits" | "error" | "unread" | "rest"
 const LEAD: Record<Lead, string> = {
-  ask: "bg-[var(--yellow)] dot-ping", working: "bg-foreground/70 breathe motion-reduce:animate-none", error: "bg-[var(--red)]",
+  ask: "bg-[var(--yellow)] dot-ping", working: "bg-foreground/70 breathe motion-reduce:animate-none", waits: "border-[1.5px] border-foreground/70 breathe motion-reduce:animate-none", error: "bg-[var(--red)]",
   unread: "bg-[var(--blue)]", rest: "border-[1.5px] border-current opacity-40",
 }
 const glyph = (k: Lead) => function Glyph({ className }: { className?: string }) {
   return <span aria-hidden className={cn(className, "grid place-items-center")} data-dot={k === "rest" ? undefined : k}><span className={cn("relative size-[7px] rounded-full", LEAD[k])} /></span>
 }
-const GLYPHS: Record<Lead, (p: { className?: string }) => ReactNode> = { ask: glyph("ask"), working: glyph("working"), error: glyph("error"), unread: glyph("unread"), rest: glyph("rest") }
+const GLYPHS: Record<Lead, (p: { className?: string }) => ReactNode> = { ask: glyph("ask"), working: glyph("working"), waits: glyph("waits"), error: glyph("error"), unread: glyph("unread"), rest: glyph("rest") }
 
 function Row({ r, open: wide, tab, page, where }: { r: AgentRun; open: boolean; tab: string; page?: boolean; where?: string }) {
   const k = kindOf(r.kind)
@@ -79,7 +81,7 @@ function Row({ r, open: wide, tab, page, where }: { r: AgentRun; open: boolean; 
 
 const none = "flex h-7 min-w-0 items-center truncate pl-1.5 text-[13px] whitespace-nowrap text-tertiary max-md:min-h-11 max-md:text-[15px]"
 
-const STATES: Record<AgentRun["state"], string> = { needs: "Needs you", working: "Working", done: "Done" }
+const STATES: Record<AgentRun["state"], string> = { needs: "Needs you", working: "Working", waiting: "Waiting", done: "Done" }
 function groupOf(by: Group, r: AgentRun, where: string | undefined) {
   if (by === "state") return STATES[r.state]
   if (by === "project") return r.project ?? ""
@@ -179,17 +181,23 @@ export const AgentsPanel = memo(function AgentsPanel({ open, tab }: { open: bool
   )
 })
 
+function tally(runs: AgentRun[]) {
+  const n = (s: AgentRun["state"]) => runs.filter((r) => r.state === s).length
+  const needs = n("needs"), working = n("working"), waiting = n("waiting")
+  const said = [needs && `${needs} need${needs === 1 ? "s" : ""} you`, working && `${working} working`, waiting && `${waiting} waiting on background work`].filter(Boolean)
+  return said.length ? said.join(", ") : "All done"
+}
+
 export function AgentsView() {
   const { runs, shown, loading, unreachable, feeds, kinds, every, filter, pick } = useAgentList()
   const rows = useKeptCount(KEPT, loading ? undefined : runs.length, 0)
-  const needs = runs.filter((r) => r.state === "needs").length, working = runs.filter((r) => r.state === "working").length
   return (
     <div data-agents-view>
       {feeds}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <p className="mr-auto text-[13px] text-muted-foreground max-md:text-[15px]" aria-busy={loading || undefined}>
           {loading && !runs.length ? <span className="shimmer">Finding your agents…</span>
-            : runs.length ? [needs && `${needs} need${needs === 1 ? "s" : ""} you`, working && `${working} working`, !needs && !working && "All done"].filter(Boolean).join(", ") + ". Click one to open it."
+            : runs.length ? `${tally(runs)}. Click one to open it.`
             : "Coding agents on every machine show here: in terminals, in chats and in the cloud."}
         </p>
         {kinds.length > 1 && (

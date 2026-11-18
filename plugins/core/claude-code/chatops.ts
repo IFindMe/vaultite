@@ -1,7 +1,7 @@
 import crypto from "node:crypto"
 import path from "node:path"
 import { z } from "zod"
-import { choiceOf, HOME, repoName } from "../../../core/agents.ts"
+import { awaitsText, choiceOf, HOME, repoName } from "../../../core/agents.ts"
 import { byUser, defineOp, type Machine, MACHINE_CLIENT, NOT_THE_USER, type Op, type OpCtx, OpError, type Plugin, splitMachine, userSurface } from "../../../core/plugins.ts"
 import type { ChatCore } from "./chat.ts"
 import { entryText } from "./chatentries.ts"
@@ -18,7 +18,8 @@ export function chatOps(plugin: Plugin, c: Needs) {
 
   const ANSWER = z.record(z.string(), z.unknown()).catch({})
   const Listed = z.looseObject({ id: z.string(), state: z.string(), asks: z.array(z.string()), cwd: z.string(), account: z.string(), model: z.string(), mode: z.string(),
-    title: z.string().optional(), project: z.string().optional(), turn: z.looseObject({ prompt: z.string(), text: z.string(), error: z.string().optional() }).nullable() })
+    title: z.string().optional(), project: z.string().optional(), turn: z.looseObject({ prompt: z.string(), text: z.string(), error: z.string().optional() }).nullable(),
+    awaits: z.object({ on: z.string(), since: z.number(), n: z.number() }).optional() })
   type Listed = z.infer<typeof Listed>
   const Chats = z.looseObject({ sessions: z.array(Listed) })
 
@@ -46,7 +47,7 @@ function onMachines(def: Op) {
   }
   const OWNER = "Claude Code's chat"
   const modeLabel = (mode: string) => { const m = modeOf(mode); return m ? MODE_LABELS[m] : mode }
-  const line = (s: Listed) => `- ${s.id} · ${s.state}${s.asks.length ? " (asks)" : ""} · ${s.title || titleOf(s.id) || path.basename(s.cwd)} · ${d.modelName(s.model) || "default model"} · ${modeLabel(s.mode)}${s.account ? ` · ${s.account}` : ""}`
+  const line = (s: Listed) => `- ${s.id} · ${s.state}${s.asks.length ? " (asks)" : ""}${s.state === "idle" && s.awaits ? ` (${awaitsText(s.awaits).replace(/^W/, "w")}: its end wakes it)` : ""} · ${s.title || titleOf(s.id) || path.basename(s.cwd)} · ${d.modelName(s.model) || "default model"} · ${modeLabel(s.mode)}${s.account ? ` · ${s.account}` : ""}`
   const theUser = (ctx: OpCtx) => { if (!userSurface(ctx.who)) throw new OpError(NOT_THE_USER, 403) }
 
   async function show(ctx: OpCtx, id: string) {

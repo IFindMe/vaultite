@@ -223,6 +223,7 @@ by its path.
 - `companion:hidden` (companion): Whether a note is private (the setting's folders, or companion: private in it).
 - `companion:watch` (companion): A watch's hit: a moment for the companion while it runs (true), else the watches' inbox (false).
 - `companion:review` (companion): The terminals whose job is ready for review, as Terminal's list names them (another machine's `<id>@<machine>`): its rows keep them in view, never folded away.
+- `companion:job-named` (companion)
 - `companion:guest` (companion): A guest's app's socket (the share's gateway checked who and what): their threads, and what they say in them.
 - `context` (pages, workspaces): What `vau context` says of it: the pinned pages the user's window shows.
 - `delegate:lineage` (delegate)
@@ -294,7 +295,7 @@ by its path.
 - `sync:hub` (sync): The hub this vault's settings name (vau sync hub), or null: Machines' first then.
 - `tabs:open` (workspaces): Every place open in any workspace's tabs, as this machine has them: a terminal shown in a workspace nobody's looking at isn't idle.
 - `templates:folder` (templates): Its folder's notes are patterns: the vault never reads them as items (a `type: person` template isn't a person).
-- `terminal:<…>` (meters, locate, agent-env, wait, trouble, of, of-pids, info, ask, waits, state, ended, agent-waits, screen, access, runs): agent-meters; terminal
+- `terminal:<…>` (meters, locate, agent-env, wait, trouble, of, of-pids, info, ask, waits, state, ended, agent-waits, agent-awaits, screen, access, runs): agent-meters; terminal
 - `text:<…>` (canvas, docx, epub, fb2, pptx, base, csv): canvas; documents; ebooks; presentations; query; tables
 - `versions:icloud` (sync-conflicts)
 - `voice:asks` (companion): What the user said to it aloud in the last `days` days (a Talk key's asks), newest first, with its answer: the Dictations list shows them beside dictation's, from this log, never copied.

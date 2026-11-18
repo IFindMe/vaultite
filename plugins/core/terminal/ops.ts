@@ -1,4 +1,4 @@
-import { agentModel, MODEL_NAME, PERMISSION_MODES, startAgent, TERMINAL_AGENT, newTerminalId, resumeTerminalId, type AgentHow } from "../../../core/agents.ts"
+import { agentModel, awaitsText, MODEL_NAME, PERMISSION_MODES, startAgent, TERMINAL_AGENT, newTerminalId, resumeTerminalId, type AgentHow } from "../../../core/agents.ts"
 import { fmtAgo, type Machine, OpError, type Plugin, quoted } from "../../../core/plugins.ts"
 import { z } from "zod"
 import { homeOf } from "./backends.ts"
@@ -37,7 +37,7 @@ const waited = (r: Waited) => r.met === "exit" ? `${r.id} ended (${how(r.exit)})
   : r.exit ? `${r.id} ended (${how(r.exit)}) before it was ${(r.for ?? []).join(" or ")}.`
   : `Still not ${(r.for ?? []).join(" or ")} after ${r.waited} s: ${r.id} is ${r.state ?? "running"}.`
 const ago = (t: number) => { const a = fmtAgo(t, { short: true }); return a === "now" ? "just now" : `${a} ago` }
-const row = (s: Session & { tabs?: TabAt[] }) => `${s.id}  ${s.process || "-"}${s.state ? ` (${s.state}${s.kind ? `: ${s.kind}` : ""}${s.state !== "blocked" && s.needs ? ", unread" : ""})` : ""}${s.name ? `  named "${s.name}"` : ""}${s.title ? `  "${s.title}"` : ""}${s.session ? `  session ${s.session}` : ""}${s.note ? `  on ${s.note}` : ""}  ${ago(s.started)}, ${s.machine ? `on ${s.machineLabel ?? s.machine}` : where(s.tabs)}${s.backend === "pty" ? " (in the server: a restart ends it)" : ""}${s.via ? ` (held by the older terminal server, pid ${s.via}, which ends after its last)` : ""}`
+const row = (s: Session & { tabs?: TabAt[] }) => `${s.id}  ${s.process || "-"}${s.state ? ` (${s.state}${s.kind ? `: ${s.kind}` : ""}${s.state !== "blocked" && s.needs ? ", unread" : ""}${s.awaits ? `, ${awaitsText(s.awaits).replace(/^W/, "w")} (started ${ago(s.awaits.since)}): its end wakes it` : ""})` : ""}${s.name ? `  named "${s.name}"` : ""}${s.title ? `  "${s.title}"` : ""}${s.session ? `  session ${s.session}` : ""}${s.note ? `  on ${s.note}` : ""}  ${ago(s.started)}, ${s.machine ? `on ${s.machineLabel ?? s.machine}` : where(s.tabs)}${s.backend === "pty" ? " (in the server: a restart ends it)" : ""}${s.via ? ` (held by the older terminal server, pid ${s.via}, which ends after its last)` : ""}`
 const Exit = z.looseObject({ code: z.number(), signal: z.number(), lost: z.boolean().optional() })
 const Waited = z.looseObject({ id: z.string().optional(), met: z.string().nullish(), matched: z.string().optional(), timedOut: z.boolean().optional(),
   waited: z.number().optional(), for: z.array(z.string()).optional(), state: z.string().optional(), kind: z.string().optional(), msg: z.string().optional(), exit: Exit.nullish() })

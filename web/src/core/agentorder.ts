@@ -4,7 +4,7 @@ import type { AgentRun, PluginDef } from "@/core/define"
 export type AgentFeed = ReturnType<NonNullable<PluginDef["agentRuns"]>>
 export type Unreachable = { what: string; retry?: () => void }
 
-const RANK: Record<AgentRun["state"], number> = { needs: 0, working: 1, done: 2 }
+const RANK: Record<AgentRun["state"], number> = { needs: 0, working: 1, waiting: 2, done: 3 }
 const KIND: Record<AgentRun["kind"], number> = { terminal: 0, chat: 1, cloud: 2 }
 
 /** The panel's order: needs you, then working, then at rest; the ones at rest newest first, the others oldest first

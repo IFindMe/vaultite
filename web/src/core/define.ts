@@ -191,8 +191,9 @@ export type AgentRun = {
   title: string
   /** Where it stands in its own words, when it says (what it asks, its last step). */
   step?: string
-  /** needs: waiting on the user (a permission, a question, an answer unread); working; done: at rest. */
-  state: "needs" | "working" | "done"
+  /** needs: waiting on the user (a permission, a question, an answer unread); working; waiting: its turn over, on its
+   *  own background work (a command, a monitor, a job) that wakes it, said in `step`; done: at rest. */
+  state: "needs" | "working" | "waiting" | "done"
   /** At rest after a failure. */
   failed?: boolean
   /** An answer the user hasn't read. */
@@ -298,6 +299,8 @@ export type ViewDef = {
   iconTint?: (arg: string) => string | undefined
   /** A dot on its tab's icon (Badged's kinds): a coding agent at work, waiting for an answer, with one to read. */
   iconBadge?: (arg: string) => Dot
+  /** What its tab's dot means, said in its tooltip (a coding agent's "Waiting on the build, since 9:58 PM"). */
+  iconTip?: (arg: string) => string | undefined
   /** What it shows is on screen in another form (a browser tab's live view: the tab itself): news about it isn't
    *  toasted. */
   onScreen?: (arg: string) => boolean

@@ -9,7 +9,8 @@ export const SessionsTitled = z.looseObject({ sessions: z.array(z.looseObject({ 
 const opt = { s: z.string().optional(), n: z.number().optional(), b: z.boolean().optional() }
 export const Session = z.looseObject({ id: z.string(), agent: z.string().nullable(), process: z.string(), busy: opt.b, clients: z.number(), started: z.number(), title: opt.s,
   state: opt.s, kind: opt.s, msg: opt.s, needs: opt.b, note: opt.s, backend: opt.s, session: opt.s, name: opt.s, cwd: opt.s, command: opt.s, cols: opt.n, rows: opt.n,
-  activity: opt.n, machine: opt.s, machineLabel: opt.s, pid: opt.n, via: opt.n })
+  activity: opt.n, machine: opt.s, machineLabel: opt.s, pid: opt.n, via: opt.n,
+  awaits: z.object({ on: z.string(), since: z.number(), n: z.number() }).optional() })
 export type Session = z.infer<typeof Session>
 const Exit = z.object({ code: z.number(), signal: z.number(), at: z.number(), lost: opt.b })
 export const Ended = z.looseObject({ id: z.string(), backend: z.string(), command: z.string(), name: opt.s, note: opt.s, started: z.number(), exit: Exit })

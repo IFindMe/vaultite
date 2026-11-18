@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
-import { type AgentAsk, type AgentCommand, askLabel, type AgentHow, type AgentStart, type AgentState, agentName, agentSite, shellQuote } from "../../../core/agents.ts"
+import { z } from "zod"
+import { type AgentAsk, type AgentCommand, askLabel, type Awaits, sameAwaits, type AgentHow, type AgentStart, type AgentState, agentName, agentSite, shellQuote } from "../../../core/agents.ts"
 import { logger, serverUrl, span } from "../../../core/plugins.ts"
 import type { AgentRun, Backend, Listed as Shell } from "./backend.ts"
 import { psQuote, wslPath } from "./launch.ts"
@@ -204,6 +205,12 @@ plugin.provide("terminal:ended", (id: string) => (TERMINAL_ID.test(id) ? endOf(i
 plugin.provide("terminal:agent-waits", (id: string, kind: Kind | null) => {
   if (!TERMINAL_ID.test(id) || (kind !== null && kind !== "permission" && kind !== "question") || (terms.get(id)?.waits ?? null) === kind) return
   apply(id, { type: "waits", kind })
+})
+const AwaitsSaid = z.object({ on: z.string().transform((s) => s.slice(0, 120)), since: z.number(), n: z.number() }).nullable()
+plugin.provide("terminal:agent-awaits", (id: string, awaits: Awaits | null) => {
+  const told = AwaitsSaid.safeParse(awaits)
+  if (!TERMINAL_ID.test(id) || !told.success || sameAwaits(terms.get(id)?.awaits, told.data)) return
+  apply(id, { type: "awaits", awaits: told.data })
 })
 export const screenOf = (b: Pick<Backend, "capture">, id: string, lines: number) => b.capture(id, { format: "text", lines }).then((c) => c.text, () => "")
 /** Terminal `id`'s last `lines` lines as text, or "" when it isn't running here. */

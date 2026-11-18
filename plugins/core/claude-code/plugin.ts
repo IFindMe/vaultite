@@ -3,12 +3,13 @@ import { createHash } from "node:crypto"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { type AgentAsk, type AgentCommand, type AgentMeter, type AgentModel, type AgentModels, type Asking, type Choice, type Question, type AgentStart, ago, codingAgent, dayOf, expandHome, findBin, HOME, isoOf, jsonLines, JsonlScan, limitRows,
+import { z } from "zod"
+import { type AgentAsk, type AgentCommand, type Awaits, sameAwaits, type AgentMeter, type AgentModel, type AgentModels, type Asking, type Choice, type Question, type AgentStart, ago, codingAgent, dayOf, expandHome, findBin, HOME, isoOf, jsonLines, JsonlScan, limitRows,
   limitWindow, type Live, type SampleAsk, agentRefusal, notOnThisMachine, priceList, processes, projectName, projectOf, shellQuote, projectRoots, epochSeconds, Tally, terminalOf, Transcript, transcripts,
   lastTurn, parseTerminal, PERMISSION_MODES, type PermissionMode, trustClaudeProject, usedFirst, when } from "../../../core/agents.ts"
 import { bullets, gitEnv, localDate, logger, OpError, Plugin, section } from "../../../core/plugins.ts"
 import { type Item, sortBy } from "../../../core/vault.ts"
-import { askingIn, Conversation, WANTED } from "./transcript.ts"
+import { askingIn, awaitsOf, Conversation, WANTED } from "./transcript.ts"
 import { userSaid } from "./chatlog.ts"
 import { chats } from "./chat.ts"
 import { type EditSpan, editSpans } from "./edits.ts"
@@ -558,7 +559,11 @@ plugin.provide("agent-turn:claude", async (terminal: string, session = "") => {
   const t = found ? await transcript(found.file) : null
   if (now) return { ...now, files: t ? lastTurn(t.talk.entries).files : [] }
   const auto = t?.talk.auto
-  return t ? { session: sid, ...lastTurn(t.talk.entries), ...(auto ? { prompt: auto.text, auto: true } : {}), background: t.talk.background.size } : null
+  if (!t) return null
+  const turn: ReturnType<typeof lastTurn> & { session: string; prompt?: string; auto?: boolean; awaits?: Awaits } = { session: sid, ...lastTurn(t.talk.entries), ...(auto ? { prompt: auto.text, auto: true } : {}) }
+  const awaits = awaitsOf(t.talk.background, jobNamed)
+  if (awaits) turn.awaits = awaits
+  return turn
 })
 
 /** The user's own latest message in a session, not a notice or another session's message. */
@@ -659,6 +664,42 @@ export async function tellWaits() {
   for (const [t, kind] of now) if (waitsTold.get(t) !== kind) tell(t, kind)
   for (const t of waitsTold.keys()) if (!now.has(t)) tell(t, null)
   waitsTold = now
+  await tellAwaits()
+}
+
+const jobNamed = (input: string) => z.string().catch("").parse(plugin.service("companion:job-named")?.(input))
+let awaitsTold = new Map<string, Awaits>()
+const awaitsRead = new Map<string, { size: number; awaits: Awaits | null }>()
+async function awaitsIn(sid: string) {
+  const found = sessionFile(sid, true)
+  let size = -1
+  try { size = found ? fs.statSync(found.file).size : -1 } catch {}
+  if (!found || size < 0) return null
+  const was = awaitsRead.get(found.file)
+  if (was?.size === size) return was.awaits
+  const talk = (await transcript(found.file))?.talk
+  const awaits = talk ? awaitsOf(talk.background, jobNamed) : null
+  awaitsRead.delete(found.file)
+  awaitsRead.set(found.file, { size, awaits })
+  if (awaitsRead.size > 50) awaitsRead.delete(awaitsRead.keys().next().value!)
+  return awaits
+}
+async function tellAwaits() {
+  const tell = plugin.service("terminal:agent-awaits")
+  if (!tell) return
+  const now = new Map<string, Awaits>()
+  for (const { a, s, pid, sid } of running(accounts())) {
+    if (s.status !== "idle" || !sid || a.private) continue
+    const key = `${pid}@${s.procStart}`
+    const t = terminals.get(key) ?? await terminalOf(plugin, pid)
+    if (!t) continue
+    terminals.set(key, t)
+    const awaits = await awaitsIn(sid)
+    if (awaits) now.set(t, awaits)
+  }
+  for (const [t, w] of now) if (!sameAwaits(awaitsTold.get(t), w)) tell(t, w)
+  for (const t of awaitsTold.keys()) if (!now.has(t)) tell(t, null)
+  awaitsTold = now
 }
 
 const watched = new Map<string, fs.FSWatcher>()

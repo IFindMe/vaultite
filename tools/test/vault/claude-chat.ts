@@ -232,8 +232,8 @@ export default async ($: VaultTest) => {
       host4.start({ id: bg, resume: false, cwd: VAULT, env: {} }, "Watch the QA run in the background")
       await waitFor(() => host4.list().find((s) => s.id === bg)?.state === "idle", 5000, 50)
       await new Promise((r) => setTimeout(r, 500))
-      check("chat: an idle session waiting on its background task keeps running, and says it has one (a code update waits for it)",
-        host4.list().find((s) => s.id === bg)?.background === 1, host4.list())
+      check("chat: an idle session waiting on its background task keeps running, and says what it waits on (a code update waits for it)",
+        host4.list().find((s) => s.id === bg)?.background === 1 && host4.list().find((s) => s.id === bg)?.awaits?.on === "QA finishing" && host4.list().find((s) => s.id === bg)?.awaits?.n === 1, host4.list())
       sdk4.runs[0].background()
       const ended = await waitFor(() => !host4.list().some((s) => s.id === bg), 3000, 50)
       check("chat: once its background task is done (an ambient one doesn't count), the idle wait ends it", !!ended, host4.list())

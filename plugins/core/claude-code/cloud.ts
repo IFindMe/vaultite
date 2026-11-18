@@ -3,9 +3,9 @@ import fs from "node:fs"
 import path from "node:path"
 import type { Readable, Writable } from "node:stream"
 import { z } from "zod"
-import { lastTurn } from "../../../core/agents.ts"
+import { type Awaits, lastTurn } from "../../../core/agents.ts"
 import { gitEnv, OpError, type Plugin, whoOf } from "../../../core/plugins.ts"
-import { askingIn, Conversation, WANTED } from "./transcript.ts"
+import { askingIn, awaitsOf, Conversation, WANTED } from "./transcript.ts"
 
 type Account = { id: string; dir: string; label: string; private: boolean }
 const SESSION = /^session_\w{4,80}$/, REPO = /^[\w.-]{1,100}\/[\w.-]{1,100}$/, BRANCH = /^[\w./-]{1,200}$/, COMMIT = /^[0-9a-f]{7,64}$/
@@ -18,7 +18,7 @@ const TRANSCRIPT = z.object({ status: said, entries: z.array(z.unknown()).nullis
 
 const LISTED_LATE = 3 * 60_000
 export type CloudSeen = { status: string; title: string; updated: number; branch?: string }
-export type CloudTurn = { prompt: string; text: string; at: number; final: boolean; files: string[]; background?: number; asks?: { question: string; choices: string[] }[] }
+export type CloudTurn = { prompt: string; text: string; at: number; final: boolean; files: string[]; awaits?: Awaits; asks?: { question: string; choices: string[] }[] }
 
 const git = (cwd: string, args: string[]) => new Promise<string>((ok, fail) =>
   execFile("git", ["-C", cwd, ...args], { env: gitEnv(), timeout: 60_000, maxBuffer: 4 << 20 }, (e, out, err) => (e ? fail(new Error(String(err || e.message).trim().slice(0, 300))) : ok(String(out)))))
@@ -120,9 +120,9 @@ export function cloudSessions(plugin: Plugin, o: { accounts: () => Account[]; bi
     pages.set(id, { lines, ...(cursor ? { cursor } : {}) })
     const all = [...lines, ...last], c = new Conversation()
     for (const l of all) c.line(l)
-    const t = lastTurn(c.entries), asking = askingIn(all.slice(-200).join("\n"))
+    const t = lastTurn(c.entries), asking = askingIn(all.slice(-200).join("\n")), awaits = awaitsOf(c.background)
     const asks = asking?.kind === "question" ? asking.questions.map((q) => ({ question: q.question, choices: q.multi ? [] : q.options.map((x) => x.label) })) : undefined
-    return { ...t, ...(c.background.size ? { background: c.background.size } : {}), ...(asks?.length ? { asks } : {}) }
+    return { ...t, awaits: awaits ?? undefined, ...(asks?.length ? { asks } : {}) }
   }
 
   plugin.provide("cloud-ready:claude", (account: string) => unready(account))

@@ -96,7 +96,7 @@ export default async ($: VaultTest) => {
       feed({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "a1", content: "Async agent launched successfully.\nagentId: x" }] } })
       const both = cv.background.size
       feed({ type: "queue-operation", operation: "enqueue", content: "<task-notification>\n<task-id>t</task-id>\n<tool-use-id>b1</tool-use-id>\n<status>completed</status>\n</task-notification>" })
-      check("transcript: background tasks run till their notification", both === 2 && cv.background.size === 1 && cv.background.has("a1"), [both, [...cv.background]])
+      check("transcript: background tasks run till their notification", both === 2 && cv.background.size === 1 && cv.background.has("a1"), [both, [...cv.background.keys()]])
       // What started its latest turn: the user (a skill they ran expands into a meta line of the same prompt), or the
       // session itself (its task's notice, a schedule's meta prompt, another session's message).
       const turns = new Conversation(), say = (x: Any) => turns.line(JSON.stringify({ type: "user", timestamp: "2026-03-02T09:00:00Z", ...x }))
@@ -129,13 +129,24 @@ export default async ($: VaultTest) => {
       res("v2", "Command did not complete within its 120s timeout and was moved to the background (ID: bqjugm8w2). Output is being written to: /tmp/t/bqjugm8w2.output")
       use("s1", "TaskStop", { task_id: "bqjugm8w2" })
       res("s1", '{"message":"Successfully stopped task: bqjugm8w2 (npm run build)"}')
-      const started = [...cv.background].sort().join()
+      const started = [...cv.background.keys()].sort().join()
       note("<task-id>b61s2gqwo</task-id>\n<summary>Monitor event: \"verify finishing\"</summary>\n<event>still running</event>")
-      const evented = [...cv.background].sort().join()
+      const evented = [...cv.background.keys()].sort().join()
       note("<task-id>b61s2gqwo</task-id>\n<status>completed</status>\n<summary>Monitor \"verify finishing\" ended</summary>")
       note("<task-id>b8tz1efy9</task-id>\n<tool-use-id>v1</tool-use-id>\n<status>completed</status>")
       check("transcript: a command moved to the background, or a Monitor, runs till a notice with a status (not a Monitor's event), named by its tool use or task id, or a TaskStop; a persistent Monitor or a command's own words never count",
-        started === "a1,m1,v1" && evented === "a1,m1,v1" && [...cv.background].join() === "a1", [started, evented, [...cv.background]])
+        started === "a1,m1,v1" && evented === "a1,m1,v1" && [...cv.background.keys()].join() === "a1", [started, evented, [...cv.background.keys()]])
+      const { awaitsOf } = await import("../../../plugins/core/claude-code/transcript.ts")
+      const w = new Conversation(), at = (x: Any, t: string) => w.line(JSON.stringify({ ...x, timestamp: t }))
+      at({ type: "assistant", message: { content: [{ type: "tool_use", id: "s1", name: "Bash", input: { command: "sleep 600", run_in_background: true } }] } }, "2026-11-17T21:58:00Z")
+      at({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "s1", content: "Command running in background with ID: bsleep1. Output is being written to: /tmp/t/bsleep1.output" }] } }, "2026-11-17T21:58:01Z")
+      const slept = awaitsOf(w.background)
+      at({ type: "assistant", message: { content: [{ type: "tool_use", id: "j1", name: "Bash", input: { description: "Wait for the job's report", command: "vau companion job jq7x2k4a --wait 3600", run_in_background: true } }] } }, "2026-11-17T22:05:00Z")
+      const two = awaitsOf(w.background), named = awaitsOf(w.background, (input) => (input.includes("jq7x2k4a") ? "Fix the scroll on the Lighthouse page" : ""))
+      check("transcript: at rest, it waits on its oldest background task (its words, since its call), or on the job one names, with how many",
+        slept?.on === "sleep 600" && slept.since === Date.parse("2026-11-17T21:58:00Z") && slept.n === 1 && two?.on === "sleep 600" && two.n === 2 &&
+        named?.on === 'the job "Fix the scroll on the Lighthouse page"' && named.since === Date.parse("2026-11-17T22:05:00Z") && named.n === 2 && awaitsOf(new Conversation().background) === null,
+        [slept, two, named])
       const keys = (await import("../../../plugins/core/claude-code/plugin.ts")).plugin.services["agent-pick:claude"] as (q: Any, c: Any) => string[]
       const one = [{ question: "Q", options: [{ label: "A" }, { label: "B" }, { label: "C" }] }]
       check("pick keys: a digit; typed: the one after the options, the text, Enter; several or a multi-select end with 1 on the review",
@@ -190,6 +201,29 @@ export default async ($: VaultTest) => {
       fs.rmSync(file); Object.assign(term.services, { "terminal:of": was2.of, "terminal:agent-waits": was2.waits })
       check("waits: a session waiting on a dialog or a permission tells its terminal once each, and when it works again",
         JSON.stringify(told) === JSON.stringify([["claude-w1", "question"], ["claude-w1", "permission"], ["claude-w1", null]]), told)
+      const heard: [string, Any][] = [], cs = cc.services, was3 = { of: term.services["terminal:of"], awaits: term.services["terminal:agent-awaits"], job: cs["companion:job-named"] }
+      term.services["terminal:of"] = async (pid: number) => (pid === process.pid ? "claude-w1" : pid === process.ppid ? "claude-job1" : null)
+      term.services["terminal:agent-awaits"] = (t: string, a: Any) => { heard.push([t, a]) }
+      cc.services["companion:job-named"] = (text: string) => (text.includes("jq7x2k4a") ? "Fix the scroll on the Lighthouse page" : "")
+      const proj = path.join(CLAUDE_DIR, "projects", "-Users-sam-lighthouse"), files = ["s-sleep", "s-job"].map((id) => path.join(proj, `${id}.jsonl`))
+      fs.mkdirSync(proj, { recursive: true })
+      const bg = (id: string, input: Any, out: string) => [
+        { type: "assistant", sessionId: id, cwd: "/Users/sam/lighthouse", timestamp: "2026-11-17T21:58:00.000Z", message: { role: "assistant", content: [{ type: "tool_use", id: `tu-${id}`, name: "Bash", input: { ...input, run_in_background: true } }] } },
+        { type: "user", sessionId: id, timestamp: "2026-11-17T21:58:01.000Z", message: { role: "user", content: [{ type: "tool_result", tool_use_id: `tu-${id}`, content: `Command running in background with ID: ${out}. Output is being written to: /tmp/t/${out}.output` }] } },
+      ].map((l) => JSON.stringify(l)).join("\n") + "\n"
+      fs.writeFileSync(files[0], bg("s-sleep", { command: "sleep 600" }, "bsleep01"))
+      fs.writeFileSync(files[1], bg("s-job", { description: "Wait for the scroll fix's report", command: "vau companion job jq7x2k4a --wait 3600" }, "bjobwait1"))
+      const other = path.join(dir, `${process.ppid}.json`)
+      const rest = (f: string, pid: number, sid: string, status: string) => fs.writeFileSync(f, JSON.stringify({ pid, sessionId: sid, cwd: "/Users/sam/lighthouse", status }))
+      rest(file, process.pid, "s-sleep", "idle"); rest(other, process.ppid, "s-job", "idle"); await tellWaits(); await tellWaits()
+      fs.appendFileSync(files[0], JSON.stringify({ type: "queue-operation", operation: "enqueue", content: "<task-notification>\n<task-id>bsleep01</task-id>\n<status>completed</status>\n</task-notification>" }) + "\n")
+      rest(other, process.ppid, "s-job", "busy"); await tellWaits()
+      for (const f of [file, other, ...files]) fs.rmSync(f, { force: true })
+      Object.assign(term.services, { "terminal:of": was3.of, "terminal:agent-awaits": was3.awaits }); cc.services["companion:job-named"] = was3.job
+      const at = Date.parse("2026-11-17T21:58:00.000Z"), told2 = (from: number, to?: number) => heard.slice(from, to).map((x) => JSON.stringify(x)).sort().join()
+      check("awaits: a session at rest with a background sleep, or waiting on a job, tells its terminal what and since when, once; done or working again, that it no longer waits",
+        heard.length === 4 && told2(0, 2) === [["claude-job1", { on: 'the job "Fix the scroll on the Lighthouse page"', since: at, n: 1 }], ["claude-w1", { on: "sleep 600", since: at, n: 1 }]].map((x) => JSON.stringify(x)).join() &&
+          told2(2) === [["claude-job1", null], ["claude-w1", null]].map((x) => JSON.stringify(x)).join(), heard)
     }
     // A running session: lines appended are read on from where it stopped; a long output is cut.
     fs.appendFileSync(tfile, JSON.stringify({ type: "assistant", sessionId: sid, cwd: "/Users/sam/lighthouse", timestamp: "2026-09-28T09:02:00.000Z",

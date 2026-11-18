@@ -1,5 +1,5 @@
 import fs from "node:fs"
-import { parseTerminal } from "../../../core/agents.ts"
+import { type Awaits, parseTerminal } from "../../../core/agents.ts"
 import { Relayed } from "../../../core/contracts/version.ts"
 import { logger, type OpCtx, OpError, type Plugin, type Who, whoOf } from "../../../core/plugins.ts"
 import { cardOf, commitsIn, turnWord, fixTask, landedSaid, mergedCommit, mergedSaid, type Handoff, type Job, type JobCard, jobsLine, jobTimings, lastOf, linkOf, linksIn, live, type Marks, messageOf, nowOf,
@@ -35,7 +35,7 @@ export type JobDeps = {
   as: object
 }
 export type Seen = { running: boolean; state?: string; kind?: string; msg?: string; title?: string; typed?: number; quiet?: number; asks?: string[]; waits?: Omit<Waits, "at">
-  turn?: { text: string; files: string[]; at: number; final: boolean; session?: string; prompt?: string; background?: number } | null; diff?: string
+  turn?: { text: string; files: string[]; at: number; final: boolean; session?: string; prompt?: string; awaits?: Awaits } | null; diff?: string
   exit?: { code: number; signal: number; lost?: boolean; left?: Left }
   unreachable?: string
   context?: { tokens: number; window: number }
@@ -105,7 +105,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     const unreachable = running || exit ? null : await plugin.ask<string | null>("terminal:trouble", null, id).catch(() => null)
     if (unreachable) return { running: false, unreachable }
     const agent = parseTerminal(id)?.agent ?? ""
-    type Turn = { text?: string; files?: string[]; at?: number; final?: boolean; session?: string; prompt?: string; background?: number }
+    type Turn = { text?: string; files?: string[]; at?: number; final?: boolean; session?: string; prompt?: string; awaits?: Awaits }
     const turn = o.turn && agent ? await plugin.ask<Turn | null>(`agent-turn:${agent}`, null, id, o.session ?? "") : null
     const context = o.context && running && agent ? await plugin.ask<Seen["context"] | null>(`agent-context:${agent}`, null, id, o.session ?? "").catch(() => null) : null
     type Q = { question?: string; multi?: boolean; options?: { label?: string }[] }
@@ -117,7 +117,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
       ...(info?.typed ? { typed: info.typed } : {}),  quiet: info?.quiet, ...(asks.length ? { asks } : {}), ...(waits ? { waits } : {}), ...(context?.tokens ? { context } : {}),
       ...(exit ? { exit: { code: exit.code, signal: exit.signal, ...(exit.lost ? { lost: true } : {}), left: exit.left } } : {}),
       ...(o.turn ? { turn: turn ? { text: str(turn.text), files: turn.files ?? [], at: turn.at ?? 0, final: turn.final !== false && !!turn.text, ...(turn.session ? { session: turn.session } : {}),
-        ...(turn.prompt ? { prompt: turn.prompt } : {}), ...(turn.background ? { background: turn.background } : {}) } : null } : {}),
+        ...(turn.prompt ? { prompt: turn.prompt } : {}), awaits: turn.awaits } : null } : {}),
       ...(o.turn && o.cwd && o.base ? { diff: await changesOf(o.cwd, o.base, o.tree ?? "", [turn?.text, o.said].filter(Boolean).join("\n")) } : {}),
       ...(o.cwd && o.base && (o.turn || o.said || o.branch) ? await landing(o.cwd, o.base, [turn?.text, o.said].filter(Boolean).join("\n"), o.branch ?? "", o.marks) : {}) }
   }
@@ -233,7 +233,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     // (Claude Code rests a moment before its first step; a cloud session's list says idle then too, and between steps)
     if (unfinished(j, t)) return quiet(j, s, now)
     heard(j, s)
-    const ev = restEvent({ background: t?.background, landed: landed(j, r.text) || shipped(j, s, r.text), changes: r.changes, lands: j.where.lands, text: r.text, at: t?.at || j.turn, now })
+    const ev = restEvent({ awaits: t?.awaits, landed: landed(j, r.text) || shipped(j, s, r.text), changes: r.changes, lands: j.where.lands, text: r.text, at: t?.at || j.turn, now })
     if (ev === "working") j.now = nowOf(j, s)
     else j.result = r.result
     return over(j, turnOver(j, clockOf(j), ev, j.where.live ? mergedCommit(r.text) : "", now), now)
@@ -326,7 +326,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
     if (j.where.cloud) { j.exited = Date.now(); return true }
     const t = await seenOf(j, true, false).catch(() => null)
     if (t?.turn?.session) j.session ??= t.turn.session
-    if (!t?.running || t.turn?.background || !resumeOf(j) || d.onScreen?.(linkOf(j))) return false
+    if (!t?.running || t.turn?.awaits || !resumeOf(j) || d.onScreen?.(linkOf(j))) return false
     await links.of(j.where).end(appCtx(), j.terminal)
     j.exited = j.closed = Date.now()
     await resumable(j)

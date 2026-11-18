@@ -21,6 +21,7 @@ export const Summary = z.object({
   error: s, quiet: b,
   context: z.number().optional(),
   background: z.number(),
+  awaits: z.object({ on: z.string(), since: z.number(), n: z.number() }).optional(),
 })
 export type Summary = z.infer<typeof Summary>
 

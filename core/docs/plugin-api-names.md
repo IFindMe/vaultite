@@ -1200,6 +1200,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `Asking`: What a session waits on the user for, as it said it (the service "agent-asking:<name>"): questions, or a plan.
 - `askLabel(a, answer)`: What a choice is called to the user: its option's words, else Approve or Deny.
 - `AskOption`: An option of a menu its screen shows, by the words it starts with: the menu's cursor (❯) is moved onto it, checked there on the screen, then Enter (a menu whose default is No is never answered by…
+- `awaitsText(a)`
 - `buildCache(keep?)`: The last few things built (conversations), by key: `make` runs again only when the key's `version` changed.
 - `changedFiles(entries)`: The files `entries`' edits changed, in order: Claude Code's Edit, Write and NotebookEdit (their input's path), Codex's file changes (a line per file: "update ~/src/app.ts").
 - `Choice`: A question's answer: its options' numbers (from 1), text typed as its own answer (its picker's Type something), or in a multi-select both.
@@ -1244,6 +1245,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `repoName(cwd)`: The repository a folder is: a git worktree's own (its .git a file naming <repo>/.git/worktrees/<name>), an agent's worktree under .claude/worktrees/ its repository's, else the folder's name.
 - `resumeTerminalId(name, session, profile?)`: The id of a terminal resuming agent `name`'s session `session` (in account `profile`: one only it can reach, a cloud session's).
 - `Said`
+- `sameAwaits(a, b)`
 - `SampleAnswer`
 - `SampleAsk`: What the service "sample" is asked: one reply to `prompt`, no tools, nothing remembered (an artifact's claude.sample).
 - `scanDays()`: How many days back the scans read now.

@@ -1,4 +1,5 @@
 import type { Who } from "../../../core/ops.ts"
+import { type Awaits, awaitsLine, awaitsText } from "../../../core/attention.ts"
 import { parseTerminal, resumeTerminalId } from "../../../core/terminalids.ts"
 import type { Going, JobEvent } from "./joblife.ts"
 import type { JobAsk } from "./types.ts"
@@ -70,7 +71,7 @@ export type Where = { machine: string; label: string; cwd: string; repo: string;
   cloud?: boolean }
 export type Result = { text?: string; files?: string[]; diff?: string; pr?: string; link?: string }
 export type Transition = { t: number; ev: JobEvent; from: JobState; to: JobState }
-export type Last = { text: string; at: number; told?: string; asks?: string[]; background?: number
+export type Last = { text: string; at: number; told?: string; asks?: string[]; awaits?: Awaits
   by?: string }
 export type Tell = { at: number; by: string; text: string }
 export type Waits = { kind: "permission" | "question" | "stuck"; question: string; choices: string[]; at: number }
@@ -133,10 +134,12 @@ export function gist(text: string, n = 140) {
 export const questionsIn = (text: string) => text.trim().split(/\n\s*\n/).slice(-2).join("\n").replace(/"[^"\n]*"|“[^”\n]*”/g, "\"\"").split("\n")
   .flatMap((l) => plain(l).match(/[^.!?]*[A-Za-z][^.!?]*\?/g) ?? []).map((q) => cut(q.trim(), 200)).filter((q) => q.split(" ").length >= 3).slice(-3)
 export const HANDED = "You're a job they handed off"
-export function lastOf(t: { text: string; at: number; final?: boolean; prompt?: string; background?: number }, asks?: string[]): Last {
+export function lastOf(t: { text: string; at: number; final?: boolean; prompt?: string; awaits?: Awaits }, asks?: string[]): Last {
   const told = t.prompt && !t.prompt.includes(HANDED) ? cut(plain(t.prompt), 300) : ""
   const q = asks?.length ? asks : t.final ? questionsIn(t.text) : []
-  return { text: t.text.slice(0, 4000), at: t.at, ...(told ? { told } : {}), ...(q.length ? { asks: q } : {}), ...(t.background ? { background: t.background } : {}) }
+  const last: Last = { text: t.text.slice(0, 4000), at: t.at, ...(told ? { told } : {}), ...(q.length ? { asks: q } : {}) }
+  if (t.awaits) last.awaits = t.awaits
+  return last
 }
 const tellKey = (s: string) => plain(s).toLowerCase().slice(0, 80)
 export function toldBy(j: Pick<Job, "tells" | "started">, prompt: string, typed = 0) {
@@ -148,8 +151,8 @@ const tellsLine = (j: Job, now: number) => (j.tells?.length ? `told (by whom, ol
 
 export function nowOf(j: Pick<Job, "title" | "turn" | "last" | "now">, s: { kind?: string; msg?: string; title?: string; state?: string }) {
   if (s.kind) return `waits on ${s.kind === "permission" ? "a permission" : s.kind === "question" ? "an answer" : s.kind}${s.msg ? `: ${s.msg}` : ""}`
-  const n = j.last?.background ?? 0
-  if (n && (s.state === "idle" || s.state === "done")) return `waits on ${n === 1 ? "its task" : `its ${n} tasks`} in the background${j.last!.text ? `: ${gist(j.last!.text)}` : ""}`
+  const a = j.last?.awaits
+  if (a && (s.state === "idle" || s.state === "done")) return awaitsLine(a)
   if (j.last?.text && j.last.at >= j.turn - 1000) return gist(j.last.text)
   const title = (s.title ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim()
   return s.msg || (title && title !== j.title ? title : "") || j.now
@@ -263,7 +266,7 @@ export function jobText(j: Job, now = Date.now()) {
     j.state === "needs you" && j.waits ? `waits on: ${waitsLine(j.waits)}${j.waits.kind === "stuck" ? `: companion job-answer ${j.id} --choice "Restart it" restarts it, its conversation kept; companion job-stop ${j.id} stops it`
       : j.waits.choices.length ? ": companion job-answer with the user's choice, only on their words" : ""}` : "",
     j.queued?.length ? `${queuedLine(j)} (sent by itself then: nothing to retry): ${j.queued.map((q) => cut(plain(q.note), 120)).join(" | ")}` : "",
-    l?.background ? `in the background: ${l.background} task${l.background > 1 ? "s" : ""} of its still running (a command, a subagent)` : "",
+    l?.awaits ? `${awaitsText(l.awaits).replace(/^W/, "w")} (started ${ago(l.awaits.since, now)}), in the background: its end wakes it` : "",
     j.by ? `handed off by ${j.by}` : "", tellsLine(j, now),
     l?.told ? `told last${l.by ? ` (by ${l.by})` : ""}: ${l.told}` : "",
     said ? `it said (${ago(said.at, now)}): ${cut(said.text.trim(), 1500)}` : "", l?.asks?.length ? `asks: ${l.asks.join(" | ")}` : "",

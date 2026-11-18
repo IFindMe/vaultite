@@ -72,8 +72,8 @@ export default async ($: VaultTest) => {
       const [sa, ra] = await api("POST", "ops/companion.job-answer", { id: b.id, choice: "Red" }, asApp)
       check("cloud: their answer goes to its session as its next message", sa === 200 && cloud.told.at(-1)?.text === "Red" && cloud.told.at(-1)?.session === "session_01cloudy", [sa, ra, cloud.told])
       cloud.status = "idle"
-      cloud.turn = { prompt: "Red", text: "Verify runs in the background; I'll report when it ends.", at: Date.now(), final: true, files: [], background: 1 }
-      const waits = await waitFor(async () => { const r = await job(b.id); return /waits on its task in the background/.test(r.now) && r }, 8000, 300)
+      cloud.turn = { prompt: "Red", text: "Verify runs in the background; I'll report when it ends.", at: Date.now(), final: true, files: [], awaits: { on: "npm run verify", since: Date.now(), n: 1 } }
+      const waits = await waitFor(async () => { const r = await job(b.id); return r.now.startsWith("Waiting on npm run verify, since ") && r }, 8000, 300)
       await new Promise((r) => setTimeout(r, 2000))
       check("cloud: at rest with a task in the background, it stays working", !!waits && (await job(b.id)).state === "working", waits)
       // (it lands from afar: its commit on GitHub's main, found here once fetched)

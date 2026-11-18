@@ -57,6 +57,9 @@
   whatever those say: Claude Code has dialogs no hook tells. A blocked report without a kind (Codex's, which never
   probes) waits for that question on screen: Approve and Deny need its words. A wait for a state counts only one told
   after the terminal's last input (`lastInput`), so a prompt just sent isn't answered by the idle before it.
+  Its agent at rest with background tasks still running (Claude Code's transcript, told through "terminal:agent-awaits"
+  as its session file goes idle) waits on them: idle still, for whatever waits for idle, its phase's `awaits` saying
+  on what since when; the app shows it apart from idle and working.
 - OSC 7501 is answered where the pty is held (termd), in stream order: the probe's answer must reach the program before
   the primary DA answer after it (Claude Code takes a DA answer first as "not spoken here").
 - Terminal ids: `<name>-<id>` starts agent `<name>`, `<name>_<account>-<id>` in an account, `resume-<name>-<session>`

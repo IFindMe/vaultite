@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import { agentOfTerminal, agentsOn, announceAgent, closeView, confirmDialog, notify, notifyError, onReconnect, op, openView, parseTerminal, type Agent, type AgentPhase, type AgentRun, type Dot } from "@vaultite"
 import { agentTint } from "../../../core/agenttint.ts"
-import { hasNews, waitsOnUser } from "../../../core/attention.ts"
+import { type Awaits, awaitsLine, hasNews, waitsOnUser } from "../../../core/attention.ts"
 import { resumeTerminalId } from "../../../core/terminalids.ts"
 
 type Live = { id: string; end: () => void }
@@ -31,6 +31,7 @@ export type Session = { id: string; agent: string | null; process: string; busy?
   name?: string
   state?: "idle" | "working" | "blocked" | "done" | "error"; kind?: "permission" | "question" | "auth"; msg?: string
   since?: number
+  awaits?: Awaits
   progress?: string
   starting?: boolean
   needs?: boolean
@@ -154,15 +155,18 @@ async function settle(ids: string[]) {
 }
 
 export const tintOf = (s: Session, a = agentIn(s)) => (!a || (resting(s) && !cacheIn(s)) ? undefined : a.tint)
-export const rankOf = (s: Session, a = agentIn(s)) => (!a ? 4 : needsYou(s, a) ? 0 : s.state === "working" ? 1 : hasNews(s) ? 2 : 3)
+export const rankOf = (s: Session, a = agentIn(s)) => (!a ? 5 : needsYou(s, a) ? 0 : s.state === "working" ? 1 : awaiting(s) ? 2 : hasNews(s) ? 3 : 4)
 export const needsYou = (s: Session, a = agentIn(s)) => !!a && waitsOnUser(s)
 export const resting = (s: Session) => s.state === "idle" || s.state === "done" || s.state === "error"
+export const awaiting = (s: Session) => !!s.awaits && (s.state === "idle" || s.state === "done")
+
+const stepOf = (s: Session) => s.progress || s.msg || (s.awaits && awaiting(s) ? awaitsLine(s.awaits) : undefined)
 export function runOf(s: Session, a = agentIn(s)): AgentRun | null {
   if (!a) return null
   const needs = needsYou(s, a)
   return {
-    id: `terminal:${s.id}`, kind: "terminal", title: labelOf(s, a), step: s.progress || s.msg || undefined,
-    state: needs ? "needs" : s.state === "working" || s.starting ? "working" : "done", failed: s.state === "error", unread: !needs && hasNews(s),
+    id: `terminal:${s.id}`, kind: "terminal", title: labelOf(s, a), step: stepOf(s),
+    state: needs ? "needs" : s.state === "working" || s.starting ? "working" : awaiting(s) ? "waiting" : "done", failed: s.state === "error", unread: !needs && hasNews(s),
     machine: s.machine, where: s.machineLabel, agent: a.label, ...(s.project ? { project: s.project } : {}), tint: `var(--${agentTint(s.id)})`, session: s.session, at: s.started, started: true,
     ...(resting(s) && !s.starting && s.since ? { since: s.since } : {}), to: `view:terminal/${s.id}`,
   }
@@ -181,12 +185,13 @@ const put = (next: Partial<Sessions>) => {
   tick()
 }
 const PHASE: Record<string, AgentPhase> = { working: "working", blocked: "waiting", idle: "done", done: "done", error: "failed" }
+const phaseOf = (s: Session) => (awaiting(s) ? "working" : PHASE[s.state ?? ""] ?? null)
 function tell(was: Session[] | null, list: Session[]) {
   if (!was) return
   const before = new Map(was.map((s) => [s.id, s]))
   for (const s of list) {
     const a = agentIn(s), b = before.get(s.id)
-    if (a && b) announceAgent(labelOf(s, a), PHASE[b.state ?? ""] ?? null, PHASE[s.state ?? ""] ?? null)
+    if (a && b) announceAgent(labelOf(s, a), phaseOf(b), phaseOf(s))
   }
 }
 let ticking = 0
@@ -267,7 +272,7 @@ export function dotOf(s: Session, a = agentIn(s)): Dot {
   if (s.state === "blocked") return "ask"
   if (s.state === "working") return "working"
   if (s.state === "error") return "error"
-  return hasNews(s) ? "unread" : false
+  return hasNews(s) ? "unread" : awaiting(s) ? "waits" : false
 }
 export const stateClass = (s: Session, a = agentIn(s)) => (a && resting(s) ? DRAIN[Math.ceil(cacheIn(s) * 10)] : undefined)
 
@@ -291,4 +296,4 @@ export function meterText(s: Session) {
     cache && resting(s) && (left ? `cache ${left} min left` : "cache expired")].filter(Boolean).join(", ")
 }
 export const stateTip = (s: Session) => (s.missing ? " (not installed)" : s.state === "working" ? " (working)" : s.state === "blocked" ? " (waiting for you)"
-  : hasNews(s) ? " (has something for you)" : s.state === "error" ? " (failed)" : s.state === "done" ? " (done)" : "")
+  : hasNews(s) ? " (has something for you)" : s.awaits && awaiting(s) ? ` (${awaitsLine(s.awaits).replace(/^W/, "w")})` : s.state === "error" ? " (failed)" : s.state === "done" ? " (done)" : "")

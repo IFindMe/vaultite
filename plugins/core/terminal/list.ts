@@ -1,12 +1,12 @@
 import os from "node:os"
 import path from "node:path"
 import { type RawData, WebSocket } from "ws"
-import { type AgentMeter, repoName } from "../../../core/agents.ts"
+import { type AgentMeter, type Awaits, repoName } from "../../../core/agents.ts"
 import { machineSocket, processTable, span } from "../../../core/plugins.ts"
 import type { Listed as Shell } from "./backend.ts"
 import { progName } from "./shells.ts"
 import type { Kind, SessionState } from "./osc7501.ts"
-import { nowOf } from "./state.ts"
+import { type Now, nowOf } from "./state.ts"
 import { SPARE, WIN, plugin, sessions } from "./shared.ts"
 import { agentOf, backends, findShell, fromReq, ours, ownedBy } from "./backends.ts"
 import { FRONT_AGE, frontSeen, metas, nameOf, noteOf, oldMeta, progressOf, sight, terms, watchAsks, watching } from "./terms.ts"
@@ -59,6 +59,14 @@ async function frontOnWindows(x: Shell): Promise<string | null> {
 }
 const argv0 = (line: string) => (line.startsWith('"') ? line.slice(1, line.indexOf('"', 1) >>> 0) : line.split(" ")[0])
 
+function stateOf(now: Now, since: number) {
+  const s: Pick<Listed, "state" | "since" | "kind" | "msg" | "awaits"> = { state: now.state, since }
+  if (now.kind) s.kind = now.kind
+  if (now.msg) s.msg = now.msg
+  if (now.awaits) s.awaits = now.awaits
+  return s
+}
+
 const watchers = new Map<WebSocket, boolean>()
 const lastList = new Map<boolean, string>()
 let listTimer: ReturnType<typeof setTimeout> | null = null
@@ -68,6 +76,7 @@ let follow: ReturnType<typeof setInterval> | null = null
 export type Listed = { id: string; agent: string | null; process: string; busy: boolean; clients: number; started: number; title?: string
   state?: SessionState; kind?: Kind; msg?: string
   since?: number
+  awaits?: Awaits
   starting?: true
   needs?: true
   review?: true
@@ -131,7 +140,7 @@ async function readList(): Promise<Listed[]> {
       out.set(x.id, { id: x.id, agent: agentOf(x.id)?.name ?? null, process: front ?? x.process, busy: front !== null, clients, started: x.created || s?.started || 0,
         title: front !== null ? titleOf(x.title ?? "") : undefined, backend: b.name,
         ...(x.cwd ? { cwd: x.cwd, project: repoName(x.cwd) } : {}), ...(x.command ? { command: x.command } : {}), ...(x.cols ? { cols: x.cols, rows: x.rows } : {}), ...(x.activity ? { activity: x.activity } : {}),
-        ...(now ? { state: now.state, since: t!.at, ...(now.kind ? { kind: now.kind } : {}), ...(now.msg ? { msg: now.msg } : {}) } : {}),
+        ...(now ? stateOf(now, t!.at) : {}),
         ...(progressOf(x.id) ? { progress: progressOf(x.id)! } : {}),
         ...(t?.starting ? { starting: true as const } : {}),
         ...(noteOf(x.id) ? { note: noteOf(x.id) } : {}),

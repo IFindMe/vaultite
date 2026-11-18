@@ -32,13 +32,13 @@ const Started = z.object({ id: z.string() })
 const Sent = z.looseObject({ submitted: z.boolean().nullable().optional(), why: z.string().optional() })
 const Taken = z.object({ path: z.string() })
 const Session = z.object({ session: z.string() })
-const Turn = z.looseObject({ prompt: z.string(), text: z.string(), at: z.number(), final: z.boolean(), files: z.array(z.string()), background: z.number().optional(),
+const Turn = z.looseObject({ prompt: z.string(), text: z.string(), at: z.number(), final: z.boolean(), files: z.array(z.string()), awaits: z.object({ on: z.string(), since: z.number(), n: z.number() }).optional(),
   asks: z.array(z.object({ question: z.string(), choices: z.array(z.string()) })).optional() })
 const CloudRead = z.object({ sessions: z.record(z.string(), z.looseObject({ status: z.string(), title: z.string() }).nullable()), turns: z.record(z.string(), Turn.nullable()) })
 const SeenThere = z.looseObject({ running: z.boolean(), state: z.string().optional(), kind: z.string().optional(), msg: z.string().optional(), title: z.string().optional(),
   typed: z.number().optional(), quiet: z.number().optional(), asks: z.array(z.string()).optional(), diff: z.string().optional(), unreachable: z.string().optional(), onMain: z.boolean().optional(),
   waits: z.looseObject({ kind: z.enum(["permission", "question", "stuck"]), question: z.string(), choices: z.array(z.string()) }).optional(),
-  turn: z.looseObject({ text: z.string(), files: z.array(z.string()), at: z.number(), final: z.boolean(), session: z.string().optional(), prompt: z.string().optional(), background: z.number().optional() }).nullable().optional(),
+  turn: z.looseObject({ text: z.string(), files: z.array(z.string()), at: z.number(), final: z.boolean(), session: z.string().optional(), prompt: z.string().optional(), awaits: z.object({ on: z.string(), since: z.number(), n: z.number() }).optional() }).nullable().optional(),
   exit: z.looseObject({ code: z.number(), signal: z.number(), lost: z.boolean().optional(), left: z.enum(["working", "idle"]).optional() }).optional(),
   context: z.looseObject({ tokens: z.number(), window: z.number() }).optional(),
   marks: z.looseObject({ whole: z.string(), each: z.array(z.string()) }).optional() })

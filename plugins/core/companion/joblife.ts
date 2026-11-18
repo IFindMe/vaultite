@@ -1,4 +1,5 @@
 import { type Job, type JobState, live, mergedSaid, NEWS, type Transition, type Waits } from "./jobs.ts"
+import type { Awaits } from "../../../core/attention.ts"
 
 export const JOB_EVENTS = ["start", "working", "asks", "changed", "answered", "landed", "error", "ended", "told", "stop"] as const
 export type JobEvent = typeof JOB_EVENTS[number]
@@ -34,9 +35,9 @@ export function untell(j: Job, x: Transition | undefined, was: Pick<Job, "state"
 }
 
 export const LAND_WAIT = 10 * 60_000
-export function restEvent(o: { background?: number; landed: boolean; changes: boolean; lands?: boolean; text: string; at: number; now: number }): JobEvent {
+export function restEvent(o: { awaits?: Awaits; landed: boolean; changes: boolean; lands?: boolean; text: string; at: number; now: number }): JobEvent {
   if (o.landed) return "landed"
-  if (o.background) return "working"
+  if (o.awaits) return "working"
   if (o.lands && o.changes && mergedSaid(o.text) === null && o.now - o.at < LAND_WAIT) return "working"
   return o.changes ? "changed" : "answered"
 }

@@ -48,6 +48,7 @@ import type { IconType } from "@/core/icons"
 export type TabInfo = { label: string; icon: IconType; tint?: string; iconClassName?: string
   /** A dot on the icon (a view's `iconBadge`: a coding agent at work, waiting for you). */
   badge?: Dot
+  status?: string
   /** The colour it's marked with, active or not (a view's `tabColor`: a web page's container): a line along the tab's
    *  top in the bar, which stands in for the icon's own (`data-container-line`). */
   color?: string
@@ -585,7 +586,7 @@ function TabChip({ tab, info, active, icons, menu, width, settling, close, line,
   const ps = panesOf(tab), split = ps.length > 1, own = info(tab)
   const dragging = item?.tab === tab.id || (picked && !!item?.tabs) || (!!tab.group && item?.group === tab.group)
   const away = dragging && !hole && (item?.tab === tab.id || picked)
-  const tip = split ? ps.map((p) => info(p).label).join(" | ") : own.label
+  const tip = split ? ps.map((p) => info(p).label).join(" | ") : own.status ? `${own.label}\n${own.status}` : own.label
   const buttons = split || dragging ? [] : tabButtons(ps[0].to)
   const hover = useHoverCard(el, { off: active || !!item })
   const click = (e: React.MouseEvent<HTMLElement>) => {
@@ -607,7 +608,7 @@ function TabChip({ tab, info, active, icons, menu, width, settling, close, line,
       style={{ ...(width ? { flex: `0 0 ${width}px` } : settling ? { transition: "flex var(--motion) var(--ease-out)" } : {}), ...(buttons.length ? { "--tab-buttons": `${buttons.length * 22}px` } : {}) }}>
       <button type="button" role="tab" aria-selected={active} aria-label={split ? tip : undefined}
         onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); if (!tab.pinned) close(e) } }}
-        data-tip={item ? undefined : tip} data-tip-trunc className={cn("flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[inherit] pr-6 pl-2 text-left text-[13px]", own.color && !split && "[&_[data-container-line]]:hidden")}>
+        data-tip={item ? undefined : tip} data-tip-trunc={own.status && !split ? undefined : ""} className={cn("flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[inherit] pr-6 pl-2 text-left text-[13px]", own.color && !split && "[&_[data-container-line]]:hidden")}>
         {split && !(tab.name && own.label === tab.name) ? ps.map((p, k) => (
           <span key={p.id} data-pane-half={p.id} data-ui={`pane:${p.id}`} className={cn("flex h-full min-w-0 flex-1 basis-0 items-center gap-1.5", k && "ml-1.5 border-l-[0.5px] border-border pl-1.5")}>
             <ChipLabel i={info(p)} icons={icons} strong={active && p.id === tab.focus} muted={!active || p.id !== tab.focus} />
@@ -726,7 +727,7 @@ export function viewInfo(to: string, disabled = getPrefs().disabled, pane?: stri
   const v = viewFor(to, disabled)
   return v ? { label: v.def.title(v.arg), icon: v.def.iconFor?.(v.arg, pane) ?? v.def.icon,
     iconClassName: v.on ? v.def.iconClass?.(v.arg) : undefined, tint: v.on ? v.def.iconTint?.(v.arg) : undefined, badge: v.on ? v.def.iconBadge?.(v.arg) : undefined,
-    color: v.on ? v.def.tabColor?.(v.arg) : undefined, mark: v.on && pane ? v.def.tabMark?.(v.arg, pane) ?? undefined : undefined }
+    status: v.on ? v.def.iconTip?.(v.arg) : undefined, color: v.on ? v.def.tabColor?.(v.arg) : undefined, mark: v.on && pane ? v.def.tabMark?.(v.arg, pane) ?? undefined : undefined }
     : { label: to.slice(5), icon: SquareDashed }
 }
 

@@ -342,6 +342,7 @@ export function jsonLines<T>(bin: string, args: string[], o: { env: NodeJS.Proce
 
 /** A terminal's agent as the Terminals panel shows it. */
 export type AgentState = "working" | "waiting" | "idle"
+export { type Awaits, awaitsText, sameAwaits } from "./attention.ts"
 /** A live session by its terminal (service "agent-meters:<name>"): its `session` id, `account` id and `cwd`; with
  *  `meters`, `tokens` its last request read of a `window`, cached for `ttl` seconds from `last` (ms). */
 export type AgentMeter = { terminal: string; session?: string; account?: string; cwd?: string; tokens?: number; window?: number; last?: number; ttl?: number }

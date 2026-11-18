@@ -59,6 +59,8 @@ brings an agent and is on. It keeps nothing in the vault but its settings (below
   when its last tab closes at its prompt, never for being left alone: closing an agent's tab detaches it (it keeps
   running, listed in Terminals, its answer still reaching the Inbox), and opening it again attaches.
 - An agent's tab and row keep its logo, with its state as a dot on the corner (sessions.ts dotOf): breathing while it
-  works, yellow while it waits on the user, blue while its Inbox row is unread (the list's `needs`), red once it failed.
-  Terminals lists the ones that need the user first.
+  works, hollow and breathing while its turn is over but its own background work runs (a command, a monitor, a job it
+  waits on: the list's `awaits`, "Waiting on <it>, since <time>" in its tooltip and row), yellow while it waits on the
+  user, blue while its Inbox row is unread (the list's `needs`), red once it failed. Terminals lists the ones that need
+  the user first.
 - A session terminal.run started on a note (Dispatch) opens its tab beside that note's tab, in its tab group.

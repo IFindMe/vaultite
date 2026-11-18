@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "re
 import { createPortal } from "react-dom"
 import { CircleAlert, Ellipsis, Folder, ListTree, RotateCcw, SquareTerminal, WifiOff } from "lucide-react"
 import { Button, cn, isViewOpen, menuBelow, notifyError, op, openView, PaneControls, plural, useNoPhoneTitle, splitMachine, useDesktop, usePane, usePaneTopBar, usePortalHost } from "@vaultite"
+import { awaitsLine } from "../../../core/attention.ts"
 import { ClaudeIcon } from "./ClaudeIcon"
 import { NEW, nameTab } from "./titles"
 import { type Seen, listedOf, see, seenOf } from "./seen"
@@ -10,9 +11,14 @@ import { type Options, TINT, home, modelLabel, folderName } from "./chatbits"
 import { chatMenu, terminalOk, toTerminal } from "./chatmenu"
 import { TalkSkeleton } from "./skeleton"
 
+function backgroundOf(s: ReturnType<typeof useChat>["s"]) {
+  if (s?.awaits && s.state === "idle") return awaitsLine(s.awaits)
+  return s?.background ? plural(s.background, "background task") : ""
+}
+
 function whereOf(c: ReturnType<typeof useChat>, o: Options | null, last: Seen | null) {
   const model = c.s?.model || c.model || last?.model, cwd = c.cwd || last?.cwd
-  const background = c.s?.background ? plural(c.s.background, "background task") : ""
+  const background = backgroundOf(c.s)
   return [cwd && folderName(cwd, o), model && modelLabel(model, o), o && o.accounts.length > 1 && o.accounts.find((a) => a.id === c.account)?.label, background].flatMap((x) => (x ? [x] : []))
 }
 

@@ -56,17 +56,18 @@ export default async ($: VaultTest) => {
     check("jobs: the commits a message names", J.commitsIn("pushed as 7493dcf6 (`c09009afa67159e`), see #12345678 and abcdefgh, deadbeef").join() === "7493dcf6,c09009afa67159e", J.commitsIn("pushed as 7493dcf6 (`c09009afa67159e`), see #12345678 and abcdefgh, deadbeef"))
     {
       // (a turn at rest: its background tasks running hold it working, and one landing itself until it says how that went)
+      const aw = { on: "npm run verify", since: Date.parse("2026-11-17T21:58:00Z"), n: 1 }
       const R = (o: Any) => L.restEvent({ landed: false, changes: true, text: "Fixed it.", at: 0, now: 1000, ...o })
       check("jobs: a turn ending with its background tasks running stays working; one landing itself is never ready for review before it says Merged or Not merged",
-        R({ background: 1 }) === "working" && R({ background: 2, changes: false }) === "working" && R({ background: 1, landed: true }) === "landed" &&
+        R({ awaits: aw }) === "working" && R({ awaits: { ...aw, n: 2 }, changes: false }) === "working" && R({ awaits: aw, landed: true }) === "landed" &&
         R({}) === "changed" && R({ changes: false }) === "answered" && R({ landed: true }) === "landed" &&
         R({ lands: true, text: "Verify is still running in the background. When it's done I'll land the fix." }) === "working" &&
         R({ lands: true, text: "Not merged: verify fails on main too." }) === "changed" && R({ lands: true, now: L.LAND_WAIT + 1 }) === "changed" &&
         R({ lands: true, changes: false, text: "Nothing to change." }) === "answered")
-      const j = { title: "t", turn: 0, now: "", last: { text: "Still running local verify before the try.", at: 5, background: 1 } }
-      check("jobs: at rest with a background task, its now-line says it waits on that; working, what it says",
-        J.nowOf(j, { state: "idle" }) === "waits on its task in the background: Still running local verify before the try." &&
-        J.nowOf({ ...j, last: { ...j.last, background: 3 } }, { state: "done" }).startsWith("waits on its 3 tasks in the background") &&
+      const j = { title: "t", turn: 0, now: "", last: { text: "Still running local verify before the try.", at: 5, awaits: aw } }
+      check("jobs: at rest with a background task, its now-line says what it waits on and since when; working, what it says",
+        /^Waiting on npm run verify, since \S/.test(J.nowOf(j, { state: "idle" })) &&
+        J.nowOf({ ...j, last: { ...j.last, awaits: { ...aw, n: 3 } } }, { state: "done" }).startsWith("Waiting on npm run verify and 2 more, since") &&
         J.nowOf(j, { state: "working" }) === "Still running local verify before the try.", J.nowOf(j, { state: "idle" }))
     }
     const E = (text: boolean, final: boolean, changes: boolean, crashed: boolean) => L.endEvent({ text, final, changes, crashed })
@@ -143,10 +144,10 @@ export default async ($: VaultTest) => {
       check("jobs: the commit a worker's Merged names, before any other its words name", J.mergedCommit("Rebased onto 7fba84d0. Merged: `c09009af` is on main.") === "c09009af" &&
         J.mergedCommit("Pushed as 98b7fcde.") === "98b7fcde" && J.mergedCommit("Merged.") === "")
       const first = J.lastOf({ text: "Fixed it. The links \"Why now?\" stay.\n\nShould I also change the header? Or keep it as is?", at: 5, final: true, prompt: jt })
-      const told = J.lastOf({ text: "Looking at it.", at: 9, final: false, prompt: "Use the **darker** blue", background: 2 })
+      const told = J.lastOf({ text: "Looking at it.", at: 9, final: false, prompt: "Use the **darker** blue", awaits: { on: "npm run verify", since: 1, n: 2 } })
       check("jobs: its latest turn: what it said, the questions its answer ends with (quotes left out), what it was told after its task, its background tasks",
         first.text.startsWith("Fixed it.") && JSON.stringify(first.asks) === JSON.stringify(["Should I also change the header?", "Or keep it as is?"]) && first.told === undefined &&
-        told.told === "Use the darker blue" && told.asks === undefined && told.background === 2, [first, told])
+        told.told === "Use the darker blue" && told.asks === undefined && told.awaits?.n === 2, [first, told])
       const j = { title: "Fix the footer", turn: 10_000, now: "starting", last: { text: "Checking the footer at phone width. Then the header.", at: 20_000 } }
       check("jobs: what it does now is what it waits on, else what it said last this turn, else its status (not its own title)",
         J.nowOf(j, {}) === "Checking the footer at phone width." && J.nowOf(j, { kind: "question", msg: "Which blue?" }) === "waits on an answer: Which blue?" &&
@@ -485,9 +486,10 @@ export default async ($: VaultTest) => {
     const cc = app.plugins.find((p) => p.id === "claude-code")!.services, was = { ...cc }
     const agent = request({ host: "127.0.0.1:8793", "x-vaultite-client": "cli", "x-vaultite-agent": "claude-code" }, { remote: "127.0.0.1" })
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), "jobs-tidy-")), started: Any[] = []
-    let background = 1
+    const sleeping = { on: "sleep 600", since: Date.now(), n: 1 }
+    let awaits: Any = sleeping
     cc["agent:claude"] = async (start: Any) => { started.push(start); return { command: "sleep 0.3; printf '\\033]7501;state=working\\033\\\\'; sleep 0.5; printf '\\033]7501;state=idle\\033\\\\'; sleep 600", cwd: null } }
-    cc["agent-turn:claude"] = async () => ({ session: "sess-tidy", text: "Wrote the summary. Should I add it to Today?", files: [], at: Date.now(), final: true, background })
+    cc["agent-turn:claude"] = async () => ({ session: "sess-tidy", text: "Wrote the summary. Should I add it to Today?", files: [], at: Date.now(), final: true, awaits: awaits ?? undefined })
     const job = async (id: string) => (await api("POST", "ops/companion.job", { id }))[1]
     const runs = async (id: string) => (await api("GET", "terminals/sessions"))[1].sessions.some((x: Any) => x.id === id)
     let first = ""
@@ -495,10 +497,10 @@ export default async ($: VaultTest) => {
     try {
       const [st, b] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "Write the summary", cwd: plain }, agent))
       first = b.link.split("/").pop()
-      const going = await waitFor(async () => { const r = await job(b.id); return r.state === "working" && /^waits on its task in the background: Wrote the summary/.test(r.now) && r }, 15000, 200)
+      const going = await waitFor(async () => { const r = await job(b.id); return r.state === "working" && r.now.startsWith("Waiting on sleep 600, since ") && r }, 15000, 200)
       check("jobs: its turn over while it runs something in the background, it stays working, saying it waits on that; its terminal stays",
         st === 200 && !!going && await runs(first) && !going.closed && !going.log.some((x: Any) => x.to === "done" || x.to === "ready for review"), going ?? await job(b.id))
-      background = 0
+      awaits = null
       const done = await waitFor(async () => { const r = await job(b.id); return r.state === "done" && r }, 25000, 200)
       check("jobs: its background tasks over and its turn after them ended, it's done", !!done, await job(b.id))
       const closed = await waitFor(async () => { const r = await job(b.id); return r.closed && r }, 10000, 200)

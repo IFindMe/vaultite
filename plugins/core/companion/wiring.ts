@@ -56,6 +56,10 @@ plugin.provide("companion:review", async () => {
     return self && t.endsWith(`@${self}`) ? t.slice(0, -self.length - 1) : t
   })
 })
+plugin.provide("companion:job-named", (text: string) => {
+  const ids = new Set(String(text).match(/\bj[a-z0-9]{7}\b/g) ?? [])
+  return ids.size ? jobs.list().find((j) => ids.has(j.id))?.title.slice(0, 80) ?? "" : ""
+})
 export const knocks = knockOps(plugin, { toScreens, listening: () => screens.size > 0, jobs: () => jobs.list(), off: () => mode() === "off", hidden: () => plugin.settings().island === false })
 export const liveEditing = liveEdits(plugin, {
   jobs,

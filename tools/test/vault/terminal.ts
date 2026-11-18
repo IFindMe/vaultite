@@ -332,6 +332,14 @@ export default async ($: VaultTest) => {
       waits(id, null)
       check("terminal: its agent's word that it waits blocks it, and no longer once it doesn't (at rest then)", before === null && blocked?.state === "blocked" &&
         blocked.kind === "question" && blocked.from === "agent" && blocked.agent === "claude" && state(id)?.state === "idle", [before, blocked, state(id)])
+      const awaits: (id: string, a: Any) => void = term.plugin.services["terminal:agent-awaits"]
+      awaits(id, { on: "the job \"Fix the scroll\"", since: 1_794_000_000_000, n: 1 })
+      const on = state(id)
+      awaits(id, { on: 7 })
+      const kept = state(id)
+      awaits(id, null)
+      check("terminal: its agent's background task at rest has it waiting on that, ill-formed words ignored; none, at rest again",
+        on?.state === "idle" && on.awaits?.on === "the job \"Fix the scroll\"" && kept?.awaits?.on === on.awaits.on && state(id)?.state === "idle" && !state(id)?.awaits, [on, kept, state(id)])
     }
     // Keys by name, as a terminal sends them (keys.ts).
     const { keyBytes, keysBytes } = await import("../../../plugins/core/terminal/keys.ts")
@@ -1001,6 +1009,14 @@ export default async ($: VaultTest) => {
     const answered = step(asked, { type: "waits", kind: null }, 9000)
     check("terminal state: its agent's word that it waits blocks it over OSC 7501; no longer, its OSC 7501 says again",
       nowOf(asked)?.state === "blocked" && nowOf(asked)?.from === "agent" && nowOf(answered)?.state === "working", [nowOf(asked), nowOf(answered)])
+    const task = { on: "sleep 600", since: 1500, n: 1 }
+    const resting = run([{ type: "hooks", text: "working", at: 1 }, { type: "awaits", awaits: task }, { type: "hooks", text: "idle", at: 2 }])
+    const again = step(resting, { type: "hooks", text: "working", at: 3 }, 9000), woke = step(step(again, { type: "awaits", awaits: null }, 9500), { type: "hooks", text: "idle", at: 4 }, 9600)
+    const quit = step(resting, { type: "front", program: false, seen: 9000 }, 9000)
+    check("terminal state: at rest with a background task it waits on that, since its start; working again, or the task done, it doesn't; its program gone, neither",
+      nowOf(resting)?.state === "idle" && nowOf(resting)?.awaits?.on === "sleep 600" && nowOf(resting)?.awaits?.since === 1500 &&
+      nowOf(again)?.state === "working" && nowOf(again)?.awaits === undefined && nowOf(woke)?.state === "idle" && nowOf(woke)?.awaits === undefined &&
+      nowOf(quit)?.awaits === undefined && quit.awaits === null, [nowOf(resting), nowOf(again), nowOf(woke), nowOf(quit)])
     const ended = step(gone, { type: "exit", code: 0, signal: 0, lost: true }, 9000)
     check("terminal state: an end is final, its state none", ended.phase.state === "ended" && nowOf(ended) === null && step(ended, { type: "hooks", text: "working", at: 1 }, 9500) === ended, ended.phase)
   }

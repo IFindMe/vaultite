@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useSyncExternalStore } from "react"
 import { Bot, FileText, LogOut, MessageSquareText, Search, Server, SquareTerminal, SquareX } from "lucide-react"
 import { agentOfTerminal, aiOn, AmbientButton, canRunAgents, chooseDefaultPlace, choosePlace, definePlugin, getTabLayout, Group, isMac, isViewOpen, Loading, onTabLayoutChange, openTerminal, openView, severalMachines,
   devicePref, offerPanel, PageHeader, panelSide, SettingRow, useAi, useLive, viewsChanged } from "@vaultite"
-import { agentIn, autoLabel, current, dotOf, endForGood, getSessions, iconOf, labelOf, nameSession, needsYou, pinOfTerminal, runningResume, sessionById, stateClass, subscribeSessions, tabClosed, tintOf } from "./sessions"
+import { awaitsLine } from "../../../core/attention.ts"
+import { agentIn, autoLabel, awaiting, current, dotOf, endForGood, getSessions, iconOf, labelOf, nameSession, needsYou, pinOfTerminal, runningResume, sessionById, stateClass, subscribeSessions, tabClosed, tintOf } from "./sessions"
 import { about, SessionList, Sessions, useSessions } from "./SessionsPanel"
 import { TerminalsView } from "./TerminalsView"
 import { TerminalPicture } from "./Screen"
@@ -49,17 +50,17 @@ function SessionNames() {
 
 const tabsKey = () => JSON.stringify((getSessions().list ?? []).map((s) => {
   const a = agentIn(s)
-  return [s.id, labelOf(s, a), s.machineLabel, a?.name, stateClass(s, a), tintOf(s, a), dotOf(s, a), s.note, s.session]
+  return [s.id, labelOf(s, a), s.machineLabel, a?.name, stateClass(s, a), tintOf(s, a), dotOf(s, a), s.note, s.session, s.awaits?.on, s.awaits?.n]
 }))
 
 const openTab = (to: string) => openView(to, { newTab: !isViewOpen(to) })
 
 function AgentsAtWork() {
   const list = useSessions().list ?? []
-  const working = list.filter((s) => agentIn(s) && s.state === "working"), needs = list.filter((s) => needsYou(s))
+  const working = list.filter((s) => agentIn(s) && (s.state === "working" || awaiting(s))), needs = list.filter((s) => needsYou(s))
   if (!working.length && !needs.length) return null
-  const need = `${needs.length} need${needs.length === 1 ? "s" : ""} you`
-  const tip = [working.length && `${working.length} working`, needs.length && need].filter(Boolean).join(", ")
+  const need = `${needs.length} need${needs.length === 1 ? "s" : ""} you`, waits = working.filter(awaiting).length
+  const tip = [working.length - waits && `${working.length - waits} working`, waits && `${waits} waiting on background work`, needs.length && need].filter(Boolean).join(", ")
   return <AmbientButton icon={Bot} text={needs.length ? `${working.length} · ${need}` : working.length} tip={`Agents: ${tip}`}
     tint={needs.length ? "var(--yellow)" : undefined} onClick={() => openTab(needs.length ? `view:terminal/${needs[0].id}` : "view:terminals")} />
 }
@@ -107,6 +108,7 @@ export default definePlugin({
       iconClass: (arg) => { const s = sessionById(arg); return s ? stateClass(s) : undefined },
       iconTint: (arg) => { const s = sessionById(arg); return s ? tintOf(s) : agentOfTerminal(arg)?.tint },
       iconBadge: (arg) => { const s = sessionById(arg); return !!s && dotOf(s) },
+      iconTip: (arg) => { const s = sessionById(arg); return s?.awaits && awaiting(s) && agentIn(s) ? awaitsLine(s.awaits) : undefined },
       tabPicture: (arg) => (sessionById(arg || "main") ? <TerminalPicture id={arg || "main"} /> : null),
       opensBeside: (arg) => { const n = sessionById(arg)?.note; return n ? `file:${n}` : null },
       full: true,

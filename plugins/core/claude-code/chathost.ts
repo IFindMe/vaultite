@@ -68,6 +68,7 @@ class Session {
   s: Summary
   idle: ReturnType<typeof setTimeout> | null = null
   background = 0
+  tasks = new Map<string, number>()
   stopping = false
   stderr: string[] = []
   streams = new Map<number, { use: string; name: string; json: string }>()
@@ -369,6 +370,17 @@ export class Host {
     }
   }
 
+  private tasksNow(x: Session, tasks: { task_id: string; description: string; ambient?: boolean }[]) {
+    const was = x.background, live = tasks.filter((t) => !t.ambient), had = x.s.awaits
+    x.background = x.s.background = live.length
+    x.tasks = new Map(live.map((t) => [t.task_id, x.tasks.get(t.task_id) ?? Date.now()]))
+    const first = [...live].sort((a, b) => (x.tasks.get(a.task_id) ?? 0) - (x.tasks.get(b.task_id) ?? 0))[0]
+    if (first) x.s.awaits = { on: (first.description || "a background task").replace(/\s+/g, " ").trim().slice(0, 80), since: x.tasks.get(first.task_id) ?? Date.now(), n: live.length }
+    else delete x.s.awaits
+    if (was !== x.background || had?.on !== x.s.awaits?.on || had?.since !== x.s.awaits?.since) this.emit({ t: "state", s: x.s })
+    if (was && !x.background && x.s.state === "idle") this.idleTimer(x, true)
+  }
+
   private message(x: Session, m: SDKMessage) {
     x.s.at = Date.now()
     if (m.type === "system" && m.subtype === "init") {
@@ -380,12 +392,7 @@ export class Host {
     } else if (m.type === "system" && m.subtype === "status" && m.permissionMode && m.permissionMode !== x.s.mode) {
       x.s.mode = m.permissionMode
       this.emit({ t: "state", s: x.s })
-    } else if (m.type === "system" && m.subtype === "background_tasks_changed") {
-      const was = x.background
-      x.background = x.s.background = m.tasks.filter((t) => !t.ambient).length
-      if (was !== x.background) this.emit({ t: "state", s: x.s })
-      if (was && !x.background && x.s.state === "idle") this.idleTimer(x, true)
-    }
+    } else if (m.type === "system" && m.subtype === "background_tasks_changed") this.tasksNow(x, m.tasks)
     if (m.type === "assistant" && !m.parent_tool_use_id) {
       const u = m.message.usage
       const n = (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0)
