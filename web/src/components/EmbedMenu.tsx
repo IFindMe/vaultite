@@ -10,6 +10,7 @@ import { formatFor } from "@/core/plugins"
 import { getPrefs } from "@/core/prefs"
 import { openInSplit } from "@/core/splits"
 import { isDesktop } from "@/core/platform"
+import { saveFile } from "@/core/savefile"
 import { openMenu, type MenuItem } from "@/components/ContextMenu"
 import { canOpenHere, copyToVaultItem, fileMenu, grouped, openItem, openOnComputer, revealItem } from "@/components/FileActions"
 import { rawUrl } from "@/components/FileViewers"
@@ -75,12 +76,7 @@ export function EmbedMenu({ store, target, from, edit, children }: { store: Stor
   )
 }
 
-function download(path: string) {
-  const a = document.createElement("a")
-  a.href = rawUrl(path, { download: true })
-  a.download = path.split("/").pop()!
-  a.click()
-}
+const download = (path: string) => saveFile(rawUrl(path, { download: true }), path.split("/").pop()!)
 
 async function copyImage(url: string) {
   try {

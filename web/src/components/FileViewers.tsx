@@ -6,6 +6,7 @@ import { localCopy } from "@/core/justsaved"
 import { formatSize, kindIcon, kindName, type FileKind } from "@/core/filekinds"
 import { gone, openFile } from "@/core/files"
 import { isDesktop } from "@/core/platform"
+import { saveFile, savesBySharing } from "@/core/savefile"
 import { useVaultChange } from "@/core/live"
 import { useRead } from "@/core/reading"
 import { playerFor } from "@/core/plugins"
@@ -76,7 +77,8 @@ export function FileCard({ path, info, note, children }: { path: string; info: F
             <SquareArrowOutUpRight className="size-4" strokeWidth={2} />Open in default app
           </Button>
         )}
-        <a href={rawUrl(path, { download: true })} download={name} className={here || children ? secondary : primary}>
+        <a href={rawUrl(path, { download: true })} download={name} className={here || children ? secondary : primary}
+          onClick={(e) => { if (savesBySharing) { e.preventDefault(); saveFile(e.currentTarget.href, name) } }}>
           <Download className="size-4" strokeWidth={2} />Download
         </a>
       </div>

@@ -144,6 +144,20 @@ try {
   got = await hold(p.locator(".vau-editor img.cm-image").first(), "embed")
   check("phone: a finger held on an embed has the plugin's item", has(got, ["Stamp it", "Remove embed"]), got)
   await phone.close()
+
+  const iphone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" })
+  await iphone.addInitScript(() => {
+    navigator.share = async (d) => { window.qaShared = (d.files ?? []).map((f) => [f.name, f.size]) }
+    navigator.canShare = () => true
+  })
+  const ip = watch(await iphone.newPage())
+  await ip.goto(`${B}#file/${enc(PIC)}`); await ip.waitForSelector(".file-view img", { timeout: 15000 })
+  await ip.locator(".file-view img").first().click({ button: "right" })
+  await ip.locator("[role=menu] [role=menuitem]", { hasText: "Download" }).click()
+  const shared = await until(() => ip.evaluate(() => window.qaShared), 10000)
+  check("iPhone: Download shares the image and the app stays put", shared?.[0]?.[0] === "Qa pic.png" && shared[0][1] > 0 && ip.url().includes("#file/"), [shared, ip.url()])
+  await iphone.close()
 } finally {
   await browser.close()
   rmSync(abs(DIR), { recursive: true, force: true })

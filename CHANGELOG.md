@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- iPhone: Download on a file or image opens the share sheet (Save Image, Save to Files) instead of showing the
+  file in the app's own window with no way back.
 - iPhone: a voice note shows its words as they're said (through the server's cloud recognizer, Soniox, else the
   iPhone's own; should the cloud drop, the iPhone's takes over), so stopping sends it at once instead of transcribing
   first. Sending never holds the screen: Close while it goes, and the recording is kept until it's sent.
