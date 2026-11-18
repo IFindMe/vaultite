@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { FileJson, type LucideIcon } from "lucide-react"
 import type { Store } from "@/core/data"
 import { patch, put } from "@/core/http"
@@ -8,7 +8,7 @@ import { useVaultChange } from "@/core/live"
 import { afterSheets } from "@/core/nav"
 import { notifyError } from "@/core/notify"
 import { isEnabled, names, setSwitch, tileTint } from "@/core/plugins"
-import { goingToIn, pluginSettings, revealRow, settingsFile, takeGoingTo } from "@/core/pluginSettings"
+import { pluginSettings, settingsFile } from "@/core/pluginSettings"
 import { grantsOf, setGrant } from "@/core/grants"
 import { usePrefs } from "@/core/prefs"
 import { capitalize } from "@/lib/utils"
@@ -35,11 +35,6 @@ export function PluginSettings({ store, plugin, embedded = false }: { store: Sto
   const { disabled } = usePrefs()
   const on = isEnabled(plugin.id, disabled)
   const blocked = (plugin.requires ?? []).filter((r) => !isEnabled(r, disabled))
-  const reveal = useMemo(() => goingToIn(plugin.id), [plugin.id])
-  useEffect(() => {
-    const key = takeGoingTo(plugin.id)
-    if (key) revealRow(`[data-plugin-settings-sheet="${CSS.escape(plugin.id)}"] [data-setting="${CSS.escape(key)}"]`)
-  }, [plugin.id])
   return (
     <div data-plugin-settings-sheet={plugin.id}>
       {!embedded && <SheetHead icon={plugin.icon} tint={tileTint(plugin.id)} title={plugin.name} sub={brief(plugin.description)} />}
@@ -49,12 +44,12 @@ export function PluginSettings({ store, plugin, embedded = false }: { store: Sto
           <Switch on={false} onChange={() => setSwitch(plugin, true)} label={`${plugin.name} plugin`} disabled={!!blocked.length} />
         </div>
       )}
-      <div className="space-y-5" data-settings-body><SheetBody store={store} plugin={plugin} on={on} embedded={embedded} reveal={reveal} /></div>
+      <div className="space-y-5" data-settings-body><SheetBody store={store} plugin={plugin} on={on} embedded={embedded} /></div>
     </div>
   )
 }
 
-function SheetBody({ store, plugin, on, embedded, reveal }: { store: Store; plugin: Plugin; on: boolean; embedded: boolean; reveal: string | null }) {
+function SheetBody({ store, plugin, on, embedded }: { store: Store; plugin: Plugin; on: boolean; embedded: boolean }) {
   const drawn = on && plugin.settingsPanel ? plugin.settingsPanelDraws ?? [] : []
   const decls = Object.fromEntries(Object.entries(plugin.settingsDecls ?? {}).filter(([k]) => !drawn.includes(k)))
   const declared = Object.keys(decls).length > 0
@@ -66,7 +61,7 @@ function SheetBody({ store, plugin, on, embedded, reveal }: { store: Store; plug
   return (
     <>
       {panel && plugin.settingsPanelFirst && panel}
-      {declared ? <SettingsForm id={plugin.id} decls={decls} offers={plugin.settingChoices} lead={home} reveal={reveal} /> : home && <Group>{home}</Group>}
+      {declared ? <SettingsForm id={plugin.id} decls={decls} offers={plugin.settingChoices} lead={home} /> : home && <Group>{home}</Group>}
       {panel && !plugin.settingsPanelFirst && panel}
       {homes.length > 1 && <Section title="Folders"><Group>{homes.map((h) => <Home key={h.key} home={h} />)}</Group></Section>}
       <Writes store={store} plugin={plugin.id} />

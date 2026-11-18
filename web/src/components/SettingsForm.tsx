@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight } from "lucide-react"
 import { useStore } from "@/core/data"
 import { notifyError } from "@/core/notify"
 import { pluginById, usePluginsVersion } from "@/core/plugins"
-import { pluginSettings } from "@/core/pluginSettings"
+import { pluginSettings, settingAsked } from "@/core/pluginSettings"
 import { applies, depthOf, formGroups, summaryOf, type FormGroup } from "@/core/settingsform"
 import { AND } from "@/core/bundlenames"
 import { cn } from "@/lib/utils"
@@ -25,9 +25,9 @@ function useSettings(id: string, decls: SettingDecls) {
 }
 type Settings = NonNullable<ReturnType<typeof useSettings>>
 
-type FormProps = { id: string; decls: SettingDecls; offers?: Record<string, Offer>; lead?: ReactNode; reveal?: string | null }
+type FormProps = { id: string; decls: SettingDecls; offers?: Record<string, Offer>; lead?: ReactNode }
 
-export function SettingsForm({ id, decls, offers, lead, reveal }: FormProps) {
+export function SettingsForm({ id, decls, offers, lead }: FormProps) {
   const s = useSettings(id, decls)
   if (!s) return <Group><div className="min-h-12" aria-busy /></Group>
   const groups = formGroups(decls)
@@ -47,7 +47,7 @@ export function SettingsForm({ id, decls, offers, lead, reveal }: FormProps) {
     <>
       {lead && groups[0]?.title && <Group>{lead}</Group>}
       {groups.map((g, i) => {
-        const rows = <GroupRows g={g} s={s} decls={decls} field={field} lead={i === 0 && !g.title ? lead : null} reveal={reveal} />
+        const rows = <GroupRows g={g} s={s} decls={decls} field={field} lead={i === 0 && !g.title ? lead : null} plugin={id} />
         return g.title && !g.folded
           ? <div key={g.title} data-settings-group={g.title}><Section title={g.title}>{rows}</Section></div>
           : <div key={g.title || "-"} data-settings-group={g.title || undefined}>{rows}</div>
@@ -58,22 +58,23 @@ export function SettingsForm({ id, decls, offers, lead, reveal }: FormProps) {
 
 const namesOf = (names: string[]) => (names.length > 3 ? `${names.slice(0, 2).join(", ")} and ${names.length - 2} more` : AND.format(names))
 
-function GroupRows({ g, s, decls, field, lead, reveal }: { g: FormGroup; s: Settings; decls: SettingDecls; field: (k: string, inFold?: boolean) => ReactNode; lead: ReactNode; reveal?: string | null }) {
+function GroupRows({ g, s, decls, field, lead, plugin }: { g: FormGroup; s: Settings; decls: SettingDecls; field: (k: string, inFold?: boolean) => ReactNode; lead: ReactNode; plugin: string }) {
   const [open, setOpen] = useState(false)
-  const shown = open || (!!reveal && g.advanced.includes(reveal))
+  const asked = settingAsked.use((a) => a?.id === plugin && g.advanced.includes(a.key))
+  if (asked && !open) setOpen(true)
   const folded = g.advanced.filter((k) => applies(decls, k, s.textOf))
   const fold = (g.folded || folded.length > 0) && (
-    <SettingRow label={g.folded ? g.title : "Advanced"} onClick={() => setOpen(!shown)} chevron={shown ? ChevronDown : ChevronRight} aria-expanded={shown}
+    <SettingRow label={g.folded ? g.title : "Advanced"} onClick={() => setOpen(!open)} chevron={open ? ChevronDown : ChevronRight} aria-expanded={open}
       data-settings-fold={g.title || "Advanced"}
-      sub={shown || g.folded ? undefined : namesOf(folded.map((k) => decls[k].label))}
-      value={!shown && g.folded ? summaryOf(decls, g.advanced, s.textOf) : undefined} />
+      sub={open || g.folded ? undefined : namesOf(folded.map((k) => decls[k].label))}
+      value={!open && g.folded ? summaryOf(decls, g.advanced, s.textOf) : undefined} />
   )
   return (
     <Group>
       {lead}
       {g.rows.map((k) => field(k))}
       {fold}
-      {shown && g.advanced.map((k) => field(k, true))}
+      {open && g.advanced.map((k) => field(k, true))}
     </Group>
   )
 }

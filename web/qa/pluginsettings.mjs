@@ -295,6 +295,14 @@ try {
       !(await vs.locator("[data-setting=coach]").count()), await coach.innerText())
     await coach.click()
     check("...opens in place; a small range is a slider", !!(await until(() => vs.locator("[data-setting=coach]").count(), 4000)) && await vs.locator("[data-setting=pace] input[type=range]").count() === 1)
+    await coach.click()
+    await until(async () => (await coach.getAttribute("aria-expanded")) === "false", 2000)
+    await page.locator("[data-settings-search] input").fill("Pace")
+    await until(() => page.locator('[data-settings-result="plugin:qa-tracker:pace"]').count(), 4000)
+    await page.locator('[data-settings-result="plugin:qa-tracker:pace"]').click()
+    check("...found by search, its fold opens and the setting flashes", !!(await until(() => vs.locator("[data-setting=pace].reveal-flash").count(), 4000)) &&
+      (await coach.getAttribute("aria-expanded")) === "true")
+    await page.locator("[data-settings-search] input").fill("")
 
     const some = readdirSync(VAULT, { withFileTypes: true }).find((d) => d.isDirectory() && !d.name.startsWith("."))?.name ?? ""
     await vs.locator("[data-setting=where] [data-folder-field]").click()

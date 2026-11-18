@@ -6,7 +6,7 @@ import { openSetup, settingsSection, settingsSectionOpen, showSettingsSection } 
 import { usePane } from "@/core/pane"
 import { openDetail } from "@/core/nav"
 import { isEnabled, offWithAi, PLUGINS, pluginById, switchedOn, tileTint, type Plugin } from "@/core/plugins"
-import { advancedOpen, openPluginSettings, revealRow, setAdvanced, settingsApart, settingsFolded, settingsHome, settingsLit, withSettings } from "@/core/pluginSettings"
+import { advancedOpen, openPluginSettings, revealRow, revealSetting, setAdvanced, settingsApart, settingsFolded, settingsHome, settingsLit, withSettings } from "@/core/pluginSettings"
 import { PluginPreview } from "@/components/PluginPreview"
 import { OpenPlugin } from "@/pages/Plugins"
 import { PluginsPane } from "@/pages/Setup"
@@ -284,15 +284,19 @@ export function Settings({ store }: { store: Store }) {
     let id = to
     const at = id.startsWith("plugin:") ? placeOfPlugin(id.slice(7)) : null
     if (at && "section" in at) { selector ??= `[data-settings-member="${CSS.escape(id.slice(7))}"]`; id = at.section }
+    const key = selector?.match(/data-setting="(.*)"\]$/)?.[1]?.replace(/\\(.)/g, "$1")
+    const reveal = () => {
+      if (selector && key && to.startsWith("plugin:")) revealSetting(to.slice(7), key, selector)
+      else if (selector) revealRow(selector)
+    }
     if (own) {
       showSettingsSection(id)
-      if (selector) revealRow(selector)
+      reveal()
     } else if (id.startsWith("plugin:")) {
-      const key = selector?.match(/data-setting="(.*)"\]$/)?.[1]
-      openPluginSettings(id.slice(7), key ? key.replace(/\\(.)/g, "$1") : undefined)
+      openPluginSettings(id.slice(7), key)
     } else {
       openDetail(`settings-section/${encodeURIComponent(id)}`)
-      if (selector) revealRow(selector)
+      reveal()
     }
   }
   const found = useMemo(() => (q ? search(findable(store, disabled, show), q) : []), [store, disabled, q, own])

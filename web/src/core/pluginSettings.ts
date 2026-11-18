@@ -108,28 +108,27 @@ export const withSettings = (store: Store | null = getStore(), disabled = getPre
 
 export const settingsShown = (p: Plugin, disabled = getPrefs().disabled) => isEnabled(p.id, disabled) && (getPrefs().ai || settingsHome(p) !== "ai")
 
-let goingTo: { id: string; key: string } | null = null
+export const settingAsked = cell<{ id: string; key: string } | null>(null)
 
 /** Open a plugin's settings sheet (over the sheet that's open, if any); `key`: the setting to go to (its row's
  *  `data-setting`), scrolled to and flashed once the sheet has drawn it. */
 export function openPluginSettings(id: string, key?: string) {
-  goingTo = key ? { id, key } : null
+  settingAsked.set(key ? { id, key } : null)
   openDetail(`plugin-settings/${encodeURIComponent(id)}`)
+  if (key) revealRow(`[data-plugin-settings-sheet="${CSS.escape(id)}"] [data-setting="${CSS.escape(key)}"]`, document, () => settingAsked.set(null))
 }
 
-export const goingToIn = (id: string) => (goingTo?.id === id ? goingTo.key : null)
-
-export function takeGoingTo(id: string) {
-  const g = goingToIn(id)
-  goingTo = null
-  return g
+export function revealSetting(id: string, key: string, selector: string) {
+  settingAsked.set({ id, key })
+  revealRow(selector, document, () => settingAsked.set(null))
 }
 
-export function revealRow(selector: string, within: ParentNode = document) {
+export function revealRow(selector: string, within: ParentNode = document, done?: () => void) {
   let tries = 0
   const go = () => {
     const el = within.querySelector<HTMLElement>(selector)
-    if (!el) { if (++tries < 60) setTimeout(go, 50); return }
+    if (!el) { if (++tries < 60) setTimeout(go, 50); else done?.(); return }
+    done?.()
     el.scrollIntoView({ block: "center", behavior: glide() })
     el.classList.remove("reveal-flash"); void el.offsetWidth; el.classList.add("reveal-flash")
   }
