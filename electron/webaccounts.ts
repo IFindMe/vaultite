@@ -40,7 +40,7 @@ async function accountOf(profile: string, site: string, cookies: Electron.Cookie
   if (!how) return null
   const key = `${profile} ${site}`, now = Date.now()
   const mine = cookies.filter((c) => siteOf(c.domain ?? "") === site)
-  const login = how.signed ? mine.find((c) => c.name.startsWith(how.signed!) && c.value) : undefined
+  const login = how.signed ? mine.find((c) => how.signed!.test(c.name) && c.value) : undefined
   if (how.signed && !login) { accounts.set(key, { at: now, login: "", who: null }); keepKnown(profile, site, "", null); return null }
   const id = loginOf(how, mine, login), lookOnly = id === "look"
   const open = [...pages.values()].find((p) => p.profile === profile && !p.view.webContents.isDestroyed() && siteOf(hostOfUrl(p.view.webContents.getURL())) === site)
@@ -104,7 +104,7 @@ export async function sitesOf(profile: string): Promise<WebSite[]> {
   for (const s of out) {
     const also = s.signed ? ACCOUNTS[s.site]?.with : undefined
     if (!also) continue
-    const sites = names.filter((site) => site !== s.site && Object.entries(also).some(([k, name]) => covers(k, site) && cookies.some((c) => siteOf(c.domain ?? "") === site && c.name === name)))
+    const sites = names.filter((site) => site !== s.site && Object.entries(also).some(([k, name]) => covers(k, site) && cookies.some((c) => siteOf(c.domain ?? "") === site && name.test(c.name) && c.value)))
     if (!sites.length) continue
     s.with = sites
     for (const x of sites) { joined.add(x); s.last = Math.max(s.last ?? 0, last.get(x) ?? 0) || undefined }

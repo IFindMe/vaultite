@@ -48,3 +48,27 @@ check("accounts: WhatsApp's number off its open app, signed in unnamed without i
 check("accounts: a rule's answer at a dotted path, only a string", sa.at({ a: { b: " x " } }, "a.b") === "x" && sa.at({ a: { b: 3 } }, "a.b") === "" && sa.at(null, "a.b") === "")
 check("accounts: Google's login covers YouTube and google.<country>, not other sites",
   sa.covers("youtube.com", "youtube.com") && sa.covers("google.*", "google.com.br") && sa.covers("google.*", "google.co.uk") && !sa.covers("google.*", "google.com") && !sa.covers("google.*", "googleapis.com") && !sa.covers("youtube.com", "youtu.be"))
+const google = sa.ACCOUNTS["google.com"].with!
+check("accounts: Google's login covers YouTube by any login cookie YouTube keeps for it, not by a visitor's",
+  ["SID", "__Secure-3PSID", "LOGIN_INFO"].every((n) => google["youtube.com"].test(n)) && !["VISITOR_INFO1_LIVE", "PREF", "SIDCC", "__Secure-3PSIDTS"].some((n) => google["youtube.com"].test(n)))
+const signed = (site: string, n: string) => sa.ACCOUNTS[site].signed!.test(n)
+check("accounts: a login cookie says signed in by its whole name, a cookie that only starts the same doesn't",
+  signed("slack.com", "d") && !signed("slack.com", "dd_s") && signed("google.com", "SID") && !signed("google.com", "SIDCC") &&
+  signed("ycombinator.com", "user") && !signed("ycombinator.com", "user-data") && signed("claude.ai", "sessionKey") && signed("amazon.com", "at-main") && !signed("amazon.com", "session-id") &&
+  signed("stripe.com", "__Host-session") && !signed("stripe.com", "__Host-sandbox_assignment") && signed("notion.so", "token_v2") && signed("spotify.com", "sp_dc") && !signed("spotify.com", "sp_t"))
+check("accounts: Amazon's name from its greeting, none at its sign-in greeting",
+  await name("amazon.com", '<span id="nav-link-accountList-nav-line-1" class="nav-line-1 nav-progressive-content">Hello, Alice</span>') === "Alice" &&
+  await name("amazon.com", '<span id="nav-link-accountList-nav-line-1" class="nav-line-1">Hello, sign in</span>') === null && await name("amazon.com", "<html>Robot check</html>") === null)
+const ph = (viewer: string) => `<script>{"data":{"viewer":{"__typename":"Viewer",${viewer}}}}</script>`
+check("accounts: Product Hunt's username from the viewer its page carries, its email without one, none signed out",
+  await name("producthunt.com", ph('"email":"alice@example.com","isLoggedIn":true,"user":{"__typename":"User","id":"7","name":"Alice","username":"alicepark"}')) === "@alicepark" &&
+  await name("producthunt.com", ph('"email":"alice@example.com","isLoggedIn":true,"user":null')) === "alice@example.com" &&
+  await name("producthunt.com", ph('"email":null,"isLoggedIn":false,"user":null')) === null && await name("producthunt.com", "<html>Just a moment...</html>") === null)
+check("accounts: Substack's handle, its name without one, none when it asks to sign in",
+  JSON.stringify(await read("substack.com", { id: 1, name: "Alice Park", handle: "alicepark", photo_url: "https://substack.example.com/a.png" })) === JSON.stringify({ account: "@alicepark", avatar: "https://substack.example.com/a.png" }) &&
+  await name("substack.com", { name: "Alice Park" }) === "Alice Park" && await name("substack.com", { errors: [{ msg: "Please sign in" }] }) === null)
+check("accounts: TikTok's username, none signed out", await name("tiktok.com", { data: { username: "alice.park", screen_name: "Alice" }, message: "success" }) === "@alice.park" &&
+  await name("tiktok.com", { data: { error_code: 1 }, message: "error" }) === null)
+check("accounts: Twitch's name from its own cookie, none without it",
+  await name("twitch.tv", null, { login: "alicepark" }) === "alicepark" && await name("twitch.tv", null) === null && await name("twitch.tv", null, { login: "a b" }) === null)
+check("accounts: Grok's login covers x.ai, its company's site", sa.covers("x.ai", "x.ai") && sa.ACCOUNTS["grok.com"].with!["x.ai"].test("sso") && !sa.ACCOUNTS["grok.com"].with!["x.ai"].test("sso-rw"))
