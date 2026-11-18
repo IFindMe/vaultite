@@ -55,16 +55,17 @@ else {
 }
 
 const REPORTS = path.join(tmp, "reports")
+const TEST_GIVES_UP_MS = 10_000, WATCHDOG_GIVES_UP_ON_ITS_REPORT_MS = TEST_GIVES_UP_MS / 3
 const WATCHED = (o: Partial<Watchdog>, then: string) => `import { killWhenStuck } from ${JSON.stringify(core("watchdog.ts"))}
 import { ready } from ${JSON.stringify(core("startup.ts"))}
-killWhenStuck({ stallMs: 1500, startStallMs: 1500, memStallMs: 400, memMB: 1e6, everyMs: 100, startupMs: 60_000, reportWaitMs: 10_000, ...${JSON.stringify(o)} }, ${JSON.stringify(REPORTS)})
+killWhenStuck({ stallMs: 1500, startStallMs: 1500, memStallMs: 400, memMB: 1e6, everyMs: 100, startupMs: 60_000, reportWaitMs: ${WATCHDOG_GIVES_UP_ON_ITS_REPORT_MS}, ...${JSON.stringify(o)} }, ${JSON.stringify(REPORTS)})
 console.log("watching")
 ${then}`
 const spin = `function spinsForever() { for (;;) {} }\nsetTimeout(spinsForever, 300)`
 const killed = (r: Ran) => r.signal === "SIGKILL" || (process.platform === "win32" && r.code !== null && r.code !== 0)
 const reportIn = (out: string) => /its report (\S+\.json)/.exec(out)?.[1] ?? ""
 {
-  const got = await runModuleKilledAfter(WATCHED({}, spin), 10_000)
+  const got = await runModuleKilledAfter(WATCHED({}, spin), TEST_GIVES_UP_MS)
   const stalledS = Number(/watchdog: the main thread stalled (\d+) s/.exec(got.out)?.[1] ?? Infinity), file = reportIn(got.out)
   const report = file && fs.existsSync(file) ? fs.readFileSync(file, "utf8") : ""
   const parts = report ? Object.keys(JSON.parse(report)) : []
@@ -74,31 +75,31 @@ const reportIn = (out: string) => /its report (\S+\.json)/.exec(out)?.[1] ?? ""
 }
 {
   const holds = `import { holdingVault } from ${JSON.stringify(core("vaultholder.ts"))}\nsetTimeout(() => { holdingVault("#7 POST /api/file/move"); for (;;) {} }, 300)`
-  const got = await runModuleKilledAfter(WATCHED({}, holds), 10_000)
+  const got = await runModuleKilledAfter(WATCHED({}, holds), TEST_GIVES_UP_MS)
   const at = /(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) vaultite: watchdog/.exec(got.out)?.[1], off = at ? Math.abs(Date.now() - new Date(at.replace(" ", "T")).getTime()) : Infinity
   check("the watchdog names what held the vault, stamped in local time as the log is", killed(got) && got.out.includes("the vault held by #7 POST /api/file/move") &&
     off < 60_000, { off, got })
 }
 {
-  const got = await runModuleKilledAfter(WATCHED({}, `setTimeout(() => process.exit(0), 3000)`), 10_000)
+  const got = await runModuleKilledAfter(WATCHED({}, `setTimeout(() => process.exit(0), 3000)`), TEST_GIVES_UP_MS)
   check("an idle main thread isn't killed", got.code === 0 && !/watchdog/.test(got.out), got)
 }
 {
-  const got = await runModuleKilledAfter(WATCHED({ stallMs: 60_000, startStallMs: 60_000, memMB: 1 }, spin), 10_000)
+  const got = await runModuleKilledAfter(WATCHED({ stallMs: 60_000, startStallMs: 60_000, memMB: 1 }, spin), TEST_GIVES_UP_MS)
   const stalledS = Number(/stalled (\d+) s/.exec(got.out)?.[1] ?? Infinity)
   check("a stalled main thread holding too much memory is killed sooner", killed(got) && stalledS < 5, got)
 }
 {
   const stall = `setTimeout(() => { const t = Date.now(); while (Date.now() - t < 2500) {} process.exit(0) }, 300)`
-  const starting = await runModuleKilledAfter(WATCHED({ startStallMs: 60_000 }, stall), 10_000)
-  const up = await runModuleKilledAfter(WATCHED({ startStallMs: 60_000 }, `ready()\n${stall}`), 10_000)
+  const starting = await runModuleKilledAfter(WATCHED({ startStallMs: 60_000 }, stall), TEST_GIVES_UP_MS)
+  const up = await runModuleKilledAfter(WATCHED({ startStallMs: 60_000 }, `ready()\n${stall}`), TEST_GIVES_UP_MS)
   check("a start is given longer to stall than a server that's ready", starting.code === 0 && !/watchdog/.test(starting.out) && killed(up) && /stalled \d+ s \(\d+ MB, ready/.test(up.out), { starting, up })
 }
 {
-  const got = await runModuleKilledAfter(WATCHED({ startupMs: 1500 }, `setInterval(() => {}, 1000)`), 10_000)
+  const got = await runModuleKilledAfter(WATCHED({ startupMs: 1500 }, `setInterval(() => {}, 1000)`), TEST_GIVES_UP_MS)
   check("a start not ready in time is ended, saying where it was and with a report", killed(got) && /watchdog: the server isn't ready \d+ min after it started \(imports\)/.test(got.out) &&
     fs.existsSync(reportIn(got.out)) && reportIn(got.out).endsWith("-start.json"), got)
-  const fine = await runModuleKilledAfter(WATCHED({ startupMs: 1500 }, `ready()\nsetTimeout(() => process.exit(0), 3000)`), 10_000)
+  const fine = await runModuleKilledAfter(WATCHED({ startupMs: 1500 }, `ready()\nsetTimeout(() => process.exit(0), 3000)`), TEST_GIVES_UP_MS)
   check("… and one that got ready isn't", fine.code === 0 && !/watchdog/.test(fine.out), fine)
 }
 if (process.platform === "win32") skip("SIGUSR2's report", "no SIGUSR2 on Windows")
