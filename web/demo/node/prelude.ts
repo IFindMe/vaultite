@@ -4,6 +4,7 @@ import { Buffer } from "buffer"
 const g = globalThis as Record<string, unknown>
 g.Buffer = Buffer
 g.global = globalThis
+if (!globalThis.crossOriginIsolated) g.SharedArrayBuffer = ArrayBuffer
 g.process = {
   env: { HOME: "/home", VAULTITE_VAULT: "/Sandbox", VAULTITE_LOCAL: "/local" },
   platform: "browser", arch: "wasm", pid: 1, version: "v24.0.0", versions: { node: "24.0.0" }, execPath: "/node", argv: [], exitCode: 0,
