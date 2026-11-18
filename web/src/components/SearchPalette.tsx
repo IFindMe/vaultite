@@ -11,7 +11,8 @@ import { launcherAt, launcherClosed } from "@/core/launcher"
 import { newNoteFolder } from "@/core/conventions"
 import { snippet } from "@/core/plaintext"
 import { openDetail } from "@/core/nav"
-import { completeTyped, launcherText, search, suggestions, typedHits, typedOwned, typedTurns, useOpens, useQueried, useSearchIndex, type Hit } from "@/core/search"
+import { completeTyped, launcherText, suggestions, typedHits, typedOwned, typedTurns, useOpens, useQueried, useSearchIndex } from "@/core/search"
+import { search, type Hit } from "@/core/namesearch"
 import { useRecentFiles } from "@/core/scope"
 import { usePrefs } from "@/core/prefs"
 import { useStateFor } from "@/core/statefor"
@@ -65,7 +66,7 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
   const opened = useRecentFiles()
   const { fileIcons, disabled } = usePrefs()
   const [limit, setLimit] = useStateFor([q], () => PAGE)
-  const named = useMemo(() => (!q.trim() ? suggestions(docs, opened) : plain && !error ? search(docs, q, Infinity) : []), [docs, q, plain, error, opened])
+  const named = useMemo(() => (!q.trim() ? suggestions(docs, opened) : plain && !error ? search(docs, q, limit + 1) : []), [docs, q, plain, error, opened, limit])
   const local = q.trim() ? named.slice(0, limit) : named
   const short = !node || (plain && q.trim().length < 2)
   const [text, setText] = useStateFor<InFiles>([short], () => ({ hits: [], files: 0, for: "", failed: null }))
