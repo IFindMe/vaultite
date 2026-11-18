@@ -58,8 +58,6 @@ import { dismissNotice, notify, notifyError } from "@/core/notify"
 import { QUIET, stepOffer, type OfferEvent } from "@/core/closedoffer"
 import { trace } from "@/core/trace"
 import { editorSettings, showPropertiesAs } from "@/core/editorPrefs"
-import { PluginPreview } from "@/components/PluginPreview"
-import { PluginSettings } from "@/components/PluginSettings"
 import { settingsCommands, settingsTitle } from "@/core/pluginSettings"
 import { currentLayout, openImport, previousSetup, restoreSetup } from "@/core/bundles"
 import { startWelcome } from "@/core/welcome"
@@ -111,6 +109,8 @@ const IconAsked = memo(function IconAsked() {
 })
 const KeyboardKeys = lazy(() => import("@/components/KeyboardKeys").then((m) => ({ default: m.KeyboardKeys })))
 const GetPluginSheet = lazy(() => import("@/components/PluginBrowse").then((m) => ({ default: m.GetPluginSheet })))
+const PluginPreview = lazy(() => import("@/components/PluginPreview").then((m) => ({ default: m.PluginPreview })))
+const PluginSettings = lazy(() => import("@/components/PluginSettings").then((m) => ({ default: m.PluginSettings })))
 const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })))
 const SchemeGallery = lazy(() => import("@/components/Appearance").then((m) => ({ default: m.SchemeGallery })))
 const HotkeysSheet = lazy(() => import("@/pages/Hotkeys").then((m) => ({ default: m.HotkeysSheet })))
@@ -183,11 +183,11 @@ function detail_(store: Store, path: string, disabled: string[], tabInfo: (t: Ta
   if (own) return { body: <Suspense>{own[1](store, decodeURIComponent(id ?? ""))}</Suspense>, title: own[0] }
   if (kind === "plugin") {
     const p = pluginById(id)
-    if (p) return { body: <PluginPreview store={store} plugin={p} />, title: p.name }
+    if (p) return { body: <Suspense><PluginPreview store={store} plugin={p} /></Suspense>, title: p.name }
   }
   if (kind === "plugin-settings") {
     const p = pluginById(decodeURIComponent(id ?? ""))
-    if (p) return { body: <PluginSettings store={store} plugin={p} />, title: settingsTitle(p.name) }
+    if (p) return { body: <Suspense><PluginSettings store={store} plugin={p} /></Suspense>, title: settingsTitle(p.name) }
   }
   const d = detailFor(path, disabled)
   const file = d?.def.file?.(store, d.args)
