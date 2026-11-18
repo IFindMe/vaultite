@@ -125,6 +125,25 @@ export default async ($: VaultTest) => {
   const asApp = as("app/desktop")
   const rows = async (): Promise<Any[]> => { await settled(); return (await api("GET", "inbox/events"))[1].events }
 
+  {
+    const { Wire } = await import("../../../plugins/core/claude-code/chatwire.ts")
+    const [a, b] = await new Promise<[net.Socket, net.Socket]>((ok) => {
+      const where = path.join(VAULT, "..", `wire-${process.pid}.sock`)
+      let c: net.Socket
+      const srv = net.createServer((s) => { srv.close(); ok([c, s]) }).listen(where, () => { c = net.connect(where) })
+    })
+    const heard: string[] = [], uncaught: Error[] = []
+    const onUncaught = (e: Error) => uncaught.push(e)
+    process.on("uncaughtException", onUncaught)
+    new Wire(b, (e) => { heard.push(e.t); if (e.t === "did") throw new Error("no app runs operations for this vault") }, () => {})
+    a.write(JSON.stringify({ t: "did", id: "x", tool: "Bash", input: {} }) + "\n" + JSON.stringify({ t: "gone", id: "x" }) + "\n")
+    await waitFor(() => heard.length >= 2, 2000).catch(() => {})
+    process.off("uncaughtException", onUncaught)
+    a.destroy(); b.destroy()
+    check("chat keeper: an event the server fails on is logged, not thrown out of the socket (it would end the server), and the next is heard",
+      heard.join() === "did,gone" && uncaught.length === 0, { heard, uncaught: uncaught.map(String) })
+  }
+
   // The entries: a streamed block grows, then its whole message takes its place under the same id (as a transcript's
   // line does), a tool call gets its result, and a user's message is its uuid.
   {

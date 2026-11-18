@@ -252,7 +252,7 @@ function chatCore(plugin: Plugin, d: ChatDeps) {
     }
     else if (e.t === "did") {
       const q = new URLSearchParams({ agent: "claude-code", session: titleOf(e.id) || e.id.slice(0, 8) })
-      void plugin.host.api("POST", `activity/hook?${q}`, { tool_name: e.tool, tool_input: e.input }).catch(() => {})
+      void Promise.resolve().then(() => plugin.host.api("POST", `activity/hook?${q}`, { tool_name: e.tool, tool_input: e.input })).catch(() => {})
     }
   }
 

@@ -26,7 +26,7 @@ export class Wire {
       const re = typeof m.re === "number" ? m.re : NaN, w = this.waiting.get(re)
       if (w) { this.waiting.delete(re); if (typeof m.error === "string") w.fail(new Error(m.error)); else w.ok(m); return }
       const e = Event.safeParse(m)
-      if (e.success) hear(e.data)
+      if (e.success) try { hear(e.data) } catch (err) { log.error("a message from the chat keeper failed", err, { t: e.data.t }) }
       else log.error("a message from the chat keeper it can't read", new Error(issues(e.error)), { t: String(m.t) })
     })
     const end = () => {
