@@ -99,19 +99,24 @@ export function checkouts(roots: string[] = ROOTS) {
   if (scanned && scanned.key === key && Date.now() - scanned.at < 60_000) return scanned.repos
   const repos: string[] = [], dirs = (d: string) => { try { return fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules").map((e) => path.join(d, e.name)) } catch { return [] } }
   for (const root of roots.map(untilde)) for (const a of dirs(root)) {
-    if (fs.existsSync(path.join(a, ".git"))) repos.push(a)
-    else for (const b of dirs(a)) if (fs.existsSync(path.join(b, ".git"))) repos.push(b)
+    if (!fs.existsSync(path.join(a, ".git"))) repos.push(...dirs(a).filter(gitOf))
+    else if (gitOf(a)) repos.push(a)
   }
   scanned = { at: Date.now(), key, repos }
   return repos
 }
-// A worktree's .git is a file naming its own git folder.
-export function remotes(dir: string) {
+// A worktree's .git is a file naming its own git folder, inside its main checkout's: with that checkout gone, it's none.
+function gitOf(dir: string) {
   try {
-    let git = path.join(dir, ".git")
-    if (fs.statSync(git).isFile()) git = path.resolve(dir, /gitdir: (.+)/.exec(fs.readFileSync(git, "utf8"))?.[1]?.trim() ?? "", "../..")
-    return [...fs.readFileSync(path.join(git, "config"), "utf8").matchAll(/url\s*=\s*(\S+)/g)].map((m) => m[1])
-  } catch { return [] }
+    const git = path.join(dir, ".git")
+    if (!fs.statSync(git).isFile()) return git
+    const own = path.resolve(dir, /gitdir: (.+)/.exec(fs.readFileSync(git, "utf8"))?.[1]?.trim() ?? "")
+    return fs.existsSync(own) ? path.resolve(own, "../..") : ""
+  } catch { return "" }
+}
+export function remotes(dir: string) {
+  const git = gitOf(dir)
+  try { return git ? [...fs.readFileSync(path.join(git, "config"), "utf8").matchAll(/url\s*=\s*(\S+)/g)].map((m) => m[1]) : [] } catch { return [] }
 }
 export function checkoutOf(slug: string, roots = ROOTS) {
   const want = slug.toLowerCase().replace(/\.git$/, "")
@@ -151,10 +156,8 @@ export function routeCovers(pattern: string, u: URL) {
   return pathOk ? (host.startsWith("*") ? 1000 : 2000) + rest.replace(/\*$/, "").replace(/\/$/, "").length : 0
 }
 export function gitHome(dir: string) {
-  try {
-    const git = path.join(dir, ".git")
-    return fs.realpathSync(fs.statSync(git).isFile() ? path.resolve(dir, /gitdir: (.+)/.exec(fs.readFileSync(git, "utf8"))?.[1]?.trim() ?? "", "../..") : git)
-  } catch { return dir }
+  const git = gitOf(dir)
+  try { return git ? fs.realpathSync(git) : dir } catch { return dir }
 }
 export function siteCheckout(u: URL, roots = ROOTS): { dir: string; file: string; pattern: string } | { both: string[] } | null {
   const hits: { dir: string; file: string; pattern: string; score: number }[] = []

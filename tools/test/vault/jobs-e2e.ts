@@ -263,7 +263,7 @@ export default async ($: VaultTest) => {
                 /no machine has a checkout that deploys harbor\.example .*harbor is another repo/.test(gone.why), gone)
               const said = await runs({ ...footer, text: "do it in the harbor repo instead" }, { repo: "harbor" })
               check("handoff: their words naming the repo keep it, over the site", said.cwd === harbor, said)
-            } finally { windows.delete(win); for (const d of ["harbor", "harbor-site"]) fs.rmSync(path.join(roots[0], d), { recursive: true, force: true }) }
+            } finally { windows.delete(win); for (const d of fs.readdirSync(roots[0]).filter((d) => d.startsWith("harbor"))) fs.rmSync(path.join(roots[0], d), { recursive: true, force: true }) }
           })()
           W.checkoutsIn([path.join(tmp, "nothing")])
           const none = await runs({ text: "the agents list jumps", ui: "panel:agents", title: "Agents" })

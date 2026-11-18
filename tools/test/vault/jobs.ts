@@ -412,7 +412,7 @@ export default async ($: VaultTest) => {
       return { dir: fs.realpathSync(dir), gg }
     }
     // (the app names its website as its homepage; the site's wrangler deploys it; the API owns one path of it)
-    make("harbor", "lighthouse/harbor", { "package.json": JSON.stringify({ name: "harbor", homepage: "https://harbor.example" }) })
+    const app = make("harbor", "lighthouse/harbor", { "package.json": JSON.stringify({ name: "harbor", homepage: "https://harbor.example" }) })
     const site = make("harbor-site", "lighthouse/harbor-site", { "wrangler.toml": '# harbor.example/api/* is harbor-api\'s route\nname = "harbor-site"\nroutes = [\n  { pattern = "harbor.example", custom_domain = true },\n]\n' })
     const api_ = make("harbor-api", "lighthouse/harbor-api", { "wrangler.jsonc": '{ "routes": [{ "pattern": "harbor.example/api/*", "zone_name": "harbor.example" }], "vars": { "ZONE": "harbor.example" } }' })
     const docs = make("beacon-docs", "lighthouse/beacon-docs", { "public/CNAME": "docs.beacon.example\n" })
@@ -435,8 +435,11 @@ export default async ($: VaultTest) => {
       pageWins(page, "harbor", "try a serif font in the Harbor hero") && pageWins(page, "lighthouse/harbor", "make the harbor headline bigger") &&
       !pageWins(page, "harbor", "do it in the harbor repo instead") && !pageWins(page, "lighthouse/harbor", "port this to lighthouse/harbor") && !pageWins(page, "harbor-site", "x") &&
       !pageWins({ ...page, from: "vault" }, "harbor", "x") && namesRepo("in the repository harbor", "harbor") && !namesRepo("the harbor-site repo", "harbor"))
-    site.gg("worktree", "remove", "--force", path.join(roots[0], "harbor-site-j1"))
-    for (const d of ["harbor", "harbor-site", "harbor-api", "beacon-docs", "beacon-a", "beacon-b"]) fs.rmSync(path.join(roots[0], d), { recursive: true, force: true })
+    fs.rmSync(site.dir, { recursive: true, force: true }); W.checkoutsIn()
+    const orphan = await at({ url: "https://harbor.example/" })
+    check("where: a worktree whose checkout was deleted deploys nothing, though its files name the site: the app naming it its homepage does",
+      orphan.cwd === app.dir && /its package\.json names/.test(orphan.why) && !W.checkoutsLine(30, roots).includes("harbor-site-j1"), orphan)
+    for (const d of ["harbor", "harbor-site-j1", "harbor-api", "beacon-docs", "beacon-a", "beacon-b"]) fs.rmSync(path.join(roots[0], d), { recursive: true, force: true })
     W.checkoutsIn()
   }
 
