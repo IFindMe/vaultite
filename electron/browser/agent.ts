@@ -13,7 +13,8 @@ import { changes, INTERACTIVE, mainLines } from "./axlines.ts"
 import { agentBusy } from "./agentbusy.ts"
 import { AX_TREE, BOX, DESCRIBED, RESOLVED, type DomNode } from "./cdpwire.ts"
 import { messageOf } from "./messageof.ts"
-import { ACT, AT, BY, PAGE_TEXT, WAIT, type Act, type By, type Field, type Upload, type Wait } from "./agentwire.ts"
+import { ACT, ANSWER, ASKER, AT, BY, PAGE_TEXT, WAIT, type Act, type Answer, type Asker, type By, type Field, type Upload, type Wait } from "./agentwire.ts"
+import { forgetSteps, noteStep } from "./pagesteps.ts"
 
 export const THUMB_WIDTH = 320
 
@@ -22,7 +23,8 @@ let access = new Map<string, Access>()
 let home = ""
 const paused = new Set<number>(), log = logger("agents")
 const owners = new Map<number, By>()
-const asks = new Map<number, { by: string; reason: string }>()
+const asks = new Map<number, { by: string; reason: string; at: number; asker: Asker }>()
+const cant = new Map<number, string>()
 const taken = new Set<number>()
 
 const held = (id: number) => owners.has(id) && !taken.has(id) && !asks.has(id)
@@ -460,6 +462,7 @@ export async function record(p: EnginePage, asked: By, step: Step) {
   const owner = owners.get(p.id)
   const by = { ...asked, task: asked.task || owner?.task, summary: asked.summary || (owner && sameAgent(owner, asked) ? owner.summary : undefined) }
   const run = runOf(by), t = Date.now()
+  noteStep(p, t, by.name, step)
   const d = doing.get(p.id), ms = d && d.at >= (latest.get(p.id)?.t ?? 0) && d.at <= t ? t - d.at : undefined
   latest.set(p.id, { by, run, t, step })
   changed(p.win)
@@ -590,20 +593,32 @@ export async function readIn(p: EnginePage, main = false) {
   return { tab: p.id, url: scrub(r.url), title: scrub(r.title), ...(r.as ? { as: r.as } : {}), text: text.length > 200_000 ? `${text.slice(0, 200_000)}\n… (cut short)` : text }
 }
 
+function couldnt(id: number) {
+  const note = cant.get(id)
+  if (note === undefined) return
+  cant.delete(id)
+  throw new Error(`the user can't do what you asked${note ? `: ${note}` : ""}. Go on another way, or ask them something else`)
+}
+
+async function waitHelped(id: number, wait: number) {
+  couldnt(id)
+  if (!asks.has(id)) return
+  await new Promise<void>((done) => {
+    const set = helpWaits.get(id) ?? new Set()
+    helpWaits.set(id, set)
+    const end = () => { clearTimeout(timer); set.delete(end); done() }
+    const timer = setTimeout(end, wait)
+    set.add(end)
+  })
+  couldnt(id)
+  if (asks.has(id)) throw new Error(`waited ${Math.round(wait / 1000)} s: the user hasn't said it's done yet (they still see what you asked): wait again`)
+}
+
 export async function waitIn(p: EnginePage, w: Wait, ms: unknown) {
   const wait = Math.min(w.helped ? 600_000 : 60_000, Math.max(100, Number(ms) || 10_000)), until = Date.now() + wait
   const shows = async () => !w.text || scrub(String(await p.wc.executeJavaScriptInIsolatedWorld(1012, [{ code: "document.body ? document.body.innerText : ''" }]).catch(() => ""))).includes(w.text)
   const last = () => (downloads.get(p.wc) ?? []).at(-1)
-  if (w.helped && asks.has(p.id)) {
-    await new Promise<void>((done) => {
-      const set = helpWaits.get(p.id) ?? new Set()
-      helpWaits.set(p.id, set)
-      const end = () => { clearTimeout(timer); set.delete(end); done() }
-      const timer = setTimeout(end, wait)
-      set.add(end)
-    })
-    if (asks.has(p.id)) throw new Error(`waited ${Math.round(wait / 1000)} s: the user hasn't said it's done yet (they still see what you asked): wait again`)
-  }
+  if (w.helped) await waitHelped(p.id, wait)
   for (;;) {
     const d = last()
     const ok = (!w.url || scrub(p.wc.getURL()).includes(w.url)) && (!w.download || (!!d && d.state !== "progressing")) && !p.wc.isLoading() && await shows()
@@ -668,14 +683,15 @@ handle("agents:access", (_win, map, where) => {
 })
 export const agentContainers = () => [...access].flatMap(([profile, a]) => (mayOpen(profile) ? [{ profile, access: a, home: profile === home }] : []))
   .sort((x, y) => Number(y.home) - Number(x.home))
-export function helped(id: number) {
+export function helped(id: number, answer?: Answer) {
   if (!asks.delete(id)) return
+  if (answer?.cant) cant.set(id, answer.note ?? "")
   holdId(id)
   for (const p of allPages()) if (p.id === id) { tell(p.win, { type: "engine:agent:help", id, on: false }); changed(p.win) }
   for (const done of helpWaits.get(id) ?? []) done()
   helpWaits.delete(id)
 }
-handle("agents:helped", (_win, id) => helped(Number(id)))
+handle("agents:helped", (_win, id, answer) => helped(Number(id), ANSWER.parse(answer)))
 export function setPaused(id: number, on: boolean) {
   if (!on && taken.has(id)) return setTaken(id, false)
   if (on) paused.add(id); else paused.delete(id)
@@ -732,6 +748,7 @@ function failed(name: string, a: unknown[], why: string) {
   const last = a[a.length - 1]
   const asked = last && typeof last === "object" && !Array.isArray(last) && ("name" in last || "session" in last) ? BY.parse(last) : {}
   const by = { ...(owners.get(p.id) ?? {}), ...asked }
+  noteStep(p, Date.now(), by.name, { action: name.slice("agent:".length), failed: why.slice(0, 500) })
   const run = latest.get(p.id)?.run ?? (by.name || by.session ? runOf(by) : "")
   if (!run) return
   try {
@@ -842,12 +859,13 @@ serve("agent:evaluate", async (_win, tab, expression, by) => {
   if (json.length > 100_000) json = `${json.slice(0, 100_000)}… (cut short)`
   return { tab: p.id, url: p.wc.getURL(), title: p.wc.getTitle(), value: json }
 })
-serve("agent:help", (_win, tab, reason, by) => {
+serve("agent:help", (_win, tab, reason, by, asker) => {
   const p = pageFor(tab, "read", BY.parse(by))
   const why = String(reason ?? "").replace(/\s+/g, " ").trim().slice(0, 300)
   if (!why) throw new Error("say what the user should do (sign in, solve the check)")
   const who = BY.parse(by)
-  asks.set(p.id, { by: who.name || "An agent", reason: why })
+  asks.set(p.id, { by: who.name || "An agent", reason: why, at: Date.now(), asker: ASKER.parse(asker) })
+  cant.delete(p.id)
   hold(p)
   const mine = owners.get(p.id) ?? who
   tell(p.win, { type: "engine:agent:help", id: p.id, tab: p.tab(), by: who.name || "An agent", reason: why, on: true, url: p.wc.getURL() || p.url,
@@ -870,6 +888,7 @@ serve("agent:act", (_win, tab, a, by) => actIn(pageFor(tab, "act", BY.parse(by))
 eachPage((p) => p.wc.once("destroyed", () => {
   const was = atWork(p)
   helped(p.id)
+  cant.delete(p.id); forgetSteps(p.id)
   paused.delete(p.id); taken.delete(p.id); owners.delete(p.id); latest.delete(p.id); doing.delete(p.id); watched.delete(p.id); used.delete(p.id)
   if (was && appWindows().includes(p.win)) changed(p.win)
 }))

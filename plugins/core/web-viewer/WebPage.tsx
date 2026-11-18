@@ -31,7 +31,7 @@ import { siteIcon } from "./icons"
 import { barItems } from "./pagebar"
 import { usePageBar } from "./usebar"
 import { BookmarksBar } from "./BookmarksBar"
-import { agentPages, doneAsk, pauseAgents, takeOver, toBackground, working, WORKING_MS } from "./agentpages"
+import { agentPages, cantAsk, doneAsk, pauseAgents, takeOver, toBackground, working, WORKING_MS } from "./agentpages"
 import { AgentWatch } from "./AgentWatch"
 import { framing } from "./framed"
 import FramedPage from "./FramedPage"
@@ -518,9 +518,12 @@ function AskCard({ id }: { id: number }) {
           <span className="truncate text-[12px] font-semibold" style={{ color: ink("var(--purple)") }}>{page.by} needs you</span>
           <span className="line-clamp-4 text-[15px] leading-[20px] @max-sm/ask:text-[13px] @max-sm/ask:leading-[18px]" data-web-agent-reason>{page.asking}</span>
         </span>
-        <Button look="primary" onClick={() => void doneAsk(id)} data-web-agent-done className="px-4">
-          <Check className="size-4" strokeWidth={2.5} />Done
-        </Button>
+        <span className="flex shrink-0 gap-2">
+          <Button look="secondary" onClick={() => void cantAsk(id)} data-web-agent-cant>I can't</Button>
+          <Button look="primary" onClick={() => void doneAsk(id)} data-web-agent-done className="px-4">
+            <Check className="size-4" strokeWidth={2.5} />Done
+          </Button>
+        </span>
       </div>
     </div>
   )

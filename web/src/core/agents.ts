@@ -3,7 +3,7 @@ import { SquareTerminal, type LucideIcon } from "lucide-react"
 import { choose } from "@/components/Chooser"
 import { get } from "@/core/http"
 import { isViewOpen, openView } from "@/core/files"
-import { fetchMachines, machinePath, onMachine, otherMachines, type Machine } from "@/core/machines"
+import { fetchMachines, machinePath, onMachine, otherMachines, splitMachine, type Machine } from "@/core/machines"
 import { notify } from "@/core/notify"
 import { agentsOn, isEnabled, useAgents, type Agent } from "@/core/plugins"
 import type { SettingChoice } from "@/core/define"
@@ -76,6 +76,18 @@ export async function openAgent(name: string, opts: { resume?: string; split?: b
   if (instead) notify(`${instead}: opened on this machine`)
   const id = `${agentIn(name, profile)}-${terminalId(asked)}`
   return openView(`terminal/${onMachine(id, machine)}`, { newTab: !opts.split, split: opts.split })
+}
+
+export async function openAgentSession({ terminal = "", session = "", agent = "", machine = "", host = false }: { terminal?: string; session?: string; agent?: string; machine?: string; host?: boolean }) {
+  const ms = await fetchMachines()
+  const [bare, at] = splitMachine(terminal)
+  const there = at || (machine && ms.some((m) => m.id === machine && !m.self) ? machine : "")
+  const view = agentsOn().find((a) => a.name === agent)?.session
+  if (host && session && view) { openView(`view:${view}/${onMachine(session, there)}`, { newTab: true }); return }
+  const { sessions } = await get<{ sessions: { id: string }[] }>(there ? `machines/${encodeURIComponent(there)}/terminals/sessions` : "terminals/sessions")
+  if (bare && sessions.some((s) => s.id === bare)) openView(`terminal/${onMachine(bare, there)}`, { newTab: true })
+  else if (session && agent) openAgent(agent, { resume: session, machine: there })
+  else notify("Its terminal has ended, and it names no session to resume")
 }
 
 /** Open a plain terminal: on `machine` ("": this one), else the workspace's default. */

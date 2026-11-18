@@ -7,10 +7,8 @@ import type { LiveStep, LiveTab } from "./livetabs.ts"
 
 const RENEW_MS = 10_000
 const BEHIND = 1 << 20
-export const STEP = /\bbrowser tab (\d+)\b/
 const THEIR_TABS = z.object({ tabs: z.array(z.looseObject({})) })
-const EVENTS = z.object({ events: z.array(z.object({ t: z.number(), last: z.number().optional(), actor: z.object({ name: z.string() }),
-  action: z.string(), text: z.string(), route: z.string().optional() })) })
+const ANSWER = z.object({ cant: z.boolean().optional().catch(undefined), note: z.string().max(500).optional().catch(undefined) }).catch({})
 const FRAME = z.looseObject({ tab: z.number(), jpeg: z.string().optional() })
 const SAID = z.discriminatedUnion("t", [z.looseObject({ t: z.literal("input") }), z.object({ t: z.literal("sharp"), on: z.unknown() })])
 
@@ -44,8 +42,9 @@ export function liveView(plugin: Plugin) {
   plugin.route("POST", "web-viewer/tabs/*/done", async (req) => {
     await plugin.ownerOnly(req, what)
     const [tab, m] = await tabOf(req.arg(0))
-    if (m) return askThere(m, "POST", `web-viewer/tabs/${tab}/done`, JSON_ANSWER, {})
-    const r = await desktop("agent:live:done", tab)
+    const answer = ANSWER.parse(req.body ?? {})
+    if (m) return askThere(m, "POST", `web-viewer/tabs/${tab}/done`, JSON_ANSWER, answer)
+    const r = await desktop("agent:live:done", tab, answer)
     await plugin.ask("inbox:drop", null, "browser", `help-${tab}`)
     return r
   }, { lock: false, sync: false })
@@ -60,13 +59,9 @@ export function liveView(plugin: Plugin) {
   plugin.route("GET", "web-viewer/tabs/*/steps", async (req) => {
     await plugin.ownerOnly(req, what)
     const [tab, m] = await tabOf(req.arg(0))
-    const since = Number(req.query.since) || Date.now() - 86400_000
+    const since = Number(req.query.since) || 0
     if (m) return askThere(m, "GET", `web-viewer/tabs/${tab}/steps?since=${since}`, JSON_ANSWER)
-    if (plugin.vault.switchedOff().has("activity")) return { steps: [], kept: false }
-    const got = EVENTS.safeParse(await plugin.host.api("GET", `activity?since=${since}&limit=500`).catch(() => null))
-    const steps: LiveStep[] = (got.data?.events ?? []).filter((e) => e.route?.startsWith("ops/web-viewer.") && Number(STEP.exec(e.text)?.[1]) === tab)
-      .slice(0, 100).map((e) => ({ t: e.last ?? e.t, by: e.actor.name, text: e.text.replace(/ in browser tab \d+/, ""), failed: e.action === "failed" }))
-    return { steps, kept: true }
+    return { steps: await desktop<LiveStep[]>("agent:live:steps", tab, since) }
   }, { lock: false, sync: false })
 
 
@@ -84,6 +79,7 @@ export function liveView(plugin: Plugin) {
       const frame = Buffer.from(d.jpeg, "base64")
       each(d.tab, (ws) => { if (ws.bufferedAmount < BEHIND) ws.send(frame) })
     } else if (name === "live:state") each(d.tab, (ws) => json(ws, { t: "state", ...d }))
+    else if (name === "live:opened") each(d.tab, (ws) => json(ws, { t: "opened", ...d }))
     else if (name === "live:gone") each(d.tab, (ws) => { json(ws, { t: "gone" }); ws.close(1000, "closed") })
   })
 

@@ -1,10 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Bot, ChevronLeft, ClipboardPaste, Copy, Globe, Keyboard, MousePointer2, Pause, Play } from "lucide-react"
-import { Button, closePane, cn, copyText, dateText, errorText, get, haptic, keysText, LoadingSidebarRows, notify, notifyError, onMachine, openInSplit, PaneControls, post, selectPane, SidebarHeading, SidebarRow, splitMachine, useChosen, useKeptCount, usePane, usePaneTopBar, useGiveKeys, useScopedState, webPages, coarse, type BarKey, type FieldKeys } from "@vaultite"
+import { Button, closePane, cn, copyText, errorText, get, haptic, keysText, LoadingSidebarRows, notify, notifyError, onMachine, openInSplit, PaneControls, post, selectPane, SidebarHeading, SidebarRow, splitMachine, useChosen, useKeptCount, usePane, usePaneTopBar, useGiveKeys, useScopedState, webPages, coarse, type BarKey, type FieldKeys } from "@vaultite"
 import { hostOf } from "./address"
 import { argOf, colorOf, containerById } from "./containers"
 import type { LiveStep, LiveTab, LiveTabs } from "./livetabs"
 import { keepTitle } from "./livetitles"
+import { LiveAskCard } from "./LiveAsk"
+import { useAnswer, useAskerAlive } from "./askstate"
+import { LiveSteps } from "./LiveSteps"
+import { TabStrip } from "./LiveStrip"
+import { fitIn, useRoom } from "./livefit"
 
 const idOf = (t: Pick<LiveTab, "tab" | "machine">) => onMachine(String(t.tab), t.machine)
 const find = (r: LiveTabs, tab: number, machine: string) => r.tabs.find((x) => x.tab === tab && (x.machine ?? "") === (machine || r.self || ""))
@@ -13,7 +18,6 @@ export function showAppTab(t: Pick<LiveTab, "appTab" | "url" | "container">) {
   if (!selectPane(t.appTab)) openInSplit(`view:web/${argOf(t.url, t.container)}`, "right", true, t.appTab)
 }
 
-const TIME = { hour: "numeric", minute: "2-digit" } as const
 const whose = (t: { by?: string | null; task?: string }) => (t.by ? [t.by, t.task].filter(Boolean).join("/") : "Yours")
 
 function useOnScreen() {
@@ -65,18 +69,18 @@ function Tabs({ open }: { open: (t: LiveTab) => void }) {
   const { hidden } = usePane()
   const onScreen = useOnScreen()
   const { tabs, error } = useTabs(!hidden && onScreen)
-  const asking = (tabs ?? []).filter((t) => t.asking)
-  const agents = (tabs ?? []).filter((t) => !t.asking && t.by)
-  const yours = (tabs ?? []).filter((t) => !t.asking && !t.by)
+  const asking = (tabs ?? []).filter((t) => t.ask)
+  const agents = (tabs ?? []).filter((t) => !t.ask && t.by)
+  const yours = (tabs ?? []).filter((t) => !t.ask && !t.by)
   const machines = new Set((tabs ?? []).map((t) => t.machine ?? "")).size > 1
   const kept = useKeptCount("web-viewer:live-tabs", tabs?.length)
   const rows = (list: LiveTab[]) => (
     <div className="flex flex-col gap-px" data-size-up>
       {list.map((t) => (
-        <SidebarRow key={idOf(t)} icon={t.by ? Bot : Globe} tint={t.by ? "var(--purple)" : undefined} badge={t.asking ? "ask" : undefined} open
+        <SidebarRow key={idOf(t)} icon={t.by ? Bot : Globe} tint={t.by ? "var(--purple)" : undefined} badge={t.ask ? "ask" : undefined} open
           onClick={() => open(t)} data-web-live-tab={idOf(t)} tip={null}
           label={<span className="flex min-w-0 items-baseline gap-1.5"><span className="min-w-0 shrink truncate">{t.title || hostOf(t.url)}</span>
-            <span className="min-w-0 shrink-[2] truncate text-[12px] text-muted-foreground">{t.asking ?? (t.by ? whose(t) : hostOf(t.url))}</span></span>}>
+            <span className="min-w-0 shrink-[2] truncate text-[12px] text-muted-foreground">{t.ask?.reason ?? (t.by ? whose(t) : hostOf(t.url))}</span></span>}>
           <span className="mr-1 flex shrink-0 items-center gap-2">
             {t.paused && <span className="text-[12px] text-muted-foreground">Paused</span>}
             <Container id={t.container} />
@@ -107,10 +111,11 @@ type Input = (At & { type: "wheel"; dx: number; dy: number; modifiers?: number }
   | (At & { type: "tap"; count: number }) | { type: "key"; key: string } | { type: "text"; text: string }
 type Said = ({ t: "input" } & Input) | { t: "sharp"; on: boolean }
 type View = { s: number; x: number; y: number }
+type Heard = { t?: string; text?: string; fatal?: boolean; to?: number } & State
 type Point = { clientX: number; clientY: number }
 type Gesture = { start: Point; last: Point; t: number; moved: boolean; hold: number
   two: { from: View; fromAt: Point; d: number; last: Point; kind: "pinch" | "scroll" | null } | null }
-const MAX_ZOOM = 4, SHARP_AT = 1.3
+const MAX_ZOOM = 4, SHARP_AT = 1.3, FRAME_W = 1280
 const SLOP = 8, HOLD_MS = 450, DOUBLE_MS = 350
 const TRACKPAD_SPEED = 1.5, EDGE = 24
 const SPECIAL = new Set(["Enter", "Tab", "Escape", "Backspace", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"])
@@ -118,7 +123,9 @@ const BUTTON = ["left", "middle", "right"]
 const mods = (e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) =>
   (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.metaKey ? 4 : 0) | (e.shiftKey ? 8 : 0)
 
-function Watch({ tab, machine, back }: { tab: number; machine: string; back: () => void }) {
+function Watch({ tab: asked, machine, back }: { tab: number; machine: string; back: () => void }) {
+  const [tab, setTab] = useState(asked)
+  const [followed, setFollowed] = useState<number[]>([])
   const id = onMachine(String(tab), machine)
   const { hidden, tab: own } = usePane()
   const onScreen = useOnScreen()
@@ -127,23 +134,37 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
   const [error, setError] = useState("")
   const [framed, setFramed] = useState(false)
   const [steps, setSteps] = useState<LiveStep[]>([])
-  const [kept, setKept] = useState(true)
+  const show = (n: number) => {
+    if (n === tab) return
+    setTab(n); setInfo({ tab: n }); setFramed(false); setStatus("connecting"); setError(""); setSteps([])
+  }
+  const heardText = (d: Heard) => {
+    if (d.t === "state") { setInfo((i) => ({ ...i, ...d })); if (d.title) keepTitle(id, d.title) }
+    else if (d.t === "opened" && d.to !== undefined) { const to = d.to; setFollowed((f) => (f.includes(to) ? f : [...f, to])); show(to) }
+    else if (d.t === "gone") setStatus("gone")
+    else if (d.t === "error" && d.fatal) { setError(d.text ?? ""); setStatus(/closed/.test(d.text ?? "") ? "gone" : "error") }
+    else if (d.t === "error") setError(d.text ?? "")
+    return d.t === "gone" || (d.t === "error" && !!d.fatal)
+  }
+  const onText = useRef(heardText)
+  useLayoutEffect(() => { onText.current = heardText })
   const img = useRef<HTMLImageElement>(null)
   const keys = useRef<HTMLTextAreaElement>(null)
   const sock = useRef<WebSocket | null>(null)
   const bar = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const pointer = useRef<HTMLDivElement>(null)
+  const root = useRef<HTMLDivElement>(null)
   usePaneTopBar(bar)
   const live = !hidden && onScreen
 
   useEffect(() => {
     if (!webPages?.engine || !own) return
     void get<LiveTabs>("web-viewer/tabs").then((r) => {
-      const t = find(r, tab, machine)
+      const t = find(r, asked, machine)
       if (t?.appTab) { showAppTab(t); closePane(own, true) }
     }, () => {})
-  }, [tab, machine, own])
+  }, [asked, machine, own])
 
   useEffect(() => {
     if (!live) return
@@ -169,12 +190,9 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
           syncSharp()
           return
         }
-        let d: { t?: string; text?: string; fatal?: boolean } & State
+        let d: Heard
         try { d = JSON.parse(m.data) } catch { return }
-        if (d.t === "state") { setInfo((i) => ({ ...i, ...d })); if (d.title) keepTitle(id, d.title) }
-        else if (d.t === "gone") { ended = true; setStatus("gone") }
-        else if (d.t === "error" && d.fatal) { ended = true; setError(d.text ?? ""); setStatus(/closed/.test(d.text ?? "") ? "gone" : "error") }
-        else if (d.t === "error") setError(d.text ?? "")
+        if (onText.current(d)) ended = true
       }
       ws.onclose = () => {
         if (sock.current === ws) sock.current = null
@@ -198,8 +216,8 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
   useEffect(() => {
     if (!live) return
     let stop = false
-    const read = () => void get<{ steps: LiveStep[]; kept: boolean }>(`web-viewer/tabs/${id}/steps${info.opened ? `?since=${info.opened}` : ""}`)
-      .then((r) => { if (!stop) { setSteps(r.steps); setKept(r.kept) } }, () => {})
+    const read = () => void get<{ steps: LiveStep[] }>(`web-viewer/tabs/${id}/steps${info.opened ? `?since=${info.opened}` : ""}`)
+      .then((r) => { if (!stop) setSteps(r.steps) }, () => {})
     read()
     const timer = setInterval(read, 3000)
     return () => { stop = true; clearInterval(timer) }
@@ -230,15 +248,14 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
     return { s, x: axis(el.offsetLeft, el.offsetWidth, bx.clientWidth, v.x), y: axis(el.offsetTop, el.offsetHeight, bx.clientHeight, v.y) }
   }
   const syncSharp = () => {
-    const on = view.current.s >= SHARP_AT
+    const el = img.current
+    const on = view.current.s >= SHARP_AT || (!!el && el.clientWidth * devicePixelRatio > FRAME_W * 1.1)
     if (on !== sharpSent.current && sock.current?.readyState === WebSocket.OPEN) { sharpSent.current = on; raw({ t: "sharp", on }) }
   }
   const apply = () => {
     const el = img.current, pt = pointer.current
     if (!el) return
     const v = view.current, z = v.s > 1.001
-    if (z && !el.style.width) { el.style.width = `${el.offsetWidth}px`; el.style.height = `${el.offsetHeight}px` }
-    else if (!z && el.style.width) { el.style.width = ""; el.style.height = "" }
     el.style.transform = z || v.x || v.y ? `translate(${v.x}px, ${v.y}px) scale(${v.s})` : ""
     setZoomed(z)
     syncSharp()
@@ -503,12 +520,20 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
 
   const [paused, choosePaused] = useChosen(!!info.paused)
   const pause = () => choosePaused(!paused, () => post(`web-viewer/tabs/${id}/pause`, { on: !paused }), paused ? "Couldn't let agents go on" : "Couldn't stop the agents")
-  const [asking, chooseAsking] = useChosen(info.asking ?? null)
-  const done = () => chooseAsking(null, () => post(`web-viewer/tabs/${id}/done`, {}), "Couldn't tell the agent")
+  const { tabs: listed } = useTabs(live && (followed.length > 0 || tab !== asked))
+  const tabOf = (n: number) => listed?.find((t) => t.tab === n && (t.machine ?? "") === (machine || t.machine || ""))
+  const heard = tab === asked ? (status === "gone" ? null : info.tab !== tab || info.url === undefined ? undefined : info.ask ?? null) : listed ? tabOf(asked)?.ask ?? null : undefined
+  const { ask, outcome, answer } = useAnswer(heard, onMachine(String(asked), machine))
+  const alive = useAskerAlive(outcome.kind === "open" ? ask : null)
+  const room = useRoom(box)
+  const wide = useRoom(root).w >= 768
+  const fitted = info.w && info.h && room.w > 0 ? fitIn(info.w, info.h, room) : null
 
   const shown = status === "gone" ? "This tab was closed in the desktop app." : status === "error" ? error || "Couldn't show this tab." : !framed ? "Connecting…" : ""
+  const card = ask && <LiveAskCard ask={ask} outcome={outcome} alive={alive} compact={!wide} done={() => answer({ kind: "done" })} cant={(note) => answer({ kind: "cant", note })} />
+  const strip = [asked, ...followed].filter((n) => n === asked || n === tab || tabOf(n))
   return (
-    <div className="@container flex h-full min-h-0 flex-col" data-web-live={id} data-web-live-status={status}>
+    <div ref={root} className="@container flex h-full min-h-0 flex-col" data-web-live={id} data-web-live-status={status}>
       <div ref={bar} className="group/bar flex min-h-10 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b-[0.5px] border-border px-2 py-1">
         <button type="button" onClick={back} className="flex h-11 shrink-0 cursor-pointer items-center gap-1 rounded-[6px] px-2 text-[15px] text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground md:h-7 md:text-[13px]">
           <ChevronLeft className="size-4" strokeWidth={2} />Tabs
@@ -534,24 +559,23 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
         <Button look="quiet" size="small" aria-label="Keyboard" data-tip="Type in the page" onClick={() => keys.current?.focus({ preventScroll: true })} className="max-md:size-11 max-md:px-0">
           <Keyboard className="size-4" strokeWidth={2} />
         </Button>
-        <Button look={paused ? "primary" : "secondary"} size="small" onClick={pause} data-web-live-pause={paused ? "resume" : "pause"} className="max-md:h-11">
-          {paused ? <Play className="size-3.5" strokeWidth={2.25} /> : <Pause className="size-3.5" strokeWidth={2.25} />}{paused ? "Resume agents" : "Stop agents"}
-        </Button>
+        {info.by && (
+          <Button look={paused ? "primary" : "secondary"} size="small" onClick={pause} data-web-live-pause={paused ? "resume" : "pause"} className="max-md:h-11">
+            {paused ? <Play className="size-3.5" strokeWidth={2.25} /> : <Pause className="size-3.5" strokeWidth={2.25} />}{paused ? "Resume agents" : "Stop agents"}
+          </Button>
+        )}
         <PaneControls />
         </span>
       </div>
-      {asking && (
-        <div className="flex shrink-0 items-center gap-3 border-b-[0.5px] border-border bg-[color-mix(in_oklab,var(--yellow)_14%,transparent)] px-3 py-2" data-web-live-ask>
-          <span className="min-w-0 flex-1 text-[15px] md:text-[13px]"><span className="font-medium">{info.askedBy || "An agent"} asks:</span> {asking}</span>
-          <Button look="primary" size="small" onClick={done} className="max-md:h-11" data-web-live-done>Done</Button>
-        </div>
-      )}
+      {!wide && card}
+      {strip.length > 1 && <TabStrip tabs={strip} shown={tab} asked={asked} titleOf={(n) => (n === tab ? info.title : tabOf(n)?.title) || (tabOf(n)?.url ? hostOf(tabOf(n)!.url) : "Tab")}
+        pick={show} drop={(n) => { setFollowed((f) => f.filter((x) => x !== n)); if (n === tab) show(asked) }} />}
       <div className="flex min-h-0 flex-1 flex-col @3xl:flex-row">
-        <div ref={box} className="relative flex min-h-0 min-w-0 flex-1 touch-none items-center justify-center overflow-hidden bg-muted p-2 [-webkit-touch-callout:none]"
+        <div ref={box} className="relative flex min-h-0 min-w-0 flex-1 touch-none items-center justify-center overflow-hidden bg-muted [-webkit-touch-callout:none]"
           onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onContextMenu={(e) => e.preventDefault()}>
           <img ref={img} alt={info.title ?? ""} draggable={false} data-web-live-frame data-web-live-zoom={zoomed ? "in" : "fit"}
-            style={info.w ? { maxWidth: `min(100%, ${info.w}px)` } : undefined}
-            className={cn("max-h-full max-w-full origin-top-left rounded-[4px] shadow-sm ring-[0.5px] ring-border select-none", (!framed || status === "gone") && "hidden")} />
+            style={fitted ? { width: fitted.w, height: fitted.h } : undefined}
+            className={cn("origin-top-left rounded-[6px] shadow-md ring-[0.5px] ring-border select-none", !fitted && "max-h-full max-w-full", (!framed || status === "gone") && "hidden")} />
           <div ref={pointer} aria-hidden data-web-live-pointer className="pointer-events-none absolute top-0 left-0 data-[held=true]:[&>svg]:scale-90" style={{ display: "none" }}>
             <MousePointer2 className="size-5 -translate-x-[3px] -translate-y-[2px] fill-foreground text-background drop-shadow-sm transition-transform" strokeWidth={1.5} />
           </div>
@@ -559,22 +583,22 @@ function Watch({ tab, machine, back }: { tab: number; machine: string; back: () 
             <Button look="secondary" size="small" onClick={unzoom} onPointerDown={(e) => e.stopPropagation()} data-web-live-unzoom
               className="absolute right-3 bottom-3 bg-background/90 shadow-sm backdrop-blur-sm max-md:h-11">Zoom to fit</Button>
           )}
-          {shown && <p className="max-w-[420px] px-4 text-center text-[15px] text-muted-foreground md:text-[13px]">{shown}</p>}
+          {shown && (
+            <div className="flex max-w-[420px] flex-col items-center gap-3 px-4 text-center" data-web-live-note>
+              <p className="text-[15px] text-muted-foreground md:text-[13px]">{shown}</p>
+              {status === "gone" && tab !== asked && <Button look="secondary" size="small" onClick={() => show(asked)} onPointerDown={(e) => e.stopPropagation()}>Back to the asked tab</Button>}
+              {status === "gone" && tab === asked && <Button look="secondary" size="small" onClick={back} onPointerDown={(e) => e.stopPropagation()}>All tabs</Button>}
+            </div>
+          )}
           {status === "connecting" && framed && <span className="absolute top-3 right-3 rounded-[6px] bg-background/90 px-1.5 py-0.5 text-[11px] text-muted-foreground">Reconnecting…</span>}
           {error && status === "live" && <span className="absolute bottom-3 left-1/2 max-w-[90%] -translate-x-1/2 truncate rounded-[6px] bg-background/90 px-2 py-1 text-[12px]">{error}</span>}
           <textarea ref={keys} onKeyDown={key} aria-label="Type in the page" autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
             className="pointer-events-none absolute top-0 left-0 size-px resize-none border-0 bg-transparent p-0 text-[16px] opacity-0 outline-none" />
         </div>
-        <aside className="flex max-h-[38%] min-h-0 shrink-0 flex-col border-t-[0.5px] border-border @3xl:max-h-none @3xl:w-[280px] @3xl:border-t-0 @3xl:border-l-[0.5px]" data-web-live-steps={steps.length}>
-          <div className="px-2 pt-2"><SidebarHeading title="What agents did here" open /></div>
-          <ol className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-            {steps.length ? steps.map((s, i) => (
-              <li key={`${s.t}-${i}`} className="flex flex-col rounded-[6px] px-2 py-1">
-                <span className={cn("text-[15px] md:text-[13px]", s.failed && "text-ink-(--red)")}>{s.text}</span>
-                <span className="text-[12px] text-tertiary">{dateText(s.t, TIME)} · {s.by}</span>
-              </li>
-            )) : <li className="px-2 py-1 text-[15px] text-tertiary md:text-[13px]">{kept ? "Nothing yet." : "Turn on Activity to see what agents do here."}</li>}
-          </ol>
+        <aside className="flex max-h-[38%] min-h-0 shrink-0 flex-col border-t-[0.5px] border-border @3xl:max-h-none @3xl:w-[320px] @3xl:border-t-0 @3xl:border-l-[0.5px]">
+          {wide && card && <div className="shrink-0 p-3 pb-1">{card}</div>}
+          <div className="px-2 pt-2"><SidebarHeading title={tab === asked ? "What agents did here" : "What agents did in this tab"} open /></div>
+          <LiveSteps steps={steps} className="flex-1 px-3 pb-3" />
         </aside>
       </div>
     </div>

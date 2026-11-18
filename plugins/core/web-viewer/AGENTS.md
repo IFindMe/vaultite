@@ -41,7 +41,8 @@ the vault. On the web and phones a web tab links out instead.
   - `evaluate` (`act` only) runs in a world of its own: it sees the DOM, not the page's scripts, and pages' scripts never
     see what agents do.
   - Where only the user can go on (a sign-in, a passkey, a captcha): `vau browser ask <tab> "<what to do>"` shows them
-    the page with a Done card and tells their Inbox; `wait <tab> --helped` waits for Done.
+    the page with a Done card and tells their Inbox; `wait <tab> --helped` waits for Done, and fails with their reason
+    when they say they can't. The page names your session (from VAULTITE_TERMINAL) and opens it for them.
   - An agent from outside this machine never reaches local addresses (localhost, the LAN, the tailnet), redirected
     there or not.
   - Each agent's steps are kept 14 days to replay ("Show agents in the browser"), never what's typed in a password

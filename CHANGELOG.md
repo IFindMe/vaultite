@@ -33,6 +33,11 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   back, one that can't turn on says why when clicked, and turning on a plugin whose code changed since this machine
   allowed it asks first, naming the files. Another machine's Inbox item (a plugin paused on the M1) opens a sheet about
   that machine, with its Allow, instead of this machine's plugin page.
+- Browser: an agent's ask, watched from another device, works as the page would there. A link that opens a new tab
+  (Gmail's Log In) or a sign-in popup shows in the same view, with the ask kept and the asked tab a click away. The ask
+  names who asked and opens that agent's terminal or session; it takes Done or "I can't" with a reason, which the agent's
+  wait hears; it says when it was answered elsewhere or the agent's terminal ended. The page fills its pane, and what
+  agents did there reads as words ("Clicked “Log In”", repeats folded) under links to its pages.
 - iPhone: Download on a file or image opens the share sheet (Save Image, Save to Files) instead of showing the
   file in the app's own window with no way back.
 - iPhone: a voice note shows its words as they're said (through the server's cloud recognizer, Soniox, else the

@@ -1,5 +1,5 @@
 import { AppWindow } from "./appwindow.ts"
-import { pageHeld } from "./browser/engine.ts"
+import { pageHeld, watchedElsewhere } from "./browser/engine.ts"
 import { shown, type Spot, type SpotEffect, type SpotEvent, spotStep } from "./pagespot.ts"
 import type { WebRect } from "./webwire.ts"
 import type { Page } from "./webbase.ts"
@@ -74,7 +74,8 @@ async function drawing(p: Page) {
   p.drew = Date.now()
 }
 export const keysBackIfUnseen = (p: Page) => { if (!shown(p.spot) && !p.player) SPOT_DOES.unfocus(p) }
-export const stow = (p: Page) => move(p, { type: "stow", drawn: !!p.drawn, now: Date.now() })
+const keepsDrawing = (p: Page) => !!p.drawn || watchedElsewhere(p.id)
+export const stow = (p: Page) => move(p, { type: "stow", drawn: keepsDrawing(p), now: Date.now() })
 
 export const keyboardFrom = new WeakMap<AppWindow, number>()
 
@@ -88,6 +89,6 @@ export function fit(p: Page) {
   if (fill?.isDestroyed()) return
   const held = pageHeld(p.id)
   if (held) p.drawn = true
-  move(p, { type: "fit", fill: !!fill, rect: !p.agent && !held && !!p.want, drawn: !!p.drawn, now: Date.now() })
+  move(p, { type: "fit", fill: !!fill, rect: !p.agent && !held && !!p.want, drawn: keepsDrawing(p), now: Date.now() })
 }
 const round = (p: Page, r: number) => { if ((p.radius ?? 0) !== r) { p.radius = r; p.view.setBorderRadius(r) } }

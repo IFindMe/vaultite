@@ -1,11 +1,12 @@
 // A page watched, and driven by its owner, from the app's web client or its window: its frames sent while watched.
 import type { NativeImage } from "electron"
 import { agentState, helped, press, setPaused, setTaken, setWatched } from "./agent.ts"
-import { LIVE_INPUT, type LiveInput } from "./agentwire.ts"
+import { ANSWER, LIVE_INPUT, type LiveInput } from "./agentwire.ts"
+import { stepsIn } from "./pagesteps.ts"
 import { scrub } from "./pagesecrets.ts"
 import { LAYOUT, SCREENCAST_FRAME } from "./cdpwire.ts"
 import { cdp, cdpAnswer } from "./cdp.ts"
-import { allPages, appWindows, busyWhen, eachPage, handle, mayOpen, tell, tellServer, type EngineWindow, type EnginePage } from "./engine.ts"
+import { allPages, appWindows, busyWhen, eachPage, handle, mayOpen, setWatchedAway, tell, tellServer, type EngineWindow, type EnginePage } from "./engine.ts"
 
 const FPS = 8, LOCAL_FPS = 15
 const MAX_W = 1280, MAX_H = 1600
@@ -13,9 +14,10 @@ const maxOf = (sharp: boolean) => (sharp ? { maxWidth: MAX_W * 2, maxHeight: MAX
 const RENEW_MS = 30_000
 // Chromium paints nothing for a hidden page and its screencast sends nothing while a page is still.
 const STILL_MS = 1000
+const OPENED_MS = 10_000
 
 type Watch = { p: EnginePage; css: { w: number; h: number }; frame: string; cast: string; drawn: string; sent: number; checked: number
-  sharp: boolean; trailing: ReturnType<typeof setTimeout> | null
+  sharp: boolean; input: number; trailing: ReturnType<typeof setTimeout> | null
   tick: ReturnType<typeof setInterval>; by: Map<string, number>; state: string; onMessage: (e: Electron.Event, method: string, params: unknown) => void }
 const watches = new Map<number, Watch>()
 const SERVER = "server"
@@ -27,7 +29,24 @@ const queues = new Map<number, Promise<unknown>>()
 eachPage((p) => {
   opened.set(p.id, Date.now())
   p.wc.once("destroyed", () => { opened.delete(p.id); queues.delete(p.id); stop(p.id, true) })
+  if (p.opener !== undefined) follow(p, p.opener)
 })
+setWatchedAway((id) => !!watches.get(id)?.by.has(SERVER))
+
+function follow(child: EnginePage, from: number) {
+  const w = watches.get(from)
+  if (!w || !w.by.has(SERVER) || Date.now() - w.input > OPENED_MS) return
+  const web = () => /^https?:/i.test(child.wc.getURL() || child.url)
+  const told = () => {
+    if (child.wc.isDestroyed() || !web()) return false
+    tellServer(w.p.win, "live:opened", { tab: from, to: child.id, url: child.wc.getURL() || child.url, title: child.wc.getTitle() })
+    return true
+  }
+  if (told()) return
+  const went = () => { if (told()) child.wc.off("did-navigate", went) }
+  child.wc.on("did-navigate", went)
+  setTimeout(() => { if (!child.wc.isDestroyed()) child.wc.off("did-navigate", went) }, OPENED_MS).unref()
+}
 
 function pageOf(tab: unknown): EnginePage {
   const p = allPages().find((x) => x.id === Number(tab))
@@ -40,8 +59,8 @@ function pageOf(tab: unknown): EnginePage {
 const containerOf = (p: EnginePage) => (p.profile.startsWith("c-") ? p.profile.slice(2) : null)
 function stateOf(p: EnginePage) {
   const a = agentState(p.id)
-  return { tab: p.id, url: p.wc.getURL() || p.url, title: p.wc.getTitle(), loading: p.wc.isLoading(), paused: a.paused, asking: a.ask?.reason ?? null,
-    askedBy: a.ask?.by ?? null }
+  return { tab: p.id, url: p.wc.getURL() || p.url, title: p.wc.getTitle(), loading: p.wc.isLoading(), paused: a.paused,
+    ask: a.ask ? { reason: a.ask.reason, by: a.ask.by, at: a.ask.at, ...a.ask.asker } : null, opener: p.opener ?? null }
 }
 
 function send(w: Watch, jpeg: string) {
@@ -69,7 +88,7 @@ const jpegOf = (img: NativeImage, sharp: boolean) => {
 }
 
 async function start(p: EnginePage) {
-  const w: Watch = { p, css: { w: 0, h: 0 }, frame: "", cast: "", drawn: "", sent: 0, checked: 0, sharp: false, trailing: null, by: new Map(), state: "", tick: setInterval(() => void tick(w), 700),
+  const w: Watch = { p, css: { w: 0, h: 0 }, frame: "", cast: "", drawn: "", sent: 0, checked: 0, sharp: false, input: 0, trailing: null, by: new Map(), state: "", tick: setInterval(() => void tick(w), 700),
     onMessage: (_e, method, params) => {
       if (method !== "Page.screencastFrame") return
       const frame = SCREENCAST_FRAME.safeParse(params)
@@ -84,6 +103,8 @@ async function start(p: EnginePage) {
     await p.wake()
     await measure(w)
     p.wc.debugger.on("message", w.onMessage)
+    // (Chromium's "Screencast is already active", from a watch just ended)
+    await cdp(p.wc, "Page.stopScreencast").catch(() => {})
     await cdp(p.wc, "Page.startScreencast", { format: "jpeg", quality: 60, ...maxOf(false) })
     await still(w)
   } catch (e) { stop(p.id); throw e }
@@ -113,6 +134,7 @@ function stop(id: number, gone = false) {
   if (!w) return
   watches.delete(id)
   setWatched(id, null)
+  if (away.delete(id) && !w.p.wc.isDestroyed()) w.p.refit()
   clearInterval(w.tick)
   if (w.trailing) clearTimeout(w.trailing)
   if (gone && w.by.has(SERVER)) tellServer(w.p.win, "live:gone", { tab: id })
@@ -180,7 +202,12 @@ async function watch(p: EnginePage, who: string) {
   watchedAs(w)
   return w
 }
-const watchedAs = (w: Watch) => setWatched(w.p.id, w.by.has(SERVER) ? "elsewhere" : "here")
+const away = new Set<number>()
+function watchedAs(w: Watch) {
+  const there = w.by.has(SERVER)
+  setWatched(w.p.id, there ? "elsewhere" : "here")
+  if (there !== away.has(w.p.id)) { if (there) away.add(w.p.id); else away.delete(w.p.id); w.p.refit() }
+}
 function unwatch(id: number, who: string) {
   const w = watches.get(id)
   if (!w) return
@@ -215,9 +242,10 @@ handle("agent:live:input", (_win, tab, e) => {
   const p = pageOf(tab)
   const a = agentState(p.id), m = LIVE_INPUT.parse(e)
   const meant = m.type !== "mouse" || m.action === "down"
+  const w = watches.get(p.id)
+  if (w && meant && m.type !== "wheel") w.input = Date.now()
   if (meant && a.by && !a.paused && !a.ask) {
     setTaken(p.id, true)
-    const w = watches.get(p.id)
     if (w) void tick(w)
   }
   return queued(p.id, () => input(p, m)).then(() => null)
@@ -231,4 +259,8 @@ handle("agent:live:selection", async (_win, tab) => {
   return { text: scrub(text).slice(0, 100_000) }
 })
 handle("agent:live:pause", (_win, tab, on) => { setPaused(pageOf(tab).id, on !== false); return stateOf(pageOf(tab)) })
-handle("agent:live:done", (_win, tab) => { helped(pageOf(tab).id); return stateOf(pageOf(tab)) })
+handle("agent:live:done", (_win, tab, answer) => { helped(pageOf(tab).id, ANSWER.parse(answer)); return stateOf(pageOf(tab)) })
+handle("agent:live:steps", (_win, tab, since) => {
+  const p = allPages().find((x) => x.id === Number(tab))
+  return p ? stepsIn(p.id, Math.max(Number(since) || 0, opened.get(p.id) ?? 0)) : []
+})

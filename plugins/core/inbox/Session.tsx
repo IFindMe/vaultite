@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { Bot, Check, Clock, Pin, PinOff, RotateCcw, X } from "lucide-react"
-import { Button, cn, detailPath, Empty, fmtAgo, haptic, Markdown, notify, notifyError, openDetail, SheetHead, useAgents } from "@vaultite"
-import { agentOf, answerable, answerAsk, markEventsDone, markRead, openSession, pinEvents, snoozable, unsettle, SESSION_DETAIL, useEvents } from "./events"
+import { Button, cn, detailPath, Empty, fmtAgo, haptic, Markdown, notify, notifyError, openDetail, SheetHead, useAgents, openAgentSession } from "@vaultite"
+import { agentOf, answerable, answerAsk, markEventsDone, markRead, pinEvents, snoozable, unsettle, SESSION_DETAIL, useEvents } from "./events"
 import { leaveSheet } from "./keyboard"
 import { snoozeBelow } from "./Snoozing"
 import { Questions } from "./Questions"
@@ -32,7 +32,7 @@ function DelegatedBy({ e }: { e: InboxEvent }) {
   const from = events.find((x) => x.id !== e.id && isSession(p, x))
   const toParent = () => {
     if (from) return openDetail(detailPath(SESSION_DETAIL, from.id))
-    void openSession({ terminal: p.terminal, session: p.session, agent: p.agent, host: !p.terminal }).catch((err) => notifyError(err, "Couldn't open it"))
+    void openAgentSession({ terminal: p.terminal, session: p.session, agent: p.agent, host: !p.terminal }).catch((err) => notifyError(err, "Couldn't open it"))
   }
   return <> · from <button type="button" data-lineage-parent className="cursor-pointer font-medium text-foreground/80 underline decoration-foreground/25 underline-offset-2 hover:decoration-foreground/60" onClick={toParent}>{from?.title ?? p.title}</button></>
 }
@@ -95,7 +95,7 @@ export function SessionSheet({ id }: { id: string }) {
   const asks = answerable(e)
   const blocked = e.state === "open" && BLOCKED.includes(e.ask ?? "")
   const answeredHere = blocked && (!e.questions || (e.questions.length === 1 && !e.questions[0].multi && !e.questions[0].closed))
-  const open = () => openSession({ terminal: e.terminal, session: e.session, agent: e.source, machine: e.machine, host: e.host })
+  const open = () => openAgentSession({ terminal: e.terminal, session: e.session, agent: e.source, machine: e.machine, host: e.host })
   return (
     <div data-session-sheet={e.id} data-ask={e.ask ?? ""}>
       <SheetHead icon={agent?.icon ?? Bot} tint={agent?.tint ?? "var(--inbox)"} kicker="Inbox" title={e.title} sub={sub}>

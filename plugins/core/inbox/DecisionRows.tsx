@@ -2,11 +2,10 @@ import { useState, type ReactNode } from "react"
 import { ArrowUp, Check, Circle, CircleCheck, FileText, MessageCircleQuestion, MoreHorizontal, RotateCcw, SquareTerminal, X } from "lucide-react"
 import {
   Button, cn, confirmDialog, fmtAgo, haptic, menuBelow, menuFor, notify, notifyError, op, openFile, optimistic, snippet, SwipeRow, useStore,
-  type BlockCtx, type MenuItem, type Store, type SwipeAction,
-} from "@vaultite"
+  type BlockCtx, type MenuItem, type Store, type SwipeAction, openAgentSession } from "@vaultite"
 import type { InboxItem } from "./types"
 import { snoozed } from "./snooze"
-import { openSession, useEvents } from "./events"
+import { useEvents } from "./events"
 
 const pathOf = (r: InboxItem) => `${r.id}.md`
 const baseOf = (p: string) => p.replace(/\.md$/i, "").split("/").pop() ?? p
@@ -24,7 +23,7 @@ function useWhere(r: InboxItem) {
   const e = (r.session || r.terminal) ? events.find((x) => x.kind === "session" && ((!!r.session && x.session === r.session) || (!!r.terminal && x.terminal === r.terminal))) : undefined
   return e?.title ?? ""
 }
-const goTo = (r: InboxItem) => void openSession({ terminal: r.terminal, session: r.session, agent: r.agent, machine: r.machine, host: !r.terminal })
+const goTo = (r: InboxItem) => void openAgentSession({ terminal: r.terminal, session: r.session, agent: r.agent, machine: r.machine, host: !r.terminal })
   .catch((err) => notifyError(err, "Couldn't open it"))
 const reachable = (r: InboxItem) => !!(r.terminal || (r.session && r.agent))
 

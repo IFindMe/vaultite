@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { Any, VaultTest } from "./harness.ts"
 
 export default async ($: VaultTest) => {
-  const { api, app, check, exists, read, sleep, vault, write } = $
+  const { api, app, check, exists, read, vault, write } = $
   {
     // The desktop app's own windows (electron/apppermissions.ts): what each page may do in the browser engine.
     const { permissionFor, whose } = await import("../../../electron/apppermissions.ts")
@@ -94,7 +94,7 @@ export default async ($: VaultTest) => {
   ;[, r] = await api("POST", "ops/web-viewer.style", { site: "youtube.com", remove: true })
   check("… and --remove sends one to the trash", r.removed && !exists(`${SITES}/youtube.com.css`), r)
 
-  // The live view (liveroutes.ts): the owner's only, the desktop app's engine asked, a tab's steps from Activity.
+  // The live view (liveroutes.ts): the owner's only, the desktop app's engine asked, a tab's steps the engine's.
   {
     const stranger = { headers: { host: "vault.example.ts.net", "tailscale-user-login": "stranger@example.com" }, socket: { remoteAddress: "127.0.0.1" } } as Any
     let [code] = await api("GET", "web-viewer/tabs", undefined, stranger)
@@ -112,6 +112,7 @@ export default async ($: VaultTest) => {
       asked.push([name, ...args])
       if (name === "agent:act") return { tab: args[0], url: "https://example.com/", title: "Example", navigated: false }
       if (name === "agent:live:tabs") return [{ tab: 3, url: "https://example.com/", title: "Example" }]
+      if (name === "agent:live:steps") return []
       return { tab: args[0] }
     }
     try {
@@ -121,16 +122,11 @@ export default async ($: VaultTest) => {
       check("… resuming agents asks the engine so", code === 200 && JSON.stringify(asked.at(-1)) === JSON.stringify(["agent:live:pause", 3, false]), asked.at(-1))
       ;[code] = await api("POST", "web-viewer/tabs/x/done", {})
       check("… a tab is its number", code === 400, code)
-      const since = Date.now() - 1
-      await app.callOp("web-viewer.act", { tab: 3, action: "click", ref: "e5" }, undefined, { report: "test" })
-      await app.callOp("web-viewer.act", { tab: 4, action: "press", key: "Enter" }, undefined, { report: "test" })
-      let steps: Any[] = []
-      for (let i = 0; i < 20 && !steps.length; i++) { await sleep(100); steps = (await api("GET", `web-viewer/tabs/3/steps?since=${since}`))[1].steps }
-      check("live view: a tab's steps are what Activity kept of agents' ops in it, and only its", steps.length === 1 && steps[0].text === "Clicked e5", steps)
-      const { STEP } = await import("../../../plugins/core/web-viewer/liveroutes.ts")
-      const inTab = wv.ops.filter((o) => "tab" in (o.params ?? {}) && o.did)
-      const unseen = inTab.filter((o) => Number(STEP.exec(o.did?.({ tab: 7, action: "click", ref: "e1", url: "https://example.com/", key: "Enter" })?.text ?? "")?.[1]) !== 7).map((o) => o.id)
-      check("live view: every op on a tab says which in Activity, as its steps are found by", inTab.length > 5 && !unseen.length, unseen)
+      ;[code] = await api("POST", "web-viewer/tabs/3/done", { cant: true, note: "No access to that inbox" })
+      check("… I can't goes to the engine with its reason", code === 200 && JSON.stringify(asked.at(-1)) === JSON.stringify(["agent:live:done", 3, { cant: true, note: "No access to that inbox" }]), asked.at(-1))
+      let steps: Any
+      ;[code, steps] = await api("GET", "web-viewer/tabs/3/steps?since=5")
+      check("live view: a tab's steps are the engine's, asked since when", code === 200 && JSON.stringify(asked.at(-1)) === JSON.stringify(["agent:live:steps", 3, 5]), [code, steps, asked.at(-1)])
     } finally { wv.desktopWaiting = was }
     // What the desktop app tells the server unasked reaches who listens (core/desktopapp.ts).
     const { onDesktopEvent } = await import("../../../core/desktopapp.ts")

@@ -1,6 +1,6 @@
 import { clipboard, Menu, type MenuItemConstructorOptions, WebContentsView, type WebContents } from "electron"
 import { AppWindow } from "./appwindow.ts"
-import { openedByAgent, pageHeld, pageMade } from "./browser/engine.ts"
+import { openedByAgent, pageHeld, pageMade, watchedElsewhere } from "./browser/engine.ts"
 import { openElsewhere } from "./browser/default.ts"
 import { HIDDEN, shown } from "./pagespot.ts"
 import { flowOn, hear, LINGER_MS, media, outlasted, playback, quietEnds, RECLAIM_MS } from "./webpages.ts"
@@ -104,7 +104,7 @@ export function make(win: AppWindow, url: string, profile: string, tab: string, 
     // (a sized popup, signing in with another site or a video popped out, is a window of its own (popup.ts); else a tab
     // behind, in front or (⇧-click) to the side; both handed the contents Chromium made so `window.opener` works)
     const popup = disposition === "new-window" && features.split(",").some((f) => !/^\s*(noopener|noreferrer)?\s*$/i.test(f))
-    if (popup && !agents) {
+    if (popup && !agents && !watchedElsewhere(p.id)) {
       const k = popups
       if (k) return { action: "allow", overrideBrowserWindowOptions: { webPreferences: prefsOf(profile) }, createWindow: (o) => k.popup({ ...o, webContents: openedPage(o) }, to, {
         name: () => (p.profile.startsWith("c-") ? menus.containers.find((x) => `c-${x.id}` === p.profile)?.name : "") ?? "",

@@ -4,6 +4,7 @@ import path from "node:path"
 import { marked } from "marked"
 import { z } from "zod"
 import { OpError, Plugin, vaultPath, type OpCtx } from "../../../core/plugins.ts"
+import { parseTerminal } from "../../../core/agents.ts"
 import { Kind, writeAtomic, type Vault } from "../../../core/vault.ts"
 import { addBookmarks, addFolder, editBookmark, folderPath, readBookmarks, readFolders, removeBookmark, removeFolder, renameFolder, type Bookmark } from "./bookmarks.ts"
 import { addRule, BLOCKED, makeRule, readRules, removeRule } from "./elements.ts"
@@ -32,6 +33,14 @@ async function askWaiting<T>(ms: number, name: string, ...args: unknown[]): Prom
 }
 const by = async (ctx: OpCtx, p: { terminal?: string; task?: string; summary?: string }) => ({ name: ctx.who.label, session: p.terminal || ctx.who.agent || "",
   task: p.task ?? "", summary: p.summary ?? "", remote: !!(await ctx.refusal?.("the browser's pages on this machine")) })
+async function askerOf(p: { terminal?: string; session?: string; agent?: string }) {
+  const terminal = /^[\w.@-]{1,120}$/.test(p.terminal ?? "") ? p.terminal ?? "" : "", session = String(p.session ?? "").slice(0, 120)
+  const agent = String(p.agent ?? "").toLowerCase().slice(0, 40) || parseTerminal(terminal)?.agent || ""
+  const info = terminal ? await plugin.ask<{ title?: string } | null>("terminal:info", null, terminal).catch(() => null) : null
+  const where = String(info?.title ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim().slice(0, 120)
+  const machine = terminal.includes("@") ? "" : String(await plugin.ask<string | null>("machines:self", null).catch(() => null) ?? "")
+  return { agent, terminal, session, machine, where }
+}
 const terminal = { type: "string" as const, env: "VAULTITE_TERMINAL", description: "the app terminal you run in (filled in from VAULTITE_TERMINAL): your steps are kept together for replay" }
 const task = { type: "string" as const, description: "your task in two or three words (flight search): your tabs are grouped as <you>/<task>, and tabs marks them yours" }
 const tab = { type: "integer" as const, required: true, description: "the tab's number (browser tabs)" }
@@ -476,15 +485,19 @@ plugin.op({
   summary: "Ask the user to do something in a tab you can't (sign in, a captcha, a passkey): shown on it, and in their Inbox.",
   help: `The page opens as a tab, in front, with what you asked and a Done button in a card at its foot, and the user hears
 of it (the Inbox, their phone). Then wait for their Done with browser wait --helped (a minute at a time), or for what the page shows once
-they did it (--text, --url). Never ask for their password: they type it themselves, or you log in with browser login.
+they did it (--text, --url); the wait fails if they say they can't, with their reason. The page names your session and
+opens it, so they can read your context or answer you there. Never ask for their password: they type it themselves, or
+you log in with browser login.
 
   vau browser ask 3 "Sign in to your bank, then click Done"
   vau browser wait 3 --helped --timeout 600`,
   kind: "write",
-  params: { tab, reason: { type: "string", required: true, description: "what to do, in a sentence (Sign in to GitHub)" }, terminal },
+  params: { tab, reason: { type: "string", required: true, description: "what to do, in a sentence (Sign in to GitHub)" }, terminal,
+    session: { type: "string", env: "CLAUDE_CODE_SESSION_ID", description: "your session's id, so the user can open it (filled in from CLAUDE_CODE_SESSION_ID)" },
+    agent: { type: "string", env: "VAULTITE_AGENT", description: "who you are (claude, codex): from VAULTITE_AGENT, else the terminal's id" } },
   args: ["tab", "reason"],
   run: async (p, ctx) => {
-    const r = await ask<Page>("agent:help", p.tab, p.reason, await by(ctx, p))
+    const r = await ask<Page>("agent:help", p.tab, p.reason, await by(ctx, p), await askerOf(p))
     const on = await plugin.ask<string | null>("machines:browser", null)
     await plugin.ask("inbox:event", null, { source: "browser", kind: "waiting", key: `help-${p.tab}`, title: `${ctx.who.label} needs you in the browser`,
       body: `${String(p.reason).slice(0, 300)} (${r.title || r.url})`, link: `view:web-live/${r.tab}${on ? `@${on}` : ""}` })

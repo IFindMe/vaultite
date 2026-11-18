@@ -5,6 +5,11 @@ const said = (n: number) => z.unknown().optional().transform((v) => String(v ?? 
 const objectOr = <T extends z.ZodType>(s: T) => z.preprocess((x) => (x && typeof x === "object" && !Array.isArray(x) ? x : {}), s)
 export const BY: z.ZodType<By> = objectOr(z.object({ name: said(80), session: said(80), task: said(80), summary: said(300), remote: z.unknown().optional().transform((r) => r === true || undefined) }))
 
+export type Asker = { agent?: string; terminal?: string; session?: string; machine?: string; where?: string }
+export const ASKER: z.ZodType<Asker> = objectOr(z.object({ agent: said(40), terminal: said(120), session: said(120), machine: said(64), where: said(120) }))
+export const ANSWER = objectOr(z.object({ cant: z.unknown().optional().transform((c) => c === true), note: said(500) }))
+export type Answer = z.infer<typeof ANSWER>
+
 export type Field = { ref: string; value: string; name?: string }
 const LIST = "fields: a list of { ref, value }", EACH = "fields: each needs a ref (e12) or its control's name, and its value"
 const FIELD = z.object({ ref: z.unknown().optional(), name: z.unknown().optional(), value: z.unknown().optional() }, { error: EACH })

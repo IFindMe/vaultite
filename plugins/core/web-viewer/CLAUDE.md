@@ -46,6 +46,9 @@
   setting never chooses one (plugins rule 4). QA's: tools/fixtures/web-extension (web/qa/extensions.mjs).
 - The live view (another machine's or the web app's tabs: LiveView.tsx, liveroutes.ts, electron/browser/live.ts) is
   owner only and never ops, so no agent drives input that way; frames reach the server only while someone watches.
+  Watched from another device, a page keeps drawing out of its tab's sight (webspot.ts `keepsDrawing`): a hidden page
+  holds the clicks sent to it. What the watcher's click opens (a new tab, a sized popup made a tab) is told to the view
+  (live.ts `follow`), which shows it: nobody may be at that Mac to see it open.
 - Other machines' logins (machinelogins.ts): names travel, cookies never through a server. A login leaves only from
   the user's act in this window (`web:seal`), sealed for the other app's key (electron/browser/sealed.ts), taken there
   as `remote:take`. Never add a `remote:` call that answers a cookie or signs out: anything on the tailnet that

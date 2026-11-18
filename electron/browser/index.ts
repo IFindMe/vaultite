@@ -8,7 +8,6 @@ import "./agent.ts"
 import "./logins.ts"
 import "./passwords.ts"
 import "./userlogins.ts"
-import "./live.ts"
 import "./default.ts"
 import "./adblock.ts"
 import "./challenges.ts"
@@ -30,3 +29,4 @@ later(() => Promise.all([import("./httpauth.ts"), import("./prompt.ts"), import(
 later(() => import("./darkmode.ts"))
 // (agents' past runs, read when the replay page asks; their scripts and downloads, at their first)
 later(() => Promise.all([import("./agentruns.ts"), import("./agentrun.ts")]))
+later(() => import("./live.ts"))

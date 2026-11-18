@@ -22,12 +22,10 @@ export const partitionOf = (profile: string) => (/^[a-z0-9-]{1,32}$/.test(profil
 type SessionSetup = (s: Session, profile: string) => void | Promise<void>
 export type EnginePage = { id: number; wc: WebContents; profile: string; win: EngineWindow
   url: string
-  /** Take it off the screen (its tab shows it again when it asks to). */
   hide: () => void
   visible: () => boolean
   /** Into a window of its own to watch it in (`fullScreen`: on a Space of its own), or back in its tab. */
   player: (on: boolean, fullScreen: boolean) => void
-  /** The app's tab it's for ("": none). */
   tab: () => string
   opener?: number
   /** Give it to the app's tab `tab` (opened as a tab), or to the background ("": an agent's, with no tab). */
@@ -241,6 +239,8 @@ export const openedByAgent = (id: number) => agentActing(id)
 let agentOwned: (id: number) => boolean = () => false
 export const setAgentOwned = (fn: (id: number) => boolean) => { agentOwned = fn }
 export const ownedByAgent = (id: number) => agentOwned(id)
+let watchedAway: (id: number) => boolean = () => false
+export const setWatchedAway = (fn: (id: number) => boolean) => { watchedAway = fn }, watchedElsewhere = (id: number) => watchedAway(id)
 
 type Opener = (win: EngineWindow, url: string, profile: string) => Promise<EnginePage>
 let opener: Opener = () => Promise.reject(new Error("no pages here"))
@@ -287,7 +287,6 @@ export function engineBusy(of: "app" | "server" = "app"): string | null {
   return null
 }
 
-/** Tell a window something: the Browser hears it as a `WebEvent` whose `type` starts "engine:". */
 export const tell = (win: EngineWindow, msg: EngineEvent) => { if (!win.isDestroyed()) win.webContents.send("vaultite:web", msg) }
 export type Json = string | number | boolean | null | undefined | Json[] | { [k: string]: Json }
 type EngineEvent = { type: `engine:${string}`; [k: string]: Json }

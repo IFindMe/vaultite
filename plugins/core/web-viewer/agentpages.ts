@@ -37,4 +37,5 @@ export async function toBackground(p: AgentPage) {
 export const pauseAgents = (id: number, on: boolean) => engine("agents:pause", id, on).catch((e) => notifyError(e, on ? "Couldn't pause it" : "Couldn't resume it"))
 export const takeOver = (id: number, on: boolean) => engine("agents:take", id, on).catch((e) => notifyError(e, on ? "Couldn't take it over" : "Couldn't give it back"))
 export const doneAsk = (id: number) => engine("agents:helped", id).catch((e) => notifyError(e, "Couldn't tell the agent"))
+export const cantAsk = (id: number) => engine("agents:helped", id, { cant: true }).catch((e) => notifyError(e, "Couldn't tell the agent"))
 export const closeAgentPage = (id: number) => engine("agents:end", id).catch((e) => notifyError(e, "Couldn't close the page"))

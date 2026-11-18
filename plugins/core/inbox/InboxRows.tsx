@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { AlarmClockOff, Bell, Check, CircleAlert, CircleCheck, Clock, FileText, Globe, MessageCircleQuestion, MessageSquareReply, MoreHorizontal, RotateCcw, ShieldCheck } from "lucide-react"
-import { Badged, cn, DoIt, fmtAgo, haptic, Markdown, menuFor, openFile, rightClickBelow, rowMenu, selectClick, selectedAttr, snippet, SwipeRow, useAgents, useSelected, type SwipeAction } from "@vaultite"
-import { agentOf, answerable, fixEvent, markRead, openEvent, openSession, threadTitle, snoozable, targetOf } from "./events"
+import { Badged, cn, DoIt, fmtAgo, haptic, Markdown, menuFor, openFile, rightClickBelow, rowMenu, selectClick, selectedAttr, snippet, SwipeRow, useAgents, useSelected, type SwipeAction, openAgentSession } from "@vaultite"
+import { agentOf, answerable, fixEvent, markRead, openEvent, threadTitle, snoozable, targetOf } from "./events"
 import type { InboxEvent, InboxItem } from "./types"
 import { whenText } from "./snooze"
 import { useHasDraft } from "./drafts"
@@ -83,7 +83,7 @@ function RowReply({ e, close }: { e: InboxEvent; close: (back?: boolean) => void
     <div ref={box} data-row-reply={e.id} className="pb-3 md:pl-[30px]" onKeyDown={(k) => { if (k.key === "Escape") { k.stopPropagation(); close(true) } }}>
       {e.body && <Markdown text={e.body} className="mb-3 max-h-64 overflow-y-auto break-words text-[15px] md:text-[14px]" />}
       <ReplyBox to={e.id} name={name} sent={() => { markRead([e.id]); close() }}
-        open={() => openSession({ terminal: e.terminal, session: e.session, agent: e.source, machine: e.machine, host: e.host })} />
+        open={() => openAgentSession({ terminal: e.terminal, session: e.session, agent: e.source, machine: e.machine, host: e.host })} />
     </div>
   )
 }

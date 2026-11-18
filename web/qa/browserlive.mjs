@@ -148,9 +148,9 @@ async function run(label, viewport, mobile, base = B) {
   const was = (await tab()).paused
   await page.locator("[data-web-live-pause]").click()
   check(`${label}: Stop/Resume agents changes the engine's`, await until(async () => (await tab()).paused === !was, 5000), (await tab()).paused)
-  if ((await tab()).asking) {
+  if ((await tab()).ask) {
     await page.locator("[data-web-live-done]").click()
-    check(`${label}: Done ends the ask`, await until(async () => (await tab()).asking === null, 5000), (await tab()).asking)
+    check(`${label}: Done ends the ask`, await until(async () => (await tab()).ask === null, 5000), (await tab()).ask)
   }
   const steps = await page.locator("[data-web-live-steps]").getAttribute("data-web-live-steps")
   check(`${label}: the agent's steps in the tab show`, Number(steps) > 0, steps)
@@ -182,7 +182,7 @@ await page.goto(`${F}/#view/${encodeURIComponent(`web-live/${ID}`)}`)
 check("the Inbox's link opens the owner's tab live there", await until(() => page.locator("[data-web-live-frame]").isVisible(), 15000))
 check("… with the ask and Done", await until(() => page.locator("[data-web-live-done]").isVisible(), 5000))
 await page.locator("[data-web-live-done]").click()
-check("… whose Done ends it on the owner", await until(async () => (await tab()).asking === null, 5000), (await tab()).asking)
+check("… whose Done ends it on the owner", await until(async () => (await tab()).ask === null, 5000), (await tab()).ask)
 await ctx.close()
 laptop.kill()
 

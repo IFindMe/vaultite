@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { agentsOn, canRunAgents, cell, onReconnect, clickOpening, del, detailPath, fetchMachines, focusedPane, get, getTabLayout, haptic, shownTab, isDesktop, isOutside, isViewOpen, notify, notifyError, onMachine, op, openAgent, openDetail, openFile, openOutside, openView, openWebLink, parseTerminal, post, splitMachine, type Agent, type TabLayout } from "@vaultite"
+import { agentsOn, canRunAgents, cell, onReconnect, clickOpening, del, detailPath, focusedPane, getTabLayout, haptic, shownTab, isDesktop, isOutside, isViewOpen, notify, notifyError, onMachine, op, openDetail, openFile, openOutside, openView, openWebLink, parseTerminal, post, type Agent, type TabLayout, openAgentSession } from "@vaultite"
 import { snoozed, snoozeMs } from "./snooze"
 import { isMessage, waitsOnYou } from "./threads"
 import type { InboxEvent, InboxItem } from "./types"
@@ -160,26 +160,14 @@ export const threadTitle = (s: { title: string; terminal?: string; session?: str
 export const openAsker = (e: InboxEvent) => {
   const f = e.from
   if (!f) return
-  void openSession({ terminal: f.terminal, session: f.session, agent: f.agent, machine: e.machine, host: !f.terminal }).catch((err) => notifyError(err, "Couldn't open it"))
-}
-
-export async function openSession({ terminal = "", session = "", agent = "", machine = "", host = false }: { terminal?: string; session?: string; agent?: string; machine?: string; host?: boolean }) {
-  const ms = await fetchMachines()
-  const [bare, at] = splitMachine(terminal)
-  const there = at || (machine && ms.some((m) => m.id === machine && !m.self) ? machine : "")
-  const view = agentsOn().find((a) => a.name === agent)?.session
-  if (host && session && view) { openView(`view:${view}/${onMachine(session, there)}`, { newTab: true }); return }
-  const { sessions } = await get<{ sessions: { id: string }[] }>(there ? `machines/${encodeURIComponent(there)}/terminals/sessions` : "terminals/sessions")
-  if (bare && sessions.some((s) => s.id === bare)) openView(`terminal/${onMachine(bare, there)}`, { newTab: true })
-  else if (session && agent) openAgent(agent, { resume: session, machine: there })
-  else notify("Its terminal has ended, and it names no session to resume")
+  void openAgentSession({ terminal: f.terminal, session: f.session, agent: f.agent, machine: e.machine, host: !f.terminal }).catch((err) => notifyError(err, "Couldn't open it"))
 }
 
 export function reportSession(r: InboxItem | undefined) {
   const terminal = r?.terminal ?? "", session = r?.session ?? ""
   if (!r || !(terminal || session)) return null
   const agent = r.agent || parseTerminal(terminal)?.agent || ""
-  return () => openSession({ terminal, session, agent, machine: r.machine ?? "", host: !terminal })
+  return () => openAgentSession({ terminal, session, agent, machine: r.machine ?? "", host: !terminal })
 }
 
 export function fixEvent(e: InboxEvent) {
