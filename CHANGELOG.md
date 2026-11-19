@@ -60,6 +60,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   1.5 s at most it draws, and that plugin's tabs and blocks fill in when its code arrives.
 - A window left open in view moves to a new build of Vaultite by itself once you leave it alone for 10 minutes with
   nothing unsaved, so days later a view it hadn't opened yet no longer fails with "couldn't be drawn".
+- Appearance: Snappy animations now reach nearly everything that moves (hovers, toasts, menus, folds, the tab list),
+  not a quarter of it; the phone bar's menu fades out as other menus do; and a few labels read at 4.5:1 in every scheme.
 - Companion: its Do it card for acting in another app is drawn over its answer box, so the box never covers its
   buttons; and typing it did in another app is checked by what the field holds, so a box that stayed empty is said so.
 - Inbox: answering a question no longer closes other open ones as "settled" when nothing settled them (they showed
