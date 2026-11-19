@@ -6,6 +6,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- People: how long since a friend who is due, and a birthday's month, read at 4.5:1 contrast in every scheme.
 - Companion: its page's More menu no longer offers Show its chat beside the page's own Chat button.
 - Folders: switching a folder page to columns (⌥⌘3) keeps the keyboard on the thing you were on, instead of losing it
   now and then while the columns loaded.
