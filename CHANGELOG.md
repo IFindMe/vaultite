@@ -4,7 +4,16 @@ What changed in Vaultite, newest first: one line per change, as it stands now (a
 release is written once, as it ended up). Versions follow [semantic versioning](https://semver.org); the plugin API has
 its own number (`API_VERSION` in `core/version.ts`). The details are in git history and in `vau docs`.
 
-## Unreleased
+## 0.15.0 (2026-11-19)
+
+Faster and steadier everywhere, with big vaults above all: windows open on your last screen at once, search answers as
+you type and ignores accents as in Obsidian, and the server stays responsive on iCloud. Workspaces get a page of their
+own, up to nine, synced across machines; version history replaces Review; the companion is one talk across vaults; the
+browser's logins live in containers; phones and terminals are much smoother. Also everything from the unpublished
+0.14.0: Research with References, Zotero and citations, simpler Settings, jobs in the cloud, Vaultite Cloud, block
+references and several cursors as in Obsidian, and Electron 45.
+
+### Changes
 
 - People: how long since a friend who is due, and a birthday's month, read at 4.5:1 contrast in every scheme.
 - Companion: its page's More menu no longer offers Show its chat beside the page's own Chat button.
@@ -353,15 +362,6 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   scrolls, while a sideways drag from the edge still opens the sidebar. A held link in a note shows its menu, held Back
   and Forward list where they go, and the held tabs button has New tab and Close tabs; small buttons and the Files
   page's More buttons are a finger's size.
-
-## 0.14.0 (2026-11-14)
-
-Research arrives: a layout for academics with References, Zotero and citations, and a web demo of its own. Settings are
-simpler, jobs can run in the cloud and go to a Mac when they need one, and sharing and connections go through Vaultite
-Cloud. Also an iPhone Downloads page and steadier typing there, block references and several cursors as in Obsidian,
-editable docked notes, search results in a note, pinned commands, previews in the slash menu and note switcher,
-Electron 45, and lighter, faster starts.
-
 - **Settings, simpler**: each page shows what most people set and folds the rest under Advanced (AI's agent files,
   inbox and MCP; Files' history, links and tabs), which search still opens. AI's Talk key model and its effort are one
   menu, as Claude's model picker is. Share & sync is redrawn: Vaultite Cloud's sign-in a row with its button, notes
