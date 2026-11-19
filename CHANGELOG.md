@@ -53,6 +53,12 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   seconds; `vau context` points to `vau tabs` (it named a `vau today` that doesn't exist).
 - MCP: the tool list is 13% smaller (no command-line examples, no repeated titles), so every session starts with fewer tokens.
 - Terminals: what an agent in one of the app's terminals is told about Vaultite is half as long.
+- Browser: agents are told to use Vaultite's browser, not Chrome's Claude extension, which a Claude Code with both tried
+  first (in evals, 2 of 6 sessions instead of 6 of 6; some gave up when the extension wasn't connected).
+- Browser: the address bar's suggestions come in half the time from a long history (50,000 pages: 120 to 50 ms a key,
+  each of which held up the app's main process).
+- Browser: an agent's open or act that leaves "Saving…" or "Loading…" on the page waits for it to finish (up to 3 s),
+  so the answer says "Settings saved" instead of needing another call to wait.
 - Workspaces: tabs opened as the app starts (by an agent, a link, or the demo's Browser page with its live sites) are no
   longer taken away when the workspace's own tabs come in, nor sent back behind the page the app was opened at.
 - Quick switcher: finding notes by name as you type takes about a third of the time it did (over 1,500 notes, 10 ms
