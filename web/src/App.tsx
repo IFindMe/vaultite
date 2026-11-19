@@ -51,11 +51,10 @@ import { barAreaMenu } from "@/components/barMenus"
 import { shownIn } from "@/core/sidebarbars"
 import { FileView } from "@/components/FileView"
 import { keptShown, PhoneFiles } from "@/components/PhoneFiles"
-import { StatusBar } from "@/components/StatusBar"
 import { Catch, Drawn, Guard } from "@/components/Guard"
 import { DownloadingNotice, VaultLoading } from "@/components/VaultLoading"
-import { KeyHints } from "@/components/KeyHints"
 import { preloadEditor } from "@/editor/lazy"
+import { apart } from "@/core/apart"
 import { Logo, SheetHead, Stone } from "@/components/kit"
 import { dismissNotice, notify, notifyError } from "@/core/notify"
 import { QUIET, stepOffer, type OfferEvent } from "@/core/closedoffer"
@@ -64,14 +63,10 @@ import { editorSettings, showPropertiesAs } from "@/core/editorPrefs"
 import { settingsCommands, settingsTitle } from "@/core/pluginSettings"
 import { currentLayout, openImport, previousSetup, restoreSetup } from "@/core/bundles"
 import { startWelcome } from "@/core/welcome"
-import { saveAsNew } from "@/components/LayoutPicker"
 import { APP_PAGES, appPageOf, isSetupTab, openAppPage, openSettings, openSetup, pageShownAt, useSettingsOwner, type AppPage } from "@/core/apppages"
-import { CommandPalette } from "@/components/CommandPalette"
 import { FolderPicker } from "@/components/FolderPicker"
 import { Chooser } from "@/components/Chooser"
 import { pickIcon, useIconAsk } from "@/core/iconask"
-import { SearchPalette } from "@/components/SearchPalette"
-import { TabSearch } from "@/components/TabSearch"
 import { openNewTab } from "@/core/launcher"
 import { Workspace } from "@/components/Workspace"
 import { Resizer } from "@/components/Resizer"
@@ -79,20 +74,15 @@ import { DragGhost, setPageInfo, useTabInfo, type TabInfo } from "@/components/T
 import { useLingeringSheet } from "@/core/motion"
 import { moves } from "@/core/animation"
 import { closeSwitcher } from "@/core/phoneTabs"
-import { PhoneTab, TabSwitcher } from "@/components/TabSwitcher"
-import { PullActions } from "@/components/PullActions"
 import { PhoneBar } from "@/components/PhoneBar"
 import { coarse } from "@/core/haptics"
 import { PhoneHeader } from "@/components/PhoneHeader"
 import { drawerOut, openDrawer } from "@/core/drawer"
 import { Tooltips } from "@/components/Tooltip"
-import { Toaster } from "@/components/Toast"
 import { BundleTrial } from "@/components/BundleTrial"
-import { SelectionBar } from "@/components/SelectionBar"
 import { VaultManager, webVaults } from "@/components/VaultManager"
 import { ContextMenus } from "@/components/ContextMenu"
 import { ConfirmDialogs } from "@/components/ConfirmDialog"
-import { WelcomeCards } from "@/components/Welcome"
 import { canReveal, chooseAction, copyLink, copyPath, copyText, duplicate, remove, revealInFinder } from "@/components/FileActions"
 import { cn, space, whenIdle } from "@/lib/utils"
 import { byTab } from "@/core/focus"
@@ -102,6 +92,22 @@ import { chooseScheme, schemeName } from "@/components/SchemeChooser"
 import { chooseFont, fontSetting } from "@/components/FontChooser"
 import { chooseNewTabPage, showNewTabSections } from "@/components/NewTab"
 
+const Toaster = apart(() => import("@/components/Toast").then((m) => m.Toaster))
+const WelcomeCards = apart(() => import("@/components/Welcome").then((m) => m.WelcomeCards), { memoized: true })
+const SearchPalette = apart(() => import("@/components/SearchPalette").then((m) => m.SearchPalette))
+const CommandPalette = apart(() => import("@/components/CommandPalette").then((m) => m.CommandPalette))
+const TabSearch = apart(() => import("@/components/TabSearch").then((m) => m.TabSearch))
+const StatusBar = apart(() => import("@/components/StatusBar").then((m) => m.StatusBar), { memoized: true })
+const KeyHints = apart(() => import("@/components/KeyHints").then((m) => m.KeyHints), { memoized: true })
+const TabSwitcher = apart(() => import("@/components/TabSwitcher").then((m) => m.TabSwitcher))
+const PhoneTab = apart(() => import("@/components/TabSwitcher").then((m) => m.PhoneTab))
+const PullActions = apart(() => import("@/components/PullActions").then((m) => m.PullActions))
+const SelectionBar = apart(() => import("@/components/SelectionBar").then((m) => m.SelectionBar))
+const DESKTOP_PARTS = [StatusBar, KeyHints], PHONE_PARTS = [TabSwitcher, PhoneTab, PullActions, SelectionBar]
+for (const part of isDesktop() ? DESKTOP_PARTS : PHONE_PARTS) part.preload()
+const preloadSoon = () => {
+  for (const part of [SearchPalette, CommandPalette, TabSearch, ...(isDesktop() ? PHONE_PARTS : DESKTOP_PARTS)]) part.preload()
+}
 const PhoneDrawers = lazy(() => import("@/components/PhoneDrawer").then((m) => ({ default: m.PhoneDrawers })))
 const Setup = lazy(() => import("@/pages/Setup").then((m) => ({ default: m.Setup })))
 const PluginGroupSheet = lazy(() => import("@/pages/Plugins").then((m) => ({ default: m.PluginGroupSheet })))
@@ -178,7 +184,7 @@ function detail_(store: Store, path: string, disabled: string[], tabInfo: (t: Ta
     const p = decodeURIComponent(id ?? "")
     return { body: <FileView store={store} path={p} pane={false} />, title: stem(p) }
   }
-  if (kind === "tabs") return { body: <TabSwitcher store={store} info={tabInfo} />, title: "Tabs" }
+  if (kind === "tabs") return { body: <Suspense><TabSwitcher store={store} info={tabInfo} /></Suspense>, title: "Tabs" }
   if (kind === "vaults") {
     return { body: <><SheetHead icon={Logo} tint="var(--primary)" kicker="Vaultite" title="Vaults" /><VaultManager backend={webVaults} /></>, title: "Vaults" }
   }
@@ -267,11 +273,11 @@ const closePalette = () => paletteOpen.set(null)
 const Palettes = memo(function Palettes({ store }: { store: Store | null }) {
   const palette = paletteOpen.use()
   return (
-    <>
+    <Suspense>
       {(palette === "search" || palette === "launcher") && store && <SearchPalette key={palette} store={store} launcher={palette === "launcher"} onClose={closePalette} />}
       {palette === "commands" && <CommandPalette onClose={closePalette} />}
       {palette === "tabs" && store && <TabSearch store={store} onClose={closePalette} />}
-    </>
+    </Suspense>
   )
 })
 
@@ -288,7 +294,7 @@ export default function App() {
   const isNewTab = tab === "new"
   const desktop = useDesktop()
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once the store arrives, not on each store change
-  useEffect(() => { if (store) whenIdle(preloadEditor) }, [!!store])
+  useEffect(() => { if (store) whenIdle(() => { preloadEditor(); preloadSoon() }) }, [!!store])
   useEffect(() => { if (safeMode) notify("Vault plugins are off for now", { id: "safe-mode", duration: Infinity, action: { label: "Turn back on", run: turnPluginsBackOn } }) }, [])
   useEffect(() => { if (store) whenIdle(loadActions) }, [!!store, disabled, enabled])
   const workspacesOn = useWorkspacesOn()
@@ -450,7 +456,7 @@ export default function App() {
     ...APP_PAGES.map((p) => ({ id: `page:${p.id}`, name: `Open ${p.label}`, keys: p.keys, words: p.words, run: () => openAppPage(p), icon: p.icon })),
     { id: "page:get", name: "Get plugins and layouts", words: "setup store directory install bundles packs", run: () => openSetup("get"), icon: StoreIcon },
     { id: "layouts:choose", name: "Choose a layout…", words: "bundle setup zen research browser standard", run: () => openSettings("appearance"), icon: LayoutTemplate },
-    { id: "layouts:save", name: "Save layout as new…", words: "bundle setup", run: () => saveAsNew(currentLayout()), icon: CopyPlus },
+    { id: "layouts:save", name: "Save layout as new…", words: "bundle setup", run: () => import("@/components/LayoutPicker").then((m) => m.saveAsNew(currentLayout())), icon: CopyPlus },
     { id: "bundles:import", name: "Import a bundle…", words: "layout pack", run: () => openDetail("bundle-import"), icon: Import },
     { id: "bundles:restore", name: "Restore previous layout", words: "bundle setup undo", when: () => !!previousSetup(), run: () => restoreSetup().catch((e) => notifyError(e, "Couldn't restore it")), icon: ArchiveRestore },
     { id: "theme:light", name: "Use light theme", unlisted: true, when: () => getPrefs().theme !== "light", run: () => setPrefs({ theme: "light" }), icon: Sun },
@@ -607,7 +613,7 @@ export default function App() {
             {!store && <VaultLoading error={error} />}
             {store && <Guard what="This tab" size="tab" reset={tab} close={() => closeTab(activeTab().id)}>
               <PhoneFiles store={store} pane={activePane().id} path={isFileTab ? filePath : null} />
-              {(isNewTab || isViewTab) && <PhoneTab key={isViewTab && viewFor(targetOf(tab), disabled)?.def.argState ? targetOf(tab).split("/")[0] : tab} store={store} to={targetOf(tab)} />}
+              {(isNewTab || isViewTab) && <Suspense><PhoneTab key={isViewTab && viewFor(targetOf(tab), disabled)?.def.argState ? targetOf(tab).split("/")[0] : tab} store={store} to={targetOf(tab)} /></Suspense>}
               {active && !isFileTab && <div key={active.id}><Drawn draw={() => DRAW[active.id](store, tab, activePane())} /></div>}
             </Guard>}
           </main>
@@ -640,15 +646,15 @@ export default function App() {
       <Chooser />
       <DownloadingNotice store={store} />
       <IconAsked />
-      {desktop && !bare && <StatusBar />}
-      {desktop && <KeyHints />}
+      {desktop && !bare && <Suspense><StatusBar /></Suspense>}
+      {desktop && <Suspense><KeyHints /></Suspense>}
       {desktop && <Tooltips />}
-      {!desktop && <SelectionBar />}
+      {!desktop && <Suspense><SelectionBar /></Suspense>}
       <ContextMenus />
-      <WelcomeCards />
+      <Suspense><WelcomeCards /></Suspense>
       <ConfirmDialogs />
       <BundleTrial store={store} />
-      <Toaster desktop={desktop} />
+      <Suspense><Toaster desktop={desktop} /></Suspense>
       {typedYet && <Suspense><KeyboardKeys /></Suspense>}
 
       {running}
@@ -658,7 +664,7 @@ export default function App() {
         <PhoneBar system={APP_PAGES} active={active} listOpen={detail === "tabs"}
           onSearch={() => setSearching(true)} onCommands={() => setPalette("commands")} onNewNote={() => { runCommandById("file:new") }} />
       )}
-      {!desktop && store && <PullActions />}
+      {!desktop && store && <Suspense><PullActions /></Suspense>}
       {!desktop && store && <Suspense><PhoneDrawers store={store} file={filePath} tab={targetOf(tab)} vaultName={vaultName} vaultMenu={vaultMenu} /></Suspense>}
     </>
   )

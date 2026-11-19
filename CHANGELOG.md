@@ -52,6 +52,14 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   where, instead of React's bare "Minified React error #520".
 - Lighter start: Activity's blocks, page and panel load when first shown (39 KB less for the app to load at start),
   and the server no longer loads the chat keeper's code.
+- A part of the app fetched in the background no longer reloads the page when the server was away for a moment (a
+  restart): only a newer build, or a file gone, does.
+- A note open when Vaultite starts shows sooner: its editor's code comes with the vault, and the note draws the moment
+  it's in (0.46 s instead of 0.74 s on a computer, 1.5 s instead of 1.6 s on a slow phone).
+- Vaultite opens without waiting for a vault plugin whose code is slow to come (a busy machine building it): after
+  1.5 s at most it draws, and that plugin's tabs and blocks fill in when its code arrives.
+- A window left open in view moves to a new build of Vaultite by itself once you leave it alone for 10 minutes with
+  nothing unsaved, so days later a view it hadn't opened yet no longer fails with "couldn't be drawn".
 - Companion: its Do it card for acting in another app is drawn over its answer box, so the box never covers its
   buttons; and typing it did in another app is checked by what the field holds, so a box that stayed empty is said so.
 - Inbox: answering a question no longer closes other open ones as "settled" when nothing settled them (they showed
