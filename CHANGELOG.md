@@ -38,6 +38,12 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Server: files gone from a folder (moved by hand) ask the disk once, not once each: 1.8 s frozen on a 3,000-note vault,
   now 0.3 s.
 - Server: a walk of the vault no longer reads every settings file again when none changed (each read a wait on iCloud).
+- Open apps (a phone above all) no longer download all of a big vault's data again after the server restarts for an
+  update: they get only the parts that changed, which is often none (159 KB down to 2 KB on a 2,700-note vault).
+- iPhone notifications and widget updates keep one connection to Apple open and try once more on a new one when it
+  doesn't answer, instead of opening one per notification and failing with "timed out".
+- Updates: a page open from before an update still opens views and sheets it hadn't loaded yet (they failed with
+  "Failed to fetch dynamically imported module"): the server keeps an old build's files for three days.
 - Workspaces: tabs opened as the app starts (by an agent, a link, or the demo's Browser page with its live sites) are no
   longer taken away when the workspace's own tabs come in, nor sent back behind the page the app was opened at.
 - Quick switcher: finding notes by name as you type takes about a third of the time it did (over 1,500 notes, 10 ms
