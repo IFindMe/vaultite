@@ -60,7 +60,7 @@ function spaceMenu(path: string): MenuItem[] {
 
 /** The desktop bar's crumbs: the vault, then each folder down to this one (its buttons are on the page, which shows
  *  where the bar is faded away). */
-export const folderBar = (path: string) => ({ title: isOutside(path) ? <Suspense><OutsideCrumbs path={path} /></Suspense> : <Crumbs path={path} /> })
+export const folderBar = (path: string) => ({ title: isOutside(path) ? <Suspense fallback={<Arriving />}><OutsideCrumbs path={path} /></Suspense> : <Crumbs path={path} /> })
 const Columns = lazy(() => import("@/pages/FolderColumns").then((m) => ({ default: m.Columns })))
 const OutsideCrumbs = lazy(() => import("@/pages/FolderOutside").then((m) => ({ default: m.OutsideCrumbs })))
 const OutsideFolderPage = lazy(() => import("@/pages/FolderOutside").then((m) => ({ default: m.OutsideFolderPage })))
@@ -133,7 +133,7 @@ function Heading({ title, count, index, k, first }: { title: string; count: numb
 
 /** A folder's page: its header, then what it holds in its view, or a calm line when it's empty or gone. */
 export function FolderPage({ store, path }: { store: Store; path: string }) {
-  return isOutside(path) ? <Suspense><OutsideFolderPage path={path} /></Suspense> : <VaultFolderPage store={store} path={path} />
+  return isOutside(path) ? <Suspense fallback={<Arriving />}><OutsideFolderPage path={path} /></Suspense> : <VaultFolderPage store={store} path={path} />
 }
 
 function useVaultItems(folder: string) {

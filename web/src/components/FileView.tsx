@@ -125,7 +125,7 @@ const Title = memo(function Title({ path, editable, sheet, focus, settle, mode, 
         if (e.key === "Escape") { setV(name); e.currentTarget.blur() }
       }}
       className="block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-muted-foreground" />
-      {typing && <Suspense><TitleKeys field={ref} back={v !== name ? () => setV(name) : undefined} next={toText} /></Suspense>}</h1>
+      {typing && <Suspense fallback={<Arriving />}><TitleKeys field={ref} back={v !== name ? () => setV(name) : undefined} next={toText} /></Suspense>}</h1>
   )
 })
 

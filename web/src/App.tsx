@@ -55,7 +55,7 @@ import { Catch, Drawn, Guard } from "@/components/Guard"
 import { DownloadingNotice, VaultLoading } from "@/components/VaultLoading"
 import { preloadEditor } from "@/editor/lazy"
 import { apart } from "@/core/apart"
-import { Logo, SheetHead, Stone } from "@/components/kit"
+import { Arriving, Logo, SheetHead, Stone } from "@/components/kit"
 import { dismissNotice, notify, notifyError } from "@/core/notify"
 import { QUIET, stepOffer, type OfferEvent } from "@/core/closedoffer"
 import { trace } from "@/core/trace"
@@ -115,7 +115,7 @@ const PluginGroupSheet = lazy(() => import("@/pages/Plugins").then((m) => ({ def
 const IconPicker = lazy(() => import("@/components/IconPicker"))
 const IconAsked = memo(function IconAsked() {
   const a = useIconAsk()
-  return a ? <Suspense><IconPicker a={a} /></Suspense> : null
+  return a ? <Suspense fallback={<Arriving />}><IconPicker a={a} /></Suspense> : null
 })
 const KeyboardKeys = lazy(() => import("@/components/KeyboardKeys").then((m) => ({ default: m.KeyboardKeys })))
 const GetPluginSheet = lazy(() => import("@/components/PluginBrowse").then((m) => ({ default: m.GetPluginSheet })))
@@ -133,8 +133,8 @@ const ImportBundle = lazy(() => import("@/pages/Bundles").then((m) => ({ default
 const IncomingBundle = lazy(() => import("@/pages/Bundles").then((m) => ({ default: m.IncomingBundle })))
 
 const DRAW: Record<AppPage["id"], (store: Store, to: string, pane: Pane | null) => React.ReactNode> = {
-  setup: (store, to, pane) => <Suspense><Setup store={store} tab={isSetupTab(to) ? to : "plugins"} at={pane?.id} /></Suspense>,
-  settings: (store) => <Suspense><Settings store={store} /></Suspense>,
+  setup: (store, to, pane) => <Suspense fallback={<Arriving />}><Setup store={store} tab={isSetupTab(to) ? to : "plugins"} at={pane?.id} /></Suspense>,
+  settings: (store) => <Suspense fallback={<Arriving />}><Settings store={store} /></Suspense>,
 }
 const pageTabOf = (to: string) => { const p = appPageOf(to); return p && { ...p, render: DRAW[p.id] } }
 const mac = (k: string, other?: string) => (isMac ? [k] : other ? [other] : undefined)
@@ -185,19 +185,19 @@ function detail_(store: Store, path: string, disabled: string[], tabInfo: (t: Ta
     const p = decodeURIComponent(id ?? "")
     return { body: <FileView store={store} path={p} pane={false} />, title: stem(p) }
   }
-  if (kind === "tabs") return { body: <Suspense><TabSwitcher store={store} info={tabInfo} /></Suspense>, title: "Tabs" }
+  if (kind === "tabs") return { body: <Suspense fallback={<Arriving />}><TabSwitcher store={store} info={tabInfo} /></Suspense>, title: "Tabs" }
   if (kind === "vaults") {
     return { body: <><SheetHead icon={Logo} tint="var(--primary)" kicker="Vaultite" title="Vaults" /><VaultManager backend={webVaults} /></>, title: "Vaults" }
   }
   const own = CORE_SHEETS[id ? `${kind}/` : kind]
-  if (own) return { body: <Suspense>{own[1](store, decodeURIComponent(id ?? ""))}</Suspense>, title: own[0] }
+  if (own) return { body: <Suspense fallback={<Arriving />}>{own[1](store, decodeURIComponent(id ?? ""))}</Suspense>, title: own[0] }
   if (kind === "plugin") {
     const p = pluginById(id)
-    if (p) return { body: <Suspense><PluginPreview store={store} plugin={p} /></Suspense>, title: p.name }
+    if (p) return { body: <Suspense fallback={<Arriving />}><PluginPreview store={store} plugin={p} /></Suspense>, title: p.name }
   }
   if (kind === "plugin-settings") {
     const p = pluginById(decodeURIComponent(id ?? ""))
-    if (p) return { body: <Suspense><PluginSettings store={store} plugin={p} /></Suspense>, title: settingsTitle(p.name) }
+    if (p) return { body: <Suspense fallback={<Arriving />}><PluginSettings store={store} plugin={p} /></Suspense>, title: settingsTitle(p.name) }
   }
   const d = detailFor(path, disabled)
   const file = d?.def.file?.(store, d.args)
@@ -274,7 +274,7 @@ const closePalette = () => paletteOpen.set(null)
 const Palettes = memo(function Palettes({ store }: { store: Store | null }) {
   const palette = paletteOpen.use()
   return (
-    <Suspense>
+    <Suspense fallback={<Arriving />}>
       {(palette === "search" || palette === "launcher") && store && <SearchPalette key={palette} store={store} launcher={palette === "launcher"} onClose={closePalette} />}
       {palette === "commands" && <CommandPalette onClose={closePalette} />}
       {palette === "tabs" && store && <TabSearch store={store} onClose={closePalette} />}
@@ -618,7 +618,7 @@ export default function App() {
             {!store && <VaultLoading error={error} />}
             {store && <Guard what="This tab" size="tab" reset={tab} close={() => closeTab(activeTab().id)}>
               <PhoneFiles store={store} pane={activePane().id} path={isFileTab ? filePath : null} />
-              {(isNewTab || isViewTab) && <Suspense><PhoneTab key={isViewTab && viewFor(targetOf(tab), disabled)?.def.argState ? targetOf(tab).split("/")[0] : tab} store={store} to={targetOf(tab)} /></Suspense>}
+              {(isNewTab || isViewTab) && <Suspense fallback={<Arriving />}><PhoneTab key={isViewTab && viewFor(targetOf(tab), disabled)?.def.argState ? targetOf(tab).split("/")[0] : tab} store={store} to={targetOf(tab)} /></Suspense>}
               {active && !isFileTab && <div key={active.id}><Drawn draw={() => DRAW[active.id](store, tab, activePane())} /></div>}
             </Guard>}
           </main>
@@ -651,16 +651,16 @@ export default function App() {
       <Chooser />
       <DownloadingNotice store={store} />
       <IconAsked />
-      {desktop && !bare && <Suspense><StatusBar /></Suspense>}
-      {desktop && <Suspense><KeyHints /></Suspense>}
+      {desktop && !bare && <Suspense fallback={<Arriving />}><StatusBar /></Suspense>}
+      {desktop && <Suspense fallback={<Arriving />}><KeyHints /></Suspense>}
       {desktop && <Tooltips />}
-      {!desktop && <Suspense><SelectionBar /></Suspense>}
+      {!desktop && <Suspense fallback={<Arriving />}><SelectionBar /></Suspense>}
       <ContextMenus />
-      <Suspense><WelcomeCards /></Suspense>
+      <Suspense fallback={<Arriving />}><WelcomeCards /></Suspense>
       <ConfirmDialogs />
       <BundleTrial store={store} />
-      <Suspense><Toaster desktop={desktop} /></Suspense>
-      {typedYet && <Suspense><KeyboardKeys /></Suspense>}
+      <Suspense fallback={<Arriving />}><Toaster desktop={desktop} /></Suspense>
+      {typedYet && <Suspense fallback={<Arriving />}><KeyboardKeys /></Suspense>}
 
       {running}
       {store && <GrantAsker store={store} />}
@@ -669,8 +669,8 @@ export default function App() {
         <PhoneBar system={APP_PAGES} active={active} listOpen={detail === "tabs"}
           onSearch={() => setSearching(true)} onCommands={() => setPalette("commands")} onNewNote={() => { runCommandById("file:new") }} />
       )}
-      {!desktop && store && <Suspense><PullActions /></Suspense>}
-      {!desktop && store && <Suspense><PhoneDrawers store={store} file={filePath} tab={targetOf(tab)} vaultName={vaultName} vaultMenu={vaultMenu} /></Suspense>}
+      {!desktop && store && <Suspense fallback={<Arriving />}><PullActions /></Suspense>}
+      {!desktop && store && <Suspense fallback={<Arriving />}><PhoneDrawers store={store} file={filePath} tab={targetOf(tab)} vaultName={vaultName} vaultMenu={vaultMenu} /></Suspense>}
     </>
   )
 }

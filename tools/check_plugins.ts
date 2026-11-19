@@ -336,7 +336,7 @@ for (const f of sources.filter((f) => /\.(tsx?|css)$/.test(f) && !f.includes(`${
 const OWN_FALLBACK = new Set(["web/src/screendraw/index.tsx"].map((f) => path.join(ROOT, f)))
 for (const f of sources.filter((f) => f.endsWith(".tsx") && !OWN_FALLBACK.has(f))) {
   fs.readFileSync(f, "utf8").split("\n").forEach((l, i) => {
-    if (/<Suspense fallback=\{null\}/.test(l)) problems.push(`${path.relative(ROOT, f)}:${i + 1}: Suspense's fallback is <Arriving /> (with a className for the room it keeps): React holds what came up to 300 ms, and QA's idle() can't see a null`)
+    if (/<Suspense(>| fallback=\{null\})/.test(l)) problems.push(`${path.relative(ROOT, f)}:${i + 1}: Suspense's fallback is <Arriving /> (with a className for the room it keeps): React holds what came up to 300 ms, and QA's idle() can't see a null`)
   })
 }
 
