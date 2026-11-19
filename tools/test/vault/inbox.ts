@@ -1203,14 +1203,12 @@ export default async ($: VaultTest) => {
     const [, ev] = await api("POST", "inbox/events", { source: "vau", kind: "info", title: "Look at this later" })
     let [st] = await api("POST", "inbox/events/snooze", { ids: [ev.event.id], until: Date.now() - 1 })
     check("inbox events snooze: a time to come", st === 400, st)
-    // (its time is what was asked, not later than the read: a slow runner's read may come after it)
-    const until = Date.now() + 200
+    const until = Date.now() + 60_000
     ;[st] = await api("POST", "inbox/events/snooze", { ids: [ev.event.id], until })
     let [, l] = await api("GET", "inbox/events")
     let e = l.events.find((x: Any) => x.id === ev.event.id)
     check("inbox events snooze: still open, out of the lists meanwhile, with its time", st === 200 && e.state === "open" && e.snoozed === until, e)
-    await sleep(Math.max(0, until - Date.now()) + 50)
-    await wake()
+    await wake(until)
     ;[, l] = await api("GET", "inbox/events")
     e = l.events.find((x: Any) => x.id === ev.event.id)
     check("inbox events snooze: its time come, unread on top and told again", l.events[0].id === ev.event.id && e.read === false && !e.snoozed && e.nt === e.t, e)
