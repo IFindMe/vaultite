@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Vaultite Main: the first launch after an update, and its servers' restart onto it, find the new code already compiled
+  (its server's start took twice as long: 0.3 s of imports instead of 0.14 s); and its compile cache no longer grows by
+  about 11 MB with every update.
 - Pictures of a page (vau html picture): on Windows they use the installed Chrome or Edge, so they work on Windows on Arm,
   and a page that fails to open says so instead of "nothing on the page matches".
 - Companion and agents: they attach a file from the vault to a web page (a screenshot to a Reddit reply), through
@@ -85,8 +88,12 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   (`vau open --split left`, `up`; the same for terminals and jobs).
 - Desktop: an update no longer sometimes runs the app's own older server for a while, then relaunches and shows
   "A new version of Vaultite is ready" again: a server that started up fast is no longer mistaken for one it can't talk to.
+- Desktop: at launch, the vaults it reopens start their servers before the rest of the app loads (on Linux, 70 ms
+  sooner: forked at 90 ms instead of 160 ms after the app starts).
 - Companion: Talk key answers over a note come up to 2 s sooner (a spoken ask no longer waits for the note to save it,
   only a typed one does), and its close-up is taken at the screen's own resolution, not upscaled, so each ask costs fewer tokens.
+- Desktop: with Cloud sessions open, the app reads claude.ai's sessions when they're due instead of waking each second
+  to see (4 wakeups in 38 s instead of 38).
 - Desktop: the left sidebar's header and bottom bar take what you drag there: Workspaces, Inbox, the Plugins button,
   or a panel with a rail icon (File explorer, Outline, Tags...), drawn as that icon and opening the panel beside it.
   Drag them back into either sidebar, or right-click a bar for its list. The vault picker and Settings stay put.
@@ -115,6 +122,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   names who asked and opens that agent's terminal or session; it takes Done or "I can't" with a reason, which the agent's
   wait hears; it says when it was answered elsewhere or the agent's terminal ended. The page fills its pane, and what
   agents did there reads as words ("Clicked “Log In”", repeats folded) under links to its pages.
+- Browser: listing a container's sites no longer sets up a container that was never used (a new vault made four at
+  launch, and a fifth for agents 20 s later; now none).
 - iPhone: Download on a file or image opens the share sheet (Save Image, Save to Files) instead of showing the
   file in the app's own window with no way back.
 - iPhone: a voice note shows its words as they're said (through the server's cloud recognizer, Soniox, else the
