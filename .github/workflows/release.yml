@@ -9,6 +9,11 @@ on:
   schedule:
     - cron: "37 7 * * *" # (off the hour: GitHub delays, and may drop, runs on it)
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish (the nightly release and feed); off, it only builds
+        type: boolean
+        default: true
 concurrency:
   group: release-${{ github.ref }}
 permissions:
@@ -194,6 +199,7 @@ jobs:
 
   publish:
     needs: [plan, mac, linux, windows]
+    if: github.event_name != 'workflow_dispatch' || inputs.publish
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
