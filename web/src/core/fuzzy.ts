@@ -1,3 +1,4 @@
+import { lowerFolded } from "../../../core/fold.ts"
 export type Match = { score: number; marks: number[]; tier: number }
 
 export const TIER = { LETTERS: 0, INSIDE: 1, START: 2, WORD: 3, NAME: 4 } as const
@@ -23,7 +24,7 @@ export function stem(w: string): string {
 type At = { at: number; w: string; stem: string }
 type Name = { ls: string; ws: At[] }
 function nameOf(s: string): Name {
-  const ls = s.toLowerCase(), ws: At[] = []
+  const ls = lowerFolded(s), ws: At[] = []
   for (let i = 0; i < s.length; i++) {
     if (SEPARATORS.has(s[i]) || !boundary(s, i)) continue
     let j = i + 1
@@ -33,8 +34,9 @@ function nameOf(s: string): Name {
   }
   return { ls, ws }
 }
-const KEEP_NAMES = 20_000, KEEP_UNDER = 256
+const KEEP_NAMES = 100_000, KEEP_UNDER = 256
 const names = new Map<string, Name>()
+export const warmName = (s: string) => { named(s) }
 function named(s: string): Name {
   if (s.length > KEEP_UNDER) return nameOf(s)
   let n = names.get(s)
@@ -49,7 +51,7 @@ type Word = { tier: number; score: number; marks: number[]; whole?: number }
 const run = (at: number, n: number) => { const out: number[] = []; for (let k = 0; k < n; k++) out.push(at + k); return out }
 const common = (a: string, b: string) => { let n = 0; while (n < a.length && n < b.length && a[n] === b[n]) n++; return n }
 
-type Typed = { w: string; sw: string }
+type Typed = { w: string; sw: string; lead: string }
 function word({ w, sw }: Typed, ws: At[], ls: string, s: string): Word | null {
   let best: Word | null = null
   const take = (m: Word) => { if (!best || m.tier > best.tier || (m.tier === best.tier && m.score > best.score)) best = m }
@@ -77,12 +79,26 @@ function word({ w, sw }: Typed, ws: At[], ls: string, s: string): Word | null {
 }
 
 let lastQ = "", lastWords: Typed[] = []
-const wordsOf = (q: string) => q === lastQ ? lastWords : (lastQ = q, lastWords = q.toLowerCase().split(/\s+/).filter(Boolean).map((w) => ({ w, sw: stem(w) })))
+const wordsOf = (q: string) => q === lastQ ? lastWords : (lastQ = q, lastWords = lowerFolded(q).split(/\s+/).filter(Boolean).map((w) => { const sw = stem(w); return { w, sw, lead: sw.replace(/y$/, "") } }))
 
-export function fuzzy(q: string, s: string): Match | null {
+function inOrderIn(w: string, ls: string) {
+  for (let i = 0, at = 0; i < w.length; i++, at++) { at = ls.indexOf(w[i], at); if (at < 0) return false }
+  return true
+}
+const NONE: Name = { ls: "", ws: [] }
+const mayIn = (words: Typed[], ls: string) => words.every((x) => inOrderIn(x.w, ls) || (x.lead !== x.w && ls.includes(x.lead)))
+const inWords = (words: Typed[], ls: string) => words.some((x) => ls.includes(x.w) || (!!x.lead && ls.includes(x.lead)))
+function namedIfMay(words: Typed[], s: string, ls = lowerFolded(s)): Name {
+  if (!mayIn(words, ls)) return NONE
+  return inWords(words, ls) ? named(s) : { ls, ws: [] }
+}
+export const mayFind = (q: string, lowered: string) => mayIn(wordsOf(q), lowered)
+export const leadsOf = (q: string) => wordsOf(q).map((x) => x.lead)
+
+export function fuzzy(q: string, s: string, lowered?: string): Match | null {
   const words = wordsOf(q)
   if (!words.length) return { score: 0, marks: [], tier: TIER.NAME }
-  const { ls, ws } = named(s)
+  const { ls, ws } = namedIfMay(words, s, lowered)
   let sum = 0, tier: number = TIER.WORD, inOrder = true, last = -1
   const marks = new Set<number>(), whole = new Set<number>()
   for (const w of words) {
@@ -103,13 +119,13 @@ export function fuzzy(q: string, s: string): Match | null {
 }
 
 export const hasWords = (q: string, s: string) => {
-  const ls = s.toLowerCase()
-  return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => { const st = stem(w); return ls.includes(w) || (st.length >= 4 && ls.includes(st)) })
+  const ls = lowerFolded(s)
+  return lowerFolded(q).split(/\s+/).filter(Boolean).every((w) => { const st = stem(w); return ls.includes(w) || (st.length >= 4 && ls.includes(st)) })
 }
 
 export const startsWords = (q: string, s: string) => {
-  const ws = s.toLowerCase().split(/[\s\-_/]+/).filter(Boolean)
-  return q.toLowerCase().split(/\s+/).filter(Boolean).every((t) => {
+  const ws = lowerFolded(s).split(/[\s\-_/]+/).filter(Boolean)
+  return lowerFolded(q).split(/\s+/).filter(Boolean).every((t) => {
     const st = stem(t)
     return ws.some((w) => w.startsWith(t) || stem(w) === st || (st.length >= 3 && w.startsWith(st)))
   })

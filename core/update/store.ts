@@ -10,6 +10,7 @@ import { leaseIn, processStart, type Lease } from "./lease.ts"
 import { fingerprint } from "../../electron/shell/print.mjs"
 import { atExit } from "../exit.ts"
 import { codeOf, isObj, messageOf } from "../values.ts"
+import { CODE_CACHE, codeCacheDir } from "../codecache.ts"
 
 const exec = promisify(execFile)
 const MINUTE = 60_000
@@ -57,7 +58,8 @@ export const serverBoots: Step = {
       const vault = path.join(tmp, "vault"), port = await freePort()
       await c.exec(c.node, [path.join(c.root, "bin", "vau"), "sandbox", vault], { cwd: c.root, env: c.env, timeout: 2 * MINUTE })
       const server = tracked(spawn(c.node, [path.join(c.root, "server.ts")], { cwd: c.root, stdio: ["ignore", "ignore", "pipe"],
-        env: { ...c.env, PORT: String(port), HOST: "127.0.0.1", VAULTITE_VAULT: vault, VAULTITE_LOCAL: path.join(tmp, "local"), VAULTITE_QUIET: "1" } }))
+        env: { ...c.env, PORT: String(port), HOST: "127.0.0.1", VAULTITE_VAULT: vault, VAULTITE_LOCAL: path.join(tmp, "local"), VAULTITE_QUIET: "1",
+          NODE_COMPILE_CACHE: codeCacheDir(c.root), NODE_COMPILE_CACHE_PORTABLE: "1" } }))
       let said = ""
       server.stderr.on("data", (b) => { said = (said + b).slice(-2000) })
       try {
@@ -77,6 +79,15 @@ export const serverBoots: Step = {
   },
 }
 
+const MAIN_FILL = "tools/compilefill.mjs"
+export const mainCompiles: Step = {
+  name: "main's compile cache",
+  run: async (c) => {
+    if (!fs.existsSync(path.join(c.root, MAIN_FILL))) return
+    await c.exec(c.node, [MAIN_FILL], { cwd: c.root, env: { ...c.env, NODE_COMPILE_CACHE: codeCacheDir(c.root), NODE_COMPILE_CACHE_PORTABLE: "1" } })
+  },
+}
+
 export function appRecipe(o: { channel?: string } = {}): Recipe {
   const npm = (c: StepCtx, args: string[], env: Record<string, string> = {}) => c.exec("npm", args, { cwd: c.root, env: { ...c.env, ...env } })
   return {
@@ -86,8 +97,8 @@ export function appRecipe(o: { channel?: string } = {}): Recipe {
       { name: "stamp", run: (c) => c.exec(c.node, ["electron/stamp.ts"], { cwd: c.root, env: { ...c.env, VAULTITE_CHANNEL: o.channel ?? "main" } }).then(() => {}) },
     ],
     keyFiles: ["server.ts", "package.json", "bin/vau", "electron/boot.ts", "electron/main.ts", "electron/build.json", "web/dist/index.html",
-      ...["boot.mjs", "roots.mjs", "vau.mjs", "print.mjs", "inputs.json"].map((f) => `electron/shell/${f}`)],
-    preflight: [serverBoots, { name: "smoke", run: (c) => c.exec(c.node, ["web/qa/boot.mjs"], { cwd: c.root, env: c.env }).then(() => {}) }],
+      ...["boot.mjs", "roots.mjs", "vau.mjs", "print.mjs", "compilecache.mjs", "inputs.json"].map((f) => `electron/shell/${f}`)],
+    preflight: [serverBoots, mainCompiles, { name: "smoke", run: (c) => c.exec(c.node, ["web/qa/boot.mjs"], { cwd: c.root, env: c.env }).then(() => {}) }],
   }
 }
 
@@ -124,7 +135,7 @@ const writeJson = (file: string, v: unknown) => {
   fs.writeFileSync(`${file}.${process.pid}.tmp`, JSON.stringify(v, null, 2) + "\n")
   fs.renameSync(`${file}.${process.pid}.tmp`, file)
 }
-function writable(dir: string, on: boolean) {
+export function writable(dir: string, on: boolean) {
   const walk = (p: string) => {
     const st = fs.lstatSync(p)
     if (st.isSymbolicLink()) return
@@ -243,7 +254,7 @@ export function rootStore(o: StoreOptions) {
     for (const name of Object.keys(pkg?.dependencies ?? {})) {
       if (!fs.existsSync(path.join(root, "node_modules", name, "package.json"))) { out.push(`its dependency ${name} doesn't resolve`); break }
     }
-    const status = await git(["status", "--porcelain"], root).catch((e) => `(git status failed: ${messageOf(e)})`)
+    const status = (await git(["status", "--porcelain"], root).catch((e) => `(git status failed: ${messageOf(e)})`)).split("\n").filter((l) => l !== `?? ${CODE_CACHE}/`).join("\n")
     if (status) out.push(`git finds it changed: ${status.split("\n").slice(0, 3).join("; ")}`)
     return out
   }

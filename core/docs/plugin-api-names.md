@@ -278,7 +278,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `formatSize(n)`: "24 KB"
 - `Frame({ mode, className, children })`: A picture's box, in the colour scheme in use (`mode`: light or dark, else the app's).
 - `freeName(t, folder, base, ext?)`: A name for a file or folder that isn't taken in its folder ("Untitled", "Untitled 1"...: Obsidian's rule).
-- `get(path)`
+- `get(path, signal?)`
 - `getDefaultPlace()`
 - `getStore()`: The store as it is now (for code outside React).
 - `getTabLayout()`
@@ -910,6 +910,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `WebSite`
 - `WeeksGrid({ tip, tint, goal, weeks, onOpen })`
 - `weekStart(s)`
+- `whenIdle(fn, timeout?)`
 - `WIKI`
 - `withGroupFolded(l, id, collapsed?)`
 - `withMyTabs(w)`: Workspace `w` (saved elsewhere: another window, another device) with this window's own tabs: the main window's list and which pop-outs there are (it opens and closes them), or a pop-out's list.
@@ -1168,7 +1169,7 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 - `sortBy(xs, key, reverse?)`: Sort by a key, like Python's sorted(key=..., reverse=...): stable either way.
 - `splitTags(s)`
 - `stamp(d)`: "YYYY-MM-DD HH:MM:SS" in this machine's time (the vault's times are the user's local ones, as they read them).
-- `statFrom(st)`
+- `statFrom(st)`: What the index keeps of a file's stat.
 - `stemOf(rel)`
 - `str(v)`: A value as text, the way the app always showed it (null is "", booleans True/False as YAML read them).
 - `tagName(t)`: A tag written the way it's matched: no #, no slashes at its ends.

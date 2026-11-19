@@ -44,6 +44,7 @@ import { API_VERSION, APP_VERSION } from "./version.ts"
 import { ConfigError, ConflictError, type Item, type Kind, NotFound, publicOf, requestWriter, Vault, type Writer } from "./vault.ts"
 import { isObj, strings } from "./values.ts"
 import { keepReads } from "./fmcache.ts"
+import type { ReadAhead } from "./readahead.ts"
 import { logger } from "./log.ts"
 
 const log = logger("app")
@@ -155,7 +156,7 @@ export class App {
 
   async syncPlugins({ pages: write = true, trusting = false } = {}) {
     const key = `${this.vault.heardCount}:${this.vault.settingsVersion}:${this.vaultPlugins.trust.version}:${this.index.version}`
-    if (trusting && this.pluginsSynced === key && this.vault.vouched()) return false
+    if (trusting && this.pluginsSynced === key && this.vault.vouched(Infinity)) return false
     let changed: boolean
     try { changed = await this.loadPlugins() } catch (e) {
       if (!notHereYet(e)) throw e
@@ -687,12 +688,12 @@ export class App {
 
   hold<T>(fn: () => Promise<T> | T, { trusting = false } = {}): Promise<T> {
     if (this.holding.getStore()?.on) return Promise.resolve().then(fn)
-    const walks = () => !trusting || !this.vault.vouched()
+    const walks = () => !trusting || !this.vault.filesVouched()
     return (walks() ? this.vault.looked() : Promise.resolve(null)).then((pre) => this.vault.lock(async () => {
       const token = { on: true }
       try {
         return await this.holding.run(token, async () => {
-          if (walks()) await this.vault.sync(pre)
+          await (walks() ? this.vault.sync(pre) : this.vault.settle())
           this.pagesOf = this.onKey()
           try { return await fn() } finally { this.vault.doing = "loading the plugins"; await this.loadPlugins().then(() => this.followPlugins(), (e) => log.error("loading the plugins failed", e)) }
         })
@@ -887,14 +888,23 @@ export function jsonOf(body: unknown): string | Buffer {
   return data
 }
 
-export async function open(vaultPath: string, { start = true, timing, watch }: { start?: boolean; timing?: { mark(part: string): void }; watch?: (vault: Vault) => void } = {}) {
+function watched(vaultPath: string, kept: ReturnType<typeof keepReads> | null, watch?: (vault: Vault) => void, read?: ReadAhead) {
+  const opening = new App(vaultPath)
+  opening.vault.reading = kept ? read?.(vaultPath) ?? null : null
+  opening.vault.startTexts = kept?.texts ?? null
+  opening.vault.startRead = kept?.read ?? null
+  watch?.(opening.vault)
+  return { opening, looked: kept ? opening.vault.looked() : null }
+}
+
+export async function open(vaultPath: string, { start = true, timing, watch, read }: { start?: boolean; timing?: { mark(part: string): void }; watch?: (vault: Vault) => void
+  read?: ReadAhead } = {}) {
   fs.mkdirSync(vaultPath, { recursive: true })
   const fresh = start && !fs.existsSync(path.join(vaultPath, ".vaultite")), sandbox = start && newSandbox(vaultPath)
   const kept = start ? keepReads(vaultPath) : null
-  const app = await new App(vaultPath).init(timing)
-  app.vault.startTexts = kept?.texts ?? null
+  const { opening, looked } = watched(vaultPath, kept, watch, read)
+  const app = await opening.init(timing)
   if (fresh) B.markNew(app.vault)
-  watch?.(app.vault)
   if (start) {
     if (sandbox) allDone(app.vault)
     await migrate(app.vault, fresh)
@@ -903,11 +913,11 @@ export async function open(vaultPath: string, { start = true, timing, watch }: {
     app.tidyPluginLists()
     B.tidy(app.vault)
     await turn()
-    await app.vault.sync()
-    app.vault.startTexts = null
-    kept?.done()
+    await app.vault.lock(async () => app.vault.sync(await looked))
+    app.vault.startTexts = app.vault.startRead = app.vault.reading = null
+    kept?.done((rel) => app.vault.entries.get(rel)?.tags)
     timing?.mark("vault read")
-    if (fresh) await setUpNew(app.host()).catch((e) => log.error("setting up the new vault failed", e))
+    if (fresh) await app.hold(() => setUpNew(app.host()), { trusting: true }).catch((e) => log.error("setting up the new vault failed", e))
     app.moving = migrateMoved({ vault: app.vault, has: (id) => app.app.some((p) => p.id === id),
       install: (source) => installFrom(app, source, null, { moved: true }) }).catch((e) => log.error("installing the plugins that moved out of the app failed", e))
   }

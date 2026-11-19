@@ -6,9 +6,37 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
-- Vaultite Main: the first launch after an update, and its servers' restart onto it, find the new code already compiled
-  (its server's start took twice as long: 0.3 s of imports instead of 0.14 s); and its compile cache no longer grows by
+- Desktop app: the first launch after an update or on a new account opens its window about 0.2 s sooner and starts its
+  server about half a second sooner: the code comes with its compiled cache, and the app's own cache no longer grows by
   about 11 MB with every update.
+- A big vault no longer stalls the app every 10 s: the app's requests stop waiting for the server's periodic check of
+  every file (130 to 300 ms at 15,000 notes), and checking which Claude Code sessions run no longer blocks the server.
+- If the app didn't finish starting last time (a vault plugin froze it), it starts with vault plugins off and says so,
+  with Turn back on, instead of freezing the same way again.
+- Desktop app: a vault's server holds about 50 MB less memory once it has read a big vault (15,000 notes: 285 to 234
+  MB): it no longer keeps the room it used while reading.
+- The note a window opens on draws sooner: its text is read from the vault once at launch, not a second time, and code
+  the app loads while idle (palettes, the agents' chat and terminal) waits until the first screen has drawn.
+- Desktop app: a vault's window opens showing its last screen at once, as you left it, and fades to the live app as soon
+  as that has drawn its file tree and open note, instead of a blank window until the vault has loaded.
+- Search: the search tab shows its first results as you type, with no pause: drawn about 15 ms after a key on a vault of
+  15,000 notes, where it took 300 to 800, as the first files found are shown before the rest are counted, and the names
+  are read ahead while the app is idle. Keys typed in a burst ask once, when it pauses; the switcher searches files
+  0.1 s after the last key, as it shows names at once.
+- Search: a word found in most notes answers about 5 times sooner (the search tab, the switcher, query blocks, vau search):
+  only the shown files' lines are read out, and a page further down reuses the search.
+- Search: accents don't matter, as in Obsidian: "cafe" finds "café" and "café" finds "cafe"; ø, ł and ß match o, l and ss.
+  The quick switcher and the search tab's names ignore accents too.
+- Claude Code: telling which terminals wait for you re-reads only the session files that changed, not all of them each
+  time one does, which on a machine with hundreds of them held the server for about 10 ms several times a second.
+- File history: catching up on a big vault's files, about 10 s after the server starts, no longer holds every other
+  request for up to a second; it lets them through every few milliseconds.
+- Opening a big vault: its files show sooner, the first time and every time after (15,000 notes, the server's start to
+  its first answer: the first time 4.5 s to 1.3 s, after that 1.4 s to 1.0 s; its notes are read on other threads).
+- Settings: a change in a big vault no longer has the app's next request wait while every note's file is looked at
+  again (15,000 notes: about 200 ms each).
+- Desktop: a vault opens sooner at launch: its server starts before the rest of the app loads, its window before the
+  Browser, updates and menus, and the app keeps the code it compiled even when it was stopped or crashed.
 - Pictures of a page (vau html picture): on Windows they use the installed Chrome or Edge, so they work on Windows on Arm,
   and a page that fails to open says so instead of "nothing on the page matches".
 - Companion and agents: they attach a file from the vault to a web page (a screenshot to a Reddit reply), through
@@ -88,8 +116,6 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   (`vau open --split left`, `up`; the same for terminals and jobs).
 - Desktop: an update no longer sometimes runs the app's own older server for a while, then relaunches and shows
   "A new version of Vaultite is ready" again: a server that started up fast is no longer mistaken for one it can't talk to.
-- Desktop: at launch, the vaults it reopens start their servers before the rest of the app loads (on Linux, 70 ms
-  sooner: forked at 90 ms instead of 160 ms after the app starts).
 - Companion: Talk key answers over a note come up to 2 s sooner (a spoken ask no longer waits for the note to save it,
   only a typed one does), and its close-up is taken at the screen's own resolution, not upscaled, so each ask costs fewer tokens.
 - Desktop: with Cloud sessions open, the app reads claude.ai's sessions when they're due instead of waking each second

@@ -6,8 +6,9 @@ import { folderOf, isHidden, stem } from "@/core/files"
 import { active, formatFor, type SearchDoc } from "@/core/plugins"
 import { getPrefs, usePrefs } from "@/core/prefs"
 import { marksOf, wordRanges } from "../../../core/searchquery.ts"
+import { lowerFolded } from "../../../core/fold.ts"
 import { fuzzy } from "@/core/fuzzy"
-import type { Hit } from "@/core/namesearch"
+import { warmNames, type Hit } from "@/core/namesearch"
 import { trackSoon } from "@/core/unsaved"
 
 type Doc = SearchDoc
@@ -56,15 +57,17 @@ export function useSearchIndex(store: Store): Doc[] {
     const stops = live.map((p) => { try { return p.searchLive!.subscribe(() => setVersion((v) => v + 1)) } catch { return () => {} } })
     return () => stops.forEach((stop) => stop())
   }, [live])
-  return useMemo(() => {
+  const docs = useMemo(() => {
     const found = live.flatMap((p) => { try { return p.searchLive!.docs() } catch { return [] } })
     return [...buildIndex(store, disabled), ...found]
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` asks again when a plugin's live docs change
   }, [store, disabled, live, version])
+  useEffect(() => warmNames(docs), [docs])
+  return docs
 }
 
 function asHits(docs: Doc[], query: string): Hit[] {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const words = lowerFolded(query).split(/\s+/).filter(Boolean)
   return docs.map((d) => ({ ...d, marks: fuzzy(query, d.title)?.marks ?? marksOf(wordRanges(d.title, words)), metaMarks: marksOf(wordRanges(d.meta, words)), score: 0 }))
 }
 

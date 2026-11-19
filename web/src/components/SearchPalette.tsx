@@ -2,9 +2,9 @@ import { useEffect, useMemo, useReducer, useState } from "react"
 import { Search, TextSearch } from "lucide-react"
 import { getStore, type Store } from "@/core/data"
 import { get } from "@/core/http"
+import { useBurst } from "@/core/burst"
 import { useOnReconnect } from "@/core/connection"
 import { errorText } from "@/core/notify"
-import { trackSoon } from "@/core/unsaved"
 import { cleanName, createNamed, folderOf, openFile, openNew, openView, stem } from "@/core/files"
 import { currentFile, newTabsAt } from "@/core/workspace"
 import { launcherAt, launcherClosed } from "@/core/launcher"
@@ -72,19 +72,12 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
   const [text, setText] = useStateFor<InFiles>([short], () => ({ hits: [], files: 0, for: "", failed: null }))
   const [tries, retry] = useReducer((n: number) => n + 1, 0)
   const asked = `${q.trim()}\0${limit}\0${tries}`
-  useEffect(() => {
-    const query = q.trim()
-    if (!node || short) return
-    let on = true
-    const off = trackSoon("the switcher's search", () => true)
-    const t = setTimeout(() => {
-      off()
-      get<{ results: Found[]; files: number }>(`search?q=${encodeURIComponent(query)}&limit=${limit}&total=1`)
-        .then((f) => on && setText({ hits: f.results.map((r) => foundHit(r, node)), files: f.files, for: asked, failed: null }))
-        .catch((e) => on && setText({ hits: [], files: 0, for: asked, failed: e || new Error("Couldn't search") }))
-    }, limit > PAGE ? 0 : 150)
-    return () => { on = false; off(); clearTimeout(t) }
-  }, [q, node, plain, limit, short, setText, asked])
+  useBurst(node && !short ? (signal) => {
+    const on = () => !signal.aborted
+    get<{ results: Found[]; files: number }>(`search?q=${encodeURIComponent(q.trim())}&limit=${limit}&total=files`, signal)
+      .then((f) => on() && setText({ hits: f.results.map((r) => foundHit(r, node)), files: f.files, for: asked, failed: null }))
+      .catch((e) => on() && setText({ hits: [], files: 0, for: asked, failed: e || new Error("Couldn't search") }))
+  } : null, [q, node, plain, limit, short, setText, asked], "the switcher's search", { leading: limit > PAGE })
   const out = !short && !!node && text.for !== asked, failed = !short && !!node && !out ? text.failed : null
   useOnReconnect(retry, !!failed)
   const failedText = useMemo(() => (failed ? errorText(failed, "Couldn't search in files") : null), [failed])
