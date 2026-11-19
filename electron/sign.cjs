@@ -140,8 +140,10 @@ function readOnly(p) {
   fs.chmodSync(p, fs.statSync(p).isDirectory() ? 0o555 : 0o444)
 }
 
+const installedReadOnlyAnyway = (platform) => platform === "linux"
+
 exports.default = async function sign(context) {
-  readOnly(path.join(context.packager.getResourcesDir(context.appOutDir), "app", ".compile-cache"))
+  if (!installedReadOnlyAnyway(context.electronPlatformName)) readOnly(path.join(context.packager.getResourcesDir(context.appOutDir), "app", ".compile-cache"))
   await fuses(context, stampShell(context))
   if (context.electronPlatformName === "win32") return require("./natives.cjs").windows(context)
   if (context.electronPlatformName !== "darwin") return
