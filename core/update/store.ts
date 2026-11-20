@@ -6,7 +6,7 @@ import path from "node:path"
 import { promisify } from "node:util"
 import { gitEnv } from "../gitenv.ts"
 import { fixSpawnHelper } from "./npm.ts"
-import { leaseIn, processStart, type Lease } from "./lease.ts"
+import { leaseIn, processStart, startedIn, type Lease } from "./lease.ts"
 import { fingerprint } from "../../electron/shell/print.mjs"
 import { atExit } from "../exit.ts"
 import { codeOf, isObj, messageOf } from "../values.ts"
@@ -341,7 +341,7 @@ export function rootStore(o: StoreOptions) {
     try { names = fs.readdirSync(at) } catch { return out }
     for (const n of names) {
       const m = /^([0-9a-f]{40})\.(\d+)\.json$/.exec(n), l = readJson<Lease>(path.join(at, n))
-      if (m && l && (await processStart(l.pid)) === l.started) out.set(m[1], [...out.get(m[1]) ?? [], l])
+      if (m && l && (await holds(l))) out.set(m[1], [...out.get(m[1]) ?? [], l])
       else fs.rmSync(path.join(at, n), { force: true })
     }
     return out
@@ -371,4 +371,13 @@ export function rootStore(o: StoreOptions) {
 }
 export type RootStore = ReturnType<typeof rootStore>
 
+function alive(pid: number) {
+  try { process.kill(pid, 0); return true } catch (e) { return codeOf(e) === "EPERM" }
+}
+
+async function holds(l: Lease): Promise<boolean> {
+  if (!alive(l.pid)) return false
+  const started = await processStart(l.pid), psFailed = started === null
+  return psFailed || started === l.started || (await startedIn(l.pid, process.env)) === l.started
+}
 const errLine = (e: unknown) => String((isObj(e) && (e.stderr || e.message)) || e).trim().split("\n").slice(-3).join(" ").slice(0, 500)

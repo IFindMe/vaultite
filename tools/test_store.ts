@@ -184,6 +184,31 @@ await section("gc: current, good and leased roots stay", async () => {
 })
 function c6Of() { return git(dev, "rev-parse", "HEAD") }
 
+await section("a lease holds through a change of time zone (a trip): a running termd's root stays", async () => {
+  const keeper = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+  await new Promise((r) => setTimeout(r, 300))
+  const tz = process.env.TZ, pid = keeper.pid!, sha = (x: string) => x.repeat(40)
+  const leaseFile = (x: string) => path.join(dir, "leases", `${sha(x)}.${pid}.json`)
+  const startedIn = (zone: string) => execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { env: { ...process.env, TZ: zone } }).toString().trim()
+  try {
+    process.env.TZ = "America/Los_Angeles"
+    const release = await store.lease(sha("d"), { pid, what: "termd" })
+    process.env.TZ = "America/New_York"
+    check("ps tells the two apart", startedIn("America/Los_Angeles") !== startedIn("America/New_York"))
+    check("leased on the west coast, read on the east: it still holds", (await store.leased()).has(sha("d")))
+    fs.writeFileSync(leaseFile("e"), JSON.stringify({ pid, started: startedIn("America/New_York"), what: "termd" }))
+    check("one leased before start times were in UTC holds too", (await store.leased()).has(sha("e")))
+    fs.writeFileSync(leaseFile("f"), JSON.stringify({ pid, started: "Thu Jan  1 00:00:00 1970", what: "termd" }))
+    check("one whose pid another process took doesn't", !(await store.leased()).has(sha("f")) && !fs.existsSync(leaseFile("f")))
+    release()
+    fs.rmSync(leaseFile("e"), { force: true })
+  } finally {
+    if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz
+    keeper.kill()
+    await new Promise((r) => keeper.on("exit", r))
+  }
+})
+
 await section("a server holds its root and the web build it serves, the one before let go", async () => {
   const s = path.join(tmp, "held.noindex"), sha = (x: string) => x.repeat(40), at = (x: string, f: string) => path.join(s, "roots", sha(x), f)
   fs.mkdirSync(path.join(s, "repo.git"), { recursive: true })

@@ -491,6 +491,48 @@ export default async ($: VaultTest) => {
       up && /didn't start \(see .*test-dead-.*\.log\)/.test(why) && ms < 2500, [up, why, ms])
   }
 
+  const nodePtySpawnsThroughItsHelper = process.platform === "darwin"
+  if (nodePtySpawnsThroughItsHelper) {
+    const { termdBackend } = await import("../../../plugins/core/terminal/backend.ts")
+    const { spawn } = await import("node:child_process")
+    const { waitFor } = await import("../lib.ts")
+    const repo = path.resolve(import.meta.dirname, "../../.."), root = path.join(tmp, "gone-root")
+    const files = ["package.json", "core/exit.ts", "core/update/lease.ts", "plugins/core/terminal/claude-pictures/decode/cells.ts", "plugins/core/terminal/keys.ts",
+      "plugins/core/terminal/lines.ts", "plugins/core/terminal/osc7501.ts", "plugins/core/terminal/vt/ghostty-vt.wasm", "plugins/core/terminal/vt/load.ts", "plugins/core/terminal/vt/vt.ts",
+      ...fs.readdirSync(path.join(repo, "plugins/core/terminal/termd")).map((f) => `plugins/core/terminal/termd/${f}`)]
+    for (const f of files) fs.cpSync(path.join(repo, f), path.join(root, f), { recursive: true })
+    const realModules = fs.realpathSync(path.join(repo, "node_modules"))
+    fs.mkdirSync(path.join(root, "node_modules"))
+    for (const m of fs.readdirSync(realModules)) if (m !== "node-pty") fs.symlinkSync(path.join(realModules, m), path.join(root, "node_modules", m))
+    for (const f of ["package.json", "lib", `prebuilds/${process.platform}-${process.arch}`]) fs.cpSync(path.join(realModules, "node-pty", f), path.join(root, "node_modules/node-pty", f), { recursive: true })
+    const b = termdBackend(`th-${process.pid}`, { daemon: path.join(repo, "plugins/core/terminal/termd/termd.ts") })
+    const old = spawn(process.execPath, [path.join(root, "plugins/core/terminal/termd/termd.ts"), b.socket, b.files], { stdio: "ignore", detached: true })
+    const pidNow = () => { try { return Number(fs.readFileSync(`${b.files}.pid`, "utf8")) } catch { return 0 } }
+    const spec = { shell: "/bin/sh", run: null, cwd: tmp, env: { PATH: "/usr/bin:/bin", HOME: tmp }, ctx: {}, cols: 80, rows: 24, scrollback: 100 }
+    const said = async (id: string, text: string) => waitFor(async () => (await b.capture(id, { format: "text" })).text.includes(text) || null, 10_000, 50)
+    try {
+      await waitFor(() => pidNow() === old.pid || null, 10_000, 50)
+      await b.create("kept1", spec)
+      await b.send("kept1", { text: "echo before-$((6*7))\r" })
+      const before = await said("kept1", "before-42")
+      fs.rmSync(root, { recursive: true, force: true })
+      await b.create("new1", spec)
+      const listed = await b.list()
+      await b.send("kept1", { text: "echo after-$((6*7))\r" })
+      const after = await said("kept1", "after-42"), next = pidNow()
+      const aside = `${b.socket}.old-${old.pid}`, asideThen = fs.existsSync(aside)
+      check("terminal server: one whose files went hands its terminals to the next, which starts the new one: none in the app's server",
+        before && after && next && next !== old.pid && asideThen && listed.find((x) => x.id === "kept1")?.via === old.pid &&
+        listed.some((x) => x.id === "new1" && !x.via), [before, after, next, old.pid, asideThen, listed])
+      await b.kill("kept1")
+      const ended = await waitFor(() => (old.exitCode !== null || old.signalCode !== null) || null, 30_000, 100)
+      check("terminal server: …and ends with its last terminal, leaving the next one's files be", ended && !fs.existsSync(aside) && pidNow() === next && fs.existsSync(b.socket) &&
+        (await b.list()).some((x) => x.id === "new1"), [ended, fs.existsSync(aside), pidNow(), next, fs.existsSync(b.socket)])
+    } finally {
+      for (const p of [pidNow(), old.pid]) if (p) try { process.kill(p, "SIGTERM") } catch { continue }
+    }
+  }
+
   // The terminal server's core (host.ts) in this process: what it keeps of each terminal (meta, command, cwd), captures as
   // text, vt and html, keys by name, its events, and an ended one kept with how it ended.
   if (process.platform !== "win32") {

@@ -213,6 +213,7 @@ export type HostOptions = {
   log: (...a: unknown[]) => void
   pid: number; file: string
   stale?: () => boolean; retire?: () => boolean
+  handOver?: () => boolean
   changed?: () => void
 }
 
@@ -220,6 +221,7 @@ export type Host = ReturnType<typeof host>
 
 export function host(o: HostOptions) {
   const sessions = new Map<string, Session>()
+  let handedOver = false
   const conns = new Set<Conn>()
   const endedOnes = new Map<string, { info: Info; session: Session | null; text: string; told: boolean; trimming?: boolean }>()
   const dropStatus = new WeakMap<Session, () => void>()
@@ -265,7 +267,7 @@ export function host(o: HostOptions) {
     try { p = spawn() } catch (e) {
       if (o.stale?.()) {
         o.log("create", id, "failed: this server's files are gone", e)
-        if (o.retire?.()) throw new Failure(`this terminal server's files are gone (${o.file}): ask the next one`, "retiring")
+        if (o.retire?.() || (handedOver ||= !!o.handOver?.())) throw new Failure(`this terminal server's files are gone (${o.file}): ask the next one`, "retiring")
         throw new Error(`this terminal server's files are gone (${o.file}), and it still holds terminals: ${why(e)}`)
       }
       if (noPty(e)) throw outOfPtys(id, e)
@@ -320,7 +322,7 @@ export function host(o: HostOptions) {
       return null
     }
     switch (m.op) {
-      case "hello": return { v: PROTOCOL, pid: o.pid, file: o.file, stale: !!o.stale?.(), pictures: true }
+      case "hello": return { v: PROTOCOL, pid: o.pid, file: o.file, stale: !!o.stale?.(), pictures: true, handedOver }
       case "subscribe": {
         c.events = true
         for (const e of endedOnes.values()) if (!e.told && e.info.exit) { e.told = true; c.send({ t: "event", type: "exited", id: e.info.id, exit: e.info.exit }) }

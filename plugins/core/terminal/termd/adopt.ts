@@ -76,7 +76,7 @@ async function adoptFrom(k: Kit, socket: string, scrollback: number, tries: numb
   let via: number, listed: Listed[]
   try {
     const hello = await ctl.ask({ op: "hello" })
-    if (Number(hello.v) >= PROTOCOL) throw new Error(`the server at ${socket} speaks protocol ${hello.v}, not an older one`)
+    if (Number(hello.v) > PROTOCOL || (Number(hello.v) === PROTOCOL && !hello.handedOver)) throw new Error(`the server at ${socket} speaks protocol ${hello.v}, not an older one, and holds on to its terminals`)
     via = Number(hello.pid) || 0
     // Protocol 1 tells OSC 7501 as `status` once asked; 2 on, as events.
     ctl.on((m) => {
