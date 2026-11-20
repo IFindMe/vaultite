@@ -12,7 +12,7 @@ import { relaunchSoon, storeLook, storeOn, storeReady, storeStatus, type StoreHo
 import { relaunchOptions } from "./argv.ts"
 import type { UpdateMode } from "./vaultlist.ts"
 import { RELEASE } from "./mainbase.ts"
-import { describe, menuItem, offerMessage, restartWaitsOn, START, statusOf, step, type Current, type Effect, type How, type Leave, type ReleaseOutcome,
+import { describe, menuItem, offerMessage, packageManaged, restartWaitsOn, START, statusOf, step, type Current, type Effect, type How, type Leave, type ReleaseOutcome,
   type UpdateEvent, type Updates } from "./updatelogic.ts"
 
 const LOOK_EVERY = 3 * 60_000
@@ -50,7 +50,12 @@ export type UpdatesHost = {
 let host: UpdatesHost
 export function initUpdates(h: UpdatesHost) { host = h }
 
-export const updatable = () => !WORKTREE && app.isPackaged && !!CODE && (SHELL.release === true || !WIN)
+const PACKAGE_TYPE = process.platform !== "linux" ? null : (() => {
+  try { return fs.readFileSync(path.join(process.resourcesPath, "package-type"), "utf8").trim() || null } catch { return null }
+})()
+const MANAGED = packageManaged(process.platform, PACKAGE_TYPE)
+const FROM_RELEASES = RELEASE && !MANAGED
+export const updatable = () => !MANAGED && !WORKTREE && app.isPackaged && !!CODE && (SHELL.release === true || !WIN)
 // (.noindex: Spotlight skips them, a .metadata_never_index file no longer works; else it indexed every build's files)
 const SOURCE = () => path.join(app.getPath("userData"), "source.noindex")
 const NEXT = () => path.join(app.getPath("userData"), "update.noindex")
@@ -118,7 +123,7 @@ function run(fx: Effect) {
 
 export function appUpdates(): AppUpdates {
   const store = storeOn() ? storeStatus() : null, o = state.offer
-  return { mode: host.mode(), available: updatable(), from: worktree ? "worktree" : RELEASE ? "releases" : BRANCH, ready: o?.commit ?? null,
+  return { mode: host.mode(), available: updatable(), from: MANAGED && PACKAGE_TYPE ? PACKAGE_TYPE : worktree ? "worktree" : FROM_RELEASES ? "releases" : BRANCH, ready: o?.commit ?? null,
     doing: statusOf(state, app.getName())?.text ?? null, commit: worktree?.commit ?? CODE?.commit ?? null, helper: host.helper(),
     ...(worktree ? { worktree } : { helperCommit: host.helperCommit() }),
     ...(store ? { store, how: o?.how === "relaunch" ? "relaunch" : "install" } : {}), ...(started ? { root: started } : {}), ...(o?.behind ? { behind: o.behind } : {}) }
@@ -166,7 +171,7 @@ function updateLog() {
 }
 
 function checkForUpdate(byHand: boolean) {
-  const via = RELEASE ? "release" : storeOn() ? "store" : updatable() ? "build" : null
+  const via = FROM_RELEASES ? "release" : storeOn() ? "store" : updatable() ? "build" : null
   send({ type: "check", byHand, via, off: host.mode() === "off", recent: via === "build" && Date.now() - lastBuild() < BUILD_EVERY })
 }
 function lastBuild() {
@@ -189,7 +194,7 @@ export function checkInstalled(w: UpdateWindow) {
     const log = updateLog(), at = new Date().toISOString()
     if (stale) {
       fs.writeSync(log, `${at} this app runs ${CODE?.commit}, but ${installed} is installed: it started from the app an update replaced\n`)
-      if (!RELEASE && installed && built() === installed) offer(installed, "install")
+      if (!FROM_RELEASES && installed && built() === installed) offer(installed, "install")
     }
     if (restart && w.server?.exitCode === null) {
       restartedOnto.add(p)
@@ -382,7 +387,7 @@ export function pageSafe(page: WebContents, safe: boolean) {
 }
 
 export function scheduleUpdates() {
-  if (RELEASE) {
+  if (FROM_RELEASES) {
     setTimeout(() => checkForUpdate(false), 10_000)
     setInterval(() => checkForUpdate(false), 4 * 60 * 60_000)
   } else if (updatable()) {

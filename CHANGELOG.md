@@ -4,6 +4,11 @@ What changed in Vaultite, newest first: one line per change, as it stands now (a
 release is written once, as it ended up). Versions follow [semantic versioning](https://semver.org); the plugin API has
 its own number (`API_VERSION` in `core/version.ts`). The details are in git history and in `vau docs`.
 
+## Unreleased
+
+- Linux: Arch gets Vaultite from the AUR (`vaultite-bin`, each release's .deb repackaged), updated by pacman rather
+  than by the app.
+
 ## 0.15.0 (2026-11-19)
 
 Faster and steadier everywhere, with big vaults above all: windows open on your last screen at once, search answers as

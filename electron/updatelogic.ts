@@ -4,6 +4,10 @@ import { sentence } from "../core/plainerror.ts"
 export type How = "install" | "release" | "relaunch" | "worktree"
 export type Via = "build" | "store" | "release"
 
+const APPIMAGE_PACKAGE_TYPE = null
+const FEED_PACKAGE_TYPES: readonly (string | null)[] = [APPIMAGE_PACKAGE_TYPE, "deb"]
+export const packageManaged = (platform: string, packageType: string | null) => platform === "linux" && !FEED_PACKAGE_TYPES.includes(packageType)
+
 type Look =
   | { kind: "idle" }
   | { kind: "pinning"; byHand: boolean }

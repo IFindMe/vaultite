@@ -328,6 +328,12 @@ await section("the app's updates as one machine: each event's move and effects (
     && JSON.stringify(offerMessage({ commit: "web/src changed", how: "worktree", behind: null, restart: { kind: "offered" } }, "L", false)) === JSON.stringify({ type: "update", text: "web/src changed: relaunch to run them", label: "Relaunch" }))
 })
 
+await section("a Linux package the feed doesn't serve is its package manager's to update (electron/updatelogic.ts)", async () => {
+  const { packageManaged } = await import("../electron/updatelogic.ts")
+  check("the AUR's (pacman) is pacman's; the AppImage, the .deb and other systems update themselves", packageManaged("linux", "pacman")
+    && !packageManaged("linux", null) && !packageManaged("linux", "deb") && !packageManaged("darwin", "pacman"))
+})
+
 await section("Main's updates through its code store: where, and its two policies (electron/storepolicy.ts)", async () => {
   const { pinOf, policyFor, storeWanted } = await import("../electron/storepolicy.ts")
   const main = { packaged: true, channel: "main", release: false, platform: "darwin", marker: true }
