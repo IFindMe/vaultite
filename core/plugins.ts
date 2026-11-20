@@ -180,6 +180,35 @@ export class Request {
 
 /** Who may reach a plugin's owner-only parts (refusal): always this machine's settings, never a vault's. */
 const ACCESS = ["allowRemote", "allowUsers"]
+const DAYLOG_SLACK = 200
+
+/** A dayLog given `idOf`: a row appended again updates it, read once per id (its last version, where it first was); a
+ *  day's file is compacted once its copies pass twice its rows and DAYLOG_SLACK. */
+function keyedDays<T>(idOf: ((r: T) => string) | undefined, readAll: (dir: undefined, date: string) => T[], rewrite: (date: string, rows: T[]) => void) {
+  const written = new Map<string, { ids: Set<string>; lines: number }>()
+  const latest = (rows: T[]) => {
+    if (!idOf) return rows
+    const by = new Map<string, T>()
+    for (const r of rows) by.set(idOf(r), r)
+    return [...by.values()]
+  }
+  const appended = (date: string, rows: T[]) => {
+    if (!idOf) return
+    let w = written.get(date)
+    if (!w) {
+      const had = readAll(undefined, date)
+      w = { ids: new Set(had.map(idOf)), lines: had.length }
+      if (written.size >= 3) written.clear()
+      written.set(date, w)
+    }
+    else for (const r of rows) { w.ids.add(idOf(r)); w.lines++ }
+    if (w.lines <= 2 * w.ids.size + DAYLOG_SLACK) return
+    const kept = latest(readAll(undefined, date))
+    rewrite(date, kept)
+    written.set(date, { ids: new Set(kept.map(idOf)), lines: kept.length })
+  }
+  return { latest, appended, forget: (date: string) => written.delete(date) }
+}
 
 /** A route's answer sent as it is (text/markdown, or another type; bytes too: a font), not as JSON. `headers`: more
  *  of them (Cache-Control). */
@@ -748,16 +777,21 @@ export class Plugin {
 
   /** JSON lines in localDir(), a file a day (<kind>-<date>.jsonl), appended at once, read as `row` (other lines skipped;
    *  readIn: another vault's, from otherLocalDirs), rewritten by day, days older than `keep` pruned at most hourly. */
-  dayLog<T>(kind: string, row: z.ZodType<T>) {
+  dayLog<T>(kind: string, row: z.ZodType<T>, idOf?: (r: T) => string) {
     const file = (date: string, dir = this.localDir()) => path.join(dir, `${kind}-${date}.jsonl`), re = new RegExp(`^${kind}-(\\d{4}-\\d\\d-\\d\\d)\\.jsonl$`)
     const lines = (rows: T[]) => rows.map((r) => JSON.stringify(r)).join("\n") + "\n"
     let pruned = 0
+    const keyed = keyedDays(idOf, (dir, date) => log.readAll(dir, date), (date, rows) => log.rewrite(date, rows))
     const log = {
       append: (t: number, rows: T[]) => {
-        if (rows.length) try { fs.appendFileSync(file(localDate(t)), lines(rows)) } catch { /* its folder gone: nothing to keep */ }
+        if (!rows.length) return
+        try { fs.appendFileSync(file(localDate(t)), lines(rows)) } catch { return /* its folder gone: nothing to keep */ }
+        keyed.appended(localDate(t), rows)
       },
       read: (date: string): T[] => log.readIn(undefined, date),
-      readIn: (dir: string | undefined, date: string): T[] => {
+      readIn: (dir: string | undefined, date: string): T[] => keyed.latest(log.readAll(dir, date)),
+      /** Every line of the day as written, an id's earlier copies too. */
+      readAll: (dir: string | undefined, date: string): T[] => {
         let text: string
         try { text = fs.readFileSync(file(date, dir), "utf8") } catch { return [] }
         return text.split("\n").flatMap((l) => {
@@ -770,7 +804,7 @@ export class Plugin {
       },
       /** The days it has, oldest first. */
       days: (): string[] => { try { return fs.readdirSync(this.localDir()).flatMap((f) => re.exec(f)?.[1] ?? []).sort() } catch { return [] } },
-      rewrite: (date: string, rows: T[]) => { try { if (rows.length) fs.writeFileSync(file(date), lines(rows)); else fs.rmSync(file(date), { force: true }) } catch { /* gone */ } },
+      rewrite: (date: string, rows: T[]) => { keyed.forget(date); try { if (rows.length) fs.writeFileSync(file(date), lines(rows)); else fs.rmSync(file(date), { force: true }) } catch { /* gone */ } },
       prune: (keep: number) => {
         if (Date.now() - pruned < 3600_000) return
         pruned = Date.now()

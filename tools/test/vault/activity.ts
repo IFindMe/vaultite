@@ -142,5 +142,36 @@ export default async ($: VaultTest) => {
   check("activity: its block as text links files", /Edited \[\[Act\/a\]\]/.test(feedText) && typeof blk === "string", feedText)
   fs.rmSync(path.join(VAULT, ".vaultite/plugins/activity/data.json"))
   check("activity: kept outside the vault", fs.existsSync(path.join(tmp, "local", "activity")) && !fs.existsSync(path.join(VAULT, "activity")))
+  {
+    const create = app.ops().find((o) => o.op.id === "note.create")!.op, own = create.did
+    create.did = () => ({ action: "run", text: "Ran a script in browser tab 517" })
+    for (const n of [1, 2]) {
+      const end = app.requestStarted({ t: Date.now(), method: "POST", route: "ops/note.create", query: {}, client: "cli", agent: null, command: null,
+        ua: "", remote: "203.0.113.9", port: 1, forwarded: false })
+      write(`Act/compat-${n}.md`, "written by something else\n")
+      app.changed([`Act/compat-${n}.md`])
+      await new Promise((r) => setTimeout(r, 100))
+      end({ status: 200, ms: 100, body: { title: "Act run" } })
+    }
+    create.did = own
+    ev = (await actEvents()).filter((e: Any) => e.text === "Ran a script in browser tab 517")
+    check("activity: a call that changes no files takes none written while it ran, its repeats one event", ev.length === 1 && ev[0].count === 2 && !ev[0].paths?.length, ev)
+  }
+  {
+    const { record, flush } = await import("../../../plugins/core/activity/events.ts")
+    const { logs } = await import("../../../plugins/core/activity/store.ts")
+    const { localDate } = await import("../../../core/plugins.ts")
+    const t0 = Date.now(), day = localDate(t0), actor = { kind: "script" as const, name: "Act poller" }
+    for (let i = 0; i < 1000; i++) { record({ t: t0 + i, actor, action: "run", text: "Polled browser tab 9" }); flush() }
+    const file = path.join(app.plugins.find((p) => p.id === "activity")!.localDir(), `events-${day}.jsonl`)
+    const lines = fs.readFileSync(file, "utf8").split("\n").filter((l) => l.includes("Polled browser tab 9"))
+    const rows = logs.events.read(day).filter((e) => e.text === "Polled browser tab 9")
+    check("activity: a thousand repeats are one row, its day's file compacted rather than a copy per flush",
+      rows.length === 1 && rows[0].count === 1000 && lines.length < 400, { rows: rows.length, count: rows[0]?.count, lines: lines.length })
+    const midnight = new Date(new Date(t0).setHours(0, 0, 0, 0)).getTime()
+    const before = record({ t: midnight - 30_000, actor, action: "run", text: "Polled at midnight" })
+    const after = record({ t: midnight + 10_000, actor, action: "run", text: "Polled at midnight" })
+    check("activity: a repeat past midnight starts the new day's event", before !== after && after.t === midnight + 10_000, [before, after])
+  }
   Object.assign($.vars, { actHeard })
 }

@@ -2,7 +2,7 @@ import fs from "node:fs"
 import { logger, type RequestEnd, type RequestStart } from "../../../core/plugins.ts"
 import { lookup, whoFrom, withCaller, withSession } from "./callers.ts"
 import { describe, failed, opKind } from "./describe.ts"
-import { changed, naming, record } from "./events.ts"
+import { changed, naming, record, writesFiles } from "./events.ts"
 import type { Actor, ActivityEvent } from "./model.ts"
 import { MINUTE, plugin } from "./store.ts"
 import { busy, timing } from "./timings.ts"
@@ -44,13 +44,14 @@ plugin.onRequest((s) => {
     const did = end.status >= 400 && !byApp && !route.startsWith("activity") ? failed(s.method, route, end)
       : describe(s.method, route, s.query, end.body, byApp || actor.kind === "you")
     if (!did) return
+    const ownsWhatWasWritten = w && writesFiles(did.action) ? w : null
     const finish = (as: Actor) => {
-      const paths = [...new Set([...did.paths, ...(w?.paths ?? [])])]
+      const paths = [...new Set([...did.paths, ...(ownsWhatWasWritten?.paths ?? [])])]
       const who = actingAs(as, did.by, s, paths)
       if (late) late.who = who.name
-      const ev = record({ t: s.t, actor: who, action: did.action, text: did.text, paths, ...(did.action === "request" ? { wrote: [...(w?.paths ?? [])] } : {}),
+      const ev = record({ t: s.t, actor: who, action: did.action, text: did.text, paths, ...(did.action === "request" ? { wrote: [...(ownsWhatWasWritten?.paths ?? [])] } : {}),
         method: s.method, route, status: end.status, ms: Math.round(end.ms) })
-      if (w) w.event = ev
+      if (ownsWhatWasWritten) ownsWhatWasWritten.event = ev
     }
     if (caller) {
       const done = caller.then(async (c) => finish(await withSession(withCaller(actor, c))))

@@ -12,16 +12,10 @@ const dirty = new Set<ActivityEvent>()
 const FLUSH = 3000
 let seq = 0
 
-function latest(rows: ActivityEvent[]) {
-  const by = new Map<string, ActivityEvent>()
-  for (const e of rows) if (e && e.id) by.set(e.id, e)
-  return [...by.values()]
-}
-
 function loaded() {
   if (events) return events
   const now = Date.now()
-  events = latest([...logs.events.read(localDate(now - DAY)), ...logs.events.read(localDate(now))])
+  events = [...logs.events.read(localDate(now - DAY)), ...logs.events.read(localDate(now))]
   events.sort((a, b) => a.t - b.t)
   if (events.length > KEEP) events = events.slice(-KEEP)
   return events
@@ -33,7 +27,7 @@ export function record(e: Omit<ActivityEvent, "id">): ActivityEvent {
   const list = loaded()
   const key = keyOf(e)
   const was = open.get(key)
-  if (was && e.t - (was.last ?? was.t) < MERGE) {
+  if (was && e.t - (was.last ?? was.t) < MERGE && localDate(e.t) === localDate(was.t)) {
     was.last = e.t
     was.count = (was.count ?? 1) + 1
     if (e.ms !== undefined) was.ms = Math.max(was.ms ?? 0, e.ms)
@@ -90,13 +84,14 @@ export function between(since: number): ActivityEvent[] {
   if (since >= memFrom) return list.filter((e) => e.t >= since)
   const older: ActivityEvent[] = []
   for (let d = since; localDate(d) <= localDate(memFrom); d += DAY) {
-    for (const e of latest(logs.events.read(localDate(d)))) if (e.t >= since && e.t < memFrom) older.push(e)
+    for (const e of logs.events.read(localDate(d))) if (e.t >= since && e.t < memFrom) older.push(e)
   }
   return [...older.sort((a, b) => a.t - b.t), ...list]
 }
 
 const CHANGES = new Set<string>([...ACTION_KINDS.find((k) => k.id === "changes")!.actions, "request"])
 export const changedPaths = (e: ActivityEvent) => (e.action === "request" ? e.wrote ?? e.paths : e.paths) ?? []
+export const writesFiles = (action: string) => CHANGES.has(action)
 export const isChange = (e: ActivityEvent) => !!changedPaths(e).length && CHANGES.has(e.action)
 let changesKept: { list: ActivityEvent[]; has: Set<ActivityEvent> } | null = null
 function keptChange(e: ActivityEvent) {
