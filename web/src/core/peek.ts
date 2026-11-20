@@ -111,6 +111,7 @@ export function usePeekLights(hidden: boolean, peek: Peek) {
 
 const EDGE = { left: { px: 6, ms: 90 }, right: { px: 3, ms: 220 } }
 const LINGER = 280
+const ECHO_WHILE_WINDOW_HEARS_MS = 150
 
 function held(aside: Element | null) {
   if (getDrag() || document.querySelector("[role=menu]")) return true
@@ -126,7 +127,7 @@ const FRAME = "iframe, embed, object"
 
 export function usePeek(left: boolean, right: boolean): Peek {
   const [peek, setPeek] = useState<Peek>(null)
-  const summoned = useRef(false)
+  const summoned = useRef(false), windowHeardAt = useRef(-Infinity)
   if ((peek === "left" && !left) || (peek === "right" && !right)) setPeek(null)
   useEffect(() => { if (!peek) summoned.current = false }, [peek])
   useEffect(() => {
@@ -162,7 +163,7 @@ export function usePeek(left: boolean, right: boolean): Peek {
       if (side && opening?.side !== side) { stopOpening(); opening = { side, t: setTimeout(() => { opening = null; setPeek(side) }, EDGE[side].ms) } }
       else if (!side) stopOpening()
     }
-    const move = (e: PointerEvent) => { if (e.pointerType !== "touch") at(e.clientX) }
+    const move = (e: PointerEvent) => { if (e.pointerType !== "touch") { windowHeardAt.current = performance.now(); at(e.clientX) } }
     // Over a frame (an HTML file, a PDF) the window hears no pointer moves, so edges of our own catch it meanwhile.
     const root = document.documentElement.dataset
     const over = (e: PointerEvent) => {
@@ -179,7 +180,7 @@ export function usePeek(left: boolean, right: boolean): Peek {
     addEventListener("pointerdown", down, true)
     addEventListener("keydown", key)
     // A browser tab's page is drawn over the window, which hears nothing there: the desktop app sends the moves.
-    const off = webPages?.on((m) => { if (m.type === "pointer") at(m.x) })
+    const off = webPages?.on((m) => { if (m.type === "pointer" && performance.now() - windowHeardAt.current > ECHO_WHILE_WINDOW_HEARS_MS) at(m.x) })
     return () => {
       stopOpening(); stopClosing(); off?.()
       removeEventListener("pointermove", move)

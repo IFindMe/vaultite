@@ -50,6 +50,13 @@ function pointer(check: Check) {
     read({ type: "mouseDown", x: 3, y: 4, button: "right", clickCount: 9, keys: ["meta", "nope"] })?.clickCount === 3 &&
     read({ type: "mouseDown", keys: ["meta", "nope", "alt"] })?.keys.join() === "alt,meta" && read({ type: "mouseDown" })?.button === "left" &&
     read({ type: "mouseWheel", dx: "x" })?.dx === 0 && read({ type: "click" }) === null && read(null) === null)
+  check("pointer: a page's own pointer is the user's only while the window isn't over it (else it's what the window passed on)",
+    S.pageHearsUser(S.NO_POINTER) && !S.pageHearsUser(run([raise("through")]).s) && !S.pageHearsUser(run([raise("app")]).s) &&
+    S.pageHearsUser(run([raise("through"), raise(null)]).s))
+  const at = (wz: number, pz: number, pinch: number) => { const r = S.protocolAt({ x: 100, y: 40 }, wz, pz, pinch); return `${r.x.toFixed(1)},${r.y.toFixed(1)}` }
+  check("pointer: passed over the protocol, it lands where the user is however the window and page are zoomed or pinched",
+    at(1, 1, 1) === "100.0,40.0" && at(1, 1, 1.5) === "66.7,26.7" && at(1.25, 1, 1) === "125.0,50.0" && at(1, 2, 1) === "50.0,20.0" && at(1, 0, 0) === "100.0,40.0",
+    [at(1, 1, 1), at(1, 1, 1.5), at(1.25, 1, 1), at(1, 2, 1), at(1, 0, 0)])
   check("pointer: anything but a known raise reads as none", S.RAISE.parse("app") === "app" && S.RAISE.parse("through") === "through" && S.RAISE.parse("x") === null && S.RAISE.parse(undefined) === null)
 }
 

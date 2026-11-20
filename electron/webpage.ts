@@ -13,7 +13,7 @@ import { otherApp } from "./webpermissions.ts"
 import { makeSpare, newView, prefsOf, takeSpare } from "./websession.ts"
 import { iconFrom } from "./webicons.ts"
 import { noteVisit } from "./webaccounts.ts"
-import { addPage, restack } from "./webstack.ts"
+import { addPage, restack, userOver } from "./webstack.ts"
 import { fit, keysBackIfUnseen, move, place, wake } from "./webspot.ts"
 import { fromPlayer, strips, toPlayer } from "./webplayer.ts"
 import { end, keepPast, mayLeave, own, restoreMod, unloading } from "./weblife.ts"
@@ -261,6 +261,7 @@ export function make(win: AppWindow, url: string, profile: string, tab: string, 
       tell(p.win, { type: "top", id: p.id, at: top, ...(top && down ? { now: true } : {}) })
     }
     if (down) return
+    if (!userOver(p.win)) { atEdge = false; return }
     const x = (b.x + m.x) / z, edge = x <= EDGE || x >= w / z - EDGE
     if (!edge && !atEdge) return
     atEdge = edge

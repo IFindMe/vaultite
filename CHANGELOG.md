@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Desktop: a hidden sidebar no longer peeks out while the pointer is mid-page on a pinch-zoomed web page under a
+  floating card (the mini player, a toast), and clicks there land where the pointer is.
 - Activity: an action repeated all day (an agent polling a browser tab) updates its one line instead of adding a
   copy every few seconds, so its log no longer fills the disk; it starts a new line each day and no longer lists files
   something else wrote while it ran.

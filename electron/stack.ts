@@ -58,6 +58,13 @@ export type PointerEffect =
   | { do: "send"; buttons: number }
   | { do: "leave" }
 
+export const pageHearsUser = (s: Pointer) => s.raise === null
+
+export function protocolAt(at: { x: number; y: number }, windowZoom: number, pageZoom: number, pinch: number) {
+  const k = windowZoom / ((pageZoom || 1) * (pinch || 1))
+  return { x: at.x * k, y: at.y * k, k }
+}
+
 const BITS: Record<Button, number> = { left: 1, right: 2, middle: 4 }
 
 export type PointerMove = { to: Pointer; do: PointerEffect[] }

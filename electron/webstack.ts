@@ -1,9 +1,10 @@
-import { screen, type View, WebContentsView } from "electron"
+import { screen, type View, type WebContents, WebContentsView } from "electron"
+import { z } from "zod"
 import { AppWindow } from "./appwindow.ts"
-import { cdp } from "./browser/cdp.ts"
+import { cdp, cdpAnswer } from "./browser/cdp.ts"
 import type { FocusEvent } from "./focusstep.ts"
 import { QUIET } from "./quiet.ts"
-import { NO_POINTER, type Passed, type Pointer, type PointerEvent, pointerStep, type Raise, type Role, stackOrder } from "./stack.ts"
+import { NO_POINTER, pageHearsUser, type Passed, type Pointer, type PointerEvent, pointerStep, protocolAt, type Raise, type Role, stackOrder } from "./stack.ts"
 import { MAC, type Page, pages } from "./webbase.ts"
 
 // ---------- the window's page over its pages: stack.ts decides ----------
@@ -26,6 +27,8 @@ export function restack(win: AppWindow, top?: WebContentsView) {
   const want = stackOrder(win.contentView.children, roleOf, pointerOf(win).raise, top)
   for (const [i, v] of want.entries()) if (win.contentView.children[i] !== v) win.contentView.addChildView(v, i)
 }
+
+export const userOver = (win: AppWindow) => pageHearsUser(pointerOf(win))
 
 export const raise = (win: AppWindow, how: Raise) => { if (!win.isDestroyed()) run(win, { type: "raise", how }) }
 
@@ -59,8 +62,8 @@ const CDP_TYPE = { mouseMove: "mouseMoved", mouseDown: "mousePressed", mouseUp: 
 const KEY_BITS = { alt: 1, control: 2, meta: 4, shift: 8 }
 
 function send(p: Page, m: Passed, buttons: number | null) {
-  const wc = p.view.webContents, z = p.win.webContents.getZoomFactor()
-  const x = Math.round(m.x * z), y = Math.round(m.y * z)
+  const wc = p.view.webContents, zoom = p.win.webContents.getZoomFactor()
+  const x = Math.round(m.x * zoom), y = Math.round(m.y * zoom)
   // (the click landed on the window's view, which macOS gave the keyboard: a press in the page takes it, as a real one does)
   if (m.kind === "mouseDown" && !wc.isFocused()) wc.focus()
   const direct = () => {
@@ -68,12 +71,30 @@ function send(p: Page, m: Passed, buttons: number | null) {
     else wc.sendInputEvent({ type: m.kind, x, y, button: m.button, clickCount: m.clickCount, modifiers: m.keys })
   }
   if (buttons === null || m.kind === "mouseLeave") return direct()
-  // Over the DevTools protocol, which finds the frame under the pointer as the Mac's input does: sendInputEvent never
-  // reaches a frame from another site (a captcha, "Sign in with Google").
-  const type = CDP_TYPE[m.kind], pz = wc.getZoomFactor() || 1, modifiers = m.keys.reduce((n, k) => n | KEY_BITS[k], 0)
-  const at = { x: Math.round(m.x * z / pz), y: Math.round(m.y * z / pz) }
-  const params = type === "mouseWheel" ? { type, ...at, modifiers, deltaX: m.dx * z / pz, deltaY: m.dy * z / pz }
-    : type === "mouseMoved" ? { type, ...at, modifiers, button: buttons ? (buttons & 1 ? "left" : buttons & 2 ? "right" : "middle") : "none", buttons }
-    : { type, ...at, modifiers, button: m.button, buttons, clickCount: m.clickCount }
-  void cdp(wc, "Input.dispatchMouseEvent", params).catch(direct)
+  // Over the DevTools protocol, which finds the frame under the pointer as the Mac's input does (sendInputEvent never
+  // reaches a frame from another site, a captcha); it counts the page's CSS pixels, which its zoom and pinch multiply.
+  const type = CDP_TYPE[m.kind], modifiers = m.keys.reduce((n, k) => n | KEY_BITS[k], 0)
+  inOrder(wc, async () => {
+    const { k, ...at } = protocolAt(m, zoom, wc.getZoomFactor(), await pinchOf(wc))
+    const params = type === "mouseWheel" ? { type, ...at, modifiers, deltaX: m.dx * k, deltaY: m.dy * k }
+      : type === "mouseMoved" ? { type, ...at, modifiers, button: buttons ? (buttons & 1 ? "left" : buttons & 2 ? "right" : "middle") : "none", buttons }
+      : { type, ...at, modifiers, button: m.button, buttons, clickCount: m.clickCount }
+    void cdp(wc, "Input.dispatchMouseEvent", params).catch(direct)
+  })
+}
+
+const queued = new WeakMap<WebContents, Promise<void>>()
+function inOrder(wc: WebContents, send: () => Promise<void>) {
+  queued.set(wc, (queued.get(wc) ?? Promise.resolve()).then(send).catch(() => {}))
+}
+
+const METRICS = z.object({ cssVisualViewport: z.object({ scale: z.number().catch(1) }) })
+const PINCH_MS = 250
+const pinches = new WeakMap<WebContents, { scale: number; at: number }>()
+async function pinchOf(wc: WebContents) {
+  const had = pinches.get(wc)
+  if (had && Date.now() - had.at < PINCH_MS) return had.scale
+  const scale = await cdpAnswer(wc, METRICS, "Page.getLayoutMetrics").then((r) => r.cssVisualViewport.scale || 1, () => had?.scale ?? 1)
+  pinches.set(wc, { scale, at: Date.now() })
+  return scale
 }
