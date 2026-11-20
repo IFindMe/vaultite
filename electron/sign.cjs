@@ -141,9 +141,23 @@ function readOnly(p) {
 }
 
 const installedReadOnlyAnyway = (platform) => platform === "linux"
+const squirrelInstallsIt = (platform) => platform === "darwin" && RELEASE
+
+function compileCache(context) {
+  const cache = path.join(context.packager.getResourcesDir(context.appOutDir), "app", ".compile-cache")
+  if (squirrelInstallsIt(context.electronPlatformName)) return fs.rmSync(cache, { recursive: true, force: true })
+  if (!installedReadOnlyAnyway(context.electronPlatformName)) readOnly(cache)
+}
+
+function allWritable(dir) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true, recursive: true })) {
+    const p = path.join(e.parentPath, e.name)
+    if (!e.isSymbolicLink() && !(fs.statSync(p).mode & 0o200)) throw new Error(`sign.cjs: ${path.relative(dir, p)} is read-only: Squirrel.Mac, a Mac release's updater, gives up on a file whose quarantine flag it can't clear`)
+  }
+}
 
 exports.default = async function sign(context) {
-  if (!installedReadOnlyAnyway(context.electronPlatformName)) readOnly(path.join(context.packager.getResourcesDir(context.appOutDir), "app", ".compile-cache"))
+  compileCache(context)
   await fuses(context, stampShell(context))
   if (context.electronPlatformName === "win32") return require("./natives.cjs").windows(context)
   if (context.electronPlatformName !== "darwin") return
@@ -153,6 +167,7 @@ exports.default = async function sign(context) {
   const id = identity()
   if (RELEASE) {
     if (!id) throw new Error("sign.cjs: a release needs a \"Developer ID Application\" identity in the keychain (or VAULTITE_SIGN_IDENTITY)")
+    allWritable(app)
     return release(app, id)
   }
   if (id) {

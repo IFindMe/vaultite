@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Mac: updating from a release works again. Since 0.15.0 the update downloaded, then macOS's installer gave up on a
+  read-only folder in the new app, so 0.13.0 never moved on and said nothing; a release now ships nothing read-only.
 - Desktop: a hidden sidebar no longer peeks out while the pointer is mid-page on a pinch-zoomed web page under a
   floating card (the mini player, a toast), and clicks there land where the pointer is.
 - Activity: an action repeated all day (an agent polling a browser tab) updates its one line instead of adding a
