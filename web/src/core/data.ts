@@ -29,6 +29,8 @@ import { keptEntries } from "@/core/keptEntries"
  *  core's own keys. */
 export type State = PluginState & {
   vault: { path: string; problems: { file: string; problem: string }[]
+    name?: string
+    nickname?: string
     /** Files the server is still reading (iCloud downloading them): not in the store until they arrive. */
     downloading?: string[]
     /** A sandbox (core/sandbox.ts): made up, made afresh each time it opens. */
@@ -288,7 +290,8 @@ const publish = (next: Partial<Loaded>) => {
 }
 /** The store as it is now (for code outside React). */
 export const getStore = () => loaded.store
-export const vaultName = (s: Store | null | undefined) => (s ? (s.vault.sandbox ? "Playground" : s.vault.path.split("/").filter(Boolean).pop() ?? "Vault") : "Vault")
+export const vaultFolder = (s: Store) => s.vault.path.split(/[\\/]/).filter(Boolean).pop() ?? "Vault"
+export const vaultName = (s: Store | null | undefined) => (s ? (s.vault.sandbox ? "Playground" : s.vault.name || vaultFolder(s)) : "Vault")
 export const onStore = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } }
 /** Change the store optimistically, after a write: f returns a new store, with new objects where it changed (never
  *  one changed in place: the store's objects are also the server's last state, which the next refresh patches). */

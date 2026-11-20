@@ -18,9 +18,9 @@ import { heardHello } from "./serverhello.ts"
 import type { ServerWatch } from "./serverwatch.ts"
 import { MAC, ROOT, WIN } from "./mainbase.ts"
 import { heldPastExec, INHERITED } from "./inherited.ts"
-import { type Known, nameOf, portFor, PortTaken } from "./vaultlist.ts"
+import { folderOf, type Known, nameOf, portFor, PortTaken } from "./vaultlist.ts"
 
-export const serverLog = (p: string) => path.join(app.getPath("logs"), `server-${nameOf(p)}.log`)
+export const serverLog = (p: string) => path.join(app.getPath("logs"), `server-${folderOf(p)}.log`)
 const LOCAL = process.env.VAULTITE_LOCAL || (app.isPackaged ? path.join(app.getPath("userData"), "local") : path.join(ROOT, "data"))
 
 export type Server = ChildProcess | Adopted

@@ -84,6 +84,7 @@ const refresh = () => {
   listed = Date.now()
   listVaults().then((l) => { known = l.vaults.filter((v) => v.path !== l.current) }, () => { listed = 0 })
 }
+export const relistVaults = () => { listed = 0; refresh() }
 
 export function startDesktop() {
   const app = desktop

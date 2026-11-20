@@ -26,6 +26,7 @@ import * as SC from "./statechunks.ts"
 import * as SP from "./statepatch.ts"
 import { coreOps } from "./coreops.ts"
 import { SETTINGS } from "./coreops/settings.ts"
+import { ownNickname, vaultName } from "./vaultname.ts"
 import { keptOf } from "./kept.ts"
 import { filing } from "./filing.ts"
 import { checkParams, didOf, entryOf, jsonBlock, nearest, type Op, type OpCtx, OpError, opsDoc, pathAsSaid, type Who, whoOf } from "./ops.ts"
@@ -313,7 +314,10 @@ export class App {
     if (same) return this.stated!.state
     const out: Item = {}
     await kept.readingFor(async () => { for (const p of this.plugins) Object.assign(out, await p.getState()) })
-    out.vault = { path: this.vault.path, problems: this.vault.problemList(), downloading: this.vault.downloading, ...(fs.existsSync(this.vault.abs(SANDBOX_MARKER)) ? { sandbox: true } : {}) }
+    const nickname = ownNickname(this.vault), vault: Item = { path: this.vault.path, name: vaultName(this.vault.path, nickname), problems: this.vault.problemList(), downloading: this.vault.downloading }
+    if (nickname) vault.nickname = nickname
+    if (fs.existsSync(this.vault.abs(SANDBOX_MARKER))) vault.sandbox = true
+    out.vault = vault
     out.files = F.tree(this.vault)
     out.vaultPlugins = this.vaultPlugins.list()
     out.app = { version: APP_VERSION, api: API_VERSION }

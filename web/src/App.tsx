@@ -12,6 +12,7 @@ import { currentEditor, keysInEditor } from "@/core/editors"
 import { bareWindow, desktop as desktopApp, hasLights } from "@/core/desktop"
 import { canKeepOnTop, keepOnTop, onTop } from "@/core/ontop"
 import { otherVaults } from "@/core/desktopapp"
+import { canRenameVault, renameVault } from "@/core/vaultrename"
 import { peekPanel, peekRider, usePeek, usePeekLights, useSideMotion } from "@/core/peek"
 import { useBarFade } from "@/core/barfade"
 import { hideBarsOnUserScroll } from "@/core/barhide"
@@ -157,6 +158,7 @@ const manageVaults = () => (desktopApp ? desktopApp.manageVaults() : openDetail(
 const VAULT_MENU = (): MenuItem[] => [
   ...otherVaults().map((v) => ({ label: `Open ${v.name}`, run: () => { (desktopApp ? desktopApp.openVault(v.path) : webVaults.open(v.path)).catch((e) => notifyError(e, "Couldn't open it")) } })),
   { label: "Manage vaults", sep: !!otherVaults().length, run: () => { manageVaults() } },
+  ...(canRenameVault() ? [{ label: "Rename vault…", run: renameVault }] : []),
   ...(desktopApp?.openSandbox ? [{ label: "Open the playground", run: () => { desktopApp!.openSandbox!() } }] : []),
   ...(phoneApp ? [{ label: "Switch server…", run: () => { phoneApp!.launcher() } }] : []),
 ]
@@ -421,6 +423,7 @@ export default function App() {
     { id: "tab:toggle-pin", name: "Pin tab", when: isDesktop, run: () => togglePinTab(activeTab().id), icon: Pin, nameWhenOn: "Unpin tab", on: () => !!activeTab().pinned },
     { id: "tab:sidebar", name: "Show tabs in the sidebar", when: () => isDesktop() && !isPopout() && !!tabListPanel(), run: () => showTabsIn(tabsInSidebar() ? "top" : "sidebar"),
       icon: PanelLeft, nameWhenOn: "Show tabs on top", on: () => tabsInSidebar() },
+    { id: "vault:rename", name: "Rename vault…", when: canRenameVault, words: "nickname", run: renameVault, icon: PencilLine },
     { id: "tab:rename", name: "Rename tab…", when: () => canRenameTab(activeTab()), run: () => renameTab(), icon: PencilLine },
     { id: "tab:group", name: "Add current tab to group…", when: isDesktop, run: chooseTabGroup, icon: GroupIcon },
     { id: "tab:rename-group", name: "Rename tab group…", when: () => isDesktop() && !!activeTab().group, run: renameTabGroup, icon: PencilLine },

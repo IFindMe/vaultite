@@ -9,6 +9,7 @@ import { onOff, pluginList } from "./plugins.ts"
 import { serverUrl } from "../plugins.ts"
 import { untyped } from "./types.ts"
 import { logger } from "../log.ts"
+import { ownNickname, vaultName } from "../vaultname.ts"
 
 const log = logger("context")
 
@@ -40,7 +41,7 @@ the window shows (and the hidden ones), which plugins are on or off, the appeara
       const { on } = onOff(plugins, app.vault.config("plugins"))
       const fromPlugins: object = Object.assign({}, ...extra.map((x) => x.data ?? {}))
       return {
-        url: serverUrl(), server: "running", windows, vault: app.vault.path, client: client ?? null,
+        url: serverUrl(), server: "running", windows, vault: app.vault.path, name: vaultName(app.vault.path, ownNickname(app.vault)), client: client ?? null,
         ...fromPlugins,
         extra: extra.map((x) => x.text ?? "").filter(Boolean),
         sidebars: target ? { workspace: target.label, own: !!target.setup } : null,
@@ -53,7 +54,7 @@ the window shows (and the hidden ones), which plugins are on or off, the appeara
       const off = r.plugins.filter((p) => !p.on)
       return [
         `Server: ${r.url} (running, ${r.windows} app window${r.windows === 1 ? "" : "s"} open)`,
-        `Vault: ${r.vault}`,
+        `Vault: ${r.name} (${r.vault})`,
         `Client: ${r.client ?? "unknown (VAULTITE_CLIENT isn't set: not in the app's terminal)"}`,
         "",
         ...r.extra.flatMap((t) => [t, ""]),
