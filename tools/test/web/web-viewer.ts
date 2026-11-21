@@ -1,5 +1,5 @@
 import { check } from "../lib.ts"
-import { plugin } from "./lib.ts"
+import { plugin, type Any } from "./lib.ts"
 
 // ---------- Browser: what's typed in the address bar (plugins/core/web-viewer/address.ts) ----------
 {
@@ -18,6 +18,18 @@ import { plugin } from "./lib.ts"
     && httpFallback("https://example.com/a", "ERR_CONNECTION_REFUSED") === "http://example.com/a" && httpFallback("https://example.com/", "ERR_CERT_AUTHORITY_INVALID") === "http://example.com/"
     && httpFallback("https://example.com/", "ERR_NAME_NOT_RESOLVED") === null)
   check("Browser: a tab's name before the page's title is its site", hostOf("https://www.example.com/a") === "example.com" && hostOf("nonsense") === "nonsense")
+}
+
+{
+  const { refusedAccount, holdsAccount: holds }: { refusedAccount(url: string, held?: Any): string | null; holdsAccount(s: Any, who: string): boolean } =
+    await plugin("web-viewer/googleaccount.ts")
+  const rejected = "https://accounts.google.com/v3/signin/rejected?continue=https%3A%2F%2Fmail.google.com%2F"
+  check("Browser: Google's refusal is of the account typed, else the one these logins hold, else none",
+    refusedAccount(`${rejected}&idnf=Lucas%40Example.com`, { site: "google.com", account: "a@b.c" }) === "lucas@example.com"
+    && refusedAccount(rejected, { site: "google.com", account: "a@b.c" }) === "a@b.c" && refusedAccount(rejected) === null)
+  check("Browser: Google's refusal offers only a login of the same account, beside others or not",
+    holds({ site: "google.com", account: "a@b.c", more: ["Lucas@Example.com"] }, "lucas@example.com")
+    && !holds({ site: "google.com", account: "a@b.c" }, "lucas@example.com"))
 }
 
 // ---------- Browser: where a page opens (plugins/core/web-viewer/where.ts) ----------

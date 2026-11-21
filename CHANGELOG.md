@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Browser: Google's "Couldn't sign you in" offers to copy a login only of the account refused, from a container
+  signed in as it, never another account's from another container.
 - Updates: an agent browsing where no one watches (an always-on one in its own container) no longer holds the
   server's restart, and nothing holds it past 30 minutes but an agent acting in a tab the user sees.
 - Mac: updating from a release works again. Since 0.15.0 the update downloaded, then macOS's installer gave up on a

@@ -1,4 +1,5 @@
 import { notify, webPages, type WebSite } from "@vaultite"
+import { holdsAccount, refusedAccount } from "./googleaccount"
 import { allLogins, isIn, moveLogin, nameOf, type Logins } from "./loginsets"
 
 const REFUSED = /^https:\/\/accounts\.google\.com\/(v3\/)?signin\/rejected\b/
@@ -13,11 +14,14 @@ export function retryOf(url: string) {
   } catch { return "https://accounts.google.com/" }
 }
 
-async function signedInElsewhere(here: Logins): Promise<{ from: Logins; site: WebSite } | null> {
+const googleIn = (sites: WebSite[] | undefined) => sites?.find((s) => s.site === "google.com" && isIn(s))
+const googleOf = async (l: Logins) => googleIn(await webPages?.sites?.(l.prof).catch(() => []))
+
+async function signedInAs(who: string, here: Logins): Promise<{ from: Logins; site: WebSite } | null> {
   for (const from of allLogins()) {
-    if (from.prof === here.prof || !webPages?.sites) continue
-    const site = (await webPages.sites(from.prof).catch(() => [])).find((s) => s.site === "google.com" && isIn(s))
-    if (site) return { from, site }
+    if (from.prof === here.prof) continue
+    const site = await googleOf(from)
+    if (site && holdsAccount(site, who)) return { from, site }
   }
   return null
 }
@@ -28,13 +32,11 @@ export async function googleRefused(id: number, url: string, container: string |
   told.add(id)
   const here = allLogins().find((l) => l.container === container)
   if (!here) return
-  const found = await signedInElsewhere(here), these = here.container ? here.name : "these logins"
-  if (!found) {
-    notify(`Google doesn't trust ${these} yet. Sign in to Google in another container or on another Mac, then copy that login here from Sites.`, { duration: 20_000 })
-    return
-  }
+  const who = refusedAccount(url, await googleOf(here))
+  const found = who ? await signedInAs(who, here) : null
+  if (!who || !found) return
   const { from, site } = found
-  notify(`Google doesn't trust ${these} yet. Copy your Google login from ${nameOf(from)} and try again?`, {
+  notify(`Google refused ${who} here. Copy its login from ${nameOf(from)} and try again?`, {
     duration: 30_000,
     action: { label: "Copy and retry", run: async () => { if (await moveLogin(from, here, site, true, { quiet: true }) === "moved") await webPages?.go(id, "load", retryOf(url)) } },
   })
