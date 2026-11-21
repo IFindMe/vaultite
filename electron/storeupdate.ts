@@ -41,7 +41,7 @@ export async function look(h: StoreHost) {
   // (the clone update.sh built in, moved in: its objects, no download)
   await store.init(path.join(userData(), "source.noindex"))
   opts ??= { root: store.repo, bare: true, branch: BRANCH, running: CODE!.commit, stateFile: path.join(userData(), "store-updates.json"),
-    busy: h.busy, restart: () => {}, log: (line, e) => h.log(e === undefined ? line : `${line}: ${errText(e)}`), apply: async () => ({ restart: false }) }
+    busy: async () => { const why = await h.busy(); return why ? { why, acting: true } : null }, restart: () => {}, log: (line, e) => h.log(e === undefined ? line : `${line}: ${errText(e)}`), apply: async () => ({ restart: false }) }
   opts.root = store.repo
   opts.ci = p.ci
   // (busy, an agent at work in the browser, never holds a root being made: only its servers' restart waits, below)

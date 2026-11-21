@@ -5,7 +5,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { check, exit, section, summary, tempDir } from "./test/lib.ts"
 import type { CiResult } from "../core/update/ci.ts"
-import { checkForUpdate } from "../core/update/updater.ts"
+import { type Busy, checkForUpdate } from "../core/update/updater.ts"
 import { backendChanged, inPlace, shadow } from "../core/selfupdate.ts"
 import { gitEnv } from "../core/gitenv.ts"
 import { giveGraph } from "../core/update/graph.ts"
@@ -33,7 +33,7 @@ git(server, "remote", "set-url", "origin", GH)
 git(server, "config", `url.${origin}.insteadOf`, GH)
 const head = () => git(server, "rev-parse", "HEAD")
 
-let ci: CiResult = { ok: true, why: "CI passed" }, busy: string | null = null, restarts = 0, failBuild = false
+let ci: CiResult = { ok: true, why: "CI passed" }, busy: Busy | null = null, restarts = 0, failBuild = false
 let verdicts = new Map<string, CiResult>() // (a commit's own, else `ci`)
 const npmCalls: string[] = [], logged: { line: string; error: boolean }[] = []
 const o = inPlace({ quietEvery: 10, log: (line, error) => { logged.push({ line, error: error !== undefined }) }, root: server, branch: "main", stateFile: path.join(tmp, "state", "selfupdate.json"),
@@ -49,10 +49,10 @@ await section("up to date, then a web-only update", async () => {
   check("waits for CI, naming the commit", s.state === "waiting" && s.why.includes("CI is running") && s.next === next && head() === first, s)
   check("…and saying what CI said of it", s.ci?.length === 1 && s.ci[0].commit === next && s.ci[0].ok === null, s.ci)
   ci = { ok: true, why: "CI passed" }
-  busy = "an agent's call is under way"
+  busy = { why: "an agent's call is under way in a tab the user sees", acting: true }
   const u = await look()
   busy = null
-  check("busy holds only a restart: the web app updates while an agent browses, saying so", u.state === "current" && /\(the web app only, while busy: an agent's call is under way\)/.test(u.why), u)
+  check("busy holds only a restart: the web app updates while an agent browses, saying so", u.state === "current" && /\(the web app only, while busy: an agent's call is under way in a tab the user sees\)/.test(u.why), u)
   check("updates: fast-forwards and builds, no install (the lock didn't change)", u.state === "current" && head() === next && JSON.stringify(npmCalls) === '["run build"]', { u, npmCalls })
   check("the web app only: no restart", restarts === 0 && u.last?.restarted === false && u.last.from === first && u.last.to === next, u)
 })
@@ -92,15 +92,15 @@ await section("a backend update with new dependencies restarts", async () => {
   npmCalls.length = 0
   const r0 = restarts
   const next = commit({ "core/x.ts": "3", "package-lock.json": '{"v":3}' }, "feat(server): three")
-  busy = "an agent acted in a page in the last 10 minutes"
+  busy = { why: "an agent acted in a tab the user sees in the last minute", acting: false }
   const held = await look()
   busy = null
-  check("an update that restarts waits while the browser is busy, saying why", held.state === "waiting" && held.why === "busy: an agent acted in a page in the last 10 minutes; the update restarts the server"
+  check("an update that restarts waits while the browser is busy, saying why", held.state === "waiting" && held.why === "busy: an agent acted in a tab the user sees in the last minute; the update restarts the server"
     && held.next === next && !npmCalls.length && restarts === r0, held)
   // (an agent's call begins while it builds: the restart waits for the browser to be quiet, the build kept)
   let asks = 0
   const was = o.busy
-  o.busy = async () => (++asks >= 2 && asks <= 3 ? "an agent's call is under way" : null)
+  o.busy = async () => (++asks >= 2 && asks <= 3 ? { why: "an agent's call is under way", acting: true } : null)
   logged.length = 0
   const u = await look()
   o.busy = was
@@ -109,6 +109,28 @@ await section("a backend update with new dependencies restarts", async () => {
   check("installs (the lock changed), then builds", JSON.stringify(npmCalls) === '["install --no-audit --no-fund","run build"]', npmCalls)
   check("restarts for a backend change", restarts === r0 + 1 && u.last?.restarted === true && head() === next, u)
   check("what it did lasts across a restart", JSON.parse(fs.readFileSync(o.stateFile, "utf8")).last?.to === next)
+})
+
+await section("busy that never ends (an always-on agent, a tab left watched): the restart is taken after its cap", async () => {
+  npmCalls.length = 0
+  const r0 = restarts, was = o.busy
+  const next = commit({ "core/always.ts": "1" }, "feat(server): always")
+  const watched: Busy = { why: "the user is watching a tab live", acting: false }
+  let asks = 0
+  o.busy = async () => { asks++; return watched }
+  const held = await look()
+  check("under the cap, busy holds the restart as before", held.state === "waiting" && held.why === "busy: the user is watching a tab live; the update restarts the server"
+    && restarts === r0 && !npmCalls.length, held)
+  o.holdAtMost = 0
+  asks = 0
+  o.busy = async () => (++asks >= 2 && asks <= 3 ? { why: "an agent acted in a tab the user sees in the last 15 s", acting: true } : watched)
+  logged.length = 0
+  const u = await look()
+  check("past it, an act the user sees still holds it, said once", logged.filter((l) => /is built; the server restarts once the browser is quiet \(an agent acted in a tab the user sees/.test(l.line)).length === 1, logged)
+  check("…then it restarts at a moment nothing acts, busy or not, saying it held its most", restarts === r0 + 1 && head() === next && u.state === "current"
+    && /restarting; busy held it \d+ min, its most \(the user is watching a tab live\)/.test(u.why), u)
+  o.busy = was
+  delete o.holdAtMost
 })
 
 await section("never half-updated", async () => {

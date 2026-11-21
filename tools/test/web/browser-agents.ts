@@ -2,14 +2,21 @@ import { check, section } from "../lib.ts"
 
 // ---------- Browser: when agents' browsing holds a restart (electron/browser/agentbusy.ts) ----------
 await section("agents hold restarts", async () => {
-  const { agentBusy, QUIET_AFTER } = await import("../../../electron/browser/agentbusy.ts")
-  const now = 1_000_000_000
-  check("a call under way holds either restart, however long ago the last action", agentBusy("server", { inFlight: 1, lastStep: 0, now }) === "an agent's call is under way"
-    && agentBusy("app", { inFlight: 2, lastStep: 0, now }) !== null)
-  check("the server's: held for a minute after the last action", agentBusy("server", { inFlight: 0, lastStep: now - 59_000, now }) === "an agent acted in a page in the last minute")
-  check("…then let through (it keeps nothing an agent loses)", QUIET_AFTER.server === 60_000 && agentBusy("server", { inFlight: 0, lastStep: now - 60_000, now }) === null)
-  check("the app's (its pages reload): held for 10 minutes", agentBusy("app", { inFlight: 0, lastStep: now - 9 * 60_000, now }) === "an agent acted in a page in the last 10 minutes"
-    && agentBusy("app", { inFlight: 0, lastStep: now - 10 * 60_000, now }) === null)
+  const { ACTING_MS, agentActing, agentBusy, QUIET_AFTER } = await import("../../../electron/browser/agentbusy.ts")
+  const now = 1_000_000_000, unseen = { calls: 0, lastStep: 0 }
+  const w = (calls: number, lastStep: number, seen = unseen) => ({ calls, lastStep, seen, now })
+  check("a call under way holds the app's restart, however long ago the last action", agentBusy("app", w(2, 0)) === "an agent's call is under way in a page")
+  check("the app's (its pages reload): held for 10 minutes", agentBusy("app", w(0, now - 9 * 60_000)) === "an agent acted in a page in the last 10 minutes"
+    && agentBusy("app", w(0, now - 10 * 60_000)) === null)
+  check("the server's: an agent in the background (its container, a tab no one sees) never holds it, acting or calling",
+    agentBusy("server", w(3, now)) === null && agentActing(w(3, now)) === null)
+  check("…one in a tab the user sees does: a call under way, and a minute after its last action",
+    agentBusy("server", w(1, now, { calls: 1, lastStep: 0 })) === "an agent's call is under way in a tab the user sees"
+    && agentBusy("server", w(0, now, { calls: 0, lastStep: now - 59_000 })) === "an agent acted in a tab the user sees in the last minute"
+    && QUIET_AFTER.server === 60_000 && agentBusy("server", w(0, now, { calls: 0, lastStep: now - 60_000 })) === null)
+  check("acting now (what holds a restart past its cap): a seen call, or a seen action in the last 15 s",
+    agentActing(w(0, 0, { calls: 1, lastStep: 0 })) !== null && agentActing(w(0, 0, { calls: 0, lastStep: now - ACTING_MS + 1 })) !== null
+    && agentActing(w(0, 0, { calls: 0, lastStep: now - ACTING_MS })) === null)
 })
 
 // ---------- Browser: Google's sign-in sees Firefox (electron/browser/googleagent.ts) ----------

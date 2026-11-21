@@ -690,7 +690,7 @@ if (process.env.VAULTITE_UPDATES && !DESKTOP && fs.existsSync(path.join(ROOT, ".
     busy: async () => {
       await ready
       const r = await LOADED[0]?.desktop("agent:busy", "server").catch(() => null)
-      return isObj(r) && r.busy ? String(r.why || "the browser is busy") : null
+      return isObj(r) && r.busy ? { why: String(r.why || "the browser is busy"), acting: !!r.acting } : null
     } }
   const store = process.env.VAULTITE_CODE_STORE, checkout = process.env.VAULTITE_SERVICE_CHECKOUT
   if (store && checkout) {

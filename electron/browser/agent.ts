@@ -10,7 +10,7 @@ import { docOf, exposed, filledIn, filling, heldNear, markRan, scrub, scrubDeep 
 import { linesIn, nodeIdOf, refNow } from "./pagetree.ts"
 import { clipboardKey, keyEvent } from "./keypress.ts"
 import { changes, INTERACTIVE, mainLines, oneLineLists, saysPending } from "./axlines.ts"
-import { agentBusy } from "./agentbusy.ts"
+import { agentActing, agentBusy, type AgentWork } from "./agentbusy.ts"
 import { AX_TREE, BOX, DESCRIBED, RESOLVED, type DomNode } from "./cdpwire.ts"
 import { messageOf } from "./messageof.ts"
 import { ACT, ANSWER, ASKER, AT, BY, PAGE_TEXT, WAIT, type Act, type Answer, type Asker, type By, type Field, type Upload, type Wait } from "./agentwire.ts"
@@ -478,6 +478,7 @@ export async function record(p: EnginePage, asked: By, step: Step) {
   latest.set(p.id, { by, run, t, step })
   changed(p.win)
   lastStep = t
+  if (watching(p)) lastSeenStep = t
   try {
     const dir = path.join(RUNS(), run)
     fs.mkdirSync(dir, { recursive: true })
@@ -744,14 +745,17 @@ handle("agents:live", async () => {
   }))
 })
 
-let inFlight = 0
-let lastStep = 0
+const inFlight = new Map<symbol, number>()
+let lastStep = 0, lastSeenStep = 0
+const seenCalls = () => [...inFlight.values()].filter((id) => { const p = allPages().find((x) => x.id === id); return !!p && !p.wc.isDestroyed() && watching(p) }).length
+const work = (): AgentWork => ({ calls: inFlight.size, lastStep, seen: { calls: seenCalls(), lastStep: lastSeenStep }, now: Date.now() })
 keepPage((id) => owners.has(id) || asks.has(id))
 busyWhen(() => asks.size ? "a page waits on the user for an agent" : null, true)
-busyWhen((of) => agentBusy(of, { inFlight, lastStep, now: Date.now() }))
+busyWhen((of) => agentBusy(of, work()))
 export const serve = (name: `agent:${string}`, fn: Parameters<typeof handle>[1]) => handle(name, async (...a) => {
-  inFlight++
-  try { return scrubDeep(await fn(...a)) } catch (e) { const why = scrub(messageOf(e) ?? String(e)); failed(name, a, why); throw new Error(why) } finally { inFlight-- }
+  const call = Symbol(name)
+  inFlight.set(call, Number(a[1]))
+  try { return scrubDeep(await fn(...a)) } catch (e) { const why = scrub(messageOf(e) ?? String(e)); failed(name, a, why); throw new Error(why) } finally { inFlight.delete(call) }
 })
 function failed(name: string, a: unknown[], why: string) {
   const p = allPages().find((x) => x.id === Number(a[1]))
@@ -770,7 +774,7 @@ function failed(name: string, a: unknown[], why: string) {
   } catch {}
 }
 
-handle("agent:busy", (_win, of) => { const why = engineBusy(of === "server" ? "server" : "app"); return { busy: !!why, why } })
+handle("agent:busy", (_win, of) => { const why = engineBusy(of === "server" ? "server" : "app"); return { busy: !!why, why, acting: agentActing(work()) } })
 
 serve("agent:tabs", (_win, by) => listOf(BY.parse(by)))
 serve("agent:open", async (win, url, container, by, lines) => {

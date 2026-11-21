@@ -16,6 +16,8 @@ const keptIn = (file: string): Kept => { const r = readJson(file, Kept); return 
 
 /** The checkout's `head` may be past `running`. */
 export type Update = { head: string; running: string; to: string; files: string[] }
+/** `acting`: an agent acts this moment in a tab the user sees, which holds even past `holdAtMost`. */
+export type Busy = { why: string; acting: boolean }
 /** `failed`: having gone back to what runs. */
 export type Applied = { restart: boolean; said?: string } | { failed: string; cause?: unknown }
 
@@ -29,7 +31,8 @@ export type UpdaterOptions = {
   running?: string
   stateFile: string
   /** Why the server shouldn't restart now (an agent at work in the browser), or null: it holds only an update that restarts. */
-  busy: () => Promise<string | null>
+  busy: () => Promise<Busy | null>
+  holdAtMost?: number
   restart: () => void
   /** How often a built update that restarts asks again whether the browser is quiet (ms). */
   quietEvery?: number
@@ -44,6 +47,7 @@ export type UpdaterOptions = {
 }
 
 const MINUTE = 60_000
+export const HOLD_AT_MOST = 30 * MINUTE
 export const errText = (e: unknown) => String((isObj(e) && (e.stderr || e.message)) || e).trim().split("\n").slice(-3).join(" ").slice(0, 500)
 
 let status: UpdateStatus = { branch: null, state: "off", why: "not a service install following a branch (vau service install --updates <branch>)", checked: null }
@@ -76,6 +80,12 @@ export function placed(p: { branch: string; head: string; remote: string; runnin
 }
 
 let said = ""
+let heldSince: number | null = null
+function holding(o: UpdaterOptions, b: Busy | null): string | null {
+  if (!b) { heldSince = null; return null }
+  const since = heldSince ??= Date.now()
+  return b.acting || Date.now() - since < (o.holdAtMost ?? HOLD_AT_MOST) ? b.why : null
+}
 function note(s: UpdateStatus, log: NonNullable<UpdaterOptions["log"]>, error?: unknown) {
   const key = `${s.state}|${s.why}|${s.next ?? ""}`
   if (key === said) return
@@ -135,23 +145,26 @@ async function lookOnce(o: UpdaterOptions): Promise<UpdateStatus> {
     const next = target.to
     // (busy holds only a restart: an update of the web app alone goes through while agents browse)
     const files = await changedFiles(git, running, next), restarts = o.restarts?.(files) ?? true
-    const busy = await o.busy()
-    if (busy && restarts) return set("waiting", `busy: ${busy}; the update restarts the server`, { next })
+    const b = await o.busy(), busy = b?.why
+    if (restarts && holding(o, b)) return set("waiting", `busy: ${busy}; the update restarts the server`, { next })
     set("updating", `updating to ${short(next)} (${plural(files.length, "file")})`, { next })
     const applied = await o.apply({ head, running, to: next, files })
     if ("failed" in applied) return fail(next, applied.failed, applied.cause ?? applied.failed)
     const { restart } = applied
     // (an agent may have begun while it built: the restart waits till the browser is quiet again, the build kept)
-    for (let b = restart ? await o.busy() : null; b; b = await o.busy()) {
-      set("updating", `${short(next)} is built; the server restarts once the browser is quiet (${b})`, { next })
+    let last = b
+    for (let why = restart ? holding(o, last = await o.busy()) : null; why; why = holding(o, last = await o.busy())) {
+      set("updating", `${short(next)} is built; the server restarts once the browser is quiet (${why})`, { next })
       await new Promise((r) => setTimeout(r, o.quietEvery ?? 2000))
     }
+    const past = restart && heldSince !== null && last ? `; busy held it ${Math.round((Date.now() - heldSince) / MINUTE)} min, its most (${last.why})` : ""
+    heldSince = null
     const elsewhere = target.ci.elsewhere ?? []
     kept = { last: { from: running, to: next, at: Date.now(), restarted: restart, ...(elsewhere.length ? { elsewhere } : {}) } }
     keep()
     o.running = next // (a web-only update is live once built)
     const red = elsewhere.length ? `; CI is red on it elsewhere: ${elsewhere.join(", ")}` : ""
-    set("current", `${applied.said ? `updated to ${short(next)}: ${applied.said}` : restart ? `updated to ${short(next)}, restarting` : `updated to ${short(next)} (the web app only${busy ? `, while busy: ${busy}` : ""})`}${red}`)
+    set("current", `${applied.said ? `updated to ${short(next)}: ${applied.said}` : restart ? `updated to ${short(next)}, restarting${past}` : `updated to ${short(next)} (the web app only${busy ? `, while busy: ${busy}` : ""})`}${red}`)
     if (restart) o.restart()
     return status
   } catch (e) {
