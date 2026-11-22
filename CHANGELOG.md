@@ -11,6 +11,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Browser: a site no longer shows the page that was open before it. One that loaded while its tab or window was out of
   sight, or moved to another window, is checked to draw once shown and redrawn if it doesn't, and a closed tab's
   picture (shown while it comes back) is only ever of its own page.
+- Browser: sharing "A window or screen…" into a call (a room's Share, a meeting's Present) opens macOS's picker again.
+  It asked Chromium for a window that doesn't exist, so the share failed with nothing shown.
 - Browser: agents' replays no longer fill the disk. A step that sees the page as it was keeps no new picture (an
   agent polling an idle tab costs about nothing), old runs are removed every hour rather than only at launch, and all
   runs together stay under 4 GB, the least recently written removed first.

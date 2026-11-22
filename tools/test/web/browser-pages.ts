@@ -72,3 +72,9 @@ check("sound: without media (a game) a quiet stretch still plays, then ends",
   wp.playing(g, false, 1000 + wp.QUIET_MS - 1) && !wp.playing(g, false, 1000 + wp.QUIET_MS))
 wp.hear(g, true, 20_000)
 check("sound: a new sound ends its quiet stretch", wp.playing(g, true, 20_000) && g.quiet === undefined)
+
+// ---------- Browser: a window or screen share opens macOS's picker, not a window Chromium can't find ----------
+const { systemPickerSource } = await import("../../../electron/browser/systempicker.ts")
+const picks = [systemPickerSource(), systemPickerSource()].map((s) => /^window:(-?\d+):(-?\d+)$/.exec(s.id))
+check("share: a window or screen asks macOS's picker, a new request each time",
+  picks.every((m) => m?.[1] === "-4" && Number(m[2]) < 0) && picks[0]?.[2] !== picks[1]?.[2], picks.map((m) => m?.[0]))

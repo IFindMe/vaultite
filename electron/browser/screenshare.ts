@@ -2,15 +2,11 @@
 // Mac's would send a call its own voices back), a window or screen (macOS's picker on 15+, else this screen), this tab.
 import { desktopCapturer, Menu, screen, webContents, type DisplayMediaRequestHandlerHandlerRequest, type MenuItemConstructorOptions, type Session, type Streams } from "electron"
 import { allPages, eachSession, type EnginePage } from "./engine.ts"
+import { systemPickerSource } from "./systempicker.ts"
 
 const MAC = process.platform === "darwin"
 /** macOS's own picker: 15 and later, not under a test. */
 const SYSTEM_PICKER = MAC && Number(process.getSystemVersion().split(".")[0]) >= 15 && !process.env.VAULTITE_QUIET
-
-// A window source with a negative id is what makes Chromium show macOS's picker (Electron's `useSystemPicker` answers
-// with it before our handler, so it couldn't be one choice of several).
-let fake = -1
-const systemPicker = () => ({ id: `window:${fake--}:0`, name: "" })
 
 type Choice = { tab: EnginePage } | "this" | "screen" | null
 
@@ -61,7 +57,7 @@ async function shareWhat(req: DisplayMediaRequestHandlerHandlerRequest): Promise
     // (heard here still: Electron mutes a tab whose sound it captures, unless told not to; a test's isn't)
     return { video: t.wc.mainFrame, ...(sound ? { audio: t.wc.mainFrame, enableLocalEcho: !process.env.VAULTITE_QUIET } : {}) }
   }
-  if (SYSTEM_PICKER) return { video: systemPicker() }
+  if (SYSTEM_PICKER) return { video: systemPickerSource() }
   const on = String(screen.getDisplayMatching(p.win.getBounds()).id)
   const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 0, height: 0 } })
   const source = sources.find((x) => x.display_id === on) ?? sources[0]
