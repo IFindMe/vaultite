@@ -22,7 +22,7 @@ export function scanLine(s: Scan, line: string, start: number) {
   s.starts.push(start)
   s.times.push(t)
   if (failed !== undefined) s.fails.push(t)
-  if (shot !== undefined && SHOT.test(shot)) s.shots.push(shot)
+  if (shot !== undefined && SHOT.test(shot) && s.shots[s.shots.length - 1] !== shot) s.shots.push(shot)
   const host = hostOf(url)
   if (host) s.hosts.set(host, (s.hosts.get(host) ?? 0) + 1)
   if (!s.by && by !== undefined) s.by = by

@@ -16,6 +16,7 @@ import { messageOf } from "./messageof.ts"
 import { ACT, ANSWER, ASKER, AT, BY, PAGE_TEXT, WAIT, type Act, type Answer, type Asker, type By, type Field, type Upload, type Wait } from "./agentwire.ts"
 import { forgetSteps, noteStep } from "./pagesteps.ts"
 import { fileInputNear } from "./fileinput.ts"
+import { forgetFrames, frameHash, keptFrame, pruneRuns, PRUNE_EVERY_MS, repeatOf } from "./runstore.ts"
 
 export const THUMB_WIDTH = 320
 
@@ -460,7 +461,6 @@ async function act(p: EnginePage, a: Act) {
 }
 
 const RUNS = () => path.join(app.getPath("userData"), "agent-runs")
-const KEEP_DAYS = 14
 const runOf = (by: By) => `${new Date().toISOString().slice(0, 10)}-${[by.session || by.name || "agent", by.task].filter(Boolean).join("-").replace(/[^\w.-]+/g, "_").slice(0, 80)}`
 const groupOf = (by: By) => [by.name || "Agent", by.task].filter(Boolean).join("/")
 const sameAgent = (a: By, b: By) => (a.name ?? "") === (b.name ?? "") && (a.session ?? "") === (b.session ?? "") && (!b.task || a.task === b.task)
@@ -487,26 +487,24 @@ export async function record(p: EnginePage, asked: By, step: Step) {
       await p.wake()
       const img = await p.wc.capturePage(undefined, { stayHidden: true }).catch(() => null)
       if (img && !img.isEmpty()) {
-        shot = `${t}.jpg`
-        const { width } = img.getSize()
-        fs.writeFileSync(path.join(dir, shot), (width > 1200 ? img.resize({ width: 1200 }) : img).toJPEG(70))
-        fs.mkdirSync(path.join(dir, "thumbs"), { recursive: true })
-        fs.writeFileSync(path.join(dir, "thumbs", shot), img.resize({ width: THUMB_WIDTH, quality: "good" }).toJPEG(72))
+        const big = img.getSize().width > 1200 ? img.resize({ width: 1200 }) : img, hash = frameHash(big.toBitmap())
+        shot = repeatOf(p.id, run, hash) ?? ""
+        if (!shot) {
+          shot = `${t}.jpg`
+          fs.writeFileSync(path.join(dir, shot), big.toJPEG(70))
+          fs.mkdirSync(path.join(dir, "thumbs"), { recursive: true })
+          fs.writeFileSync(path.join(dir, "thumbs", shot), img.resize({ width: THUMB_WIDTH, quality: "good" }).toJPEG(72))
+          keptFrame(p.id, run, hash, shot)
+        }
       }
     }
     fs.appendFileSync(path.join(dir, "steps.jsonl"), scrub(JSON.stringify({ t, tab: p.id, by: by.name ?? "", ...(by.task ? { task: by.task } : {}),
       ...(by.summary ? { summary: by.summary } : {}), url: p.wc.getURL(), title: p.wc.getTitle(), ...(ms !== undefined ? { ms } : {}), ...step, ...(shot ? { shot } : {}) })) + "\n")
   } catch (e) { log.error("an agent's step wasn't kept", e) }
 }
-setTimeout(() => {
-  try {
-    const old = Date.now() - KEEP_DAYS * 86400_000
-    for (const d of fs.readdirSync(RUNS())) {
-      const day = Date.parse(d.slice(0, 10))
-      if (Number.isFinite(day) && day < old) fs.rmSync(path.join(RUNS(), d), { recursive: true, force: true })
-    }
-  } catch {}
-}, 60_000).unref()
+const prune = () => { void pruneRuns(RUNS()).catch((e) => log.error("agents' old runs weren't removed", e)) }
+setTimeout(prune, 60_000).unref()
+setInterval(prune, PRUNE_EVERY_MS).unref()
 
 const doing = new Map<number, { what: string; at: number; by?: By }>()
 export const acting = (p: EnginePage, by: By, what: string) => {
@@ -903,7 +901,7 @@ serve("agent:act", (_win, tab, a, by) => actIn(pageFor(tab, "act", BY.parse(by))
 eachPage((p) => p.wc.once("destroyed", () => {
   const was = atWork(p)
   helped(p.id)
-  cant.delete(p.id); forgetSteps(p.id)
+  cant.delete(p.id); forgetSteps(p.id); forgetFrames(p.id)
   paused.delete(p.id); taken.delete(p.id); owners.delete(p.id); latest.delete(p.id); doing.delete(p.id); watched.delete(p.id); used.delete(p.id)
   if (was && appWindows().includes(p.win)) changed(p.win)
 }))

@@ -1,4 +1,7 @@
 import crypto from "node:crypto"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import type { VaultTest } from "./harness.ts"
 
 type Check = VaultTest["check"]
@@ -30,12 +33,63 @@ async function runSteps(check: Check) {
     [{ ...s, hosts: [...s.hosts] }, { size: 0, mtime: 0, starts: [0, 10, 30, 40, 50, 60, 70], times: [100, 200, 0, 0, 0, 0, -3], fails: [200], shots: ["1.jpg", "2.jpg"],
       hosts: [["example.com", 2]], by: "Alice", task: "Book", summary: "S", title: "T", url: "https://example.com/b" }],
   ]), { ...s, hosts: [...s.hosts] })
+  const idle = fresh()
+  for (const shot of ["1.jpg", "1.jpg", "2.jpg", "2.jpg", "1.jpg"]) scanLine(idle, JSON.stringify({ t: 1, shot }), 0)
+  check("agent runs: steps that saw the same page as the one before give the run's pictures that picture once", same([[idle.shots, ["1.jpg", "2.jpg", "1.jpg"]], [idle.times.length, 5]]))
   const objects = lines.filter((l) => l !== `"text"` && l !== "[1]")
   check("agent runs: a replay's steps are the lines as written, a picture's name only when it's one", same([
     [objects.flatMap(stepOf), [{ t: 100, by: "Alice", task: "Book", url: "https://www.example.com/a", shot: "1.jpg" },
       { t: "200", failed: "no", title: "T", summary: "", shot: null, by: "Bob" }, { shot: null },
       { t: null, task: 5, url: 7, failed: true, summary: "S", shot: "2.jpg" }, { url: "https://example.com/b", title: "", t: -3, shot: null }]],
   ]), objects.flatMap(stepOf))
+}
+
+async function runStore(check: Check) {
+  const R = await import("../../../electron/browser/runstore.ts")
+  const a = R.frameHash(Buffer.from([1, 2, 3])), b = R.frameHash(Buffer.from([1, 2, 4]))
+  const was = [R.repeatOf(1, "r", a)]
+  R.keptFrame(1, "r", a, "10.jpg")
+  was.push(R.repeatOf(1, "r", a), R.repeatOf(1, "r", b), R.repeatOf(2, "r", a), R.repeatOf(1, "s", a))
+  R.keptFrame(1, "r", b, "11.jpg")
+  was.push(R.repeatOf(1, "r", a), R.repeatOf(1, "r", b))
+  for (let i = 0; i < 4; i++) R.keptFrame(1, "r", String(i), `${20 + i}.jpg`)
+  was.push(R.repeatOf(1, "r", a), R.repeatOf(1, "r", "0"))
+  R.keptFrame(1, "s", b, "30.jpg")
+  was.push(R.repeatOf(1, "s", "1"), R.repeatOf(1, "s", b))
+  R.forgetFrames(1)
+  was.push(R.repeatOf(1, "s", b))
+  check("agent runs: a step that sees its tab's page as in one of the run's last four pictures names that picture, nothing else does", same([
+    [was, [null, "10.jpg", null, null, null, "10.jpg", "11.jpg", null, "20.jpg", null, "30.jpg", null]], [a === R.frameHash(Buffer.from([1, 2, 3])), true],
+  ]))
+
+  const day = 86400_000, now = Date.parse("2026-11-20T12:00:00Z"), run = (name: string, bytes: number, at: number) => ({ name, bytes, at })
+  check("agent runs: runs named for a day over two weeks ago go, then the least recently written while all are over the cap, never the latest", same([
+    [R.runsToPruneKeepingLatest([run("2026-11-01-a", 1, now), run("2026-11-07-b", 1, now), run("2026-11-06-c", 1, now), run("notes", 1, 0)], now, 14, 100), ["2026-11-01-a", "2026-11-06-c"]],
+    [R.runsToPruneKeepingLatest([run("2026-11-18-old", 40, now - 2 * day), run("2026-11-20-new", 40, now), run("2026-11-19-mid", 40, now - day)], now, 14, 100), ["2026-11-18-old"]],
+    [R.runsToPruneKeepingLatest([run("2026-11-18-old", 40, now - 2 * day), run("2026-11-20-new", 40, now)], now, 14, 100), []],
+    [R.runsToPruneKeepingLatest([run("2026-11-20-big", 500, now), run("2026-11-19-small", 1, now - day)], now, 14, 100), ["2026-11-19-small"]],
+  ]))
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "agent-runs-"))
+  const make = (name: string, bytes: number, at: number) => {
+    fs.mkdirSync(path.join(root, name, "thumbs"), { recursive: true })
+    for (const [f, n] of [["steps.jsonl", bytes / 2], [path.join("thumbs", "1.jpg"), bytes / 2]] as const) {
+      fs.writeFileSync(path.join(root, name, f), Buffer.alloc(n))
+      fs.utimesSync(path.join(root, name, f), at / 1000, at / 1000)
+    }
+  }
+  make("2026-10-01-gone", 10, now - 50 * day)
+  make("2026-11-18-old", 40, now - 2 * day)
+  make("2026-11-19-mid", 40, now - day)
+  make("2026-11-20-new", 40, now)
+  fs.writeFileSync(path.join(root, "stray.txt"), "x")
+  R.keptFrame(7, "2026-11-18-old", a, "5.jpg")
+  const gone = await R.pruneRuns(root, now, 14, 100)
+  check("agent runs: pruning removes those runs' folders, thumbnails counted, and forgets their pictures", same([
+    [gone.sort(), ["2026-10-01-gone", "2026-11-18-old"]], [fs.readdirSync(root).sort(), ["2026-11-19-mid", "2026-11-20-new", "stray.txt"]],
+    [R.repeatOf(7, "2026-11-18-old", a), null],
+  ]), { gone, left: fs.readdirSync(root) })
+  fs.rmSync(root, { recursive: true, force: true })
 }
 
 async function passwordsConfig(check: Check) {
@@ -207,5 +261,5 @@ async function pageChoices(check: Check) {
 }
 
 export default async ($: VaultTest) => {
-  for (const t of [sessionCookies, runSteps, passwordsConfig, passwordEdits, extensionPolicy, chromeHistory, darkColors, cdpAnswers, pageMessages, webAuthnAsks, pageChoices]) await t($.check)
+  for (const t of [sessionCookies, runSteps, runStore, passwordsConfig, passwordEdits, extensionPolicy, chromeHistory, darkColors, cdpAnswers, pageMessages, webAuthnAsks, pageChoices]) await t($.check)
 }
