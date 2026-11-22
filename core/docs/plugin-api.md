@@ -211,6 +211,7 @@ by its path.
 - `agent-reply:claude` (claude-code)
 - `agent-said:claude` (claude-code): The user's own latest message in a session, not a notice or another session's message.
 - `agent-session:claude` (claude-code): A session's last response and how long its prompt cache lasts: an hour when it wrote 1 h cache, else five minutes.
+- `agent-session-in:claude` (claude-code)
 - `agent-turn:claude` (claude-code): A session's latest turn: the user's last message (or `auto`), Claude's last answer, its background tasks running.
 - `agent-turn:codex` (codex): A session's latest turn: the user's last message, Codex's last answer, the session's title.
 - `agents-used:companion` (companion): The coding agents it runs, as a terminal names them (claude_agent), and for what (the service "agents-used:companion"): its chat's while it's on, then its jobs'. `agent-limits` with `for: companion` shows these accounts first.
@@ -297,7 +298,7 @@ by its path.
 - `sync:hub` (sync): The hub this vault's settings name (vau sync hub), or null: Machines' first then.
 - `tabs:open` (workspaces): Every place open in any workspace's tabs, as this machine has them: a terminal shown in a workspace nobody's looking at isn't idle.
 - `templates:folder` (templates): Its folder's notes are patterns: the vault never reads them as items (a `type: person` template isn't a person).
-- `terminal:<…>` (meters, locate, agent-env, wait, trouble, of, of-pids, info, ask, waits, state, ended, agent-waits, agent-awaits, screen, access, runs): agent-meters; terminal
+- `terminal:<…>` (meters, of, of-pids, info, locate, agent-env, wait, trouble, ask, waits, state, ended, agent-waits, agent-awaits, screen, access, runs): agent-meters; terminal
 - `text:<…>` (canvas, docx, epub, fb2, pptx, base, csv): canvas; documents; ebooks; presentations; query; tables
 - `versions:icloud` (sync-conflicts)
 - `voice:asks` (companion): What the user said to it aloud in the last `days` days (a Talk key's asks), newest first, with its answer: the Dictations list shows them beside dictation's, from this log, never copied.

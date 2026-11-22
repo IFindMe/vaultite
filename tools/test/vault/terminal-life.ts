@@ -61,9 +61,37 @@ export default async ($: VaultTest) => {
     await $.api("DELETE", "terminals/life-clean")
     const again = await waitFor(() => told.filter((x) => x.id === "life-clean").length === 2 && told.filter((x) => x.id === "life-clean")[1], 15_000, 50)
     check("terminal life: started again, its next end is told too", again?.onPurpose === true, told.filter((x) => x.id === "life-clean"))
+    await resumesAfterItsShell($, plug.localDir(), svc, endOf)
   } finally {
     plug.emit = emit
     await $.api("PATCH", "config/plugin/terminal", { shell: null })
+  }
+}
+
+async function resumesAfterItsShell($: VaultTest, dir: string, svc: Record<string, Any>, endOf: (id: string) => Promise<Any>) {
+  const { check } = $
+  const { apply } = await import("../../../plugins/core/terminal/terms.ts")
+  const { waitFor } = await import("../lib.ts")
+  const starts: (string | null)[] = []
+  svc["agent:fakeagent"] = (a: Any) => { starts.push(a.resume ?? null); return { command: "true" } }
+  svc["agent-session-in:fakeagent"] = (id: string) => (id === "fakeagent-rs1" ? "sess-rs1" : "")
+  svc["agent-session:fakeagent"] = (sid: string) => (sid === "sess-rs1" ? { transcript: "x" } : null)
+  try {
+    const file = path.join(dir, "agent-sessions.json")
+    const { z } = await import("zod")
+    const kept = () => { try { return z.record(z.string(), z.string()).parse(JSON.parse(fs.readFileSync(file, "utf8"))) } catch { return {} } }
+    await $.api("POST", "terminals/fakeagent-rs1", {})
+    apply("fakeagent-rs1", { type: "hooks", text: "working", at: Date.now() })
+    check("terminal resume: an agent's terminal keeps the session it runs", !!await waitFor(() => kept()["fakeagent-rs1"] === "sess-rs1", 5000, 50), kept())
+    await $.api("POST", "terminals/fakeagent-rs1/send", { text: "exit 3", enter: true, shell: true })
+    const died = await endOf("fakeagent-rs1")
+    await $.api("POST", "terminals/fakeagent-rs1", {})
+    check("terminal resume: started again after its shell died, it resumes that session; a new one starts fresh",
+      starts.length === 2 && starts[0] === null && starts[1] === "sess-rs1" && died?.code === 3, [starts, died])
+    await $.api("DELETE", "terminals/fakeagent-rs1")
+    check("terminal resume: ended on purpose, its session is no longer kept", !!await waitFor(() => !kept()["fakeagent-rs1"], 5000, 50), kept())
+  } finally {
+    for (const k of ["agent:fakeagent", "agent-session-in:fakeagent", "agent-session:fakeagent"]) delete svc[k]
   }
 }
 

@@ -5,6 +5,7 @@ import "./start.ts"
 import "./machines.ts"
 import { listNow } from "./list.ts"
 import "./routes.ts"
+import { keepAgentSessions } from "./lastsession.ts"
 import { runOps } from "./run.ts"
 import { terminalOps } from "./ops.ts"
 
@@ -13,4 +14,5 @@ export { agentOf } from "./backends.ts"
 export { askOn, markMissing, menuAt, missingText, stateCommand, type StateChange } from "./terms.ts"
 
 terminalOps(plugin)
+keepAgentSessions()
 runOps(plugin, { startedOn, listNow })

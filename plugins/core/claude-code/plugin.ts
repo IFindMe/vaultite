@@ -288,7 +288,6 @@ async function session(id: string) {
 
 plugin.provide("sample", (a: SampleAsk) => sample(a, DEFAULT_DIR))
 
-
 /** On Windows' PowerShell and cmd the hooks POST (http hooks); SessionStart takes only a program. */
 function hooks({ state, report, stateHook, reportUrl }: Pick<AgentStart, "state" | "report" | "stateHook" | "reportUrl">): object | null {
   const reported = report ? { type: "command", command: report } : reportUrl ? { type: "http", url: reportUrl, timeout: 5 } : null
@@ -379,6 +378,7 @@ plugin.provide("agent-session:claude", (id: string): { transcript: string; last:
   return t ? { transcript: found.file, last: t.st.mtimeMs, ttl: ttlOf(t.text), account: found.account.id } : null
 })
 
+plugin.provide("agent-session-in:claude", (terminal: string) => sessionIn(terminal))
 /** The account a session runs in (the Inbox mutes the ones the user muted); null when it can't be told. */
 plugin.provide("agent-account:claude", async (terminal: string, session = ""): Promise<{ id: string; label: string } | null> => {
   const accts = accounts(), of = (a: Account | undefined) => (a ? { id: a.id, label: a.label } : null)

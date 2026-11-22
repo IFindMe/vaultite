@@ -12,6 +12,7 @@ import type { Job } from "./starter.ts"
 import { SPARE, STATES, TERMINAL_ID, TMP, WIN, plugin, shell } from "./shared.ts"
 import { agentContext, agentOf, backendOf, backends, hooksFile, hooksText, oscMark, runsHere, stateFile, tell } from "./backends.ts"
 import { closedEarlier, keepClosed, reopened } from "./start.ts"
+import { lastSession } from "./lastsession.ts"
 import { byName, inFront, listChanged } from "./list.ts"
 
 export const progressOf = (id: string): string | null => { try { const p: unknown = plugin.service("inbox:progress")?.(id); return typeof p === "string" ? p : null } catch { return null } }
@@ -308,7 +309,7 @@ export async function agentRun(id: string, prompt: string | null, dark: boolean 
   try {
     const report = plugin.service("activity:report"), reportUrl = plugin.service("activity:report-url")
     const url = reportUrl ? String(reportUrl(a.name, id)) : null
-    const run: AgentCommand | null = await plugin.service(`agent:${a.name}`)!({ resume: a.resume, context: agentContext(), state: set,
+    const run: AgentCommand | null = await plugin.service(`agent:${a.name}`)!({ resume: a.resume ?? (prompt ? null : await lastSession(id)), context: agentContext(), state: set,
       report: native ? null : kind === "wsl" ? (url ? `${curlPost(url).map((x, i) => (i ? shellQuote(x) : "curl.exe")).join(" ")} -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true` : null)
         : report ? report(a.name, id) : null,
       ...(native ? { stateHook: (s: AgentState, k?: string | null) => ({ url: stateUrl(id, s, k), argv: curlPost(stateUrl(id, s, k)) }), reportUrl: url } : {}),

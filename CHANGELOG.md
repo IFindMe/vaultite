@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Terminals: Restart on an agent's terminal whose shell is gone (its computer restarted, the agent crashed) resumes
+  the conversation it had, rather than starting a new one.
 - Sharing: a guest editing a shared folder's notes gets emoji and icons from a colon too (`:fi` suggests 🔥,
   `:fire:` typed whole becomes it), as the owner does.
 - Browser: a site no longer shows the page that was open before it. One that loaded while its tab or window was out of
