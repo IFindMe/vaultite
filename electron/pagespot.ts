@@ -7,7 +7,7 @@ export const HIDDEN: Spot = { at: "hidden" }
 
 export type SpotEvent =
   /** Placed as it wants: filling something, in its tab's rect, else out of sight (parked when it's `drawn`, an agent's). */
-  | { type: "fit"; fill: boolean; rect: boolean; drawn: boolean; now: number }
+  | { type: "fit"; fill: boolean; rect: boolean; drawn: boolean; mayBeStale: boolean; now: number }
   /** Let go by its tab: out of sight, the keyboard left where it is. */
   | { type: "stow"; drawn: boolean; now: number }
   | { type: "park"; now: number }
@@ -29,7 +29,7 @@ const parkFrom = (s: Spot, now: number): SpotMove => s.at === "parked" ? { to: s
 
 function fitFrom(s: Spot, e: Extract<SpotEvent, { type: "fit" }>): SpotMove {
   if (e.fill) return { to: { at: "fill" }, do: ["to-fill", "show"] }
-  const see: SpotEffect[] = e.drawn ? ["see"] : []
+  const see: SpotEffect[] = e.drawn || e.mayBeStale ? ["see"] : []
   if (e.rect && (s.at === "parked" || s.at === "resting")) return { to: { at: "tab" }, do: ["hide", "raise", "to-tab", "show", ...see] }
   if (e.rect) return { to: { at: "tab" }, do: ["to-tab", "show", ...(s.at === "hidden" ? see : [])] }
   if (e.drawn) return parkFrom(s, e.now)

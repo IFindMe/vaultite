@@ -21,4 +21,4 @@ export function painted(p: Page) {
   sendState(p)
 }
 setCanvasHandler((id) => { const p = pages.get(id); if (p && !p.fresh && !p.view.webContents.isDestroyed()) p.view.setBackgroundColor(canvasOf(id)) })
-ipcMain.on("vaultite:web:painted", (e) => { const p = pageOf(e.sender); if (p && shows(e.sender.getURL())) painted(p) })
+ipcMain.on("vaultite:web:painted", (e) => { const p = pageOf(e.sender); if (p && shows(e.sender.getURL())) { p.drewOwnPage = true; painted(p) } })

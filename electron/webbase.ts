@@ -36,6 +36,7 @@ export type Page = Owned<AppWindow> & { view: WebContentsView; error?: string
   blankBehind?: boolean
   fresh: boolean
   drawn?: boolean; spot: Spot; drew?: number; seeing?: Promise<void>
+  mayBeStale?: boolean; drewOwnPage?: boolean
   input: number
   flow: Flow }
 /** A site a profile keeps cookies for: whether it's signed in and who as, when we know how to ask, sites the same login covers (`with`),

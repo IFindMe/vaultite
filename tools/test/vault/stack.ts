@@ -100,7 +100,7 @@ function spot(check: Check) {
     const r = P.spotStep(acc.s, e)
     return { s: r.to, did: [...acc.did, r.do.join(",")] }
   }, { s: from, did: [] as string[] })
-  const fit = (o: Partial<{ fill: boolean; rect: boolean; drawn: boolean; now: number }> = {}): E => ({ type: "fit", fill: false, rect: false, drawn: false, now: 5, ...o })
+  const fit = (o: Partial<{ fill: boolean; rect: boolean; drawn: boolean; mayBeStale: boolean; now: number }> = {}): E => ({ type: "fit", fill: false, rect: false, drawn: false, mayBeStale: false, now: 5, ...o })
   check("spot: a tab's page shown in its pane, then hidden, takes the keyboard out with it; hidden again does nothing",
     run([fit({ rect: true }), fit(), fit()]).did.join(" | ") === "to-tab,show | keys-out,hide | ", run([fit({ rect: true }), fit(), fit()]).did)
   check("spot: full screen or its player fills, from anywhere, and back in its tab without being raised",
@@ -111,6 +111,9 @@ function spot(check: Check) {
   check("spot: a parked page put in its tab comes over the window's other pages and is checked to draw",
     run([{ type: "park", now: 1 }, fit({ rect: true, drawn: true })]).did[1] === "hide,raise,to-tab,show,see" &&
     run([fit({ rect: true, drawn: true })]).did[0] === "to-tab,show,see" && run([{ type: "park", now: 1 }, { type: "rest" }, fit({ rect: true })]).did[2] === "hide,raise,to-tab,show")
+  check("spot: a user's page that may be stale (its site came in out of sight, or it moved windows) is checked to draw once shown, never while hidden",
+    run([fit({ rect: true, mayBeStale: true })]).did[0] === "to-tab,show,see" && run([fit({ rect: true }), fit({ rect: true, mayBeStale: true })]).did[1] === "to-tab,show" &&
+    run([fit({ mayBeStale: true })]).did[0] === "")
   check("spot: let go by its tab, a page hides with the keyboard left as it is, an agent's parks",
     run([fit({ rect: true }), { type: "stow", drawn: false, now: 1 }]).did[1] === "hide" && run([fit({ rect: true }), { type: "stow", drawn: true, now: 1 }]).s.at === "parked")
   check("spot: taken out of its window, it's hidden, never parked unseen",

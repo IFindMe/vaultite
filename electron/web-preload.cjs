@@ -110,6 +110,7 @@ if (process.isMainFrame && /^https?:/.test(location.href)) {
   try {
     new PerformanceObserver((_list, o) => { o.disconnect(); ipcRenderer.send("vaultite:web:painted") }).observe({ type: "paint", buffered: true })
   } catch { /* no paint timing: web.ts goes white once it's loaded */ }
+  addEventListener("pageshow", (e) => { if (e.persisted) requestAnimationFrame(() => ipcRenderer.send("vaultite:web:painted")) })
   // (the app's sidebars aren't the page's window: sites take a window much wider than the page for DevTools docked open,
   // and Discord then keeps its sign-in only in memory, gone with the tab)
   try {

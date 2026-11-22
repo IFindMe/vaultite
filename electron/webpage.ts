@@ -14,7 +14,7 @@ import { makeSpare, newView, prefsOf, takeSpare } from "./websession.ts"
 import { iconFrom } from "./webicons.ts"
 import { noteVisit } from "./webaccounts.ts"
 import { addPage, restack, userOver } from "./webstack.ts"
-import { fit, keysBackIfUnseen, move, place, wake } from "./webspot.ts"
+import { docCameIn, fit, keysBackIfUnseen, move, place, wake } from "./webspot.ts"
 import { fromPlayer, strips, toPlayer } from "./webplayer.ts"
 import { end, keepPast, mayLeave, own, restoreMod, unloading } from "./weblife.ts"
 import { revive } from "./revive.ts"
@@ -67,7 +67,7 @@ export function make(win: AppWindow, url: string, profile: string, tab: string, 
   if (agent) move(p, { type: "park", now: Date.now() })
   const wc = view.webContents
   if (taken) wc.once("did-navigate", () => { wc.navigationHistory.clear(); p.blankBehind = false })
-  wc.on("did-navigate", () => { p.drew = undefined })
+  wc.on("did-navigate", () => docCameIn(p))
   let restored = () => {}
   if (kept) {
     p.restoring = true

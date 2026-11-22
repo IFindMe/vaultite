@@ -3,7 +3,7 @@ import { AppWindow } from "./appwindow.ts"
 import { pageHeld, watchedElsewhere } from "./browser/engine.ts"
 import { shown, type Spot, type SpotEffect, type SpotEvent, spotStep } from "./pagespot.ts"
 import type { WebRect } from "./webwire.ts"
-import type { Page } from "./webbase.ts"
+import { type Page, pages } from "./webbase.ts"
 import { addPage } from "./webstack.ts"
 
 /** Off the window but shown: a hidden view stops drawing at its next cross-site load. */
@@ -55,14 +55,15 @@ const askPage = (wc: WebContents | undefined, code: string, ms: number) => (!wc 
 const frameIn = async (wc: WebContents | undefined, ms: number) => (await askPage(wc, "new Promise((done) => requestAnimationFrame(() => done(true)))", ms)) === true
 const SEEN_MS = 5000
 export const seeDraws = (p: Page) => (p.seeing ??= drawing(p).finally(() => { p.seeing = undefined }))
-/** An unthrottled page that stopped drawing for good (Electron on a Mac keeps its widget shown, not its compositor) takes
- *  no press: it's hidden and throttled, then, once its page is hidden, shown unthrottled again, which shows both. */
+const seenDrawing = (p: Page) => { p.drew = Date.now(); p.mayBeStale = false; p.drewOwnPage = true }
+/** A page that stopped drawing for good (Electron on a Mac keeps its widget shown, not its compositor; one that came in out
+ *  of sight or moved windows) shows its last picture, maybe the site before: it's hidden, then shown again, which shows both. */
 async function drawing(p: Page) {
   const wc: WebContents | undefined = p.view.webContents
   if (pageGone(wc)) return
-  if (await frameIn(wc, 300)) { p.drew = Date.now(); return }
-  if (!p.drawn || p.player || p.spot.at === "resting" || p.spot.at === "hidden" || !p.view.getVisible() || pageGone(wc)) return
-  const parked = p.spot.at === "parked"
+  if (await frameIn(wc, p.drawn ? 300 : 2000)) return seenDrawing(p)
+  if ((!p.drawn && !p.mayBeStale) || p.player || p.spot.at === "resting" || p.spot.at === "hidden" || !p.view.getVisible() || pageGone(wc)) return
+  const parked = p.spot.at === "parked", throttled = wc.getBackgroundThrottling()
   if (parked) move(p, { type: "rest" })
   else { p.view.setVisible(false); wc.setBackgroundThrottling(true) }
   for (const until = Date.now() + 1000; Date.now() < until;) {
@@ -71,10 +72,19 @@ async function drawing(p: Page) {
   }
   if (pageGone(wc)) return
   if (parked && spotOf(p).at === "resting") move(p, { type: "park", now: Date.now() })
-  else if (!parked && shown(p.spot) && !p.view.getVisible() && !p.player) { wc.setBackgroundThrottling(false); p.view.setVisible(true) }
-  await frameIn(wc, 1000)
-  p.drew = Date.now()
+  else if (!parked && shown(p.spot) && !p.view.getVisible() && !p.player) { wc.setBackgroundThrottling(throttled); p.view.setVisible(true) }
+  if (await frameIn(wc, 1000)) seenDrawing(p)
+  else p.drew = Date.now()
 }
+export function docCameIn(p: Page) {
+  p.drew = undefined
+  p.drewOwnPage = false
+  if (shown(p.spot) && p.view.getVisible() && !p.win.isDestroyed() && p.win.isFocused()) return
+  p.mayBeStale = true
+  if (shown(p.spot)) setTimeout(() => { if (p.mayBeStale && shown(p.spot)) void seeDraws(p) }, STALE_CHECK_MS).unref()
+}
+const STALE_CHECK_MS = 1500
+export const seeShown = (win: AppWindow) => { for (const p of pages.values()) if (p.win === win && (p.drawn || p.mayBeStale) && shown(p.spot)) void seeDraws(p) }
 export const keysBackIfUnseen = (p: Page) => { if (!shown(p.spot) && !p.player) SPOT_DOES.unfocus(p) }
 const keepsDrawing = (p: Page) => !!p.drawn || watchedElsewhere(p.id)
 export const stow = (p: Page) => move(p, { type: "stow", drawn: keepsDrawing(p), now: Date.now() })
@@ -91,6 +101,6 @@ export function fit(p: Page) {
   if (fill?.isDestroyed()) return
   const held = pageHeld(p.id)
   if (held) p.drawn = true
-  move(p, { type: "fit", fill: !!fill, rect: !p.agent && !held && !!p.want, drawn: keepsDrawing(p), now: Date.now() })
+  move(p, { type: "fit", fill: !!fill, rect: !p.agent && !held && !!p.want, drawn: keepsDrawing(p), mayBeStale: !!p.mayBeStale, now: Date.now() })
 }
 const round = (p: Page, r: number) => { if ((p.radius ?? 0) !== r) { p.radius = r; p.view.setBorderRadius(r) } }

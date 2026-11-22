@@ -9,7 +9,7 @@ import os from "node:os"
 import { MAC, type Page, pages, pagesChanged, playingNow, shows } from "./webbase.ts"
 import { endSpare, spare } from "./websession.ts"
 import { addPage, raise, run } from "./webstack.ts"
-import { fit, keysBackIfUnseen, move, seeDraws, stow } from "./webspot.ts"
+import { fit, keysBackIfUnseen, move, seeShown, stow } from "./webspot.ts"
 import { fromPlayer, leaveFull } from "./webplayer.ts"
 
 export function moveTo(p: Page, win: AppWindow) {
@@ -18,6 +18,7 @@ export function moveTo(p: Page, win: AppWindow) {
   if (!from.isDestroyed() && !p.player) from.contentView.removeChildView(p.view)
   if (p.full && !p.player) leaveFull(p)
   p.win = win
+  p.mayBeStale = true
   move(p, { type: "hide" })
   if (!p.player) addPage(win, p.view)
   if (!from.isDestroyed()) pagesChanged(from)
@@ -99,8 +100,11 @@ export function webWindow(win: AppWindow) {
   win.contentView.on("bounds-changed", () => { for (const p of pages.values()) if (p.win === win && p.full && !p.player) fit(p) })
   win.on("leave-full-screen", () => { for (const p of pages.values()) if (p.win === win && p.full && !p.player) leaveFull(p) })
   win.on("focus", () => {
-    for (const p of pages.values()) if (p.win === win) { if (p.drawn && shown(p.spot)) void seeDraws(p); else keysBackIfUnseen(p) }
+    seeShown(win)
+    for (const p of pages.values()) if (p.win === win) keysBackIfUnseen(p)
   })
+  win.on("show", () => seeShown(win))
+  win.on("restore", () => seeShown(win))
   win.on("closed", () => {
     for (const p of [...pages.values()]) if (p.win === win && p.moving === undefined) end(p)
     if (!pages.size) endSpare()
@@ -125,7 +129,7 @@ export function keepPast(p: Page, settle = false) {
 const FRAME_MS = 1500, QUIT_FRAME_MS = 800
 function keepFrame(p: Page, captureMs = FRAME_MS): Promise<void> | null {
   const wc = p.view.webContents
-  if (!p.tab || p.agent || p.fresh || p.error || p.crashed || !wc || wc.isDestroyed() || p.win.isDestroyed() || !shows(wc.getURL()) || !mayPicture(p.profile)) return null
+  if (!p.tab || p.agent || p.fresh || !p.drewOwnPage || p.error || p.crashed || !wc || wc.isDestroyed() || p.win.isDestroyed() || !shows(wc.getURL()) || !mayPicture(p.profile)) return null
   const tab = p.tab, b = p.view.getBounds(), z = p.win.webContents.getZoomFactor()
   const f = { url: wc.getURL(), profile: p.profile, width: Math.round(b.width / z), height: Math.round(b.height / z) }
   if (b.width < 2 || b.height < 2) return null
