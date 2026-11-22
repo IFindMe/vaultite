@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
+import { z } from "zod"
 import { type Machine, OpError, type Plugin } from "../../../core/plugins.ts"
 import { marksIn } from "./jobgit.ts"
 import { str } from "./jobs.ts"
@@ -9,6 +10,7 @@ import type { Read, workerLinks } from "./links.ts"
 import type { Seen } from "./workers.ts"
 import { dropTree, tilde } from "./where.ts"
 
+const Files = z.array(z.string()).max(40).catch([]), Since = z.number().catch(0)
 const PICTURE_MAX = 40 << 20, PROOF_MAX = 200 << 20, PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
 export function workerOps(plugin: Plugin, o: { places: ReturnType<typeof jobPlaces>; machines: Machines; links: ReturnType<typeof workerLinks>; seenHere: (id: string, r?: Read) => Promise<Seen> }) {
@@ -51,10 +53,22 @@ a guess from a look at one machine's folders.
       cwd: { type: "string", description: "its folder (the diff's)" }, base: { type: "string", description: "the commit the diff counts from" },
       tree: { type: "string", description: "its own worktree: the diff's once it exists" }, branch: { type: "string", description: "its own branch (whether it's on main)" },
       said: { type: "string", description: "its words (whether a commit they name is on main)" }, context: { type: "boolean", description: "how full its agent's context is too" },
-      marks: { type: "object", description: "its change's marks read before ({whole, each}: patch-ids), for once its branch is gone" } },
+      marks: { type: "object", description: "its change's marks read before ({whole, each}: patch-ids), for once its branch is gone" },
+      files: { type: "array", items: { type: "string" }, description: "files it changed (a commit it names in another repo they're in counts too)" }, since: { type: "number", description: "when it started (ms)" } },
     args: ["id"],
     run: async (p) => seenHere(str(p.id), { turn: p.turn === true, session: str(p.session), cwd: str(p.cwd), base: str(p.base), tree: str(p.tree), branch: str(p.branch), said: str(p.said), context: p.context === true,
-      ...(marksIn(p.marks) ? { marks: marksIn(p.marks)! } : {}) }),
+      ...(marksIn(p.marks) ? { marks: marksIn(p.marks)! } : {}), files: Files.parse(p.files), since: Since.parse(p.since) }),
+  })
+
+  plugin.op({
+    id: "companion.worker-landed",
+    owner: "the companion's jobs",
+    summary: "A job's worker terminal on this machine had its change found on main after its turn (another session landed it): its inbox thread here is settled, saying so.",
+    kind: "write",
+    lock: false,
+    params: { terminal: { type: "string", required: true, description: "its terminal's id" }, session: { type: "string", description: "its agent's session" },
+      line: { type: "string", required: true, description: "what its thread says now" } },
+    run: async (p) => ({ settled: await plugin.ask<number>("inbox:landed", 0, str(p.terminal), str(p.session), str(p.line).slice(0, 300)) }),
   })
 
   plugin.op({

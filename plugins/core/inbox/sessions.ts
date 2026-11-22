@@ -20,7 +20,6 @@ export const track = (p: Promise<unknown>) => {
 }
 export const settled = async () => { while (pending.size) await Promise.all([...pending]) }
 
-/** A session's change heard: its row made or changed. Never throws, and the terminal never waits on it. */
 export async function heard(h: Heard) {
   const key = keyOf(h)
   if (!key || !h.agent || mutedAccount(await severalAccountsOf(h.agent, h.terminal ?? "", h.session ?? ""))) return
@@ -197,6 +196,13 @@ export async function tellSession(b: Item): Promise<InboxEvent | null> {
   return list().find(rowOf(heardWho(h))) ?? null
 }
 
+export function landedFrom(terminal: string, session: string, line: string) {
+  const hit = list().filter((e) => e.kind === "session" && !e.machine && e.state === "open" && !BLOCKED.has(str(e.ask)) &&
+    ((!!terminal && e.terminal === terminal) || (!!session && e.session === session)))
+  for (const e of hit) moveOn([e], "done", { body: e.body?.startsWith(line) ? e.body : `${line}\n\n${e.body ?? ""}`.trim(), preview: line })
+  return hit.length
+}
+
 export const progressOf = (terminal: string, session?: string) =>
   shown().find((e) => e.kind === "session" && e.state !== "done" && !!e.progress && ((!!terminal && e.terminal === terminal) || (!!session && e.session === session)))?.progress ?? null
 
@@ -213,7 +219,6 @@ export async function askerOf(): Promise<InboxEvent["from"]> {
 export function register() {
   plugin.onEvent({ types: ["file.changed"] }, () => { if (plugin.loaded) settleNewlyMuted() })
 
-  /** A session's state from a host outside this server (SessionState): answered at once, the thread worked out after. */
   plugin.route("POST", "inbox/sessions", async (req) => {
     await owner(req)
     track(heard(sessionOf(req.body ?? {})))

@@ -12,8 +12,9 @@ export const JOB_STATES = ["waiting", "starting", "working", "needs you", "ready
 export type JobState = typeof JOB_STATES[number]
 export const NEWS = new Set<JobState>(["needs you", "ready for review", "done", "failed"])
 export const live = (s: JobState) => s === "waiting" || s === "starting" || s === "working" || s === "needs you"
-export const onMain = (j: Pick<Job, "land"> & Partial<Pick<Job, "log">>) => !!j.land?.merged || j.log?.at(-1)?.ev === "landed"
-export const landable = (j: Pick<Job, "state" | "where" | "result" | "land"> & Partial<Pick<Job, "log">>) =>
+export const onMain = (j: Pick<Job, "land"> & Partial<Pick<Job, "log" | "onMainAt">>) => !!j.land?.merged || !!j.onMainAt || j.log?.at(-1)?.ev === "landed"
+export const ON_MAIN = "Landed: its change is on main"
+export const landable = (j: Pick<Job, "state" | "where" | "result" | "land"> & Partial<Pick<Job, "log" | "onMainAt">>) =>
   (j.state === "ready for review" || j.state === "done") && !!j.where.repo && !!(j.result?.diff || j.result?.files?.length) && !onMain(j)
 export function landTask(w: Pick<Where, "cwd" | "tree" | "branch" | "live" | "cloud">) {
   return `They watched your change and kept it: merge it now${mergeSteps(w)}`
@@ -95,6 +96,7 @@ export type Job = {
   asked?: number; started: number; carded?: number; stepped?: number; turn: number; at: number
   result?: Result
   land?: { asked: number; at?: number; merged?: boolean }
+  onMainAt?: number
   going?: Going
   marks?: Marks
   seen: boolean
@@ -149,7 +151,10 @@ export function toldBy(j: Pick<Job, "tells" | "started">, prompt: string, typed 
 const toldLast = (j: Job) => (j.tells?.length ? `told last by ${j.tells.at(-1)!.by}` : j.by ? `handed off by ${j.by}` : "")
 const tellsLine = (j: Job, now: number) => (j.tells?.length ? `told (by whom, oldest first): ${j.tells.slice(-4).map((t) => `${t.by}, ${ago(t.at, now)}: "${cut(plain(t.text), 100)}"`).join(" | ")}` : "")
 
-export function nowOf(j: Pick<Job, "title" | "turn" | "last" | "now">, s: { kind?: string; msg?: string; title?: string; state?: string }) {
+const landedSince = (j: Pick<Job, "last"> & Partial<Pick<Job, "onMainAt">>, s: { kind?: string; state?: string }) =>
+  !!j.onMainAt && j.onMainAt >= (j.last?.at ?? 0) && !s.kind && s.state !== "working"
+export function nowOf(j: Pick<Job, "title" | "turn" | "last" | "now"> & Partial<Pick<Job, "onMainAt">>, s: { kind?: string; msg?: string; title?: string; state?: string }) {
+  if (landedSince(j, s)) return ON_MAIN
   if (s.kind) return `waits on ${s.kind === "permission" ? "a permission" : s.kind === "question" ? "an answer" : s.kind}${s.msg ? `: ${s.msg}` : ""}`
   const a = j.last?.awaits
   if (a && (s.state === "idle" || s.state === "done")) return awaitsLine(a)

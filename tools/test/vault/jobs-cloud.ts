@@ -34,7 +34,7 @@ export default async ($: VaultTest) => {
     cc["cloud-tell:claude"] = async (account: string, session: string, text: string) => { cloud.told.push({ account, session, text }); return { submitted: true } }
     cc["cloud-read:claude"] = async (account: string, ids: string[], turns: string[]) => {
       cloud.reads.push(account)
-      return { sessions: Object.fromEntries(ids.map((id) => [id, { status: cloud.status, title: "Footer", updated: Date.now() }])), turns: Object.fromEntries(turns.map((id) => [id, cloud.turn])) }
+      return { sessions: Object.fromEntries(ids.map((id) => [id, { status: cloud.status, title: "Footer", updated: Date.now(), branch: cloud.branch }])), turns: Object.fromEntries(turns.map((id) => [id, cloud.turn])) }
     }
     const job = async (id: string) => (await api("POST", "ops/companion.job", { id }))[1]
     const neverDone = (r: Any) => !r.log.some((x: Any) => x.to === "done")
@@ -98,6 +98,23 @@ export default async ($: VaultTest) => {
       const quiet = await waitFor(async () => { const r = await job(b.id); return r.state === "failed" && r }, 20000, 300)
       Wk.paced({ cloudQuiet: L.PACE.cloudQuiet })
       check("cloud: a session resting on with no answer fails its job, saying why, never done", [quiet].every((r) => !!r && /no answer: open it/.test(r.now) && neverDone(r)), quiet)
+      await asItsTool(() => api("POST", "ops/companion.job-stop", { id: b.id }, agent)).catch(() => {})
+      cloud.status = "running"; cloud.turn = null
+      ;[st, b] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "Fix the sidebar", repo: "cloudy", say: "On it." }, agent))
+      await waitFor(async () => (await job(b.id)).state === "working", 10000, 200)
+      const lander = path.join(tmp, "cloudy-lander")
+      c(tmp, "clone", "-q", "-b", "main", bare, lander); c(lander, "checkout", "-qb", "claude/sidebar-1"); fs.writeFileSync(path.join(lander, "sidebar.txt"), "wide")
+      c(lander, "add", "."); c(lander, "commit", "-qm", "feat: sidebar"); c(lander, "push", "-q", "origin", "claude/sidebar-1")
+      cloud.branch = "claude/sidebar-1"; cloud.status = "idle"
+      cloud.turn = { prompt: "Fix the sidebar", text: "Not merged: its checks wait on a runner; it's on its branch.", at: Date.now(), final: true, files: ["/home/user/cloudy/sidebar.txt"] }
+      const review = await waitFor(async () => { const r = await job(b.id); return r.state === "ready for review" && r }, 20000, 300)
+      Wk.paced({ ship: 500, fetch: 500 })
+      c(lander, "checkout", "-q", "main"); c(lander, "pull", "-q", "origin", "main"); c(lander, "merge", "-q", "--squash", "claude/sidebar-1"); c(lander, "commit", "-qm", "feat: sidebar (squashed)"); c(lander, "push", "-q", "origin", "HEAD:main")
+      const after = await waitFor(async () => { const r = await job(b.id); return r.state === "done" && r }, 20000, 300)
+      Wk.paced({ ship: L.PACE.ship, fetch: L.PACE.fetch })
+      check("cloud: ended Not merged, then landed by another session (squashed, a new sha), the job is done saying it's on main",
+        !!review && !!after && after.log.at(-1).ev === "landed" && after.now.startsWith("Landed: its change is on main"), [review, after ?? await job(b.id)])
+      delete cloud.branch
       await asItsTool(() => api("POST", "ops/companion.job-stop", { id: b.id }, agent)).catch(() => {})
       await api("PATCH", "config/plugin/companion", { jobs_cloud: "nobody" })
       const [sn, bn] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "Fix the header", repo: "cloudy", machine: "cloud", say: "On it." }, agent))

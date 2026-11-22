@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Companion: a job whose change another session landed on main (squashed or rebased, from another machine, a cloud
+  session's branch, or another repo such as Vaultite/plugins) turns done, its row and inbox thread saying it's on
+  main, even after its own last words said "Not merged".
 - Inbox: an agent's decision now defaults to the option that does the thing; a passive default (Not yet, Later) only
   for what goes out to others, costs money or can't be undone.
 - Terminals: Restart on an agent's terminal whose shell is gone (its computer restarted, the agent crashed) resumes

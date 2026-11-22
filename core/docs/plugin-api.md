@@ -247,6 +247,7 @@ by its path.
 - `inbox:needs` (inbox): Whether an agent's session (by its terminal, or its own session id) has a thread that needs the user, unread: Terminal's list says so (its tab's dot, Terminals' first rows).
 - `inbox:state` (inbox): Terminal's stream of its terminals' states.
 - `inbox:session` (inbox): Tell the inbox a session's state (SessionState): the thread it's in, once worked out (a turn's end is judged first).
+- `inbox:landed` (inbox): A session's change found on main after its turn (another session landed it): its open thread settled, saying so.
 - `inbox:handed` (inbox): Dispatch marks the terminals it starts.
 - `inbox:progress` (inbox): A session's latest progress, for the Agents panel's row (its terminal's or its chat's step): while it's on it.
 - `inbox:event` (inbox): Add an event from another plugin's backend or the core (what it would POST); returns it. One asking the user, made in a session's request, says which session asked.

@@ -1,4 +1,4 @@
-import { type Job, type JobState, live, mergedSaid, NEWS, type Transition, type Waits } from "./jobs.ts"
+import { type Job, type JobState, landable, live, mergedSaid, NEWS, type Transition, type Waits } from "./jobs.ts"
 import type { Awaits } from "../../../core/attention.ts"
 
 export const JOB_EVENTS = ["start", "working", "asks", "changed", "answered", "landed", "error", "ended", "told", "stop"] as const
@@ -115,6 +115,7 @@ export type Pace = {
   hold: number
   read: number
   ship: number
+  fetch: number
   live: number
   learn: number
   prune: number
@@ -123,7 +124,7 @@ export type Pace = {
   cloudQuiet: number
   stuck: number
 }
-export const PACE: Pace = { tick: 3000, hold: 1500, read: 15_000, ship: 5 * 60_000, live: 20_000, learn: 30_000, prune: 3600_000, grace: 120_000, flush: 5, cloudQuiet: 20 * 60_000,
+export const PACE: Pace = { tick: 3000, hold: 1500, read: 15_000, ship: 5 * 60_000, fetch: 60_000, live: 20_000, learn: 30_000, prune: 3600_000, grace: 120_000, flush: 5, cloudQuiet: 20 * 60_000,
   stuck: 20 * 60_000 }
 
 export const answered = (t: { final: boolean; at: number; text: string; files: string[] } | null | undefined, since: number) =>
@@ -184,10 +185,12 @@ export function turnOver(j: Pick<Job, "going">, c: Clock, ev: JobEvent, commit: 
 }
 
 export const readTurn = (j: Pick<Job, "state">, c: Clock, now: number, pace: Pace) => live(j.state) && ago(c.read, now) >= pace.read
-export const shipDue = (j: Pick<Job, "state" | "where">, c: Clock, now: number, pace: Pace) => j.state === "ready for review" && !!j.where.repo && ago(c.ship, now) >= pace.ship
+const LANDS_LATE = 2 * 86_400_000
+export const shipDue = (j: Pick<Job, "state" | "where" | "result" | "land" | "at"> & Partial<Pick<Job, "log" | "onMainAt">>, c: Clock, now: number, pace: Pace) =>
+  (j.state === "ready for review" ? !!j.where.repo && !j.onMainAt : landable(j) && now - j.at < LANDS_LATE) && ago(c.ship, now) >= pace.ship
 
 const RECENT = 6 * 3600_000
-type Due = Pick<Job, "state" | "at" | "where" | "exited" | "going" | "pruned">
+type Due = Pick<Job, "state" | "at" | "where" | "exited" | "going" | "pruned" | "result" | "land"> & Partial<Pick<Job, "log" | "onMainAt">>
 
 const readsLater = (j: Due, recent: boolean) =>
   (!!j.where.machine && j.state !== "stopped" && recent) || (j.state === "done" && !j.exited) || (j.state === "ready for review" && recent)

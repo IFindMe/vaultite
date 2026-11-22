@@ -1,10 +1,9 @@
-import { execFile } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
 import { z } from "zod"
 import { parseTerminal } from "../../../core/agents.ts"
-import { gitEnv, logger, type Machine, MACHINE_CLIENT, type OpCtx, OpError, type Plugin } from "../../../core/plugins.ts"
-import { commitsIn, type Marks, picturesIn } from "./jobs.ts"
+import { logger, type Machine, MACHINE_CLIENT, type OpCtx, OpError, type Plugin } from "../../../core/plugins.ts"
+import { type Marks, picturesIn } from "./jobs.ts"
 import { branchOf, githubOf, headOf } from "./where.ts"
 import type { Seen } from "./workers.ts"
 
@@ -12,7 +11,8 @@ const log = logger("companion")
 
 export type Start = { agent: string; cwd: string; name: string; prompt?: string; session?: string; model?: string; effort?: string; mode?: string
   base?: string }
-export type Read = { turn?: boolean; session?: string; cwd?: string; base?: string; tree?: string; branch?: string; said?: string; context?: boolean; marks?: Marks }
+export type Read = { turn?: boolean; session?: string; cwd?: string; base?: string; tree?: string; branch?: string; said?: string; context?: boolean; marks?: Marks
+  files?: string[]; since?: number }
 export type Home = { url: string; as: string }
 
 export type Link = {
@@ -34,7 +34,7 @@ const Taken = z.object({ path: z.string() })
 const Session = z.object({ session: z.string() })
 const Turn = z.looseObject({ prompt: z.string(), text: z.string(), at: z.number(), final: z.boolean(), files: z.array(z.string()), awaits: z.object({ on: z.string(), since: z.number(), n: z.number() }).optional(),
   asks: z.array(z.object({ question: z.string(), choices: z.array(z.string()) })).optional() })
-const CloudRead = z.object({ sessions: z.record(z.string(), z.looseObject({ status: z.string(), title: z.string() }).nullable()), turns: z.record(z.string(), Turn.nullable()) })
+const CloudRead = z.object({ sessions: z.record(z.string(), z.looseObject({ status: z.string(), title: z.string(), branch: z.string().optional() }).nullable()), turns: z.record(z.string(), Turn.nullable()) })
 const SeenThere = z.looseObject({ running: z.boolean(), state: z.string().optional(), kind: z.string().optional(), msg: z.string().optional(), title: z.string().optional(),
   typed: z.number().optional(), quiet: z.number().optional(), asks: z.array(z.string()).optional(), diff: z.string().optional(), unreachable: z.string().optional(), onMain: z.boolean().optional(),
   waits: z.looseObject({ kind: z.enum(["permission", "question", "stuck"]), question: z.string(), choices: z.array(z.string()) }).optional(),
@@ -43,8 +43,18 @@ const SeenThere = z.looseObject({ running: z.boolean(), state: z.string().option
   context: z.looseObject({ tokens: z.number(), window: z.number() }).optional(),
   marks: z.looseObject({ whole: z.string(), each: z.array(z.string()) }).optional() })
 
+type CloudSession = z.infer<typeof CloudRead>["sessions"][string]
+function cloudSeen(st: CloudSession, t: z.infer<typeof Turn> | null, turn: boolean): Seen {
+  if (!st || st.status === "archived") return { running: false, exit: { code: 0, signal: 1 }, ...(turn ? { turn: t } : {}) }
+  const ask = t?.asks?.[0], blocked = st.status === "requires_action"
+  return { running: true, state: st.status === "failed" ? "error" : blocked ? "blocked" : st.status === "idle" ? "idle" : "working",
+    ...(blocked ? { kind: ask ? "question" : "permission", msg: ask?.question ?? "Waits on you in its session on claude.ai",
+      waits: ask ? { kind: "question" as const, question: ask.question, choices: t!.asks!.length === 1 ? ask.choices : [] } : { kind: "permission" as const, question: "Waits on a permission in its session on claude.ai", choices: [] } } : {}),
+    ...(turn ? { turn: t, ...(t?.asks?.length ? { asks: t.asks.map((x) => x.question) } : {}) } : {}) }
+}
+
 export function workerLinks(plugin: Plugin, o: { seenHere: (terminal: string, r: Read) => Promise<Seen>
-  landing: (cwd: string, base: string, text: string, branch: string, kept?: Marks) => Promise<Pick<Seen, "onMain" | "marks">> }) {
+  landing: (cwd: string, base: string, text: string, branch: string, kept?: Marks, files?: string[], since?: number) => Promise<Pick<Seen, "onMain" | "marks">> }) {
   async function atMachine(machine: string, id: string, body: object, seconds = 15) {
     const m = await plugin.ask<Machine | null>("machines:machine", null, machine)
     if (!m || m.self) throw new OpError(`no machine '${machine}' (Machines lists them)`, 404)
@@ -126,12 +136,6 @@ export function workerLinks(plugin: Plugin, o: { seenHere: (terminal: string, r:
     return answer.parse(await fn(...args))
   }
   const accountOf = (agent: string) => parseTerminal(`${agent}-x`)?.profile || "default"
-  const fetched = new Map<string, number>()
-  const fetchMain = (cwd: string) => {
-    if (Date.now() - (fetched.get(cwd) ?? 0) < 60_000) return Promise.resolve()
-    fetched.set(cwd, Date.now())
-    return new Promise<void>((ok) => execFile("git", ["fetch", "-q", "--no-tags", "origin"], { cwd, timeout: 60_000, env: gitEnv() }, () => ok()))
-  }
   function cloudLink(agent: string): Link {
     const account = accountOf(agent)
     const link: Link = {
@@ -144,18 +148,10 @@ export function workerLinks(plugin: Plugin, o: { seenHere: (terminal: string, r:
       },
       seen: async (session, r) => {
         const got = await cloudSay("read", CloudRead, account, [session], r.turn ? [session] : [])
-        const st = got.sessions[session], t = got.turns[session] ?? null
-        if (!st || st.status === "archived") return { running: false, exit: { code: 0, signal: 1 }, ...(r.turn ? { turn: t } : {}) }
-        const ask = t?.asks?.[0], blocked = st.status === "requires_action"
-        const seen: Seen = { running: true, state: st.status === "failed" ? "error" : blocked ? "blocked" : st.status === "idle" ? "idle" : "working",
-          ...(blocked ? { kind: ask ? "question" : "permission", msg: ask?.question ?? "Waits on you in its session on claude.ai",
-            waits: ask ? { kind: "question" as const, question: ask.question, choices: t!.asks!.length === 1 ? ask.choices : [] } : { kind: "permission" as const, question: "Waits on a permission in its session on claude.ai", choices: [] } } : {}),
-          ...(r.turn ? { turn: t, ...(t?.asks?.length ? { asks: t.asks.map((x) => x.question) } : {}) } : {}) }
-        const said = [t?.text, r.said].filter(Boolean).join("\n")
-        if (r.cwd && r.base && (r.turn || r.said)) {
-          if (commitsIn(said).length) await fetchMain(r.cwd)
-          Object.assign(seen, await o.landing(r.cwd, r.base, said, "", r.marks))
-        }
+        const st = got.sessions[session], t = got.turns[session] ?? null, seen = cloudSeen(st, t, r.turn === true)
+        const branch = st?.branch || r.branch || ""
+        if (branch) seen.branch = branch
+        if (r.cwd && r.base && (r.turn || r.said)) Object.assign(seen, await o.landing(r.cwd, r.base, [t?.text, r.said].filter(Boolean).join("\n"), branch, r.marks, [], r.since))
         return seen
       },
       tell: (_ctx, session, text) => cloudSay("tell", Sent, account, session, text),

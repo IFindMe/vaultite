@@ -917,6 +917,7 @@ export default async ($: VaultTest) => {
       const rt = (await rows()).find((x) => x.session === "sdk-rep")
       check("a reply to a hosted session's report: its host takes it, the report archived, its thread working", st === 200 && b.how === "host" &&
         /^\["sdk-rep","\(A reply to your report/.test(JSON.stringify(got.at(-1))) && exists("Inbox/.archive/Fix done · Hosted report.md") && rt?.state === "working", [st, b, rt])
+      await landedLater($, host, rows)
       delete inbox.services["agent-reply:sdk"]; delete inbox.services["agent-answer:sdk"]; delete inbox.services["agent-chat-new:sdk"]
       await api("DELETE", `inbox/events/${e.id}`)
       if (rt) await api("DELETE", `inbox/events/${rt.id}`)
@@ -1330,4 +1331,17 @@ export default async ($: VaultTest) => {
     cr = await vau("inbox", "hold", "yesterday-ish")
     check("vau inbox hold: a time it can't read is refused", cr.code !== 0, cr)
   }
+}
+
+async function landedLater($: VaultTest, host: (b: Any) => Promise<Any>, rows: () => Promise<Any[]>) {
+  const { service } = await import("../../../core/plugins.ts")
+  const ended = await host({ agent: "sdk", session: "sdk-4", state: "done", prompt: "Ship the sidebar", text: "Not merged: its branch is pushed. Should I merge it?" })
+  const waiting = await host({ agent: "sdk", session: "sdk-5", state: "waiting", ask: "permission", text: "Push it?" })
+  const landed: (t: string, s: string, line: string) => number = service($.app.plugins, "inbox:landed")!
+  const n = landed("", "sdk-4", "Landed: its change is on main."), m = landed("", "sdk-5", "Landed: its change is on main.")
+  const after = (await rows()).find((x) => x.id === ended.id), body: string = after?.body ?? ""
+  $.check("inbox:landed: a session's change found on main later settles its thread, saying so first; one waiting on you stays",
+    ended?.state === "open" && n === 1 && m === 0 && after?.state === "done" && body.startsWith("Landed: its change is on main.\n\nNot merged") &&
+    after.preview === "Landed: its change is on main." && (await rows()).find((x) => x.id === waiting.id)?.state === "open", [ended, after])
+  await $.api("DELETE", `inbox/events/${ended.id}`); await $.api("DELETE", `inbox/events/${waiting.id}`)
 }

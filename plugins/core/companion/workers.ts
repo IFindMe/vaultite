@@ -2,11 +2,11 @@ import fs from "node:fs"
 import { type Awaits, parseTerminal } from "../../../core/agents.ts"
 import { Relayed } from "../../../core/contracts/version.ts"
 import { logger, type OpCtx, OpError, type Plugin, type Who, whoOf } from "../../../core/plugins.ts"
-import { cardOf, commitsIn, turnWord, fixTask, landedSaid, mergedCommit, mergedSaid, type Handoff, type Job, type JobCard, jobsLine, jobTimings, lastOf, linkOf, linksIn, live, type Marks, messageOf, nowOf,
+import { cardOf, commitsIn, ON_MAIN, turnWord, fixTask, landedSaid, mergedCommit, mergedSaid, type Handoff, type Job, type JobCard, jobsLine, jobTimings, lastOf, linkOf, linksIn, live, type Marks, messageOf, nowOf,
   type Queued, toldBy, type Result, resumeOf, str, type Waits, type Where } from "./jobs.ts"
 import { JobLogRow } from "./rows.ts"
 import { answered, type Clock, due, endEvent, stuckLine, stuckOf, type Going, type GoingEvent, going, goingLine, type JobEvent, PACE, type Pace, read, readTurn, restEvent, shipDue, step, turnOver, waitsLive } from "./joblife.ts"
-import { diffSince, marksOf, onMainSince } from "./jobgit.ts"
+import { diffSince, fetchMain, marksOf, onMainElsewhere, onMainSince } from "./jobgit.ts"
 import { handoffOps } from "./jobhandoff.ts"
 import { jobMachines } from "./jobmachines.ts"
 import { jobsOps } from "./jobops.ts"
@@ -40,9 +40,12 @@ export type Seen = { running: boolean; state?: string; kind?: string; msg?: stri
   unreachable?: string
   context?: { tokens: number; window: number }
   onMain?: boolean
+  branch?: string
   marks?: Marks }
 
 const KEEP = 40, KEEP_DAYS = 7
+const filesOf = (t: { files?: string[] } | null, o: Read) => [...(t?.files ?? []), ...(o.files ?? [])]
+const resultFiles = (j: Job) => j.result?.files ?? []
 export type JobCore = {
   all: () => Job[]; jobOf: (id: string) => Job; changed: () => void; refresh: (j: Job, now?: boolean) => Promise<void>
   wake: (ctx: OpCtx, j: Job, prompt?: string) => Promise<boolean>; close: (ctx: OpCtx, j: Job) => Promise<void>; restart: (ctx: OpCtx, j: Job, by?: string) => Promise<void>
@@ -69,7 +72,7 @@ function lasted(seen: Map<string, number>, id: string, ms: number, now = Date.no
 }
 
 export function jobOps(plugin: Plugin, d: JobDeps) {
-  const links = workerLinks(plugin, { seenHere: (id, r) => seenHere(id, r), landing: (cwd, base, text, branch, kept) => landing(cwd, base, text, branch, kept) }), atMachine = links.atMachine
+  const links = workerLinks(plugin, { seenHere: (id, r) => seenHere(id, r), landing }), atMachine = links.atMachine
   const machines = jobMachines(plugin, links), { setting, jobsAgent } = machines
   const places = jobPlaces(plugin, machines, atMachine), { placeHere } = places
 
@@ -90,6 +93,7 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
   function move(j: Job, ev: JobEvent, t = Date.now()) {
     const x = step(j, ev, t)
     if (!x) return false
+    if (live(x.to)) delete j.onMainAt
     jobLog.append(x.t, [{ t: x.t, job: j.id, ev, from: x.from, to: x.to }])
     jobLog.prune(30)
     d.moved?.(j, x.from)
@@ -119,16 +123,17 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
       ...(o.turn ? { turn: turn ? { text: str(turn.text), files: turn.files ?? [], at: turn.at ?? 0, final: turn.final !== false && !!turn.text, ...(turn.session ? { session: turn.session } : {}),
         ...(turn.prompt ? { prompt: turn.prompt } : {}), awaits: turn.awaits } : null } : {}),
       ...(o.turn && o.cwd && o.base ? { diff: await changesOf(o.cwd, o.base, o.tree ?? "", [turn?.text, o.said].filter(Boolean).join("\n")) } : {}),
-      ...(o.cwd && o.base && (o.turn || o.said || o.branch) ? await landing(o.cwd, o.base, [turn?.text, o.said].filter(Boolean).join("\n"), o.branch ?? "", o.marks) : {}) }
+      ...(o.cwd && o.base && (o.turn || o.said || o.branch) ? await landing(o.cwd, o.base, [turn?.text, o.said].filter(Boolean).join("\n"), o.branch ?? "", o.marks, filesOf(turn, o), o.since) : {}) }
   }
   async function changesOf(cwd: string, base: string, tree: string, text: string) {
     const commit = landedSaid(text) ? mergedCommit(text) : ""
     const there = tree && fs.existsSync(tree)
     return diffSince(there ? tree : cwd, base, commit, !!tree && !there && !sameDir(tree, cwd))
   }
-  async function landing(cwd: string, base: string, text: string, branch: string, kept?: Marks) {
+  async function landing(cwd: string, base: string, text: string, branch: string, kept?: Marks, files: string[] = [], since = 0) {
+    await fetchMain(cwd, branch, { every: pace.fetch, text })
     const marks = branch ? await marksOf(cwd, branch) : null
-    return { onMain: await onMainSince(cwd, base, text, branch, marks ?? kept), ...(marks ? { marks } : {}) }
+    return { onMain: await onMainSince(cwd, base, text, branch, marks ?? kept) || await onMainElsewhere(cwd, files, text, since), ...(marks ? { marks } : {}) }
   }
   async function waitsOf(id: string, st: { kind?: string; msg?: string }, questions?: { question?: string; multi?: boolean; options?: { label?: string }[] }[]): Promise<Seen["waits"] | null> {
     if (st.kind === "auth") return null
@@ -144,9 +149,10 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
   const seenOf = (j: Job, turn = false, diff = turn) => {
     const said = [j.result?.text, j.last?.text].filter(Boolean).join("\n").slice(0, 8000)
     const o = { ...(turn ? { turn, ...(j.session ? { session: j.session } : {}) } : {}), ...(diff ? { cwd: j.where.cwd, ...(j.where.base ? { base: j.where.base } : {}), ...(j.where.tree ? { tree: j.where.tree } : {}),
-      ...(j.where.branch ? { branch: j.where.branch } : {}), ...(said ? { said } : {}), ...(j.marks ? { marks: j.marks } : {}) } : {}) }
+      ...(j.where.branch ? { branch: j.where.branch } : {}), ...(said ? { said } : {}), ...(j.marks ? { marks: j.marks } : {}), files: resultFiles(j), since: j.started } : {}) }
     return links.of(j.where).seen(j.terminal, o).then((s) => {
       if (s.marks && JSON.stringify(s.marks) !== JSON.stringify(j.marks)) { j.marks = s.marks; marked.add(j.id) }
+      if (s.branch && j.where.cloud && s.branch !== j.where.branch) { j.where.branch = s.branch; marked.add(j.id) }
       // (Claude Code speaking OSC 7501 mutes its hooks, yet may never say its state)
       const w = turn && s.running && !s.state ? turnWord(s.turn, Date.now()) : undefined
       return w ? { ...s, state: w } : s
@@ -281,7 +287,17 @@ export function jobOps(plugin: Plugin, d: JobDeps) {
   async function shippedSince(j: Job) {
     clockOf(j).ship = Date.now()
     const s = await seenOf(j, false, true).catch(() => null)
-    return !!s && shipped(j, s, [j.result?.text, j.last?.text].filter(Boolean).join("\n")) && move(j, "landed")
+    if (!s || !shipped(j, s, [j.result?.text, j.last?.text].filter(Boolean).join("\n"))) return false
+    j.onMainAt = Date.now()
+    j.now = ON_MAIN
+    move(j, "landed")
+    void settled(j).catch((e) => log.error(`jobs: ${j.id}: its inbox thread: ${messageOf(e)}`))
+    return true
+  }
+  async function settled(j: Job) {
+    const ids = { terminal: j.terminal, session: j.session ?? "", line: `${ON_MAIN}.` }
+    if (j.where.machine) await links.of(j.where).there(appCtx(), "companion.worker-landed", ids)
+    else await plugin.ask("inbox:landed", 0, ids.terminal, ids.session, ids.line)
   }
   async function ship(j: Job) {
     if (busy.has(j.id)) return

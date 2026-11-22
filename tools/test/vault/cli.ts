@@ -84,7 +84,7 @@ async function helpChecks({ check }: VaultTest, vau: Vau) {
 }
 
 async function uploadChecks({ check, VAULT }: VaultTest, vau: Vau) {
-  const pic = path.join(os.tmpdir(), "Dot on the desk.png")
+  const pic = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "upload-")), "Dot on the desk.png")
   fs.writeFileSync(pic, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"))
   let cr = await vau("upload", pic)
   const saved = path.join(VAULT, "Attachments", "Dot on the desk.png")

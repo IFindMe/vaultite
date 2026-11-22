@@ -320,6 +320,36 @@ export default async ($: VaultTest) => {
     check("jobs: rebased onto main commit by commit, its branch still there, it's on main by its marks", await onMainSince(repo, base, "Done.", "job-w", await marksOf(repo, "job-w")))
     g("checkout", "-q", "-f", on); g("branch", "-qD", "job-z", "job-w"); g("update-ref", "-d", "refs/remotes/origin/main"); g("reset", "-q", "--hard", base)
   }
+  {
+    const { onMainSince, onMainElsewhere, marksOf } = await import("../../../plugins/core/companion/jobgit.ts")
+    const base = g("rev-parse", "HEAD").trim(), on = g("symbolic-ref", "--short", "HEAD").trim(), put = (f: string, t: string, msg: string) => { fs.writeFileSync(path.join(repo, f), t); g("add", "."); g("commit", "-qm", msg) }
+    put("CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n- First.\n", "docs: changelog"); const start = g("rev-parse", "HEAD").trim()
+    g("update-ref", "refs/remotes/origin/main", start)
+    g("checkout", "-qb", "job-v"); put("v.txt", "v\n", "feat: v"); put("CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n- V.\n- First.\n", "docs: v")
+    g("checkout", "-q", "--detach", start); put("CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n- Other.\n- First.\n", "feat: other"); g("update-ref", "refs/remotes/origin/main", "HEAD")
+    const marks = await marksOf(repo, "job-v")
+    const before = await onMainSince(repo, start, "Not merged: pushed job-v.", "job-v", marks)
+    fs.writeFileSync(path.join(repo, "v.txt"), "v\n"); fs.writeFileSync(path.join(repo, "CHANGELOG.md"), "# Changelog\n\n## Unreleased\n\n- V.\n- Other.\n- First.\n"); g("add", "."); g("commit", "-qm", "feat: v (squashed)")
+    g("update-ref", "refs/remotes/origin/main", "HEAD")
+    const tip = g("rev-parse", "job-v").trim()
+    check("jobs: squashed by another session with a different diff (its CHANGELOG beside another's), its branch's change is found on main, its commits named or not",
+      !before && await onMainSince(repo, start, "Not merged: pushed job-v.", "job-v", marks) && await onMainSince(repo, start, `Not merged: pushed ${tip.slice(0, 9)} on job-v.`), { before, marks })
+    g("update-ref", "refs/remotes/origin/claude/v-1", tip); g("checkout", "-q", "-f", on); g("branch", "-qD", "job-v")
+    check("jobs: a cloud session's branch, only on its remote, is read there", await onMainSince(repo, start, "Done.", "claude/v-1") && !!await marksOf(repo, "claude/v-1"))
+    check("jobs: main itself named as its branch is never its landing", !await onMainSince(repo, start, "Done.", "main"))
+    g("checkout", "-q", "--detach", start); put("u.txt", "u\n", "feat: u, unlanded"); const unlanded = g("rev-parse", "HEAD").trim(); g("checkout", "-q", "-f", on)
+    check("jobs: a commit it names that isn't all on main isn't its landing", !await onMainSince(repo, start, `Not merged: ${unlanded.slice(0, 9)}.`))
+    const far = path.join(tmp, "plugins-repo"), f = (...a: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...a], { cwd: far, stdio: "pipe", env: gitEnv() }).toString()
+    fs.mkdirSync(path.join(far, "logseq"), { recursive: true }); f("init", "-q"); fs.writeFileSync(path.join(far, "logseq", "plugin.ts"), "a\n"); f("add", "."); f("commit", "-qm", "first"); f("update-ref", "refs/remotes/origin/main", "HEAD")
+    f("checkout", "-qb", "job-l"); fs.writeFileSync(path.join(far, "logseq", "plugin.ts"), "b\n"); f("commit", "-qam", "feat: logseq"); const theirs = f("rev-parse", "HEAD").trim()
+    const files = [path.join(far, "logseq", "plugin.ts")], t0 = Date.now() - 5000
+    const notYet = await onMainElsewhere(repo, files, `Not merged: ${theirs.slice(0, 9)} on job-l.`, t0)
+    f("checkout", "-q", "--detach", "origin/main"); fs.writeFileSync(path.join(far, "logseq", "plugin.ts"), "b\n"); f("commit", "-qam", "feat: logseq (landed)"); f("update-ref", "refs/remotes/origin/main", "HEAD")
+    check("jobs: a commit it names in another repo it changed files in, landed there since it started, counts; not before, nor in its own repo, nor older than it",
+      !notYet && await onMainElsewhere(repo, files, `Not merged: ${theirs.slice(0, 9)} on job-l.`, t0) && !await onMainElsewhere(repo, [path.join(repo, "v.txt")], `Not merged: ${theirs.slice(0, 9)}.`, t0) &&
+      !await onMainElsewhere(repo, files, `Not merged: ${theirs.slice(0, 9)}.`, Date.now() + 3600_000), { notYet })
+    g("update-ref", "-d", "refs/remotes/origin/main"); g("update-ref", "-d", "refs/remotes/origin/claude/v-1"); g("reset", "-q", "--hard", base)
+  }
   await (async () => {
     const now = 100_000, w = (text: string, at: number, final: boolean) => J.turnWord({ text, at, final }, now)
     check("jobs: with no word from its terminal, a turn with a tool call open is working, its last words standing 30 s at rest, else unknown",

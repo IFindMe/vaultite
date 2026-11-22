@@ -1,4 +1,7 @@
 import { execFile, spawn } from "node:child_process"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { gitEnv } from "../../../core/plugins.ts"
 import { commitsIn, type Marks } from "./jobs.ts"
 
@@ -22,16 +25,81 @@ async function fromOf(cwd: string, base: string) {
 export async function onMainSince(cwd: string, base: string, text: string, branch = "", marks?: Marks | null) {
   const main = await mainOf(cwd)
   if (!main || !base) return false
-  const from = branch && await gitOk(cwd, ["rev-parse", "--verify", "-q", `refs/heads/${branch}`]) ? (await git(cwd, ["merge-base", main, `refs/heads/${branch}`])).trim() : ""
-  for (const h of commitsIn(text)) {
-    if (from && await gitOk(cwd, ["merge-base", "--is-ancestor", h, from])) continue
-    if (await gitOk(cwd, ["merge-base", "--is-ancestor", h, main]) && !(await gitOk(cwd, ["merge-base", "--is-ancestor", h, base]))) return true
-  }
-  if (branch && await gitOk(cwd, ["merge-base", "--is-ancestor", branch, main]) && !(await gitOk(cwd, ["merge-base", "--is-ancestor", branch, base]))) return true
+  const ref = await refOf(cwd, branch)
+  if (await namedOnMain(cwd, base, main, text, ref) || await branchOnMain(cwd, base, main, ref)) return true
   if (!marks?.whole && !marks?.each.length) return false
   const on = await mainPatches(cwd, base, main)
   return (!!marks.whole && on.has(marks.whole)) || (!!marks.each.length && marks.each.every((x) => on.has(x)))
 }
+async function namedOnMain(cwd: string, base: string, main: string, text: string, ref: string) {
+  const from = ref ? (await git(cwd, ["merge-base", main, ref])).trim() : ""
+  for (const h of commitsIn(text)) {
+    if ((from && await gitOk(cwd, ["merge-base", "--is-ancestor", h, from])) || await gitOk(cwd, ["merge-base", "--is-ancestor", h, base])) continue
+    if (await gitOk(cwd, ["merge-base", "--is-ancestor", h, main]) || await allOnMain(cwd, main, h)) return true
+  }
+  return false
+}
+const branchOnMain = async (cwd: string, base: string, main: string, ref: string) =>
+  !!ref && !(await gitOk(cwd, ["merge-base", "--is-ancestor", ref, base])) && (await gitOk(cwd, ["merge-base", "--is-ancestor", ref, main]) || await allOnMain(cwd, main, ref))
+async function allOnMain(cwd: string, main: string, commit: string) {
+  if (!(await gitOk(cwd, ["cat-file", "-e", `${commit}^{commit}`])) || await gitOk(cwd, ["merge-base", "--is-ancestor", commit, main])) return false
+  const [out, from] = await Promise.all([gitAny(cwd, ["merge-tree", "--write-tree", "--name-only", "--no-messages", main, commit]), git(cwd, ["merge-base", main, commit])])
+  const [tree, ...rest] = out.split("\n"), conflicted = new Set(rest.filter(Boolean))
+  if (!/^[0-9a-f]{40,64}$/.test(tree.trim()) || !from.trim()) return false
+  const differ = (await git(cwd, ["diff", "--name-only", "-z", `${main}^{tree}`, tree.trim()])).split("\0").filter(Boolean)
+  if (differ.some((f) => !conflicted.has(f))) return false
+  for (const f of differ) {
+    const [theirs, ours] = await Promise.all([gitOk(cwd, ["cat-file", "-e", `${commit}:${f}`]), gitAny(cwd, ["show", `${main}:${f}`])])
+    if (!theirs) return false
+    const has = new Set(ours.split("\n").map((l) => l.trim()))
+    const added = (await git(cwd, ["diff", "--no-color", "--no-ext-diff", "-U0", from.trim(), commit, "--", f])).split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim())
+    if (added.some((l) => l && !has.has(l))) return false
+  }
+  return true
+}
+const refOf = async (cwd: string, branch: string) => {
+  if (!branch || /^(?:main|master)$/.test(branch)) return ""
+  for (const r of [`refs/heads/${branch}`, `refs/remotes/origin/${branch}`]) if (await gitOk(cwd, ["rev-parse", "--verify", "-q", `${r}^{commit}`])) return r
+  return ""
+}
+const fetched = new Map<string, { at: number; done: Promise<void> }>()
+export async function fetchMain(cwd: string, branch = "", o: { every?: number; text?: string } = {}) {
+  const key = `${cwd}\0${branch}`, f = fetched.get(key)
+  const unknown = async () => { for (const h of commitsIn(o.text ?? "")) if (!(await gitOk(cwd, ["cat-file", "-e", `${h}^{commit}`]))) return true; return false }
+  if (!f || Date.now() - f.at > (o.every ?? 60_000) || (Date.now() - f.at > 5000 && await unknown())) {
+    const main = (await mainOf(cwd)).replace(/^origin\//, "") || "main"
+    const own = branch && !/^(?:main|master)$/.test(branch) && !(await gitOk(cwd, ["rev-parse", "--verify", "-q", `refs/heads/${branch}`])) ? [`+refs/heads/${branch}:refs/remotes/origin/${branch}`] : []
+    // (one refspec its remote lacks fails the whole fetch: a branch not pushed yet)
+    const one = (spec: string) => new Promise<void>((ok) => execFile("git", ["-c", "gc.auto=0", "fetch", "-q", "--no-tags", "--no-write-fetch-head", "origin", spec],
+      { cwd, timeout: 60_000, env: gitEnv({ GIT_TERMINAL_PROMPT: "0" }) }, () => ok()))
+    fetched.set(key, { at: Date.now(), done: Promise.all([`+refs/heads/${main}:refs/remotes/origin/${main}`, ...own].map(one)).then(() => {}) })
+    if (fetched.size > 200) fetched.delete(fetched.keys().next().value!)
+  }
+  await Promise.race([fetched.get(key)!.done, new Promise<void>((ok) => setTimeout(ok, 4000).unref?.())])
+}
+export async function onMainElsewhere(cwd: string, files: string[], text: string, since: number) {
+  const named = commitsIn(text)
+  if (!named.length || !since) return false
+  const own = await commonOf(cwd), repos = new Set<string>(), dirs = new Set(files.map((f) => path.dirname(f.replace(/^~(?=\/)/, os.homedir()))))
+  for (const d of [...dirs].slice(0, 20)) {
+    if (!fs.existsSync(d)) continue
+    const top = (await git(d, ["rev-parse", "--show-toplevel"])).trim()
+    if (top && await commonOf(top) !== own) repos.add(top)
+    if (repos.size >= 3) break
+  }
+  for (const r of repos) {
+    await fetchMain(r, "", { text })
+    const main = await mainOf(r)
+    if (!main) continue
+    for (const h of named) {
+      const at = Number((await git(r, ["log", "-1", "--format=%ct", `${h}^{commit}`])).trim()) * 1000
+      if (at && at >= since - 60_000 && (await gitOk(r, ["merge-base", "--is-ancestor", h, main]) || await allOnMain(r, main, h))) return true
+    }
+  }
+  return false
+}
+const commonOf = async (dir: string) => path.resolve(dir, (await git(dir, ["rev-parse", "--git-common-dir"])).trim())
+const gitAny = (cwd: string, args: string[]) => new Promise<string>((ok) => execFile("git", args, { cwd, timeout: 5000, maxBuffer: 4 << 20, env: gitEnv() }, (_e, out) => ok(String(out ?? ""))))
 const gitOk = (cwd: string, args: string[]) => new Promise<boolean>((r) => execFile("git", args, { cwd, timeout: 5000, env: gitEnv() }, (e) => r(!e)))
 const mainOf = async (cwd: string) => (await gitOk(cwd, ["rev-parse", "--verify", "-q", "origin/main"])) ? "origin/main" : (await gitOk(cwd, ["rev-parse", "--verify", "-q", "origin/master"])) ? "origin/master" : ""
 function patchIds(cwd: string, args: string[]) {
@@ -54,12 +122,13 @@ function patchIds(cwd: string, args: string[]) {
 }
 export async function marksOf(cwd: string, branch: string): Promise<Marks | null> {
   const main = await mainOf(cwd)
-  if (!main || !branch || !(await gitOk(cwd, ["rev-parse", "--verify", "-q", `refs/heads/${branch}`]))) return null
-  const own = (await git(cwd, ["rev-list", "--no-merges", "-n", "40", `${main}..refs/heads/${branch}`])).split("\n").filter(Boolean)
+  const ref = main ? await refOf(cwd, branch) : ""
+  if (!ref) return null
+  const own = (await git(cwd, ["rev-list", "--no-merges", "-n", "40", `${main}..${ref}`])).split("\n").filter(Boolean)
   if (!own.length) return null
-  const from = (await git(cwd, ["merge-base", main, `refs/heads/${branch}`])).trim()
+  const from = (await git(cwd, ["merge-base", main, ref])).trim()
   const [each, whole] = await Promise.all([patchIds(cwd, ["log", "-p", "--no-merges", "--no-color", "--no-ext-diff", "--no-walk=unsorted", ...own]),
-    from ? patchIds(cwd, ["diff", "--no-color", "--no-ext-diff", from, `refs/heads/${branch}`]) : new Map<string, string>()])
+    from ? patchIds(cwd, ["diff", "--no-color", "--no-ext-diff", from, ref]) : new Map<string, string>()])
   const m: Marks = { whole: whole.get("-") ?? "", each: own.map((c) => each.get(c) ?? "").filter(Boolean) }
   return m.whole || m.each.length ? m : null
 }

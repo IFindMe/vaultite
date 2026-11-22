@@ -18,7 +18,7 @@ import { askGate, postEvent } from "./routes.ts"
 import type { StateChange } from "./rows.ts"
 import { FOLDER, holdNow, plugin } from "./server.ts"
 import * as sessions from "./sessions.ts"
-import { heard, needsYou, progressOf, tellSession, track } from "./sessions.ts"
+import { heard, landedFrom, needsYou, progressOf, tellSession, track } from "./sessions.ts"
 import * as store from "./store.ts"
 import { dropEvent, gateAnswer, list, markDone, sameKey } from "./store.ts"
 import * as voice from "./voice.ts"
@@ -61,6 +61,8 @@ plugin.provide("inbox:needs", needsYou)
 plugin.provide("inbox:state", (c: StateChange) => { track(heard(c)) })
 /** Tell the inbox a session's state (SessionState): the thread it's in, once worked out (a turn's end is judged first). */
 plugin.provide("inbox:session", tellSession)
+/** A session's change found on main after its turn (another session landed it): its open thread settled, saying so. */
+plugin.provide("inbox:landed", landedFrom)
 /** Dispatch marks the terminals it starts. */
 plugin.provide("inbox:handed", (terminal: string) => hand(terminal))
 /** A session's latest progress, for the Agents panel's row (its terminal's or its chat's step): while it's on it. */
