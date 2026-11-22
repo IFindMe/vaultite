@@ -42,13 +42,13 @@ export default async ($: VaultTest) => {
     {
       // Decisions as given (decisions.ts): text or an object, checked; the same question said again; an answer by its number or words.
       const { specOf, sameQuestion, answerOf, titleOf } = await import("../../../plugins/core/inbox/decisions.ts")
-      const t = specOf("Ship the sidebar to the phone too? | Yes: the phone gets it today | Not yet: desktop only* | why: The sidebar job is live on desktop.")
+      const t = specOf("Ship the sidebar to the phone too? | Yes: the phone gets it today* | Not yet: desktop only | why: The sidebar job is live on desktop.")
       const o = specOf({ question: "Which account for tonight's deploy?", options: ["Work: the team sees it", { label: "Personal", does: "only you see it" }], default: "personal", blocking: true, why: "The Lighthouse deploy job asks." })
       const bad = ["Ship? | Yes: a | No: b", "Ship it now? | Yes: a* | No: b*", "Ship the docs? | Yes* | No: b | why: c", "Ship the docs? | Yes: a* | No: b",
         { question: "Ship?", options: ["Yes: a"], default: "Yes", why: "c" }, { question: "", options: ["A: a", "B: b"], default: "A", why: "c" }]
         .map((x) => { try { specOf(x); return "" } catch (e) { return messageOf(e) } })
       check("decision specs: text with its default starred and its why, an object; what's wrong said", t.options.join() === "Yes,Not yet" && t.effects.join() === "the phone gets it today,desktop only" &&
-        t.default === "Not yet" && t.why === "The sidebar job is live on desktop." && !t.blocking && t.title === "Ship the sidebar to the phone too" && !t.warn &&
+        t.default === "Yes" && t.why === "The sidebar job is live on desktop." && !t.blocking && t.title === "Ship the sidebar to the phone too" && !t.warn &&
         o.default === "Personal" && o.effects[1] === "only you see it" && o.blocking && bad.every(Boolean) && /what it causes/.test(bad[2]) && /say why/.test(bad[3]), [t, o, bad])
       check("decision specs: a question that doesn't name its subject is warned of", !!specOf("Start the first two steps? | Start: a job starts* | Wait: nothing yet | why: x").warn &&
         !!specOf("Ship it? | Yes: a* | No: b | why: x").warn, [])

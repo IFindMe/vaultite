@@ -6,7 +6,7 @@ default you take if they don't answer; never a question in prose (a "Your call" 
   note, never "it" or "the first two steps"), each option's few words after its colon say what picking it does (shown
   under its button), and why (required) says in plain words what it's about and which agent or project asks.
   blocking: you're stopped on it (it comes first, toasts and pushes to the phone); else you went with the default already
-  and it reads "Went with X; change it?", quietly. The same question open already (yours or another agent's) is that one.
+  and it reads "Went with X; change it?", quietly. The default is the option that acts (does it, ships it, goes on); a passive one (not yet, leave it, later) only when acting goes out where others see it (a post, a message), costs money, or can't be undone. The same question open already (yours or another agent's) is that one.
 - The end of a task: `vau inbox report` (below), its questions as `--decision`.
 - Progress (a check-in, still working, a step done): `vau inbox progress "<line>"`, on your session's own row (the Agents
   panel), each line replacing the last. Never a report or a result.
@@ -23,7 +23,7 @@ created: '2026-10-01 18:00:00'
 question: Ship the new sidebar to the phone too?
 options: [Ship it, Not yet]
 effects: [The phone gets it today, Desktop only for now]   # what each option causes, under its button
-default: Not yet            # what its agent takes (or took) if the user doesn't answer
+default: Ship it            # what its agent takes (or took) if the user doesn't answer
 blocking: true              # its agent waits on it; absent: it went with the default already
 report: '[[Fix done · Sidebar scrolls again]]'   # the report that asked it; also: other reports that asked it too
 gist: The left sidebar scrolls again.   # filled in: its report's TL;DR as it asked (that round's)

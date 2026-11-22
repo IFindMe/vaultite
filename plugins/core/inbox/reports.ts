@@ -100,7 +100,7 @@ the default you take if they don't answer. Write it in this order, short:
 - tldr: one line, what happened in plain words (the brief and the push say it).
 - decision: one per question only the user can settle, never prose questions in the summary. Text "Question? | Option:
   what it causes* | Option: what it causes | why: <what it's about, who asks>" (* marks the default) or JSON {"question",
-  "options", "default", "why", "blocking"}. They read it cold, without the report: name its subject. You've gone with its
+  "options", "default", "why", "blocking"}. The default is the option that acts (does it, ships it, goes on); a passive one (not yet, leave it, later) only when acting goes out where others see it (a post, a message), costs money, or can't be undone. They read it cold, without the report: name its subject. You've gone with its
   default already: it reads "Went with X; change it?", quietly. blocking (or --state waiting for the text ones): you
   stop until they answer; it comes first and pushes to the phone. A question already open (yours or another agent's) is
   the same decision, not a second one.
@@ -116,7 +116,7 @@ starts with the work and where it stands: "Feature done · Sidebar scrolls again
 
   vau inbox report "Sidebar scrolls again" --work fix --tldr "The left sidebar scrolls again, live on the M1." \\
     --summary "The sidebar's list had ..." \\
-    --decision "Ship the sidebar fix to the phone too? | Yes: the phone gets it today | Not yet: desktop only for now* | why: It's live on desktop; the phone build is untested." \\
+    --decision "Ship the sidebar fix to the phone too? | Yes: the phone gets it today* | Not yet: desktop only for now | why: It's live on desktop; the phone build is untested." \\
     --images /tmp/before.png /tmp/after.png
 A job with a proof embeds its demo video: --video <the path tour-save gave> (Guides/Proofs/...).`,
   kind: "write",
@@ -127,7 +127,7 @@ A job with a proof embeds its demo video: --video <the path tour-save gave> (Gui
     tldr: { type: "string", required: true, description: "one line on top: what happened, in plain words (at most about 60 words)" },
     summary: { type: "string", required: true, description: "the details, folded: what you did and where to look, as Markdown" },
     decision: { type: "array", items: { description: "\"Question? | Option: what it causes* | Option: what it causes | why: <context>\" (* the default), or {question, options, default, why, blocking?}" }, commas: false,
-      description: "each question for the user, its options (each saying what it causes), the default you take and a why: one decision each" },
+      description: "each question for the user, its options (each saying what it causes), the default you take (the one that acts, unless acting is outward, costs money or can't be undone) and a why: one decision each" },
     settles: { type: "array", items: { type: "string" }, commas: false, description: "decisions this work settled (Inbox/<Title>.md): closed, saying so" },
     public: { type: "boolean", description: "it went out where others see it (a release, a post, a message): the report stays in the inbox, told" },
     digest: { type: "boolean", description: "this report is the user's daily digest itself (the morning brief): it stays in the inbox, told" },

@@ -24,7 +24,7 @@ Preconditions:
   session's ids kept out of what `vau` records.
 - Setup, as agents would: `$E vv vau inbox add "Plant care apps compared" --tldr "Planta fits best." --body "Three apps."`;
   `$E vv vau inbox ask "Ship the Lighthouse sidebar to the phone too?" --options "Ship it: the phone gets it today" "Not
-  yet: desktop only for now" --default "Not yet" --blocking --title "Lighthouse sidebar on phone" --why "The Lighthouse sidebar job finished on desktop."`; `$E vv vau inbox hook
+  yet: desktop only for now" --default "Ship it" --blocking --title "Lighthouse sidebar on phone" --why "The Lighthouse sidebar job finished on desktop."`; `$E vv vau inbox hook
   claude '{"hook_event_name":"Stop","session_id":"vv-lighthouse","cwd":"/var/tmp/lighthouse","last_assistant_message":"The
   release needs a version bump.\n\nShould I bump to 0.6.1 or retag 0.6.0?"}'`. `vv vau inbox` lists all three.
 

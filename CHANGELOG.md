@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Inbox: an agent's decision now defaults to the option that does the thing; a passive default (Not yet, Later) only
+  for what goes out to others, costs money or can't be undone.
 - Terminals: Restart on an agent's terminal whose shell is gone (its computer restarted, the agent crashed) resumes
   the conversation it had, rather than starting a new one.
 - Sharing: a guest editing a shared folder's notes gets emoji and icons from a colon too (`:fi` suggests 🔥,

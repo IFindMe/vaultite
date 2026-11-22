@@ -226,19 +226,19 @@ const askOp = defineOp({
 it (it comes first, with a toast and a push to the phone); else you've gone with the default already, and it reads "Went
 with X; change it?", quietly. The same question open already (from another agent or report) is that one, not a second.
 They read it cold: the question names its subject (the feature, the note, never "it" or "the first two steps"), each
-option says what it causes after a colon (shown under its button), and why says what it's about and who asks.
+option says what it causes after a colon (shown under its button), and why says what it's about and who asks. The default is the option that acts (does it, ships it, goes on); a passive one (not yet, leave it, later) only when acting goes out where others see it (a post, a message), costs money, or can't be undone.
 Ending a task, ask them in your report instead (vau inbox report --decision). The answer is typed into this session (or
 resumes it): a default they kept isn't sent.
 
   vau inbox ask "Ship the new sidebar to the phone too?" --options "Ship it: the phone gets it today" "Not yet: desktop only for now" \\
-    --default "Not yet" --blocking --why "The Lighthouse sidebar job finished on desktop; the phone build is untested."
+    --default "Ship it" --blocking --why "The Lighthouse sidebar job finished on desktop; the phone build is untested."
   vau inbox ask "Keep the quieter island by the notch?" --options "Keep: the spinner shows only on hover" "Go back: it spins all the time" \\
     --default Keep --why "The notch job made the island quieter."`,
   kind: "write",
   params: {
     question: { type: "string", required: true, description: "the question, one sentence that stands alone (the user may not remember the task)" },
     options: { type: "array", items: { type: "string" }, commas: false, required: true, description: "2 to 6 options, each \"<button>: <what it causes, a few words>\"" },
-    default: { type: "string", required: true, description: "the option you take (or took) if the user doesn't answer" },
+    default: { type: "string", required: true, description: "the option you take (or took) if the user doesn't answer: the one that acts, unless acting goes out to others, costs money or can't be undone" },
     blocking: { type: "boolean", description: "you wait on it: it comes first and pushes to the phone (default: you went with the default already)" },
     why: { type: "string", required: true, description: "one or two plain sentences: what it's about (which agent, project or note asks) and what the choice changes for them" },
     title: { type: "string", description: "its file's name, a few words (default: the question's)" },
