@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Companion: the app's chat agents (the companion, its chat tabs) find the programs a terminal does (Homebrew's,
+  ~/.local/bin), rather than only the system's, so asking for a video's transcript or a gh command just works.
 - Companion: a job whose change another session landed on main (squashed or rebased, from another machine, a cloud
   session's branch, or another repo such as Vaultite/plugins) turns done, its row and inbox thread saying it's on
   main, even after its own last words said "Not merged".

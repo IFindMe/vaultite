@@ -384,6 +384,16 @@ export default async ($: VaultTest) => {
       try { out = execFileSync(sh, shellArgs(sh, { command: `${print}; exit` }), { cwd: home, env: { ...env, ...(zsh ? { ZDOTDIR: SHELL_DIR, VAULTITE_ZDOTDIR: SHELL_DIR } : {}) }, stdio: ["ignore", "pipe", "ignore"], timeout: 10_000 }).toString() } catch (e) { out = e instanceof Error && "stdout" in e ? String(e.stdout) : "" }
       check(`terminal: ${path.basename(sh)} runs the user's startup files, then puts Vaultite's vau first and QA's agents next`, out === `${path.join(ours, "vau")}|${path.join(agents, "claude")}|1|unset`, out)
     }
+    const { loginPath } = await import("../../../plugins/core/terminal/loginpath.ts")
+    for (const sh of ["/bin/zsh", "/bin/bash"].filter((f) => fs.existsSync(f))) {
+      const launchd: Record<string, string> = { ...env, PATH: "/usr/bin:/bin" }
+      if (sh.endsWith("zsh")) Object.assign(launchd, { ZDOTDIR: SHELL_DIR, VAULTITE_ZDOTDIR: SHELL_DIR })
+      const got = await loginPath(sh, launchd), dirs = (got ?? "").split(":")
+      check(`terminal: ${path.basename(sh)}'s login PATH, which the companion's chat gets, has what the user's startup files add, Vaultite's vau first`, [ours, agents].every((d) => dirs.slice(0, 2).includes(d)) && dirs.includes(other) && dirs.includes("/usr/bin"), got)
+    }
+    const broken = path.join(home, "broken-sh")
+    fs.writeFileSync(broken, "#!/bin/sh\nexit 1\n", { mode: 0o755 })
+    check("terminal: a shell that fails gives no login PATH (the server's own stays)", await loginPath(broken, env) === null)
     // An agent's program not installed: its shell's exit 127 marks the state file, which the server tells the user.
     for (const sh of ["/bin/zsh", "/bin/bash", "/opt/homebrew/bin/fish", "/usr/bin/fish"].filter((f) => fs.existsSync(f))) {
       const marked = (cmd: string) => {

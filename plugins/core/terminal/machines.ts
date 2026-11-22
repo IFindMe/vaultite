@@ -2,8 +2,9 @@ import type { IncomingMessage } from "node:http"
 import { type RawData, WebSocket } from "ws"
 import { HTTPError, logger, machineSocket, pipeSockets, splitMachine, type Machine } from "../../../core/plugins.ts"
 import { CLOSE } from "./closes.ts"
-import { type Session, TERMINAL_ID, clamp, plugin, sessions } from "./shared.ts"
-import { LOCAL, agentOf, backendOf, context, env, fromReq, ownerOf, pluginBackend, runsHere } from "./backends.ts"
+import { type Session, TERMINAL_ID, clamp, plugin, sessions, shell } from "./shared.ts"
+import { LOCAL, PATH, agentOf, backendOf, context, env, fromReq, ownerOf, pluginBackend, runsHere } from "./backends.ts"
+import { cachedLoginPath } from "./loginpath.ts"
 import { attach, closesTabs, end, endHere, resize, start } from "./start.ts"
 import { type Listed, remotes } from "./list.ts"
 
@@ -52,8 +53,13 @@ async function locate(id: string): Promise<string | null> {
 }
 plugin.provide("terminal:locate", locate)
 /** What an agent the app runs outside a terminal gets as its environment (Claude Code's chat sessions): a shell's here,
- *  Vaultite's variables and the app's vau first on PATH, so its commands run as they would in a terminal. */
-plugin.provide("terminal:agent-env", (): Record<string, string> => ({ ...env(), ...context(null, LOCAL) }))
+ *  Vaultite's variables and a terminal's PATH (the app's is launchd's), so its commands run as in a terminal. */
+const agentEnv = () => ({ ...env(), ...context(null, LOCAL) })
+plugin.provide("terminal:agent-env", async (): Promise<Record<string, string>> => {
+  const out = agentEnv(), login = await cachedLoginPath(shell(), agentEnv)
+  return login ? { ...out, [PATH]: login } : out
+})
+setTimeout(() => void cachedLoginPath(shell(), agentEnv), 3000).unref?.()
 
 export const starting = new Map<string, Promise<{ s: Session; fresh: boolean }>>()
 
