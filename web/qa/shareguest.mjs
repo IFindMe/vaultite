@@ -187,6 +187,10 @@ try {
   check("Ada's edit is written to the owner's file", await until(() => fs.readFileSync(file, "utf8").includes("a fifth up from C is G"), 15_000), fs.readFileSync(file, "utf8"))
   const blame = await api("provenance.blame", { path: `${F}/Intervals.md` })
   check("...and marked hers", (blame?.runs ?? []).some((r) => r.guest && r.text.includes("fifth up")), blame)
+  await guest.keyboard.type(" :fi")
+  check("a guest gets emoji suggested after a colon", await until(() => guest.locator(".cm-tooltip-autocomplete").getByText(":fire:").count(), 10_000) > 0)
+  await guest.keyboard.type("re:")
+  check("a guest's shortcode becomes its emoji", await until(() => fs.readFileSync(file, "utf8").includes("is G. 🔥"), 15_000), fs.readFileSync(file, "utf8"))
 
   // The owner makes Bea an editor in the sheet; then takes Ada's access away: her page stops at once.
   await owner.goto(`${B}#view/${encodeURIComponent(`folder/${F}`)}`)

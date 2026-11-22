@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Sharing: a guest editing a shared folder's notes gets emoji and icons from a colon too (`:fi` suggests 🔥,
+  `:fire:` typed whole becomes it), as the owner does.
 - Browser: agents' replays no longer fill the disk. A step that sees the page as it was keeps no new picture (an
   agent polling an idle tab costs about nothing), old runs are removed every hour rather than only at launch, and all
   runs together stay under 4 GB, the least recently written removed first.
