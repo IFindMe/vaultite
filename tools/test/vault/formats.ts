@@ -123,6 +123,20 @@ export default async ($: VaultTest) => {
     check("player: bookmarks are the user's file, a place playing is kept by the server (nothing written)", m.place.t === 180 &&
       JSON.parse(fs.readFileSync(marksFile, "utf8")).marks["Shelf/Log.m4b"].length === 2 && fs.statSync(marksFile).mtimeMs === marksAt &&
       !fs.existsSync(path.join(VAULT, ".vaultite/plugins/player/places.json")))
+    ;[code, m] = await api("POST", "ops/player.place", { path: "Shelf/Log.m4b", at: "1:02:03" })
+    check("player.place: a time as written becomes the place, bookmarks kept", code === 200 && m.place.t === 3723 && m.place.marks?.length === 2, m)
+    ;[, m] = await api("GET", "player/places")
+    check("player.place: every device's player reads it", m.places["Shelf/Log.m4b"].t === 3723, m.places["Shelf/Log.m4b"])
+    ;[code, m] = await api("POST", "ops/player.place", { path: "Shelf/Log.m4b", at: "4m50s" })
+    check("player.place: link-style times too", code === 200 && m.place.t === 290, m)
+    ;[code] = await api("POST", "ops/player.place", { path: "Shelf/Log.m4b", at: "soon" })
+    check("player.place: what isn't a time is refused", code === 400, code)
+    ;[code] = await api("POST", "ops/player.place", { path: "Shelf/Lease.docx", at: "10" })
+    check("player.place: only videos and sounds", code === 400, code)
+    ;[code] = await api("POST", "ops/player.place", { path: "Shelf/Gone.mp4", at: "10" })
+    check("player.place: only files in the vault", code === 404, code)
+    await api("POST", "ops/player.place", { path: "Shelf/Log.m4b", at: "180" })
+
     // places.json from before: positions taken in (the newer winning), bookmarks into marks.json, then it goes.
     fs.writeFileSync(path.join(VAULT, ".vaultite/plugins/player/places.json"), JSON.stringify({ places: {
       "Shelf/Log.m4b": { t: 5, at: 1, marks: [{ t: 1 }] }, "Shelf/Old.mp3": { t: 42, d: 100, at: Date.now(), marks: [{ t: 7, note: "Here" }] } } }))

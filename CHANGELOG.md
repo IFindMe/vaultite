@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Player: an agent can set where a video or sound in the vault picks up (player.place, vau player place <file> 4:50), so a
+  video handed over from another screen plays from where you stopped, on every device.
 - Inbox: replying to a Claude Code on the web session (vau inbox reply, or answer's reply) sends it to that session through
   the Claude Code account signed in to its claude.ai account, or says to answer it on claude.ai, rather than a terminal id error.
 - Android: an Android app, like the iPhone's: its first screen lists your servers on the tailnet and opens one's app in

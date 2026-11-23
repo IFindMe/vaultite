@@ -25,3 +25,12 @@ export function leftText(p: Place | undefined, d?: number) {
   if (len && p && p.t > 5) return `${mins(len - p.t)} left`
   return len ? mins(len) : ""
 }
+
+export function secondsOfWrittenTime(text: string): number | null {
+  const s = text.trim().toLowerCase()
+  if (/^\d+(\.\d+)?s?$/.test(s)) return Number.parseFloat(s)
+  const clock = /^(?:(\d+):)?(\d{1,2}):(\d{1,2})$/.exec(s)
+  if (clock) return Number(clock[1] ?? 0) * 3600 + Number(clock[2]) * 60 + Number(clock[3])
+  const units = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/.exec(s)
+  return units && s ? Number(units[1] ?? 0) * 3600 + Number(units[2] ?? 0) * 60 + Number(units[3] ?? 0) : null
+}

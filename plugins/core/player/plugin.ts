@@ -1,9 +1,9 @@
 import fs from "node:fs"
 import * as z from "zod"
-import { bullets, HTTPError, Plugin, section, Text, vaultPath } from "../../../core/plugins.ts"
+import { bullets, HTTPError, OpError, Plugin, section, Text, vaultPath } from "../../../core/plugins.ts"
 import { isArchived, str, type Item } from "../../../core/vault.ts"
 import { readMeta } from "./meta.ts"
-import { leftText, shelfOf, type Mark, type Place, type Shelf } from "./shelves.ts"
+import { AUDIO, leftText, secondsOfWrittenTime, shelfOf, VIDEO, type Mark, type Place, type Shelf } from "./shelves.ts"
 
 export const plugin = new Plugin(import.meta.url)
 
@@ -75,6 +75,42 @@ plugin.route("PUT", "player/marks", (req) => {
   all[path] = { ...was, at: Date.now(), ...(list.length ? { marks: list } : {}) }
   save(all)
   return { place: all[path] }
+})
+
+const placeText = (path: string, p: Place) => `${path} picks up at ${clockOf(p.t)} on every device${p.done ? " (marked done)" : ""}.`
+const clockOf = (t: number) => `${t >= 3600 ? `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}` : Math.floor(t / 60)}:${String(Math.floor(t) % 60).padStart(2, "0")}`
+
+plugin.op({
+  id: "player.place",
+  cli: "player place",
+  mcp: true,
+  summary: "Set where a video or sound in the vault picks up when it plays next, on every device (where the user stopped watching it elsewhere).",
+  help: `The place the player keeps for a vault file, as if they had paused there: the next play on any device (the
+phone, the Mac) starts from it. at is seconds or a time as written ("4:50", "1:02:03", "4m50s"); 0 starts it over.
+
+  vau player place "Attachments/Workshop talk.mp4" 4:50
+  vau player place Books/Lighthouse.m4b 1:02:03`,
+  kind: "write",
+  params: {
+    path: { type: "string", required: true, description: "the video's or sound's path in the vault" },
+    at: { type: "string", required: true, description: "where it picks up: seconds, or a time like 4:50 or 1:02:03" },
+  },
+  args: ["path", "at"],
+  run: (p) => {
+    const rel = vaultPath(p.path, true, plugin.vault)
+    if (!VIDEO.test(rel) && !AUDIO.test(rel)) throw new OpError(`${rel} isn't a video or a sound`)
+    if (!fs.existsSync(plugin.vault.abs(rel))) throw new OpError(`${rel} isn't in the vault`, 404)
+    const t = secondsOfWrittenTime(String(p.at))
+    if (t === null) throw new OpError(`"${p.at}" isn't a time: give seconds (290) or a time like 4:50`)
+    const all = { ...places() }
+    const place: Place = { ...all[rel], t: Math.round(t), at: Date.now() }
+    delete place.done
+    all[rel] = place
+    save(all)
+    return { path: rel, place: all[rel] }
+  },
+  text: (r: { path: string; place: Place }) => placeText(r.path, r.place),
+  did: (p) => ({ action: "edit", text: `Set ${String(p.path).slice(0, 120)} to pick up at ${p.at}` }),
 })
 
 function meta(rel: string, _version: string) { return readMeta(plugin.vault.abs(rel)) }
