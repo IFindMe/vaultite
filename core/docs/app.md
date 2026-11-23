@@ -1,7 +1,7 @@
 ## Changing the app (settings, sidebars, new tab, hotkeys, appearance)
 Every setting is a file in the vault, and the app follows a change to one at once: "hide the file tree and move
 terminals up" is an edit. Change only the keys you mean to (the files may have others); keep them valid JSON. In the
-app's terminal `VAULTITE=1` is set (with `VAULTITE_URL`, the server, and `VAULTITE_CLIENT`: `desktop`, `iphone` or `web`), and
+app's terminal `VAULTITE=1` is set (with `VAULTITE_URL`, the server, and `VAULTITE_CLIENT`: `desktop`, `iphone`, `android` or `web`), and
 `vau` reads and changes all of this.
 
 **Three levels.** The vault is the user's things and how the app works (files, plugins on or off, appearance, hotkeys,

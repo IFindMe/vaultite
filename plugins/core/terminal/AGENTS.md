@@ -24,7 +24,7 @@ brings an agent and is on. It keeps nothing in the vault but its settings (below
   `state["core:place"]`), else this machine when that one's away; ``⌃` `` is always this machine.
 - A screenshot pasted into it is saved on the server's machine and its path pasted (Claude Code attaches it); it stays
   while the shell runs and 30 days after.
-- Its shells have `VAULTITE=1`, `VAULTITE_URL`, `VAULTITE_VAULT`, `VAULTITE_CLIENT` (`desktop`, `iphone` or `web`),
+- Its shells have `VAULTITE=1`, `VAULTITE_URL`, `VAULTITE_VAULT`, `VAULTITE_CLIENT` (`desktop`, `iphone`, `android` or `web`),
   `VAULTITE_TERMINAL` (its id, for an agent started in it) and this app's `vau` first on PATH; an agent started from it
   is told it runs inside Vaultite where it takes that (Claude Code, OpenCode; the others read this file).
 - `vau terminal` lists this machine's sessions (with an agent's own session id, when it says; `--machine all` every

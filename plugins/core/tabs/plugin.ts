@@ -69,7 +69,8 @@ function browserName(ua: string, brands = "") {
 
 async function whoAsks(req: Request): Promise<Pick<Device, "name" | "kind">> {
   const h = req.http?.headers ?? {}
-  if (/(?:^|;\s*)vaultite_client=iphone(?:;|$)/.test(String(h.cookie ?? ""))) return { name: "iPhone app", kind: "phone" }
+  const phone = /(?:^|;\s*)vaultite_client=(iphone|android)(?:;|$)/.exec(String(h.cookie ?? ""))?.[1]
+  if (phone) return { name: phone === "iphone" ? "iPhone app" : "Android app", kind: "phone" }
   const ua = String(h["user-agent"] ?? "")
   if (h["x-vaultite-client"] === "app/desktop") {
     const app = /Macintosh|Mac OS X/.test(ua) ? "Mac app" : /Linux/.test(ua) ? "Linux app" : /Windows/.test(ua) ? "Windows app" : "Desktop app"

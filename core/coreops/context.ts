@@ -20,14 +20,14 @@ export function contextOps(app: App): Op[] {
     cli: "context",
     summary: "Where am I: server, vault, client, workspace, pinned pages, sidebar panels, plugins, appearance. Run this first.",
     help: `Everything an agent needs to know before changing the app: the server and how many app windows are open, the
-vault's folder, which client you're in (VAULTITE_CLIENT: desktop, iphone or web, set by the app's terminal), the workspace the
+vault's folder, which client you're in (VAULTITE_CLIENT: desktop, iphone, android or web, set by the app's terminal), the workspace the
 user's window is on, the pinned pages (the sidebar: that workspace's own, else every workspace's), the sidebars' panels
 the window shows (and the hidden ones), which plugins are on or off, the appearance settings and changed hotkeys.
 
   vau context
   vau context --json`,
     kind: "read",
-    params: { client: { type: "string", env: "VAULTITE_CLIENT", description: "the client the agent runs in (desktop, iphone or web; vau fills it in inside the app's terminal)" } },
+    params: { client: { type: "string", env: "VAULTITE_CLIENT", description: "the client the agent runs in (desktop, iphone, android or web; vau fills it in inside the app's terminal)" } },
     run: async ({ client }, ctx) => {
       const windows = await windowCount(ctx)
       const workspace = await windowWorkspace(ctx)

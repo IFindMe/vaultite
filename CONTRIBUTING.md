@@ -34,6 +34,8 @@ TypeScript directly) and, for the QA scripts, Playwright's Chromium (`npx playwr
   pull request.
 - iPhone app: `npm run ios` (needs Xcode); put your team in `ios/App/Local.xcconfig` (`DEVELOPMENT_TEAM = <team id>`).
   On the phone, add the address your Mac serves Vaultite at on the tailnet (`tailscale serve --https=8447 <port>`).
+- Android app: `npm run android` (needs JDK 21 and the Android SDK, `ANDROID_HOME`) builds a debug APK in
+  `android/app/build/outputs/apk/debug`; `adb install -r` it. Each release has its APK (`.github/workflows/android.yml`).
 - `vau service install --vault <folder>` keeps the server running (launchd on macOS, systemd on Linux, Task Scheduler
   on Windows). A server in WSL (`npm start` there, or `vau service` with systemd on in `/etc/wsl.conf`) answers
   Windows' browser and app at `http://localhost:8793`: WSL forwards localhost.

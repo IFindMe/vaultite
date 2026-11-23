@@ -2,10 +2,10 @@ import { useEffect, useLayoutEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { KeyBar } from "@/components/KeyBar"
 import { keysFor, typesText, useKeysGiven, useVisibleArea } from "@/core/keyboard"
-import { phoneApp } from "@/core/phoneapp"
+import { phoneOs } from "@/core/phoneapp"
 import { cn } from "@/lib/utils"
 
-const appHidesIosBar = !!phoneApp
+const appHidesIosBar = phoneOs === "ios"
 
 const typing = () => {
   const at = document.activeElement

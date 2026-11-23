@@ -1,7 +1,13 @@
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 
+let androidAppSaysKeyboardUp: boolean | null = null
+export function androidKeyboard(up: boolean) {
+  androidAppSaysKeyboardUp = up
+  visualViewport?.dispatchEvent(new Event("resize"))
+}
+
 /** The on-screen keyboard is up: the visible part of the page is well short of the window. */
-export const keyboardUp = () => !!visualViewport && innerHeight - visualViewport.height > 80
+export const keyboardUp = () => androidAppSaysKeyboardUp ?? (!!visualViewport && innerHeight - visualViewport.height > 80)
 
 const TYPING = "textarea,[contenteditable=true],input:is(:not([type]),[type=text],[type=search],[type=url],[type=email],[type=tel],[type=password],[type=number])"
 

@@ -42,6 +42,7 @@ export type PhoneDownload = { path: string; title: string; server: string; size:
 
 export type CapacitorGlobal = {
   isNativePlatform?: () => boolean
+  getPlatform?: () => string
   isPluginAvailable?: (name: string) => boolean
   PluginHeaders?: { name: string; methods: { name: string }[] }[]
   nativePromise: (plugin: string, method: string, options?: object) => Promise<unknown>
@@ -55,15 +56,17 @@ export const phoneApp: ShellPlugin | null = cap?.isNativePlatform?.() && cap.isP
     audioLoad: call("audioLoad"), audioPlay: call("audioPlay"), audioPause: call("audioPause"), audioSeek: call("audioSeek"), audioRate: call("audioRate"),
     audioInfo: call("audioInfo"), audioStop: call("audioStop"), audioState: call("audioState"), audioSleep: call("audioSleep") }
   : null
+export const phoneOs: "ios" | "android" | null = phoneApp ? (cap!.getPlatform?.() === "android" ? "android" : "ios") : null
+export const phoneName = phoneOs === "android" ? "phone" : "iPhone"
 const shellHas = (method: string) => !!cap?.PluginHeaders?.find((p) => p.name === "Shell")?.methods.some((m) => m.name === method)
 /** Open the iPhone app's own voice note (a widget's `vaultite://record`: App/VoiceNote.swift): Capacitor hands an
  *  address it doesn't serve to the system, which gives it back to the app. False in a browser. */
 export function phoneVoiceNote() {
-  if (!phoneApp) return false
+  if (phoneOs !== "ios") return false
   location.href = "vaultite://record"
   return true
 }
-if (phoneApp) document.cookie = "vaultite_client=iphone; path=/; max-age=31536000; samesite=strict"
+if (phoneOs) document.cookie = `vaultite_client=${phoneOs === "ios" ? "iphone" : "android"}; path=/; max-age=31536000; samesite=strict`
 
 export function takeLinks(run: { command: (id: string) => boolean; open: (path: string) => boolean; bundle: (repo: string) => boolean }) {
   if (!phoneApp) return () => {}
@@ -80,7 +83,7 @@ export function takeLinks(run: { command: (id: string) => boolean; open: (path: 
 }
 
 /** The phone's kept files, for a player (null outside the iPhone app). */
-export const phoneFiles = phoneApp
+export const phoneFiles = phoneApp && shellHas("download")
   ? { download: phoneApp.download, list: phoneApp.downloads, remove: phoneApp.removeDownload, takePlaces: phoneApp.takePlaces }
   : null
 
@@ -115,6 +118,6 @@ export const phoneLocal: PhoneLocal | null = cap?.isNativePlatform?.() && shellH
 
 /** The phone's Apple Health, for a plugin that takes it (null outside the iPhone app): `route` is where the server
  *  takes what it reads (after /api/). */
-export const phoneHealth = phoneApp
+export const phoneHealth = phoneApp && shellHas("health")
   ? { status: phoneApp.health, set: (on: boolean, route?: string) => phoneApp!.setHealth({ on, route }), resend: phoneApp.resendHealth }
   : null

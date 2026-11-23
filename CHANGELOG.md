@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Android: an Android app, like the iPhone's: its first screen lists your servers on the tailnet and opens one's app in
+  place, with haptics, the tab list's pictures, Switch server, and files saved to Downloads. Each release has its APK.
 - Companion: the app's chat agents (the companion, its chat tabs) find the programs a terminal does (Homebrew's,
   ~/.local/bin), rather than only the system's, so asking for a video's transcript or a gh command just works.
 - Companion: a job whose change another session landed on main (squashed or rebased, from another machine, a cloud

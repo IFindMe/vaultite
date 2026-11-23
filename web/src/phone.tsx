@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client"
 import { AudioLines, ChevronLeft, Clapperboard, Ellipsis, LoaderCircle, Server as ServerIcon } from "lucide-react"
 import "./index.css"
 import { ContextMenus, menuBelow } from "@/components/ContextMenu"
-import { phoneApp, type PhoneDownload, type Server } from "@/core/phoneapp"
+import { phoneApp, phoneFiles, phoneName, type PhoneDownload, type Server } from "@/core/phoneapp"
 import { cn, followSystemTheme } from "@/lib/utils"
 import { plainText } from "../../core/plainerror.ts"
 
@@ -26,8 +26,8 @@ const placeKey = (path: string) => `vaultite.offline.${path}`
 
 function Kept({ items, play, remove }: { items: PhoneDownload[]; play: (d: PhoneDownload) => void; remove: (d: PhoneDownload) => void }) {
   return (
-    <section aria-label="On this iPhone" className="flex flex-col">
-      <h2 className="px-4 pb-1.5 text-[13px] text-muted-foreground">On this iPhone</h2>
+    <section aria-label={`On this ${phoneName}`} className="flex flex-col">
+      <h2 className="px-4 pb-1.5 text-[13px] text-muted-foreground">On this {phoneName}</h2>
       <div className="overflow-hidden rounded-[10px] bg-card">
         {items.map((d, i) => {
           const Icon = VIDEO.test(d.path) ? Clapperboard : AudioLines
@@ -42,7 +42,7 @@ function Kept({ items, play, remove }: { items: PhoneDownload[]; play: (d: Phone
                   <span className={cn("truncate text-[13px]", d.error ? "text-destructive" : "text-muted-foreground")}>{sub}</span>
                 </span>
               </button>
-              <button type="button" aria-label={`More for ${d.title}`} onClick={(e) => menuBelow(e, [{ label: "Remove from this iPhone", danger: true, run: () => remove(d) }])}
+              <button type="button" aria-label={`More for ${d.title}`} onClick={(e) => menuBelow(e, [{ label: `Remove from this ${phoneName}`, danger: true, run: () => remove(d) }])}
                 className="grid size-11 shrink-0 cursor-pointer place-items-center text-muted-foreground active:bg-foreground/[0.06]">
                 <Ellipsis className="size-5" strokeWidth={2} />
               </button>
@@ -91,7 +91,7 @@ function Phone() {
   const [typed, setTyped] = useState("")
   const [kept, setKept] = useState<PhoneDownload[]>([])
   const [playing, setPlaying] = useState<PhoneDownload | null>(null)
-  const loadKept = () => { void phoneApp?.downloads().then((r) => setKept(r.items ?? []), () => {}) }
+  const loadKept = () => { void phoneFiles?.list().then((r) => setKept(r.items ?? []), () => {}) }
   useEffect(loadKept, [])
 
   const open = async (url: string) => {
@@ -126,7 +126,7 @@ function Phone() {
     open(url)
   }
 
-  if (!phoneApp) return <p className="p-6 text-[17px] text-muted-foreground">This page is the iPhone app's.</p>
+  if (!phoneApp) return <p className="p-6 text-[17px] text-muted-foreground">This page is the phone app's.</p>
   const shell = "mx-auto flex min-h-dvh max-w-[480px] flex-col gap-6 px-4 pt-[max(env(safe-area-inset-top),16px)] pb-[max(env(safe-area-inset-bottom),16px)]"
   if (playing) return <main className={shell}><Playing d={playing} close={() => setPlaying(null)} /></main>
   return (
@@ -163,7 +163,7 @@ function Phone() {
         </section>
       )}
 
-      {!!kept.length && <Kept items={kept} play={setPlaying} remove={(d) => { void phoneApp!.removeDownload({ path: d.path }).then(loadKept) }} />}
+      {!!kept.length && <Kept items={kept} play={setPlaying} remove={(d) => { void phoneFiles!.remove({ path: d.path }).then(loadKept) }} />}
 
       {servers && (
         <section aria-label="Add a server" className="flex flex-col">
@@ -179,7 +179,7 @@ function Phone() {
           </form>
           {error && !error.url && <p role="alert" className="px-4 pt-1.5 text-[13px] text-destructive">{error.text}</p>}
           <p className="px-4 pt-1.5 text-[13px] text-muted-foreground">
-            Vaultite runs on your machine. Serve it on your tailnet (Tailscale Serve), turn on Tailscale on this iPhone, and add its address.
+            Vaultite runs on your machine. Serve it on your tailnet (Tailscale Serve), turn on Tailscale on this {phoneName}, and add its address.
           </p>
         </section>
       )}

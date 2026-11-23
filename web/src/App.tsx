@@ -19,7 +19,7 @@ import { hideBarsOnUserScroll } from "@/core/barhide"
 import { keepTypingInSight, markKeyboard } from "@/core/sight"
 import { useTypedYet } from "@/core/keyboard"
 import { keepPlaceAcrossWidths } from "@/core/anchor"
-import { phoneApp, takeLinks } from "@/core/phoneapp"
+import { phoneApp, phoneOs, takeLinks } from "@/core/phoneapp"
 import { GrantAsker } from "@/components/GrantAsker"
 import { isProtected, inVault, isReadOnly, openFile, stem } from "@/core/files"
 import { activeTab, askRename, canClosePane, closePane, closeTab, closeTabs, closeWholePane, currentFile, cycleTab, placesHere, fillFirstTab, onWorkspaceChange, followHash, go, hashOf, tabsHere, navigate, selectTabAt, togglePinTab, activePane, isPopout, popOut, targetOf, useWorkspace } from "@/core/workspace"
@@ -94,6 +94,7 @@ import { chooseFont, fontSetting } from "@/components/FontChooser"
 import { chooseNewTabPage, showNewTabSections } from "@/components/NewTab"
 import { lastStartUnfinished, shellDrawn, whenIdle } from "@/core/firstscreen"
 
+if (phoneOs === "android") void import("@/core/androidapp")
 const Toaster = apart(() => import("@/components/Toast").then((m) => m.Toaster))
 const WelcomeCards = apart(() => import("@/components/Welcome").then((m) => m.WelcomeCards), { memoized: true })
 const SearchPalette = apart(() => import("@/components/SearchPalette").then((m) => m.SearchPalette))

@@ -149,11 +149,13 @@ const PICTURES_MOD = path.join(plugin.dir, "claude-pictures")
 
 export const PATH = WIN ? "Path" : "PATH"
 
-export type From = { remote: boolean; client: "desktop" | "iphone" | "web" }
+export type From = { remote: boolean; client: "desktop" | "iphone" | "android" | "web" }
 export const LOCAL: From = { remote: false, client: process.env.VAULTITE_DESKTOP === "1" ? "desktop" : "web" }
+const APP_CLIENTS = ["iphone", "android", "desktop"] as const satisfies readonly From["client"][]
 export function fromReq(req: IncomingMessage): From {
-  const app = /(?:^|;\s*)vaultite_client=(iphone|desktop)(?:;|$)/.exec(req.headers.cookie ?? "")?.[1]
-  return { remote: typeof req.headers["tailscale-user-login"] === "string", client: app === "iphone" || app === "desktop" ? app : LOCAL.client }
+  const cookie = req.headers.cookie ?? ""
+  const app = APP_CLIENTS.find((c) => new RegExp(`(?:^|;\\s*)vaultite_client=${c}(?:;|$)`).test(cookie))
+  return { remote: typeof req.headers["tailscale-user-login"] === "string", client: app ?? LOCAL.client }
 }
 
 const AGENT_BIN = process.env.VAULTITE_AGENT_BIN ?? ""

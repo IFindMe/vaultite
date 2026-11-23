@@ -39,6 +39,8 @@
     "release:win": "VAULTITE_CLEAN_BUILD=1 npm run build && npm run smoke && VAULTITE_RELEASE=1 node electron/stamp.ts && VAULTITE_RELEASE=1 electron-builder --win --publish never",
     "release:win:nightly": "VAULTITE_CLEAN_BUILD=1 npm run build && npm run smoke && VAULTITE_RELEASE=1 VAULTITE_CHANNEL=nightly node electron/stamp.ts && VAULTITE_RELEASE=1 electron-builder --win --publish never -c electron/nightly.cjs",
     "ios": "VAULTITE_CLEAN_BUILD=1 vite build && npm run build:offline && cap sync ios && cap open ios",
+    "android": "VAULTITE_CLEAN_BUILD=1 vite build && cap sync android && cd android && ./gradlew --quiet assembleDebug",
+    "android:release": "VAULTITE_CLEAN_BUILD=1 vite build && cap sync android && cd android && ./gradlew --quiet assembleRelease",
     "build:offline": "VAULTITE_OFFLINE=1 vite build -c vite.demo.config.ts"
   },
   "dependencies": {
@@ -110,6 +112,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@capacitor/android": "8.5.3",
     "@capacitor/cli": "^8.5.3",
     "@capacitor/core": "^8.5.3",
     "@capacitor/ios": "^8.5.3",

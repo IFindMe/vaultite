@@ -3,7 +3,7 @@
   "appName": "Vaultite",
   "webDir": "web/dist",
   "server": {
-    "appStartPath": "phone.html"
+    "appStartPath": "/phone.html"
   },
   "ios": {
     "path": "ios",

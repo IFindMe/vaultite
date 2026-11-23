@@ -1,8 +1,10 @@
-# The desktop app for Mac, Linux and Windows (each built on its own architecture). A v* tag is that GitHub release and
-# goes on the update feed (vaultite.com/updates); nightly, if main changed, it's Vaultite Nightly (electron/nightly.cjs).
+# The desktop app for Mac, Linux and Windows (each built on its own architecture), and the Android app's APK. A v* tag
+# is that GitHub release and goes on the update feed (vaultite.com/updates); nightly, if main changed, it's Vaultite
+# Nightly (electron/nightly.cjs).
 # Secrets: MAC_CERT_P12 (the Developer ID Application certificate and key, base64), NOTARY_KEY (an App Store Connect
 # API key's .p8, base64), SITE_DEPLOY_TOKEN (fine-grained: tkslucas/vaultite-site, Contents read and write), AUR_SSH_KEY
-# (the private key of the AUR account that maintains vaultite-bin).
+# (the private key of the AUR account that maintains vaultite-bin); ANDROID_KEYSTORE and ANDROID_KEYSTORE_PASSWORD
+# (android.yml).
 name: Release
 on:
   push:
@@ -198,9 +200,20 @@ jobs:
             dist-app/latest.*.yml
             dist-app/nightly.*.yml
 
+  android:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    uses: ./.github/workflows/android.yml
+    with:
+      version: ${{ needs.plan.outputs.version }}
+    secrets: inherit
+
   publish:
-    needs: [plan, mac, linux, windows]
-    if: github.event_name != 'workflow_dispatch' || inputs.publish
+    needs: [plan, mac, linux, windows, android]
+    # (an Android build that failed doesn't hold back the desktop's: the release goes out without its APK)
+    if: >-
+      !cancelled() && needs.mac.result == 'success' && needs.linux.result == 'success' && needs.windows.result == 'success'
+      && (github.event_name != 'workflow_dispatch' || inputs.publish)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -217,15 +230,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           V: ${{ needs.plan.outputs.version }}
         run: |
+          apk=$(ls out/*.apk 2>/dev/null || echo "::warning::no APK: the Android build failed" >&2)
           if [ "$STABLE" = true ]; then
             # The notes are the section's summary, above its first ### (the rest is in the changelog, linked)
             awk -v h="## $V" 'index($0, h) == 1 { on = 1; next } on && /^##/ { exit } on' CHANGELOG.md > notes.md
             printf '\nEvery change: [CHANGELOG.md](%s/blob/%s/CHANGELOG.md).\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" >> notes.md
-            gh release create "$GITHUB_REF_NAME" out/*.dmg out/*.AppImage out/*.deb out/*-Setup-*.exe --verify-tag --title "Vaultite $V" \
+            gh release create "$GITHUB_REF_NAME" out/*.dmg out/*.AppImage out/*.deb out/*-Setup-*.exe $apk --verify-tag --title "Vaultite $V" \
               --notes-file notes.md
           else
             gh release delete nightly --cleanup-tag --yes || true
-            gh release create nightly out/*.dmg out/*.AppImage out/*.deb out/*-Setup-*.exe --prerelease --target "$GITHUB_SHA" \
+            gh release create nightly out/*.dmg out/*.AppImage out/*.deb out/*-Setup-*.exe $apk --prerelease --target "$GITHUB_SHA" \
               --title "Nightly $V" --notes "Vaultite Nightly: main at $GITHUB_SHA, built $(date -u '+%Y-%m-%d %H:%M') UTC. It installs beside Vaultite and updates itself to each next nightly."
           fi
       # The feed's files, the update lists last so they never name a file that isn't there yet (a nightly's are
