@@ -16,7 +16,9 @@ who=$(gh api user --jq .login 2>/dev/null) || die "gh can't act as you (gh api u
 case "$who" in *"[bot]") die "gh acts as $who, an app: the merge must be yours" ;; esac
 subject=$(git log -1 --format=%s) body=$(git log -1 --format=%b)
 sh tools/maingate.sh "$base" "$sha" || die "main's gate refused it (above)"
-git push -q --force-with-lease origin "HEAD:refs/heads/$branch"
+# (leased on the branch as GitHub has it: a cloud session starts with a local ref GitHub may not have)
+was=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+git push -q --force-with-lease="refs/heads/$branch:$was" origin "HEAD:refs/heads/$branch"
 pr=$(gh api "repos/$repo/pulls?head=${repo%%/*}:$branch&state=open" --jq '.[0].number // empty')
 about="TL;DR: ${body:-$subject}"
 if [ -n "$pr" ]; then gh api -X PATCH "repos/$repo/pulls/$pr" -f title="$subject" -f body="$about" > /dev/null
