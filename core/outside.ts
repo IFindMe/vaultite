@@ -66,6 +66,7 @@ const ignored = (dir: string, names: string[]) => new Promise<Set<string>>((done
   const child = execFile("git", ["check-ignore", "-z", "--stdin"], { cwd: dir, timeout: 5000, maxBuffer: 8 << 20, env: gitEnv() }, (_e, out) => {
     done(new Set(String(out ?? "").split("\0").filter(Boolean).map((x) => x.replace(/\/$/, ""))))
   })
+  child.stdin?.on("error", () => {})
   child.stdin?.end(names.join("\0"))
 })
 

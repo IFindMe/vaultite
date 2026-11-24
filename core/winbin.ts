@@ -51,9 +51,10 @@ export function winCommand(argv: string[], env: NodeJS.ProcessEnv): [string, str
 
 /** spawn() talking over stdin and stdout, but on Windows a program found as its shells would (a .cmd included). */
 export function spawnBin(bin: string, args: string[], o: SpawnOptionsWithStdioTuple<"pipe", "pipe", "ignore">): ChildProcessByStdio<Writable, Readable, null> {
-  if (process.platform !== "win32") return spawn(bin, args, o)
-  const how = winCommand([bin, ...args], { ...process.env, ...o.env })
-  return how ? spawn(how[0], how[1], { windowsHide: true, ...o, windowsVerbatimArguments: how[2] }) : spawn(bin, args, o)
+  const how = process.platform === "win32" ? winCommand([bin, ...args], { ...process.env, ...o.env }) : null
+  const child = how ? spawn(how[0], how[1], { windowsHide: true, ...o, windowsVerbatimArguments: how[2] }) : spawn(bin, args, o)
+  child.stdin.on("error", () => {})
+  return child
 }
 
 /** `env` with `dirs` first on its PATH (Windows' Path, whatever its case: one key, not two). */

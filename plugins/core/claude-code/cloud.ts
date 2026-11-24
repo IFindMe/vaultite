@@ -72,6 +72,7 @@ export function cloudSessions(plugin: Plugin, o: { accounts: () => Account[]; bi
     if (!bin) throw new OpError("Claude Code isn't installed here", 409)
     const out = await new Promise<string>((ok) => {
       const p = execFile(bin, ["-p", "--cloud", session, "--output-format", "json"], { env: o.envOf(a), timeout: 60_000, maxBuffer: 1 << 20 }, (_e, so, se) => ok(`${so}\n${se}`))
+      p.stdin?.on("error", () => {})
       p.stdin?.end(text)
     })
     const r = SUBMITTED.parse((() => { try { return JSON.parse(out.trim().split("\n").find((l) => l.startsWith("{")) ?? "") } catch { return null } })())

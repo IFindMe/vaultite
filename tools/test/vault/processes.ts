@@ -67,4 +67,17 @@ console.log((await sh.ask(${JSON.stringify(win ? "'asked'" : "echo asked")}, 300
     const cut = await processTable(0).finally(() => { process.env.PATH = was })
     check("processes: a ps that fails gives the last whole table, never an empty or cut one", cut.has(process.pid) && cut.size === table.size, [cut.size, table.size])
   }
+  {
+    const { spawnBin } = await import("../../../core/winbin.ts")
+    const broke: Error[] = [], hear = (e: Error) => { broke.push(e) }
+    process.on("uncaughtException", hear)
+    const child = spawnBin(process.execPath, ["-e", "process.stdin.destroy(); process.exit(0)"], { stdio: ["pipe", "pipe", "ignore"] })
+    const gone = new Promise((ok) => child.on("close", ok))
+    child.stdin.write("x".repeat(4 << 20))
+    await gone
+    child.stdin.end("more")
+    await new Promise((ok) => setImmediate(ok))
+    process.off("uncaughtException", hear)
+    check("spawnBin: a program gone before it read its input is no crash", !broke.length, broke)
+  }
 }

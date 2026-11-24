@@ -9,6 +9,7 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Companion and dictation: a key bumped while you hold the Talk key or a dictation key (fn beside Control, Shift, a letter)
   no longer drops what you said or stops it listening: it goes on till you let go. Only a shortcut (a key at once, or with
   nothing said) and Esc cancel it.
+- Server: a Claude Code process that quits before it reads what it was asked no longer takes the server down with it.
 - Workspaces: moving the tab on screen to another workspace (dragged there, or Move current tab to workspace) goes there
   with it; moving any other tab leaves you where you are.
 - Quick switcher: ⌥↩ (Alt+Enter off a Mac) opens the pick to the right, in a split.

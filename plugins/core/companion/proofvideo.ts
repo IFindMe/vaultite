@@ -167,6 +167,7 @@ export async function recordProof(o: { url: string; tour: Pick<Tour, "title" | "
       "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "30", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", o.out], { stdio: ["pipe", "ignore", "pipe"] })
     let encErr = ""
     enc.stderr!.on("data", (d: Buffer) => { encErr += d })
+    enc.stdin!.on("error", () => {})
     const encoded = new Promise<number>((ok) => enc!.on("exit", (c) => ok(c ?? 1)))
     // Chrome's screencast sends a frame only when the page changes.
     let latest: Buffer | null = null, written = 0

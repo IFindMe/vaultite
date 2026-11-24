@@ -267,6 +267,7 @@ function nativeStart(c: Ctx, app: string) {
 }
 /** A native app's replies: 4-byte lengths (this machine's order), then JSON. */
 function readFrames(proc: ChildProcess, each: (m: unknown) => void) {
+  proc.stdin?.on("error", () => {})
   let buf = Buffer.alloc(0)
   proc.stdout?.on("data", (d: Buffer) => {
     buf = Buffer.concat([buf, d])
