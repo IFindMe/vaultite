@@ -22,6 +22,9 @@ export default async ($: VaultTest) => {
     const diff = changes(["- textbox \"Email\" [ref=e2]: old", "- text \"Saving\"", "- button \"Save\" [ref=e3]"], ["- textbox \"Email\" [ref=e2]: new", "  - button \"Save\" [ref=e3]", "- status \"Saved\""])
     check("browser agents: an act's diff says a control changed once, new lines first, a moved line not at all",
       JSON.stringify(diff) === JSON.stringify(["~ textbox \"Email\" [ref=e2]: new", "+ status \"Saved\"", "- text \"Saving\""]), diff)
+    const essay = (end: string) => [`- textbox "Idea" [ref=e4]: ${"We make tools people own. ".repeat(40)}${end}`], edited = changes(essay("Like a shop."), essay("Like a library."))
+    check("browser agents: a change far into a long field is told, as the words around it", edited.length === 1 && edited[0].startsWith('~ textbox "Idea" [ref=e4]: …') &&
+      edited[0].endsWith("Like a library.") && edited[0].length < 200, edited)
     const page = ["- RootWebArea \"Shop\" [ref=e1]", "  - navigation \"Site\"", "    - link \"Home\" [ref=e2]", "  - heading \"Orders\"", "  - contentinfo", "    - link \"Terms\" [ref=e3]"]
     const withMain = ["- RootWebArea \"Shop\" [ref=e1]", "  - banner", "    - link \"Home\" [ref=e2]", "  - main", "    - heading \"Orders\"", "    - row: \"A-1\" | \"$5\""]
     check("browser agents: a new page's content is its main part, else the page without navigation, header and footer",

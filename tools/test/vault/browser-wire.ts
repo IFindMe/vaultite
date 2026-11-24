@@ -172,6 +172,9 @@ async function cdpAnswers(check: Check) {
     [lines(C.AX_TREE.parse(tree).nodes), lines(tree.nodes)], [C.AX_TREE.safeParse({ nodes: [{ role: { value: "button" } }] }).success, false],
     [C.AX_TREE.safeParse({}).success, false], [C.AX_TREE.safeParse(null).success, false],
   ]), lines(C.AX_TREE.parse(tree).nodes))
+  const field = (value: string) => lines([node("1", "textbox", "Idea", { backendDOMNodeId: 8, value: { type: "string", value } })])[0], letter = "I build tools people own. ".repeat(60) + "Last words."
+  check("DevTools answers: a field's value is read whole (an agent rewriting it keeps its end); a huge one keeps its start, its end and its size", field(letter).endsWith(letter.trim()) &&
+    field("a ".repeat(20_000) + "the end").length < 4200 && field("a ".repeat(20_000) + "the end").endsWith("the end (40007 characters)"), field(letter))
   const doc = { root: { nodeId: 1, backendNodeId: 1, nodeType: 9, nodeName: "#document", localName: "", nodeValue: "", documentURL: "https://shop.example/", children: [
     { nodeId: 2, backendNodeId: 2, nodeType: 1, nodeName: "FORM", localName: "form", nodeValue: "", attributes: ["id", "f"], shadowRoots: [{ backendNodeId: 5, nodeName: "#document-fragment", nodeValue: "" }],
       children: [{ backendNodeId: 3, nodeName: "IFRAME", nodeValue: "", contentDocument: { backendNodeId: 4, nodeName: "#document", nodeValue: "", documentURL: "https://pay.example/" } }] }] } }

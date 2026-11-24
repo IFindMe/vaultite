@@ -15,6 +15,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   built, rather than by the server each time it starts.
 - Companion: "run it on my work account" finds the account by the name the app shows, not only its id, and the job's card
   says which account it runs in (the default one too).
+- Browser: agents and the companion read the whole of a long text field, and a change far into one is no longer reported
+  as nothing changed; the companion looks for a fact of yours (a profile link, a handle) in your notes, signed-in sites
+  and the likely page before asking you.
 - Player: an agent can set where a video or sound in the vault picks up (player.place, vau player place <file> 4:50), so a
   video handed over from another screen plays from where you stopped, on every device.
 - Inbox: replying to a Claude Code on the web session (vau inbox reply, or answer's reply) sends it to that session through

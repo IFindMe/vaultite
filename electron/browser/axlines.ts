@@ -1,6 +1,17 @@
 // axLines runs in the page too, sent as source (pagetree.ts): it holds everything it uses.
 import { shortUrl } from "./linktext.ts"
 
+const LONG_LINE = 400, NEAR_CHANGE = 100
+function aroundChange(was: string, now: string) {
+  if (now.length <= LONG_LINE) return now
+  let from = 0, end = 0
+  while (from < now.length && now[from] === was[from]) from++
+  while (end < now.length - from && end < was.length - from && now.at(-1 - end) === was.at(-1 - end)) end++
+  const value = now.search(/\[ref=e\d+\]/), head = now.slice(0, now.indexOf("]", value) + 1)
+  const a = Math.max(head.length, from - NEAR_CHANGE), b = Math.min(now.length, now.length - end + NEAR_CHANGE)
+  return b - a >= now.length - head.length ? now : `${head}: …${now.slice(a, b).replace(/^: /, "")}${b < now.length ? "…" : ""}`
+}
+
 /** What changed between two trees, by what lines say, not their depth (a wrapper added moves nothing): a control whose
  *  line changed (its value, checked...) once as ~, then lines new (+), then gone (-), so a cut keeps what's new. */
 export function changes(before: string[], after: string[]) {
@@ -17,7 +28,8 @@ export function changes(before: string[], after: string[]) {
   const was = new Set(gone.map(refOf).filter(Boolean))
   const now = new Set(added.map(refOf).filter(Boolean))
   const both = (l: string) => { const r = refOf(l); return !!r && was.has(r) && now.has(r) }
-  return [...added.filter(both).map((l) => `~ ${l}`), ...added.filter((l) => !both(l)).map((l) => `+ ${l}`), ...gone.filter((l) => !both(l)).map((l) => `- ${l}`)]
+  const old = new Map(gone.map((l) => [refOf(l), l]))
+  return [...added.filter(both).map((l) => `~ ${aroundChange(old.get(refOf(l)) ?? "", l)}`), ...added.filter((l) => !both(l)).map((l) => `+ ${l}`), ...gone.filter((l) => !both(l)).map((l) => `- ${l}`)]
 }
 
 const PENDING = /"[^"]{0,40}\b(?:loading|saving|sending|uploading|processing|updating|syncing|searching|submitting|signing in|redirecting|preparing|generating|fetching)\b[^"]{0,40}(?:…|\.\.\.)"/i
@@ -79,7 +91,7 @@ export type LineKit = { short: (href: string, base: string) => string | null; in
 export function axLines(nodes: AXNode[], r: Refs, filled: (id: number) => boolean, scrub: (s: string) => string, base = "",
   kit: LineKit = { short: shortUrl, interactive: INTERACTIVE }): string[] {
   const SKIP = new Set(["none", "generic", "InlineTextBox", "LineBreak", "presentation", "LayoutTable", "LayoutTableRow", "LayoutTableCell", "MenuListPopup"])
-  const MAX_TREE = 1_000_000, interactive = kit.interactive
+  const MAX_TREE = 1_000_000, MAX_VALUE = 4000, interactive = kit.interactive
   const linkTo = (role: string, name: string, url: string) => {
     const to = role === "link" && name ? kit.short(url, base) : null, said = name.toLowerCase().replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")
     return !to || said === to.toLowerCase() || (said.includes("/") && to.toLowerCase().endsWith(said)) ? "" : ` (→ ${to})`
@@ -115,7 +127,7 @@ export function axLines(nodes: AXNode[], r: Refs, filled: (id: number) => boolea
       info = true
     }
     const value = secret || /^[•●*]+$/.test(text(node.value)) ? (text(node.value) ? "•••" : "") : text(node.value)
-    if (value && value !== name) { line += `: ${value.slice(0, 200)}`; info = true }
+    if (value && value !== name) { line += `: ${value.length > MAX_VALUE ? `${value.slice(0, MAX_VALUE - 1000)} … ${value.slice(-1000)} (${value.length} characters)` : value}`; info = true }
     for (const k of ["checked", "pressed", "expanded", "selected", "disabled"]) if (props[k] === true || props[k] === "true" || props[k] === "mixed") { line += ` [${k}]`; info = true }
     const control = interactive.has(role) && !!name && !/^(textbox|searchbox|combobox|listbox)$/.test(role)
     let below = under(depth + 1, control ? true : name && role !== "RootWebArea" ? name : said)
