@@ -64,6 +64,8 @@
   to tell its code from this machine's: current is bad once good starts fine after it. When good fails too (the vault
   unreadable, the load), it's the machine's trouble: none is marked bad, and each start waits longer, never past a
   watchdog's 3 missed minutes. VAULTITE_SERVICE tells the server a service manager restarts it (`core/watchdog.ts`).
+- A guard outside a service reads `GET /api/health` (it answers before the vault is read), sends a hung server SIGUSR2,
+  gives it 10 s to write its report, and waits longer than `core/watchdog.ts`' own limits before restarting it.
 - The store's gc keeps current, good, a root made in the last 10 minutes (about to be current) and every root a live
   process leased (`update/lease.ts`: the keepers, the app's servers and main): whatever runs from a root leases it.
 - A host's own CI gate (`ci`: the desktop app's, storepolicy.ts) needs no GitHub origin; the default asks GitHub.

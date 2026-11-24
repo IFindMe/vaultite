@@ -69,7 +69,7 @@ VAULTITE_VAULT=/tmp/vaultite-sandbox npm start       # http://127.0.0.1:8793
 ```
 
 No accounts: keep it on `127.0.0.1` or a private network like Tailscale ([SECURITY.md](SECURITY.md)). The desktop,
-iPhone and Android apps, tests and how to send a change: [CONTRIBUTING.md](CONTRIBUTING.md). Your own plugin: `vau plugin new <id>`
+iPhone and Android apps and the tests: [CONTRIBUTING.md](CONTRIBUTING.md). Your own plugin: `vau plugin new <id>`
 ([vault plugins](core/docs/vault-plugins.md)).
 
 ## Run it on a server
@@ -86,9 +86,14 @@ tailscale serve --bg --https=8447 http://127.0.0.1:8793
 
 Then add `https://<machine>.<tailnet>.ts.net:8447` in the app.
 
+## Contributing
+
+Bug reports, ideas and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
-[Apache 2.0](LICENSE).
+[Apache 2.0](LICENSE). Copyright 2026 Lucas Takayasu / Vaultite. The third-party code and assets in it, and their
+licenses: [NOTICE](NOTICE).
 
 Obsidian is a trademark of Dynalist Inc. Vaultite is not affiliated with or endorsed by it; the name is used only to
 say what Vaultite is compatible with.

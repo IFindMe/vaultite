@@ -172,6 +172,8 @@
       "README.md",
       "screenshots/**",
       "CHANGELOG.md",
+      "LICENSE",
+      "NOTICE",
       "server.ts",
       ".compile-cache/**",
       "core/**",
