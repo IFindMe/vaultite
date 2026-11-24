@@ -9,6 +9,7 @@
   "replaces": { "obsidian": ["mcp-tools-istefox"] },
   "settings": {
     "allowRemote": { "local": true, "type": "boolean", "default": false, "label": "Anyone who reaches the app", "description": "only on a network you trust; lets anyone who reaches the app connect over HTTP, not only this machine's owner and the logins listed" },
+    "keepAwake": { "local": true, "type": "boolean", "default": false, "label": "Keep awake while plugged in", "description": "while signed in to Vaultite Cloud, so AI apps reach the vault when you're away (macOS: on AC power; Linux: machines without a battery; not on Windows)" },
     "allowUsers": { "local": true, "type": "list", "when": { "allowRemote": [false] }, "label": "Other tailnet logins", "description": "who besides this machine's owner may connect; tailnet logins, like someone@example.com, over HTTP through Tailscale Serve" }
   }
 }

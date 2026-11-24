@@ -279,6 +279,18 @@ try {
   await page.waitForSelector("[data-connect-app]", { timeout: 10_000 }).catch(() => {})
   check("Connect: Connections says the phone and web reach this Mac at the handle's address", /phone and any browser/.test(await page.textContent("[data-connect-app]").catch(() => "") ?? "")
     && (await page.textContent("[data-connect-url]"))?.includes("https://alice.vaultite.app"))
+  relay.conn.send(JSON.stringify({ t: "missed", since: new Date(Date.now() - 3600_000).toISOString(), until: new Date().toISOString(), total: 40, apps: { Claude: 38, ChatGPT: 2 } }))
+  await page.waitForSelector("[data-cloud-missed]", { timeout: 10_000 }).catch(() => {})
+  const machine = process.platform === "darwin" ? "Mac" : "computer"
+  check("away: Connections says which apps found this machine asleep, in its word", new RegExp(`^Claude and ChatGPT tried to reach this ${machine} 40 times while it was asleep or offline`).test(await page.textContent("[data-cloud-missed]").catch(() => "") ?? ""))
+  if (process.platform === "darwin") {
+    check("away: with the switch to keep it awake", (await page.textContent("[data-cloud-keep-awake]").catch(() => ""))?.includes("Keep this Mac awake while plugged in"))
+    await page.click("[data-cloud-keep-awake] [role=switch]")
+    const held = await until(async () => (await (await fetch(`${BASE}/api/mcp/connections`)).json()).away?.keepAwake?.holding, 5000)
+    await page.click("[data-cloud-keep-awake] [role=switch]")
+    const let_go = await until(async () => (await (await fetch(`${BASE}/api/mcp/connections`)).json()).away?.keepAwake?.holding === false, 5000)
+    check("away: turned on, it holds caffeinate while signed in; off, it lets go", !!held && !!let_go)
+  }
   await page.click("[data-guide-for=claude]")
   await page.waitForSelector("[data-setup=claude] [data-connect-code]", { timeout: 5000 }).catch(() => {})
   check("Set up Claude opens a sheet with its steps (open, copy the name and the address) and the code field", await page.isVisible("[data-setup=claude] [data-guide=claude] [data-guide-open]")

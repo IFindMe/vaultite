@@ -4,6 +4,7 @@ import os from "node:os"
 import WebSocket from "ws"
 import { z } from "zod"
 import type { Plugin } from "../../../core/plugins.ts"
+import { MISSED, type Missed } from "./missed.ts"
 import { RELAY_HEADER, RELAYED, RELAYED_GUEST } from "./public.ts"
 
 const RELAY = (process.env.VAULTITE_CLOUD || "https://cloud.vaultite.com").replace(/\/+$/, "")
@@ -50,7 +51,7 @@ function deviceName(): Promise<string> {
 const closeCode = (c: unknown) => (typeof c === "number" && (c === 1000 || (c >= 3000 && c <= 4999)) ? c : 1000)
 
 export class Cloud {
-  plugin: Plugin
+  plugin: Pick<Plugin, "secrets" | "saveSecrets">
   relay: string
   target: () => Promise<number>
   state: CloudState = "off"
@@ -66,8 +67,9 @@ export class Cloud {
   connectKey: string | null = null
   replacedBy = ""
   onChange: (s: CloudStatus) => void = () => {}
+  onMissed: (m: Missed) => void = () => {}
 
-  constructor(plugin: Plugin, target: () => Promise<number>, relay = RELAY) {
+  constructor(plugin: Pick<Plugin, "secrets" | "saveSecrets">, target: () => Promise<number>, relay = RELAY) {
     this.plugin = plugin
     this.target = target
     this.relay = relay
@@ -114,6 +116,12 @@ export class Cloud {
     if (u.protocol !== "https:" || u.hostname !== `${f.handle}.${zone}` || (f.handle === s.handle && f.url === s.url)) return
     this.save({ ...s, handle: f.handle, url: f.url })
     this.onChange(this.status())
+  }
+
+  toldByRelay(f: Frame) {
+    if (f.t === "handle") this.moved(f)
+    else if (f.t === "connect" && typeof f.key === "string" && f.key) { const was = this.connectKey; this.connectKey = f.key; if (!was) this.onChange(this.status()) }
+    else if (f.t === "missed") { const m = MISSED.safeParse(f).data; if (m) this.onMissed(m) }
   }
 
   start() {
@@ -224,8 +232,7 @@ export class Cloud {
       let f: Frame
       try { f = JSON.parse(String(data)) } catch { return }
       if (f.t === "ping") ws.send(JSON.stringify({ t: "pong" }))
-      else if (f.t === "handle") this.moved(f)
-      else if (f.t === "connect" && typeof f.key === "string" && f.key) { const was = this.connectKey; this.connectKey = f.key; if (!was) this.onChange(this.status()) }
+      else if (f.t === "handle" || f.t === "connect" || f.t === "missed") this.toldByRelay(f)
       else if (f.t === "ws") this.openSocket(ws, f).catch((e) => this.send(ws, { t: "wsno", id: String(f.id), status: 502, message: e instanceof Error ? e.message : String(e) }))
       else if (f.t === "wsmsg") { const s = this.sockets.get(String(f.id)); if (s?.readyState === WebSocket.OPEN) s.send(typeof f.data === "string" ? Buffer.from(f.data, "base64") : String(f.text ?? ""), { binary: typeof f.data === "string" }) }
       else if (f.t === "wsclose") { const s = this.sockets.get(String(f.id)); this.sockets.delete(String(f.id)); s?.close(closeCode(f.code), String(f.reason ?? "").slice(0, 120)) }

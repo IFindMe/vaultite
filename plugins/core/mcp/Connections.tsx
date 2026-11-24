@@ -5,7 +5,8 @@ import { Button, backDetail, confirmDialog, copyText, del, detailPath, Empty, fm
 type Access = "read" | "write"
 type Connection = { id: string; name: string; created: string; used: string | null; access: Access; actor: string }
 type Cloud = { state: "off" | "connecting" | "connected" | "reconnecting" | "offline" | "replaced"; handle: string | null; url: string | null; app?: string | null; guests?: string | null; connectUrl: string; message?: string }
-type State = { here?: "connect"; url: string | null; cloud: Cloud; connect?: { ownerTools: boolean }; connections: Connection[]; waiting: number
+type Away = { machine: "Mac" | "computer"; missed: { text: string; until: string } | null; keepAwake: { on: boolean; holding: boolean; problem: string | null } | null }
+type State = { here?: "connect"; url: string | null; cloud: Cloud; away?: Away; connect?: { ownerTools: boolean }; connections: Connection[]; waiting: number
   asking?: string[]
   finishing?: { name: string; stuck?: string }[]
   failed?: { name: string; why: string }[] }
@@ -143,12 +144,28 @@ function CloudSection({ data, onDone }: { data: State; onDone: () => void }) {
           </SettingRow>
           {cloud.url && <SettingRow label="MCP address" sub={<code className="break-all text-[12px]">{cloud.url}</code>} chevron={Copy} onClick={() => void copyAddress(cloud.url!)} data-cloud-url />}
           {data.url && <SettingRow label="Your tunnel's address" sub={<code className="break-all text-[12px]">{data.url}</code>} chevron={Copy} onClick={() => void copyAddress(data.url!)} />}
+          {data.away && <KeepAwake away={data.away} onDone={onDone} />}
         </Group>
       )}
+      {cloud.state !== "off" && data.away && <Missed away={data.away} />}
       {cloud.state === "off" && data.url && <div className="pt-3"><Group><SettingRow label="Your tunnel's address" sub={<code className="break-all text-[12px]">{data.url}</code>} chevron={Copy} onClick={() => void copyAddress(data.url!)} /></Group></div>}
     </Section>
   )
 }
+
+function KeepAwake({ away, onDone }: { away: Away; onDone: () => void }) {
+  const [on, choose] = useChosen(!!away.keepAwake?.on)
+  if (!away.keepAwake) return null
+  const turn = (to: boolean) => choose(to, () => patch("config/plugin/mcp", { keepAwake: to || null }).then(onDone), "Couldn't change it")
+  const label = `Keep this ${away.machine} awake while plugged in`
+  return (
+    <SettingRow label={label} sub={away.keepAwake.problem ? `Couldn't keep it awake: ${away.keepAwake.problem}` : "So AI apps can reach your vault while you're away"} data-cloud-keep-awake>
+      <Switch on={on} onChange={turn} label={label} />
+    </SettingRow>
+  )
+}
+
+const Missed = ({ away }: { away: Away }) => (away.missed ? <GroupNote data-cloud-missed>{away.missed.text}.</GroupNote> : null)
 
 function AppAddress({ app, ownerTools, onDone }: { app: string; ownerTools: boolean; onDone: () => void }) {
   const [tools, choose] = useChosen(ownerTools)

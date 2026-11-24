@@ -421,6 +421,7 @@ export class Plugin {
   /** plugin.onRequest's and plugin.onChange's functions (the core calls them only while the plugin is on). */
   requestFns: RequestHook[] = []
   changeFns: ((paths: string[] | null) => void)[] = []
+  private settingsFns: ((settings: Item) => void)[] = []
   /** plugin.onServerError's functions (the core calls them only while the plugin is on). */
   errorFns: ((e: ServerError) => void)[] = []
   /** plugin.onEvent's filters and functions (the core calls them only while the plugin is on). */
@@ -585,6 +586,19 @@ export class Plugin {
     return fn
   }
 
+  /** fn(settings) after this server wrote its settings (saveSettings, patchSettings: the settings form, agents'
+   *  config calls), with them as they are now: for what follows a setting while it runs, like a process it holds. */
+  onSettings(fn: (settings: Item) => void) {
+    this.settingsFns.push(fn)
+    return fn
+  }
+
+  private settingsChanged() {
+    if (!this.settingsFns.length) return
+    const now = this.settings()
+    for (const fn of this.settingsFns) runHook(this.id, "onSettings", () => fn(now))
+  }
+
   /** fn(error) for each error the server logs, with its request. Runs synchronously and isn't heard again for its own
    *  errors: write what you keep at once, never throw. */
   onServerError(fn: (e: ServerError) => void) {
@@ -720,6 +734,7 @@ export class Plugin {
     }
     if (data === null) this.vault.removeConfig(this.settingsName(file))
     else this.vault.setConfig(this.settingsName(file), data)
+    if (file === "data") this.settingsChanged()
   }
 
   /** Change some keys (null removes one unless `nullRemoves` is false); returns the settings after. A declared one's
@@ -733,7 +748,9 @@ export class Plugin {
     const keys = this.localKeys("data"), mine = Object.entries(changes).filter(([k]) => !keys.includes(k))
     const local = Object.entries(changes).filter(([k]) => keys.includes(k))
     if (local.length) trustOf(this.vault.path).patchLocal(this.id, Object.fromEntries(local))
-    return this.withLocal(this.vault.patchConfig(this.settingsName("data"), Object.fromEntries(mine), { nullRemoves }), "data")
+    const after = this.withLocal(this.vault.patchConfig(this.settingsName("data"), Object.fromEntries(mine), { nullRemoves }), "data")
+    this.settingsChanged()
+    return after
   }
 
   /** One file a setting names (`key`; `fallback` when unset or unusable: Me's "ME.md"): returns its path now, from the

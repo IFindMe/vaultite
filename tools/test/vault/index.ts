@@ -58,6 +58,7 @@ export const AREAS: { name: string; deps: string[] }[] = [
   { name: "properties", deps: ["pages","canvas"] },
   { name: "mcp", deps: ["pages","cli","canvas"] },
   { name: "mcp-apps", deps: ["pages"] },
+  { name: "mcp-away", deps: [] },
   { name: "ops", deps: ["data","pages","cli","canvas","mcp"] },
   { name: "calendar", deps: [] },
   { name: "references-parsers", deps: [] },

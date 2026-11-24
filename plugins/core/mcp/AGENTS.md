@@ -27,7 +27,10 @@ lines (`vau mcp` under VAULTITE_TOLD): it gets the intro and the tools' part onl
   `vau cloud sign-in <code>` (ops `mcp.cloud-sign-in`, `mcp.cloud-status`, `mcp.cloud-sign-out`); never use a code from
   someone else. The machine then keeps a tunnel to the relay, which reaches only the public listener. When the
   account changes its handle (on cloud.vaultite.com), the relay tells the machine over the tunnel; it keeps the new
-  address and says so, and AI apps must add the new MCP address again. Its shared
+  address and says so, and AI apps must add the new MCP address again. Requests that found the machine asleep or
+  offline are counted by the relay (by app, counts only) and told once it's back: a notification and a line in
+  Connections, from 3 on. `mcp.keepAwake` (this machine's setting, off by default) keeps it awake while signed in:
+  `caffeinate -s` on macOS (on AC power only), `systemd-inhibit` on Linux machines without a battery; none on Windows. Its shared
   folders' guests (Sharing) come to `https://share-<handle>.vaultite.app`, marked by the relay as theirs: the listener
   sends them to Sharing's gateway only. MCP gives Sharing its guests' address (`mcp:guest-urls`: that one while signed
   in, then an own tunnel's `mcp.public.url`).

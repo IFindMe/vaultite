@@ -2,9 +2,11 @@ import crypto from "node:crypto"
 import { z } from "zod"
 import { agentLines, APP_VERSION, HTTPError, OpError, Plugin, reply, type Request, Text, type Who } from "../../../core/plugins.ts"
 import { appsFrom, contents, cspOf } from "./apps.ts"
+import { KeepAwake } from "./awake.ts"
 import { toolsOf } from "./catalog.ts"
 import { Cloud, CloudError, type CloudStatus } from "./cloud.ts"
 import { viaConnect } from "./connect.ts"
+import { MISSED, missedText, noticeOf } from "./missed.ts"
 import { PublicMcp } from "./public.ts"
 import { callTool, type Client, declared, handleBody, initializes, instructionsOf, type Session, type ToolCtx, ToolError, toolsWithApps } from "./protocol.ts"
 
@@ -126,12 +128,36 @@ const cloud = new Cloud(plugin, () => publicMcp().ready)
 const ownerTools = () => plugin.secrets().mcp?.connect?.ownerTools === true
 let signedIn = false
 let handle = cloud.stored()?.handle ?? null
+const notify = (text: string) => { try { void plugin.runOp("ui.notify", { text, actionOpen: "view:connections" }).catch(() => {}) } catch {} }
+
+const MACHINE = process.platform === "darwin" ? "Mac" : "computer"
+const awake = new KeepAwake()
+const keepAwake = () => plugin.loaded && plugin.settings().keepAwake === true
+const signedInToCloud = () => !!cloud.stored() && cloud.state !== "off" && cloud.state !== "replaced"
+const holdAwake = () => awake.set(keepAwake() && signedInToCloud())
+plugin.onSettings(holdAwake)
+plugin.onUnload(() => awake.stop())
+
+cloud.onMissed = (m) => {
+  const text = noticeOf(m, MACHINE)
+  if (!text) return
+  plugin.keep("cloud-missed", m)
+  notify(text)
+}
+const RECENT = 7 * 86400_000
+function away() {
+  const m = MISSED.safeParse(plugin.kept("cloud-missed", null)).data
+  return { machine: MACHINE, missed: m && Date.now() - Date.parse(m.until) < RECENT ? { text: missedText(m, MACHINE), until: m.until } : null,
+    keepAwake: awake.supported ? { on: keepAwake(), holding: awake.holding, problem: awake.problem || null } : null }
+}
+
 cloud.onChange = (s) => {
+  holdAwake()
   const renamed = !!handle && !!s.handle && s.handle !== handle && !signedIn
   handle = s.handle
   const text = renamed ? `Your vault's MCP server moved to ${s.url}: add it again in your AI apps` : s.state === "connected" && signedIn ? `Your vault's MCP server is at ${s.url}` : s.state === "replaced" || (s.state === "off" && s.message) ? s.message : ""
   if (s.state !== "connecting") signedIn = false
-  if (text) try { void plugin.runOp("ui.notify", { text, actionOpen: "view:connections" }).catch(() => {}) } catch {}
+  if (text) notify(text)
 }
 if (settings || cloud.stored()) publicMcp()
 
@@ -145,7 +171,7 @@ plugin.onUnload(() => { pub?.stop(); cloud.stop() })
 
 plugin.route("GET", "mcp/connections", async (req) => {
   if (await seenOverConnect(req)) return { here: "connect", url: null, cloud: cloud.status(), connect: { ownerTools: false }, connections: pub?.list() ?? [], waiting: 0 }
-  return { url: settings ? `${settings.url}/mcp` : null, cloud: cloud.status(), connect: { ownerTools: ownerTools() }, connections: pub?.list() ?? [],
+  return { url: settings ? `${settings.url}/mcp` : null, cloud: cloud.status(), away: away(), connect: { ownerTools: ownerTools() }, connections: pub?.list() ?? [],
     waiting: pub?.waiting() ?? 0, asking: pub?.asking() ?? [], finishing: pub?.finishing() ?? [], failed: pub?.failures() ?? [] }
 }, { lock: false })
 
