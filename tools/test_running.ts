@@ -44,7 +44,7 @@ check("none, or not one: null", stampIn("<html></html>") === null && stampOf("ma
 await section("the build served", async () => {
   build("index-A.js", null)
   const b = webBuilds(dist, 50)
-  check("its entry, the files it starts with", b.read().entry === "index-A.js" && b.read().eager.length === 2 && b.read().stamp === null, b.read())
+  check("its entry", b.read().entry === "index-A.js" && b.read().stamp === null, b.read())
   const heard: string[] = []
   const off = b.on((x) => heard.push(x.entry!))
   await sleep(150)
@@ -92,14 +92,14 @@ await section("the commit it runs", async () => {
   check("a branch named like a hash isn't taken for one", await r.resolve("feedfacecafe") === null)
   check("a short hash naming one commit isn't ambiguous", await r.ambiguous(b.slice(0, 7)) === false && await r.ambiguous(b) === false)
   check("isHash: hashes only", isHash(b) && isHash(b.slice(0, 4)) && !isHash("HEAD") && !isHash("main") && !isHash("abc") && !isHash(`${b.slice(0, 7)}^`) && !isHash("v1.2.0"))
-  const none = runningIn(path.join(tmp, "nowhere"), () => ({ entry: null, eager: [], stamp: null }))
+  const none = runningIn(path.join(tmp, "nowhere"), () => ({ entry: null, stamp: null }))
   check("not a checkout: unknown", (await none.running()).commit === null && await none.contains("a".repeat(40), "b".repeat(40)) === null)
   check("… and whether a process runs older code, unknown", (await none.processes([{ id: "server", commit: a }]))[0].stale === null)
 })
 
 await section("whether each process runs older code (the module graph)", async () => {
   const sha = commit({ "server.ts": `import "./core/a.ts"`, "core/a.ts": "export const a = 1", "web/src/x.tsx": "", "README.md": "" }, "graph")
-  const r = runningIn(repo, () => ({ entry: null, eager: [], stamp: null }))
+  const r = runningIn(repo, () => ({ entry: null, stamp: null }))
   const ask = () => r.processes([{ id: "server", commit: sha }, { id: "desktop", commit: null }, { id: "helper", commit: "f".repeat(40) }])
   const without = (await ask())[0]
   check("no graph given by the host (the web demo): can't say, and why", without.stale === null && /no module graph/.test(without.why ?? ""), without)

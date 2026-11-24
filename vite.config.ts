@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react'
 import fs from 'node:fs'
 import { defineConfig, normalizePath, type Plugin, type Rollup } from 'vite'
 import { exportsOf, ICON_FILE, ICON_NAME, PLUGIN_MODULE, svgIcon } from './core/pluginmeta.ts'
+import { COPY, precompress, pruneCache } from './core/precompressed.ts'
 import { exportFile } from './core/rules.ts'
 import { STAMP_META, stampText } from './core/buildstamp.ts'
 import { gitEnv } from './core/gitenv.ts'
@@ -24,9 +25,28 @@ function keepRecentBuilds(): Plugin {
       let names: string[] = []
       try { names = fs.readdirSync(dir) } catch { return }
       for (const f of names) {
-        if (now.has(f)) continue
+        if (now.has(f.replace(COPY, ''))) continue
         try { if (clean || fs.statSync(path.join(dir, f)).mtimeMs < oldest) fs.rmSync(path.join(dir, f)) } catch { /* gone */ }
       }
+    },
+  }
+}
+
+// Each asset's .br and .gz, made at their best by the build so that the server sends them as they are
+function precompressAssets(): Plugin {
+  let cache = ''
+  return {
+    name: 'vaultite-precompress',
+    apply: 'build',
+    configResolved: (c) => { cache = path.join(c.cacheDir, 'precompressed') },
+    writeBundle: {
+      sequential: true,
+      order: 'post',
+      async handler(options, bundle) {
+        const dir = options.dir ?? path.resolve(import.meta.dirname, 'web/dist')
+        await precompress(Object.keys(bundle).filter((f) => f.startsWith('assets/')).map((f) => path.join(dir, f)), cache)
+        await pruneCache(cache)
+      },
     },
   }
 }
@@ -336,7 +356,7 @@ export function noOfficialPlugins(): Plugin {
 // The app is in web/ (the core) and plugins/ (every feature, one folder each); both are bundled together.
 export default defineConfig({
   root: 'web',
-  plugins: [pluginModules([path.resolve(import.meta.dirname, 'plugins/core')]), react(), tailwindcss(), keepRecentBuilds(), buildStamp(), pluginIcons(), noOfficialPlugins(), lucideByFile(), bootChunks(), stableChunks()],
+  plugins: [pluginModules([path.resolve(import.meta.dirname, 'plugins/core')]), react(), tailwindcss(), keepRecentBuilds(), precompressAssets(), buildStamp(), pluginIcons(), noOfficialPlugins(), lucideByFile(), bootChunks(), stableChunks()],
   resolve: {
     alias: {
       // What plugins import: the plugin API (web/src/api.ts). Core code uses @/.
@@ -347,7 +367,6 @@ export default defineConfig({
   base: './',
   // MapLibre's worker is an ES module (imported with ?worker&url in the People map plugin)
   worker: { format: 'es' },
-  // the People map chunk (MapLibre) is ~280 kB gzipped and only loads when the Map view opens
   build: {
     chunkSizeWarningLimit: 1100, outDir: 'dist', emptyOutDir: false, // (keepRecentBuilds, above)
     modulePreload: { resolveDependencies: (_file, deps, { hostId }) => (indexBoot(hostId) ? deps.filter((d) => !indexBoot(d)) : deps) },
@@ -359,8 +378,6 @@ export default defineConfig({
         onboarding: path.resolve(import.meta.dirname, 'web/onboarding.html'), phone: path.resolve(import.meta.dirname, 'web/phone.html'),
         screen: path.resolve(import.meta.dirname, 'web/screen.html'),
       },
-      // Vault plugins may import the app's plugins' modules (virtual:plugin-exports, lazily); most are
-      // in the main chunk anyway, which is fine.
       // (split across files, modules run in their source order: a cycle between two files is safe; export names stay put,
       // so a file importing another changes only when its own code does)
       output: { codeSplitting: { includeDependenciesRecursively: false, groups: appGroups }, strictExecutionOrder: true, minifyInternalExports: false },

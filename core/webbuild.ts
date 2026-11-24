@@ -6,12 +6,11 @@ import { logger } from "./log.ts"
 
 const log = logger("webbuild")
 
-export type WebBuild = { entry: string | null; eager: string[]; stamp: Stamp | null }
-const NONE: WebBuild = { entry: null, eager: [], stamp: null }
+export type WebBuild = { entry: string | null; stamp: Stamp | null }
+const NONE: WebBuild = { entry: null, stamp: null }
 
 const ENTRY = /<script type="module"[^>]*\ssrc="[^"]*\/([^"/]+\.js)"/
 const IMPORT_MAP = /<script type="importmap"[^>]*>([\s\S]*?)<\/script>/
-const EAGER = /<(?:script|link)\b[^>]*?(?:src|href)="\.?\/?(assets\/[^"]+\.(?:js|css))"/g
 
 /** Polled: fs.watch can lose a rewrite. `adopt` tells the other folder's build as new. */
 export function webBuilds(first: string, ms = 1000) {
@@ -23,7 +22,7 @@ export function webBuilds(first: string, ms = 1000) {
       if (key !== seen) {
         const html = fs.readFileSync(index, "utf8")
         const entry = ENTRY.exec(html)?.[1]
-        built = { entry: entry ? buildName(entry, IMPORT_MAP.exec(html)?.[1]) : null, eager: [...html.matchAll(EAGER)].map((e) => path.join(dist, e[1])), stamp: stampIn(html) }
+        built = { entry: entry ? buildName(entry, IMPORT_MAP.exec(html)?.[1]) : null, stamp: stampIn(html) }
         seen = key
       }
     } catch { seen = ""; built = NONE }

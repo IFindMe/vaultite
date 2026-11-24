@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { z } from "zod"
+import { COPY } from "./precompressed.ts"
 import { codeOf } from "./values.ts"
 
 export const KEEP_DAYS = 3
@@ -21,19 +22,24 @@ async function keepOne(from: string, to: string) {
   }
 }
 
+const assetOf = (name: string) => name.replace(COPY, "")
+
 export async function keepAssets(dist: string, dir: string, now = Date.now()) {
   let names: string[]
-  try { names = (await fs.promises.readdir(path.join(dist, "assets"))).filter((n) => VITE_CONTENT_HASHED_NAME.test(n)) } catch { return }
+  try { names = (await fs.promises.readdir(path.join(dist, "assets"))).filter((n) => VITE_CONTENT_HASHED_NAME.test(assetOf(n))) } catch { return }
   await fs.promises.mkdir(dir, { recursive: true })
   const seen = readSeen(dir), have = new Set(await fs.promises.readdir(dir))
   for (const n of names) {
-    seen[n] = now
-    if (!have.has(n)) await keepOne(path.join(dist, "assets", n), path.join(dir, n)).catch(() => { delete seen[n] })
+    const copy = COPY.test(n)
+    if (!copy) seen[n] = now
+    if (!have.has(n)) await keepOne(path.join(dist, "assets", n), path.join(dir, n)).catch(() => { if (!copy) delete seen[n] })
   }
   for (const n of have) {
     if (n === SEEN || n.endsWith(".tmp")) continue
-    if (!(n in seen) || now - seen[n] > KEEP_DAYS * DAY) { await fs.promises.rm(path.join(dir, n), { force: true }); delete seen[n] }
+    const asset = assetOf(n)
+    if (!(asset in seen) || now - seen[asset] > KEEP_DAYS * DAY) await fs.promises.rm(path.join(dir, n), { force: true })
   }
+  for (const n of Object.keys(seen)) if (now - seen[n] > KEEP_DAYS * DAY) delete seen[n]
   const tmp = path.join(dir, `${SEEN}.${process.pid}.tmp`)
   await fs.promises.writeFile(tmp, JSON.stringify(seen))
   await fs.promises.rename(tmp, path.join(dir, SEEN))

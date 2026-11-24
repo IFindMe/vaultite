@@ -9,6 +9,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Vaultite Cloud: when AI apps tried to reach your Mac while it was asleep or offline, it tells you once it's back ("Claude
   tried to reach this Mac 40 times while it was asleep or offline (02:10–07:45)"), in a notification and in Connections,
   with a switch there to keep it awake while plugged in (macOS; Linux machines without a battery).
+- Server: the app opens fast over Vaultite Cloud and from slow machines (a NAS): its files are compressed once, when it's
+  built, rather than by the server each time it starts.
 - Player: an agent can set where a video or sound in the vault picks up (player.place, vau player place <file> 4:50), so a
   video handed over from another screen plays from where you stopped, on every device.
 - Inbox: replying to a Claude Code on the web session (vau inbox reply, or answer's reply) sends it to that session through

@@ -12,12 +12,12 @@ import os from "node:os"
 import type { Duplex } from "node:stream"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
-import { promisify } from "node:util"
 import zlib from "node:zlib"
 import { fromThisMachine, hostName, originHost, overNetwork, tailnetNames } from "./core/owner.ts"
 import type { App } from "./core/app.ts"
 import type { FileAnswer as Answered } from "./core/plugins.ts"
 import type { Live as LiveType } from "./core/live.ts"
+import type { Encoding } from "./core/precompressed.ts"
 import type { Vault } from "./core/vault.ts"
 import { codeOf, errnoOf, isObj, messageOf } from "./core/values.ts"
 import { prefetchCode } from "./core/prefetch.ts"
@@ -64,6 +64,7 @@ const { runsCode } = await import("./core/opening.ts")
 const { contentType, enabled, FileAnswer, HTTPError, LOADED, LOCAL, matchSocket, ROOT, Text, VAULT_PATH } = await import("./core/plugins.ts")
 const KEPT_ASSETS = path.join(LOCAL, "web-assets")
 const { keepAssets, keptAsset } = await import("./core/keptassets.ts")
+const { compress, compressibleType, copyOf, worthCompressing, writeWhole } = await import("./core/precompressed.ts")
 web.on(() => void keepAssets(web.dist, KEPT_ASSETS).catch((e) => log.warn("couldn't keep the new build's assets", e)))
 const { fetchFromICloud, iCloud, keepDownloaded, slowReads } = await import("./core/vault.ts")
 const vaults = await import("./core/vaults.ts")
@@ -190,12 +191,11 @@ if (DESKTOP) onHost(() => {
 process.on("SIGTERM", () => bye(143))
 process.on("SIGINT", () => bye(130))
 
-const COMPRESSIBLE = /^(text\/|application\/(json|javascript|manifest\+json|wasm)|image\/svg)/
 const brotli = (data: Buffer, quality: number) => zlib.brotliCompressSync(data, { params: {
   [zlib.constants.BROTLI_PARAM_QUALITY]: quality, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: data.length } })
 
-function encodingFor(req: http.IncomingMessage | undefined, type: string, size: number) {
-  if (!req || size < 1024 || !COMPRESSIBLE.test(type) || !overNetwork(req)) return null
+function encodingFor(req: http.IncomingMessage | undefined, type: string, size: number): Encoding | null {
+  if (!req || !worthCompressing(type, size) || !overNetwork(req)) return null
   const accepts = String(req.headers["accept-encoding"] ?? "")
   return /\bbr\b/.test(accepts) ? "br" : /\bgzip\b/.test(accepts) ? "gzip" : null
 }
@@ -225,12 +225,10 @@ async function send(res: http.ServerResponse, status: number, body: string | Buf
 
 const BIG = 64 << 10
 const bigPacked = new Map<string, Promise<Buffer>>()
-function packBig(data: Buffer, enc: "br" | "gzip", etag?: string) {
+function packBig(data: Buffer, enc: Encoding, etag?: string) {
   const key = etag ? `${etag}\0${enc}` : "", hit = key && bigPacked.get(key)
   if (hit) { bigPacked.delete(key); bigPacked.set(key, hit); return hit }
-  const out = enc === "br"
-    ? compress.br(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: data.length } })
-    : compress.gzip(data, { level: 6 })
+  const out = compress(data, enc, "quick")
   if (key) {
     bigPacked.set(key, out)
     out.catch(() => bigPacked.delete(key))
@@ -240,11 +238,10 @@ function packBig(data: Buffer, enc: "br" | "gzip", etag?: string) {
 }
 
 const lastingPacked = new Map<string, Promise<Buffer>>()
-function packLasting(data: Buffer, enc: "br" | "gzip") {
+function packLasting(data: Buffer, enc: Encoding) {
   const key = `${crypto.hash("sha1", data, "base64url")}\0${enc}`, hit = lastingPacked.get(key)
   if (hit) { lastingPacked.delete(key); lastingPacked.set(key, hit); return hit }
-  const out = enc === "br" ? compress.br(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: data.length } })
-    : compress.gzip(data, { level: 6 })
+  const out = compress(data, enc, "quick")
   lastingPacked.set(key, out)
   out.catch(() => lastingPacked.delete(key))
   if (lastingPacked.size > 2000) lastingPacked.delete(lastingPacked.keys().next().value!)
@@ -259,7 +256,7 @@ async function betterLasting() {
   for (let next; (next = bettering.shift());) {
     const [key, data] = next
     if (!lastingPacked.has(key)) continue
-    const best = await compress.br(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: data.length } }).catch(() => null)
+    const best = await compress(data, "br", "smallest").catch(() => null)
     if (best && lastingPacked.has(key)) lastingPacked.set(key, Promise.resolve(best))
   }
   betterBusy = false
@@ -514,22 +511,19 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
 
 const packed = new Map<string, [string, Promise<Buffer>]>()
 let packedBytes = 0
-const compress = { br: promisify(zlib.brotliCompress), gzip: promisify(zlib.gzip) }
 
-function pack(p: string, st: fs.Stats, enc: "br" | "gzip") {
+function pack(p: string, st: fs.Stats, enc: Encoding) {
   const key = `${p}\0${enc}`, version = `${st.mtimeMs}:${st.size}`
   const hit = packed.get(key)
   if (hit && hit[0] === version) return hit[1]
   if (packedBytes > 64 << 20) { packed.clear(); packedBytes = 0 }
   const data = fs.readFileSync(p)
-  const out = enc === "br"
-    ? compress.br(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: data.length } })
-    : compress.gzip(data, { level: 6 })
+  const out = compress(data, enc, "quick")
   out.then((b) => { packedBytes += b.length; if (data.length > 16 << 10) better.push([key, version, data, enc]); void improve() }, () => packed.delete(key))
   packed.set(key, [version, out])
   return out
 }
-const better: [string, string, Buffer, "br" | "gzip"][] = []
+const better: [string, string, Buffer, Encoding][] = []
 let improving = false
 async function improve() {
   if (improving) return
@@ -537,11 +531,28 @@ async function improve() {
   for (let next; (next = better.shift());) {
     const [key, version, data, enc] = next
     if (packed.get(key)?.[0] !== version) continue
-    const best = await (enc === "br" ? compress.br(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: data.length } })
-      : compress.gzip(data, { level: 9 })).catch(() => null)
+    const best = await compress(data, enc, "smallest").catch(() => null)
     if (best && packed.get(key)?.[0] === version) packed.set(key, [version, Promise.resolve(best)])
   }
   improving = false
+}
+
+const copying = new Map<string, Promise<Buffer>>()
+async function lastingCopy(p: string, enc: Encoding) {
+  const kept = copyOf(path.join(KEPT_ASSETS, path.basename(p)), enc)
+  for (const f of [copyOf(p, enc), kept]) {
+    const found = await fs.promises.readFile(f).catch(() => null)
+    if (found) return found
+  }
+  let out = copying.get(kept)
+  if (!out) {
+    out = fs.promises.readFile(p).then((data) => compress(data, enc, "quick")).then(async (data) => {
+      await fs.promises.mkdir(KEPT_ASSETS, { recursive: true }).then(() => writeWhole(kept, data)).catch((e) => log.warn(`couldn't keep ${path.basename(kept)}`, e))
+      return data
+    }).finally(() => copying.delete(kept))
+    copying.set(kept, out)
+  }
+  return out
 }
 
 async function file(req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
@@ -563,10 +574,11 @@ async function file(req: http.IncomingMessage, res: http.ServerResponse, url: UR
   }
   const type = contentType(p)
   const modified = st.mtime.toUTCString()
-  const headers: Record<string, string> = p.startsWith(ASSETS + path.sep) || p.startsWith(KEPT_ASSETS + path.sep)
+  const lasting = p.startsWith(ASSETS + path.sep) || p.startsWith(KEPT_ASSETS + path.sep)
+  const headers: Record<string, string> = lasting
     ? { "Cache-Control": "public, max-age=31536000, immutable" }
     : { "Last-Modified": modified, "Cache-Control": type.startsWith("text/html") ? "no-cache" : "public, max-age=3600" }
-  if (COMPRESSIBLE.test(type)) headers.Vary = "Accept-Encoding"
+  if (compressibleType(type)) headers.Vary = "Accept-Encoding"
   if (type.startsWith("text/html")) Object.assign(headers, { "Content-Security-Policy": "frame-ancestors 'self'", "X-Frame-Options": "SAMEORIGIN",
     "Document-Policy": "include-js-call-stacks-in-crash-reports" })
   const since = req.headers["if-modified-since"]
@@ -575,9 +587,8 @@ async function file(req: http.IncomingMessage, res: http.ServerResponse, url: UR
     return res.end()
   }
   const enc = encodingFor(req, type, st.size)
-  if (enc && p === path.join(DIST, "index.html")) { for (const f of web.read().eager) fs.stat(f, (e, s) => { if (!e) void pack(f, s, enc).catch(() => {}) }) }
   try {
-    const data = enc ? await pack(p, st, enc) : fs.readFileSync(p)
+    const data = !enc ? fs.readFileSync(p) : lasting ? await lastingCopy(p, enc) : await pack(p, st, enc)
     res.writeHead(200, { ...headers, "Content-Type": type, "Content-Length": String(data.length), ...(enc ? { "Content-Encoding": enc } : {}) })
     res.end(data)
   } catch {
