@@ -275,6 +275,12 @@ export default async ($: VaultTest) => {
     check("claude accounts: one account", !u.sessions.some((x: Any) => x.id === sid) && u.accounts.length === 1, u.accounts)
     ;[c] = await api("GET", "claude-code?account=nope")
     check("claude accounts: an unknown one is a 404", c === 404, c)
+    write(".vaultite/plugins/claude-code/data.json", JSON.stringify({ accounts: { default: { label: "Lighthouse" } } }))
+    const [, byName] = await api("GET", "claude-code/limits?account=LIGHTHOUSE")
+    const [missed, why] = await api("GET", "claude-code/limits?account=nope")
+    check("claude accounts: one is named as the app shows it too; a name none has is refused, listing both", byName.accounts?.length === 1 && byName.accounts[0].id === "default" &&
+      missed === 404 && JSON.stringify(why).includes("default (Lighthouse), work"), [byName, why])
+    fs.rmSync(path.join(VAULT, ".vaultite/plugins/claude-code/data.json"))
     ;[c] = await api("GET", `claude-code/session/${sid}`)
     check("claude accounts: another account's conversation reads", c === 200, c)
     // `for: companion`: the accounts its chat and jobs run in first, saying for what, as its settings say now.

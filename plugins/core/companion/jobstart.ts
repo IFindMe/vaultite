@@ -1,3 +1,4 @@
+import { z } from "zod"
 import { type Machine, type OpCtx, type Plugin, type Who } from "../../../core/plugins.ts"
 import { type Handoff, inPlace, type Job, jobTask, messageOf, type Queued, str, type Where, worktreeOf } from "./jobs.ts"
 import type { JobEvent } from "./joblife.ts"
@@ -10,6 +11,7 @@ import type { workerLinks } from "./links.ts"
 import type { JobAsk } from "./types.ts"
 import { surfaceOf, tilde } from "./where.ts"
 
+const Accounts = z.object({ accounts: z.array(z.object({ id: z.string(), label: z.string() })) })
 const newId = () => `j${Array.from({ length: 7 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]).join("")}`
 
 export type StartDeps = {
@@ -20,10 +22,11 @@ export type StartDeps = {
 export function jobStarts(plugin: Plugin, o: StartDeps) {
   const { all, changed, move, links, appCtx } = o, { away, labelOf, harnessOf, lands, proofMode } = o.machines, { route, placedWith } = o.places
   const { trust, startOf, steer, land, retitle } = o.tell
-  async function accountThere(ctx: OpCtx, machine: string, p: Handoff) {
-    const account = str(p.account).trim().toLowerCase()
-    if (!account || account === "default") return
-    await links.of({ machine }).there(ctx, "claude-code.limits", { account }, 10)
+  async function placed(ctx: OpCtx, m: JobAsk | undefined, p: Handoff) {
+    const w = await route(m, p), account = str(p.account).trim().toLowerCase()
+    if (!account || (str(p.agent) || "claude") !== "claude") return await placedWith(w, p)
+    const a = Accounts.safeParse(await links.of({ machine: w.machine }).there(ctx, "claude-code.limits", { account }, 10)).data?.accounts[0]
+    return a ? await placedWith(w, { ...p, account: a.id }, a.label.toLowerCase() === "default" ? "" : a.label) : await placedWith(w, p)
   }
   function keep(j: Job, q: Queued) {
     const same = (a: string) => a.replace(/\s+/g, " ").trim().toLowerCase()
@@ -67,8 +70,7 @@ export function jobStarts(plugin: Plugin, o: StartDeps) {
   }
   async function startWaiting(ctx: OpCtx, j: Job, q: Queued) {
     const p = q.start ?? {}
-    j.where = await placedWith(await route(q.ask, p), p)
-    await accountThere(ctx, j.where.machine, p)
+    j.where = await placed(ctx, q.ask, p)
     await launch(ctx, j, q.text, q.ask, p)
   }
   async function begin(ctx: OpCtx, task: string | ((w: Where) => Promise<string>), m: JobAsk | undefined, p: Handoff, by = COMPANION) {
@@ -76,8 +78,7 @@ export function jobStarts(plugin: Plugin, o: StartDeps) {
     const asked = str(p.machine).trim()
     let where: Where
     try {
-      where = await placedWith(await route(m, p), p)
-      await accountThere(ctx, where.machine, p)
+      where = await placed(ctx, m, p)
     } catch (e) {
       if (typeof task === "string" && await away(asked, e)) return await waitFor(ctx, task, titleOf(task), m, p, asked, by)
       throw e

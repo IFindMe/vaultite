@@ -382,7 +382,7 @@ export default async ($: VaultTest) => {
       {
         // The setting `muted`: a session in an account the user muted (its agent's plugin says whose) makes no thread.
         const acct = cc.services["agent-account:claude"], accts = cc.services["agent-accounts:claude"]
-        cc.services["agent-accounts:claude"] = () => ["default", "contact"]
+        cc.services["agent-accounts:claude"] = () => [{ id: "default", label: "Work" }, { id: "contact", label: "Contact" }]
         cc.services["agent-account:claude"] = async (terminal: string) => (terminal === "claude_contact-mute0001" ? { id: "contact", label: "Contact" } : { id: "default", label: "Work" })
         await api("PATCH", "config/plugin/inbox", { muted: ["Contact"] })
         tell({ terminal: "claude_contact-mute0001", agent: "claude", state: "blocked", kind: "permission", msg: "Run it?", from: "osc7501", at })

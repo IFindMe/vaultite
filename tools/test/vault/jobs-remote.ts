@@ -34,6 +34,7 @@ export default async ($: VaultTest) => {
             : { cwd: "/home/alice/Vault", repo: "", base: "", why: "nothing on screen named a project: the vault", from: "vault", refused: "" })
           : op === "companion.worker-start" ? { id: "claude-remote1" }
           : op === "companion.capacity" ? { jobs: 0, cap: 4, agents: ["claude"], accounts: ["default", "personal"] }
+          : op === "claude-code.limits" ? { accounts: [p.account === "research lab" ? { id: "personal", label: "Research lab" } : { id: p.account, label: "Personal" }] }
           : op === "companion.worker" ? (stage === "working" ? { running: true, state: "working", title: "✳ Editing the header", typed: Date.now(), ...(p.turn ? { turn: { text: "", files: [], at: 0, final: false, session: "rs1" } } : {}) }
             : stage === "gone" ? { running: false, exit: { code: 0, signal: 1 }, ...(p.turn ? { turn: { text: "Shipped the header.", files: ["/home/alice/Projects/site/a.ts"], at: Date.now(), final: false, session: "rs1" }, diff: "1 file changed, +2 -1" } : {}) }
             : stage === "landed" ? (p.cwd ? { running: false, onMain: landed, marks: { whole: "a".repeat(40), each: ["b".repeat(40)] } } : null)
@@ -127,6 +128,10 @@ export default async ($: VaultTest) => {
           /^Passed that on to three jobs: [^.]+\.$/.test(last) && ["Fix the footer", "Ship the video card", "Fix dictation dropping words"].every((x) => last.includes(x)), [all.map(([st, b]) => [st, b.error]), tail])
         for (const id of more) await asItsTool(() => api("POST", "ops/companion.job-stop", { id }, agent)).catch(() => {})
         await asItsTool(() => api("POST", "ops/companion.job-stop", { id: waiting.id }, agent)).catch(() => {})
+        ;[st, b] = await asItsTool(() => api("POST", "ops/companion.handoff", { task: "Say hi", machine: "studio", cwd: "~/Projects/site", account: "Research lab" }, agent))
+        check("handoff --account: an account named as that machine shows it runs in it there, its card naming it", st === 200 && /Research lab/.test(b.where) &&
+          calls.findLast((c) => c.op === "companion.worker-start")?.p.agent === "claude_personal", [st, b])
+        await api("POST", "ops/companion.job-stop", { id: b.id })
       }
       // Nothing tying it here (no machine, no folder, no preview or editor): to the always-on machine with this vault.
       Object.assign(studio, { standalone: true, vault: "v1" })

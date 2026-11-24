@@ -1186,6 +1186,8 @@ Every name a plugin imports, with its parameters and what it is (tools/plugin_ap
 
 ### `@vaultite/core/agents.ts` (plugin.ts: a coding agent's plugin)
 - `Account`: One of an agent's accounts: Claude Code's config folders, Hermes' homes, OpenClaw's agents.
+- `accountCalled(all, said)`
+- `accountNames(all)`
 - `AgentAsk`: A question an agent shows on its screen (the service "agent-asks:<name>"), matched on its last `lines` (default 12), answered by keys (each written apart) or an option of its menu; Terminal tells…
 - `AgentChatNew`: A new chat session told `prompt` (the service "agent-chat-new:<name>"), in an account and folder: its id, or null when none can run here (an app serving no port: a test's).
 - `AgentCommand`: What an "agent:<name>" service answers: its line for a POSIX shell, run in `cwd`; `argv` and `env` start it where that can't run (PowerShell, cmd), else Git Bash runs `command` there.

@@ -13,6 +13,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
   with a switch there to keep it awake while plugged in (macOS; Linux machines without a battery).
 - Server: the app opens fast over Vaultite Cloud and from slow machines (a NAS): its files are compressed once, when it's
   built, rather than by the server each time it starts.
+- Companion: "run it on my work account" finds the account by the name the app shows, not only its id, and the job's card
+  says which account it runs in (the default one too).
 - Player: an agent can set where a video or sound in the vault picks up (player.place, vau player place <file> 4:50), so a
   video handed over from another screen plays from where you stopped, on every device.
 - Inbox: replying to a Claude Code on the web session (vau inbox reply, or answer's reply) sends it to that session through

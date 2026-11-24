@@ -124,11 +124,18 @@ export function repoName(cwd: string) {
   return r
 }
 
-function accountsNamed<A extends { id: string }>(all: A[], id: unknown, what: string): A[] {
-  if (typeof id !== "string" || !id) return all
-  const one = all.filter((a) => a.id === id)
-  if (!one.length) throw new HTTPError(404, `no ${what} '${id}' here (they are: ${all.map((a) => a.id).join(", ") || "none"})`)
-  return one
+export function accountCalled<A extends { id: string; label: string }>(all: A[], said: string): A | undefined {
+  const name = said.trim().toLowerCase(), shown = all.filter((a) => a.label.toLowerCase() === name)
+  return all.find((a) => a.id.toLowerCase() === name) ?? (shown.length === 1 ? shown[0] : undefined)
+}
+export const accountNames = (all: { id: string; label: string }[]) =>
+  all.map((a) => (a.label.toLowerCase() === a.id.toLowerCase() ? a.id : `${a.id} (${a.label})`)).join(", ") || "none"
+
+function accountsNamed<A extends { id: string; label: string }>(all: A[], said: unknown, what: string): A[] {
+  if (typeof said !== "string" || !said) return all
+  const one = accountCalled(all, said)
+  if (!one) throw new HTTPError(404, `no ${what} '${said}' here (they are: ${accountNames(all)})`)
+  return [one]
 }
 
 /** A request as a tally counts it: when (epoch ms), its cost (null: no price for its model), tokens, cache reads, prompt

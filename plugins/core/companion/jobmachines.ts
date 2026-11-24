@@ -10,6 +10,9 @@ import { checkoutNames } from "./where.ts"
 
 export const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
+type NamedAccount = { id: string; label: string }
+const askedAs = (a: NamedAccount) => [...new Set([a.id, a.label.toLowerCase()])]
+
 const Capacity = z.object({ jobs: z.number(), cap: z.number(), repos: z.array(z.string()).optional(), agents: z.array(z.string()).optional(),
   accounts: z.array(z.string()).optional(), checkouts: z.array(Checkout).optional() })
 
@@ -32,9 +35,11 @@ export function jobMachines(plugin: Plugin, links: ReturnType<typeof workerLinks
   async function capacity() {
     const set = Number(plugin.settings().jobs_cap) || 0
     const agents = [...new Set(KNOWN_AGENTS.map((a) => a.terminal ?? a.id))].filter((a) => typeof plugin.service(`agent:${a}`) === "function")
-    const accounts = await plugin.ask<string[] | null>("agent-accounts:claude", null).catch(() => null)
-    return { jobs: await links.running(), cap: set > 0 ? Math.round(set) : capOf(os.cpus().length, os.totalmem() / 1048576), repos: checkoutNames(), checkouts: checkoutCards(), agents, ...(accounts ? { accounts } : {}) }
+    const accounts = await accountsHere()
+    return { jobs: await links.running(), cap: set > 0 ? Math.round(set) : capOf(os.cpus().length, os.totalmem() / 1048576), repos: checkoutNames(), checkouts: checkoutCards(), agents, ...(accounts ? { accounts: accounts.flatMap(askedAs) } : {}) }
   }
+  const accountsHere = () => plugin.ask<NamedAccount[] | null>("agent-accounts:claude", null).catch(() => null)
+  async function cloudNames(id: string) { const a = (await accountsHere())?.find((x) => x.id === id); return a ? askedAs(a) : [id] }
   async function traitsOf(): Promise<Traits[]> {
     const vault = await plugin.ask<string>("machines:vault", ""), all = (await machines()).filter((m) => m.self || m.plugins?.includes("companion"))
     const out = await Promise.all(all.map(async (m): Promise<Traits> => {
@@ -52,7 +57,7 @@ export function jobMachines(plugin: Plugin, links: ReturnType<typeof workerLinks
     if (account && !out.some((t) => t.id === CLOUD)) {
       const why = await plugin.ask<string>("cloud-ready:claude", "Claude Code's plugin is off", account)
       out.push({ id: CLOUD, label: "Cloud", self: false, online: true, standalone: false, cloud: true, platform: "linux", vault: false, display: false, app: false,
-        agents: ["claude"], accounts: [account], ...(why ? { away: `can't start sessions: ${why}` } : {}) })
+        agents: ["claude"], accounts: await cloudNames(account), ...(why ? { away: `can't start sessions: ${why}` } : {}) })
     }
     return out
   }
@@ -61,7 +66,7 @@ export function jobMachines(plugin: Plugin, links: ReturnType<typeof workerLinks
   const lands = () => plugin.settings().jobs_land === true
   const proofMode = (): ProofMode => { const v = plugin.settings().jobs_proof; return v === "always" || v === "never" ? v : "auto" }
   const jobsAgent = () => { const own = setting("jobs_agent") || "claude"; return own.split("_")[0] === "claude" ? own : "claude" }
-  async function harnessOf(p: Handoff) {
+  async function harnessOf(p: Handoff, shown = "") {
     const asked = str(p.agent) || "claude", account = str(p.account).trim().toLowerCase()
     if (account && asked !== "claude") throw new OpError("account is Claude Code's: leave agent out (or claude) to pick one of its accounts")
     if (account && !/^[a-z0-9][\w.-]{0,40}$/.test(account)) throw new OpError(`'${account}' isn't an account's id: vau limits lists them (personal, agent...)`)
@@ -69,7 +74,7 @@ export function jobMachines(plugin: Plugin, links: ReturnType<typeof workerLinks
     const claude = agent.split("_")[0] === "claude"
     const { id: model, label } = await agentModel(plugin, agent.split("_")[0], str(p.model) || (claude ? setting("jobs_model") : ""))
     const effort = str(p.effort) || (claude ? setting("jobs_effort") : ""), profile = parseTerminal(`${agent}-x`)?.profile ?? ""
-    return { agent, account: profile ? cap(profile) : "", model, effort, harness: [agentName(agent.split("_")[0]) ?? cap(agent), cap(label)].filter(Boolean).join(" ") }
+    return { agent, account: shown || (profile ? cap(profile) : ""), model, effort, harness: [agentName(agent.split("_")[0]) ?? cap(agent), cap(label)].filter(Boolean).join(" ") }
   }
   return { ...everyCheckout(machines, atMachine), setting, machines, away, hostOf, labelOf, capacity, traitsOf, ranking, cloudAccount, lands, proofMode, jobsAgent, harnessOf }
 }

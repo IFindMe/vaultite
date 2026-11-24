@@ -6,7 +6,7 @@ import os from "node:os"
 import path from "node:path"
 import type { WebSocket } from "ws"
 import { z } from "zod"
-import { type Asking, findBin, HOME, Transcript, transcripts } from "../../../core/agents.ts"
+import { accountCalled, accountNames, type Asking, findBin, HOME, Transcript, transcripts } from "../../../core/agents.ts"
 import { agentLines, logger, OpError, outliving, type Plugin, whenListening } from "../../../core/plugins.ts"
 import { byUser as asUser } from "../../../core/writegate.ts"
 import { merge, PAGE } from "./chatentries.ts"
@@ -300,8 +300,8 @@ function chatCore(plugin: Plugin, d: ChatDeps) {
 
   function accountOf(id?: string) {
     const all = d.accounts().filter((a) => !a.private)
-    const a = id ? all.find((x) => x.id === id) : all.find((x) => x.id === "default") ?? all[0]
-    if (!a) throw new OpError(id ? `no Claude Code account '${id}' to chat in (${all.map((x) => x.id).join(", ") || "none"}; a private one isn't shown in the app)` : "no Claude Code account to chat in", 404)
+    const a = id ? accountCalled(all, id) : all.find((x) => x.id === "default") ?? all[0]
+    if (!a) throw new OpError(id ? `no Claude Code account '${id}' to chat in (${accountNames(all)}; a private one isn't shown in the app)` : "no Claude Code account to chat in", 404)
     return a
   }
 

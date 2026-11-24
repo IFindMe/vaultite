@@ -50,7 +50,7 @@ const accounts = new Map<string, Account | null>()
 async function severalAccountsOf(agent: string, terminal: string, session: string): Promise<Account | null> {
   const key = `${agent}:${terminal || session}`
   if (accounts.has(key)) return accounts.get(key)!
-  const several = ((await plugin.ask<string[] | null>(`agent-accounts:${agent}`, null).catch(() => null)) ?? []).length > 1
+  const several = ((await plugin.ask<unknown[] | null>(`agent-accounts:${agent}`, null).catch(() => null)) ?? []).length > 1
   const a = several ? await plugin.ask<Account | null>(`agent-account:${agent}`, null, terminal, session).catch(() => null) : null
   const out = a ? { id: a.id, label: a.label } : null
   if (out || terminal) accounts.set(key, out)

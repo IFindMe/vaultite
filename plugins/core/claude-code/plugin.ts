@@ -4,7 +4,7 @@ import { createHash } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 import { z } from "zod"
-import { type AgentAsk, type AgentCommand, type Awaits, sameAwaits, type AgentMeter, type AgentModel, type AgentModels, type Asking, type Choice, type Question, type AgentStart, ago, codingAgent, dayOf, expandHome, findBin, HOME, JsonlScan, limitRows,
+import { accountCalled, accountNames, type AgentAsk, type AgentCommand, type Awaits, sameAwaits, type AgentMeter, type AgentModel, type AgentModels, type Asking, type Choice, type Question, type AgentStart, ago, codingAgent, dayOf, expandHome, findBin, HOME, JsonlScan, limitRows,
   type Live, type SampleAsk, agentRefusal, notOnThisMachine, priceList, projectName, projectOf, shellQuote, projectRoots, epochSeconds, Tally, terminalOf, Transcript, transcripts,
   lastTurn, parseTerminal, PERMISSION_MODES, type PermissionMode, trustClaudeProject, usedFirst, when } from "../../../core/agents.ts"
 import { bullets, gitEnv, localDate, logger, OpError, Plugin, section } from "../../../core/plugins.ts"
@@ -321,7 +321,7 @@ plugin.provide("agent:claude", async (start: AgentStart): Promise<AgentCommand> 
   const found = resume && !wsl && !cloud ? sessionFile(resume, true) : null
   if (resume && !found && !wsl && !cloud) return notOnThisMachine("Claude Code", resume)
   if (resume && !cloud && chat.hosted(resume)) await chat.letGo(resume)
-  const a = wsl ? undefined : found?.account ?? (profile ? accounts().find((x) => x.id === profile) : undefined)
+  const a = wsl ? undefined : found?.account ?? (profile ? accountCalled(accounts(), profile) : undefined)
   if (cloud && profile && !a) return agentRefusal(`There's no Claude Code account "${profile}" on this machine to continue that cloud session in.`)
   const env: Record<string, string> = a && (a.dir !== path.join(HOME, ".claude") || process.env.CLAUDE_CONFIG_DIR) ? { CLAUDE_CONFIG_DIR: a.dir } : {}
   const cwd = found ? (await transcript(found.file))?.talk.head.cwd || null : null
@@ -344,8 +344,8 @@ plugin.provide("agent:claude", async (start: AgentStart): Promise<AgentCommand> 
 
 const models = (): AgentModels => ({ models: FAMILIES.map((id) => ({ id, label: modelName(id) })),
   efforts: ["low", "medium", "high", "xhigh", "max"], modes: [...PERMISSION_MODES] })
-/** Its accounts' ids: what a job may ask to run in on this machine. */
-plugin.provide("agent-accounts:claude", () => accounts().map((a) => a.id))
+/** Its accounts, by id and the name the app shows: what a job may ask to run in on this machine. */
+plugin.provide("agent-accounts:claude", () => accounts().map((a) => ({ id: a.id, label: a.label })))
 plugin.provide("agent-models:claude", models)
 /** A model as people say it ("Fable 5.2", "opus 55") as --model takes it, and its name. */
 plugin.provide("agent-model-id:claude", (said: string): AgentModel => {
@@ -663,7 +663,7 @@ session is spent goes last until it renews. for (a plugin) says what that plugin
   vau limits
   vau limits --account agent`,
   params: {
-    account: { type: "string", description: "one account, by its id (default, agent...)" },
+    account: { type: "string", description: "one account, by its id or its name (default, agent, Work...)" },
     for: { type: "string", description: "a plugin (companion): says which accounts it runs on, and for what" },
   },
   run: async (p) => {
@@ -694,11 +694,11 @@ plugin.op({
   summary: "Marks the checkout a folder is in (its main one for a worktree) trusted in a Claude Code account, so Claude Code started there doesn't ask \"Trust this folder?\". The companion's jobs use it for the user's own repos.",
   params: {
     cwd: { type: "string", required: true, description: "a folder in a git checkout on this machine" },
-    account: { type: "string", description: "the account, by its id (default, agent...); default: default" },
+    account: { type: "string", description: "the account, by its id or its name (default, agent, Work...); default: default" },
   },
   run: async (p) => {
-    const id = String(p.account ?? "").trim().toLowerCase() || "default", a = accounts().find((x) => x.id === id)
-    if (!a) throw new OpError(`no Claude Code account '${id}' here (vau limits lists them)`, 404)
+    const said = String(p.account ?? "").trim() || "default", a = accountCalled(accounts(), said)
+    if (!a) throw new OpError(`no Claude Code account '${said}' here (they are: ${accountNames(accounts())})`, 404)
     const dir = checkoutOf(expandHome(String(p.cwd)))
     if (!dir) throw new OpError(`${p.cwd} isn't in a git checkout here: only a checkout is trusted this way`, 404)
     return { account: a.id, checkout: dir, trusted: await trustClaudeProject(accountJson(a), dir) }

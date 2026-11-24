@@ -3,7 +3,7 @@ import fs from "node:fs"
 import path from "node:path"
 import type { Readable, Writable } from "node:stream"
 import { z } from "zod"
-import { type Awaits, lastTurn } from "../../../core/agents.ts"
+import { accountCalled, accountNames, type Awaits, lastTurn } from "../../../core/agents.ts"
 import { gitEnv, OpError, type Plugin, whoOf } from "../../../core/plugins.ts"
 import { askingIn, awaitsOf, Conversation, WANTED } from "./transcript.ts"
 
@@ -26,8 +26,8 @@ const plainText = (s: string) => s.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g,
 
 export function cloudSessions(plugin: Plugin, o: { accounts: () => Account[]; bin: () => string | null; envOf: (a: Account) => NodeJS.ProcessEnv; trust: (a: Account, dir: string) => Promise<unknown> }) {
   const accountOf = (id: string) => {
-    const a = o.accounts().find((x) => x.id === (id || "default"))
-    if (!a) throw new OpError(`no Claude Code account '${id}' here (vau limits lists them)`, 404)
+    const a = accountCalled(o.accounts(), id || "default")
+    if (!a) throw new OpError(`no Claude Code account '${id}' here (they are: ${accountNames(o.accounts())})`, 404)
     return a
   }
   function unready(account: string) {

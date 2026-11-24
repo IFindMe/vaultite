@@ -239,8 +239,8 @@ export function jobPlaces(plugin: Plugin, m: Machines, atMachine: ReturnType<typ
     }, { cloud: !local })
   }
 
-  async function placedWith(w: Awaited<ReturnType<typeof route>>, p: Handoff): Promise<Where> {
-    if (!w.cloud) return { ...w, ...await harnessOf(p) }
+  async function placedWith(w: Awaited<ReturnType<typeof route>>, p: Handoff, shown = ""): Promise<Where> {
+    if (!w.cloud) return { ...w, ...await harnessOf(p, shown) }
     const account = cloudAccount() || "default", agent = account === "default" ? "claude" : `claude_${account}`
     return { ...w, agent, account: account === "default" ? "" : cap(account), model: "", effort: "", harness: "Claude Code on the web" }
   }

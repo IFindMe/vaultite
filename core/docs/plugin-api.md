@@ -192,7 +192,7 @@ by its path.
 - `agent:claude` (claude-code)
 - `agent:codex` (codex): `codex`, or `codex resume <id>`. No context or hooks: any `-c` runs it without its shared background server.
 - `agent-account:claude` (claude-code): The account a session runs in (the Inbox mutes the ones the user muted); null when it can't be told.
-- `agent-accounts:claude` (claude-code): Its accounts' ids: what a job may ask to run in on this machine.
+- `agent-accounts:claude` (claude-code): Its accounts, by id and the name the app shows: what a job may ask to run in on this machine.
 - `agent-answer:claude` (claude-code)
 - `agent-asking:claude` (claude-code): What a session waits on: its AskUserQuestion or plan, else its terminal's dialog as a question; never a private account's.
 - `agent-asks:claude` (claude-code)

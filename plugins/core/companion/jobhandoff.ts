@@ -45,7 +45,7 @@ handoff announces itself in one short line ("Handed that off to a background age
 several in one turn, one line naming their jobs);
 say replaces it, still one short line, only when they need more (a question, an unexpected place), or when their ask
 also asked you something (about you, Vaultite, what you can do): then say answers that too, in two short sentences at
-most. End your turn. account: a Claude Code account (vau limits lists them: personal, agent...), for a new job only.
+most. End your turn. account: a Claude Code account (vau limits lists them: personal, agent...), as they call it ("work"), for a new job only.
 A machine that's offline keeps what's handed to it (a new job waits, shown so in Jobs; a follow-up waits on its job)
 and gets it once it's back, by itself: never ask them to retry. From
 another agent or a script (not the companion), nothing is said and no ask of the user's goes with it: task is all it has
@@ -62,7 +62,7 @@ resumes), with land for their word to merge it, and ask false when their ask isn
     params: { task: { type: "string", required: true, description: "what to do, standing alone: the goal, where, what to end with (the ask's words, place and picture go with it); with job, a short note of what it's for: their words, place and picture go with it too" },
       say: { type: "string", description: "one short line instead of the default announcement (Handed that off to a background agent.), only when they need more (a question, an unexpected place it runs)" },
       agent: { type: "string", enum: ["claude", "codex", "opencode"], default: "claude", description: "who does it: Claude Code (on Opus, high, unless model says), Codex or OpenCode" },
-      account: { type: "string", description: "the Claude Code account it runs in, by its id as vau limits lists them on that machine (personal, agent, default...); default: the setting jobs_agent's" },
+      account: { type: "string", description: "the Claude Code account it runs in, by its id or the name they know it by, as vau limits lists them on that machine (personal, agent, Work...); default: the setting jobs_agent's" },
       model: { type: "string", description: "its model, as they said it for Claude Code (Fable 5.2, opus, a full id; default: the setting jobs_model), the agent's own name else" },
       effort: { type: "string", description: "how hard it thinks (default: the setting jobs_effort for Claude Code)" },
       title: { type: "string", description: "its name in the menu bar's Jobs (default: the task's first words); with job, its new name, when the follow-up changes what it's about" },
