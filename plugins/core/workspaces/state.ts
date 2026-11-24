@@ -280,6 +280,27 @@ function movedText(what: Sent, n: number, r: Moved) {
   return "open" in what ? `Opened in ${named(n)}` : "group" in what ? `Moved the group to ${named(n)}` : `Moved to ${named(n)}`
 }
 
+function onScreenTabMoving(l: TabLayout, what: Sent): string | null {
+  const t = shownTab(l)
+  if (!t || "open" in what) return null
+  const panes = placesOfTab(t)
+  const goes = "tab" in what ? what.tab === t.id : "group" in what ? what.group === t.group : panes.length === 1 && panes[0].id === what.pane
+  return goes ? t.id : null
+}
+
+const leftAfter = (l: TabLayout, what: Sent) => ("open" in what ? null : without(l, what))
+function goAlong(from: number, n: number, along: string | null, r: Moved): string | null {
+  const id = along && current() === from ? (r.tabs.find((t) => t.id === along) ?? r.tabs[0])?.id : undefined
+  if (!id) return null
+  showTab(n, id)
+  return id
+}
+async function undoMove(n: number, from: number, what: Sent, place: Place, went: string | null) {
+  if (went) switchTo(from)
+  await bringBack(n, from, what, place)
+  if (went && current() === from) selectTab(went)
+}
+
 export async function sendTo(n: number, what: Sent, place?: Place) {
   if (!slots() || moving) return
   const from = current()
@@ -287,7 +308,8 @@ export async function sendTo(n: number, what: Sent, place?: Place) {
   if (timer) saveTabs()
   moving = true
   const before = getTabLayout()
-  const gone = "open" in what ? null : without(before, what)
+  const along = onScreenTabMoving(before, what)
+  const gone = along ? null : leftAfter(before, what)
   if (gone) apply(gone, true, true)
   await writing
   try {
@@ -297,8 +319,8 @@ export async function sendTo(n: number, what: Sent, place?: Place) {
     mine.add(layoutKey(l))
     apply(l, true)
     emit()
-    const back = undoOf(what, r)
-    notify(movedText(what, n, r), back ? { action: { label: "Undo", run: () => bringBack(n, from, back, placeOf(what, before)) } } : undefined)
+    const back = undoOf(what, r), went = goAlong(from, n, along, r)
+    notify(movedText(what, n, r), back ? { action: { label: "Undo", run: () => undoMove(n, from, back, placeOf(what, before), went) } } : undefined)
   } catch (e) {
     if (gone) apply(before, true)
     notifyError(e, "open" in what ? "Couldn't open it there" : "Couldn't move it")

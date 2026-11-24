@@ -51,7 +51,7 @@ hand, or by an older app) is taken in and leaves the file.
   workspace's tabs side by side in lanes of one height, each under its name (a click renames it) with the switcher's
   menu, and New workspace beside the filter; tab search lists other workspaces' too, and the switcher marks a workspace where a page plays sound.
 
-**Moving tabs** between workspaces: `POST /api/workspaces/move` with `{"from": 1, "to": 2, "tab": "<tab id>"}` (a tab,
+**Moving tabs** between workspaces: moved by the user (dragged, or Move current tab to workspace <n>), the tab on screen takes them along, anything else leaves them where they are (`vau workspace move` switches nobody). `POST /api/workspaces/move` with `{"from": 1, "to": 2, "tab": "<tab id>"}` (a tab,
 all its panes), `{"to": 2, "pane": "<pane id>"}` or `{"to": 2, "path": "Notes/Idea.md"}` (a pane, out of its split),
 `{"to": 2, "group": "<tab group id>"}` (a tab group whole: its tabs, name, colour and fold; dragged onto a number too), or
 `{"to": 2, "open": ["Notes/Idea.md"]}` (opens files there). From a terminal: `vau workspace tabs`, `vau workspace move

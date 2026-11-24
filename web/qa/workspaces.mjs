@@ -200,6 +200,7 @@ try {
   await page.click("[data-tab-strip] button[aria-label='New tab']"); await ui.idle()
   await page.evaluate(() => { location.hash = `#file/${encodeURIComponent("Qa ws move.md")}` })
   check("move: a file opened in 2 (saved)", !!(await until(async () => (await tabs()).some((t) => t.includes("Qa ws move")) && JSON.stringify(data()[1]?.layout ?? {}).includes("Qa ws move.md"), 6000)), [await tabs(), data()[1]])
+  await page.locator("[data-tab-strip] [role=tab]", { hasText: "Terminal" }).click(); await ui.idle()
   const tabBox = await page.locator("[data-tab-strip] [role=tab]", { hasText: "Qa ws move" }).boundingBox()
   const dropLit = () => page.$$eval(`${LIST} [data-workspace][data-drop]`, (els) => els.map((e) => e.getAttribute("data-workspace")))
   const center = async (loc) => { const b = await loc.boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 } }
@@ -421,9 +422,21 @@ try {
   check("undo: 2 has the two files' tabs, last", order.length >= 3 && order.at(-2).includes("Qa ws undo a") && order.at(-1).includes("Qa ws undo b"), order)
   await page.locator("[data-tab-strip] [role=tab]", { hasText: "Qa ws undo a" }).click(); await ui.idle()
   await command(page, "Move current tab to workspace 1", 0)
-  check("undo: moved, gone from the bar", !!(await until(async () => (await tabs()).length === order.length - 1, 6000)), await tabs())
-  await page.locator("[data-sonner-toast]", { hasText: "Moved to" }).locator("button", { hasText: "Undo" }).click()
-  check("undo: back in its place in the bar, before the other", !!(await until(async () => JSON.stringify(await tabs()) === JSON.stringify(order), 6000)), [await tabs(), order])
+  const onScreen = () => page.locator("[data-tab-strip] [role=tab][aria-selected=true]").innerText()
+  const movedUndo = () => page.locator("[data-sonner-toast]", { hasText: "Moved to" }).last().locator("button", { hasText: "Undo" }).click()
+  check("undo: the tab on screen moved, this window on 1 with it", !!(await until(async () => (await lit()) === "1" && (await onScreen()).includes("Qa ws undo a"), 6000)), [await lit(), await tabs()])
+  await movedUndo()
+  check("undo: back on 2, in its place in the bar, before the other", !!(await until(async () => (await lit()) === "2" && JSON.stringify(await tabs()) === JSON.stringify(order), 6000)), [await lit(), await tabs(), order])
+  check("undo: ...and on screen again", !!(await until(async () => (await onScreen()).includes("Qa ws undo a"), 6000)), await onScreen())
+
+  await page.click(SWITCHER)
+  const unused = Number(await page.getAttribute(`${LIST} [data-workspace-new]`, "data-workspace"))
+  await page.keyboard.press("Escape"); await until(async () => !(await isOpen()), 2000)
+  await drag(await mid(page.locator("[data-tab-strip] [role=tab]", { hasText: "Qa ws undo a" })), unused)
+  check("along: the tab on screen dropped on a new workspace: this window is there, the tab shown",
+    !!(await until(async () => (await lit()) === String(unused) && (await tabs()).length === 1 && (await onScreen()).includes("Qa ws undo a"), 6000)), [unused, await lit(), await tabs()])
+  await movedUndo()
+  check("along: ...Undo: back on 2 with it", !!(await until(async () => (await lit()) === "2" && JSON.stringify(await tabs()) === JSON.stringify(order), 6000)), [await lit(), await tabs()])
 
   const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 800 } })
   await ctx3.addInitScript(() => { if (!sessionStorage.getItem("qa")) { localStorage.clear(); sessionStorage.setItem("qa", "1") } })

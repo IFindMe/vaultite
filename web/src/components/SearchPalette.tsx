@@ -5,8 +5,10 @@ import { get } from "@/core/http"
 import { useBurst } from "@/core/burst"
 import { useOnReconnect } from "@/core/connection"
 import { errorText } from "@/core/notify"
-import { cleanName, createNamed, folderOf, openFile, openNew, openView, stem } from "@/core/files"
-import { currentFile, newTabsAt } from "@/core/workspace"
+import { cleanName, createNamed, folderOf, markNew, openFile, openNew, openView, stem } from "@/core/files"
+import { activeTab, currentFile, here, newTabsAt, selectTab, type TabsAt } from "@/core/workspace"
+import { moveToSplit, openInSplit } from "@/core/splits"
+import { isDesktop } from "@/core/platform"
 import { launcherAt, launcherClosed } from "@/core/launcher"
 import { newNoteFolder } from "@/core/conventions"
 import { snippet } from "@/core/plaintext"
@@ -16,7 +18,7 @@ import { search, type Hit } from "@/core/namesearch"
 import { useRecentFiles } from "@/core/scope"
 import { usePrefs } from "@/core/prefs"
 import { useStateFor } from "@/core/statefor"
-import { marked, NoMatches, Palette, useFinderQuery } from "@/components/Palette"
+import { marked, NoMatches, Palette, useFinderQuery, type Pick } from "@/components/Palette"
 import { Loading } from "@/components/kit"
 import { FilePreview } from "@/components/FilePreview"
 import { excerpt, explain, highlighter, isPlain, marksOf, parse, type Node } from "../../../core/searchquery.ts"
@@ -53,6 +55,33 @@ const ARRIVING = (
 )
 
 const PAGE = 40
+
+const toTheRight = (how: Pick) => how.alt && isDesktop()
+const openHints = (launcher: boolean): [string, string][] => [
+  ...(launcher ? [["Enter", "to open in new tab"]] satisfies [string, string][] : [["Enter", "to open"], ["Mod+Enter", "to open in new tab"]] satisfies [string, string][]),
+  ...(isDesktop() ? [["Alt+Enter", "to open to the right"]] satisfies [string, string][] : []),
+]
+function openHit(h: Hit, newTab: boolean) {
+  if (h.run) h.run(newTab)
+  else if (h.to) openView(h.to, { newTab: true })
+  else if (h.file) openFile(h.file, { newTab })
+  else if (h.detail) openDetail(h.detail)
+}
+function openNewNote(path: string, how: Pick, at: TabsAt, newTab: boolean) {
+  if (!toTheRight(how)) return newTabsAt(at, () => openNew(path, { newTab }))
+  markNew(path)
+  openInSplit(`file:${path}`)
+}
+function openRight(h: Hit) {
+  if (h.file) return void openInSplit(`file:${h.file}`)
+  if (h.to) return void openInSplit(h.to)
+  const was = activeTab().id, had = new Set(here().tabs.map((t) => t.id))
+  newTabsAt("end", () => h.run?.(true))
+  const made = activeTab().id
+  if (had.has(made)) return
+  selectTab(was)
+  moveToSplit("right", made)
+}
 
 export function SearchPalette({ store, onClose, launcher = false }: { store: Store; onClose: () => void
   launcher?: boolean }) {
@@ -116,30 +145,25 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
   }, [local, text, q, queried, typed, opens, lead, everything])
   const more = named.length > local.length || text.files > text.hits.length
 
-  const go = (h: Hit, mod = false) => {
-    const newTab = launcher || mod
+  const go = (h: Hit, how: Pick) => {
+    const right = toTheRight(how) && !h.detail
     picked()
     onClose()
-    setTimeout(() => newTabsAt(at, () => {
-      if (h.run) h.run(newTab)
-      else if (h.to) openView(h.to, { newTab: true })
-      else if (h.file) openFile(h.file, { newTab })
-      else if (h.detail) openDetail(h.detail)
-    }), 0)
+    setTimeout(() => (right ? openRight(h) : newTabsAt(at, () => openHit(h, launcher || how.mod))), 0)
   }
-  const create = async (newTab: boolean) => {
+  const create = async (how: Pick) => {
     if (!cleanName(q)) return
     picked()
     onClose()
     const f = await createNamed(newNoteFolder(getStore(), currentFile()), q)
-    if (f) newTabsAt(at, () => openNew(f.path, { newTab: launcher || newTab }))
+    if (f) openNewNote(f.path, how, at, launcher || how.mod)
   }
 
   return (
     <Palette label="Search" placeholder={lead ?? "Find or create a note…"} query={q} select={select} items={hits} onClose={onClose} look={fileIcons}
       onEnd={more ? () => setLimit((n) => n + PAGE) : undefined}
       preview={(h) => (h.file ? <FilePreview store={store} path={h.file} near={h.marks.length ? null : near} /> : null)}
-      onPick={(h, { mod, shift }) => ((shift && !(h && typedOwned(q, disabled))) || !h ? create(mod) : go(h, mod))}
+      onPick={(h, how) => ((how.shift && !(h && typedOwned(q, disabled))) || !h ? create(how) : go(h, how))}
       setQuery={(v, how) => { setQ(v); setAuto(!how?.deleting) }} complete={complete}
       onKey={(e) => {
         if (!turns || !e.altKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return false
@@ -153,7 +177,7 @@ export function SearchPalette({ store, onClose, launcher = false }: { store: Sto
         : q.trim() && !out && !failed && <NoMatches what="Nothing matches" query={q} then="Enter makes a note with that name" />}
       tail={!(out || failed) || error || text.hits.length ? null : { section: "In files",
         body: failedText ? <div className="px-3 pt-1 pb-2"><Loading error={failedText} retry={retry} /></div> : ARRIVING }}
-      hints={[["ArrowUp ArrowDown", "to navigate"], ...(launcher ? [["Enter", "to open in new tab"]] satisfies [string, string][] : [["Enter", "to open"], ["Mod+Enter", "to open in new tab"]] satisfies [string, string][]),
+      hints={[["ArrowUp ArrowDown", "to navigate"], ...openHints(launcher),
         ...(turns ? [["Alt+ArrowUp Alt+ArrowDown", `to change ${turns}`]] satisfies [string, string][] : []), ["Shift+Enter", "to create"], ["Escape", "to dismiss"]]}
       row={(h) => (<>
         {fileIcons && <h.icon className="size-4 shrink-0 text-muted-foreground" strokeWidth={2} />}

@@ -9,6 +9,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 - Companion and dictation: a key bumped while you hold the Talk key or a dictation key (fn beside Control, Shift, a letter)
   no longer drops what you said or stops it listening: it goes on till you let go. Only a shortcut (a key at once, or with
   nothing said) and Esc cancel it.
+- Workspaces: moving the tab on screen to another workspace (dragged there, or Move current tab to workspace) goes there
+  with it; moving any other tab leaves you where you are.
+- Quick switcher: ⌥↩ (Alt+Enter off a Mac) opens the pick to the right, in a split.
 - Updates: a server restarting onto new code no longer hangs for minutes when a file read is stuck (one iCloud is
   still downloading): it's killed 15 s after deciding to restart, and its service manager starts the new code.
 - Vaultite Cloud: when AI apps tried to reach your Mac while it was asleep or offline, it tells you once it's back ("Claude

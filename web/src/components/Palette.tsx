@@ -9,7 +9,7 @@ import { dismissKeyboardOnDrag, usePageLock } from "@/core/pagelock"
 import { cn } from "@/lib/utils"
 import { usePalettePreview } from "@/components/PalettePreview"
 
-export type Pick = { mod: boolean; shift: boolean }
+export type Pick = { mod: boolean; shift: boolean; alt: boolean }
 export type RowAction = { label: string; icon: LucideIcon; on: boolean; run: () => void }
 const ROWS = 30, NEAR = "400px"
 
@@ -58,7 +58,7 @@ export function NoMatches({ what, query, then }: { what: string; query: string; 
   )
 }
 
-type Pointer = { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }
+type Pointer = { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }
 type RowProps = {
   id: string; item: unknown; i: number; selected: boolean; look: unknown; draw: (selected: boolean) => ReactNode
   act?: RowAction | null; onHover: (i: number) => void; onPick: (i: number, e: Pointer) => void; onMiddle: (i: number) => boolean
@@ -166,7 +166,7 @@ export function Palette<T extends { id: string }>({ label, placeholder, query, s
   useNearEnd(more, () => setLimit(drawn + ROWS), marks, NEAR)
   const end = useRef<HTMLDivElement>(null)
   useNearEnd(end, () => onEnd?.(), marks, "200px")
-  const pick = (i: number, e: Pointer) => onPick(items[i] ?? null, { mod: e.metaKey || e.ctrlKey || ("button" in e && e.button === 1), shift: e.shiftKey })
+  const pick = (i: number, e: Pointer) => onPick(items[i] ?? null, { mod: e.metaKey || e.ctrlKey || ("button" in e && e.button === 1), shift: e.shiftKey, alt: e.altKey })
   const picks = useRef(pick)
   useLayoutEffect(() => { picks.current = pick })
   const [rowPick] = useState(() => (i: number, e: Pointer) => picks.current(i, e))
