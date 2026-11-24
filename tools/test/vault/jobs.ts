@@ -333,21 +333,21 @@ export default async ($: VaultTest) => {
     g("update-ref", "refs/remotes/origin/main", "HEAD")
     const tip = g("rev-parse", "job-v").trim()
     check("jobs: squashed by another session with a different diff (its CHANGELOG beside another's), its branch's change is found on main, its commits named or not",
-      !before && await onMainSince(repo, start, "Not merged: pushed job-v.", "job-v", marks) && await onMainSince(repo, start, `Not merged: pushed ${tip.slice(0, 9)} on job-v.`), { before, marks })
+      !before && await onMainSince(repo, start, "Not merged: pushed job-v.", "job-v", marks) && await onMainSince(repo, start, `Not merged: pushed ${tip} on job-v.`), { before, marks })
     g("update-ref", "refs/remotes/origin/claude/v-1", tip); g("checkout", "-q", "-f", on); g("branch", "-qD", "job-v")
     check("jobs: a cloud session's branch, only on its remote, is read there", await onMainSince(repo, start, "Done.", "claude/v-1") && !!await marksOf(repo, "claude/v-1"))
     check("jobs: main itself named as its branch is never its landing", !await onMainSince(repo, start, "Done.", "main"))
     g("checkout", "-q", "--detach", start); put("u.txt", "u\n", "feat: u, unlanded"); const unlanded = g("rev-parse", "HEAD").trim(); g("checkout", "-q", "-f", on)
-    check("jobs: a commit it names that isn't all on main isn't its landing", !await onMainSince(repo, start, `Not merged: ${unlanded.slice(0, 9)}.`))
+    check("jobs: a commit it names that isn't all on main isn't its landing", !await onMainSince(repo, start, `Not merged: ${unlanded}.`))
     const far = path.join(tmp, "plugins-repo"), f = (...a: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...a], { cwd: far, stdio: "pipe", env: gitEnv() }).toString()
     fs.mkdirSync(path.join(far, "logseq"), { recursive: true }); f("init", "-q"); fs.writeFileSync(path.join(far, "logseq", "plugin.ts"), "a\n"); f("add", "."); f("commit", "-qm", "first"); f("update-ref", "refs/remotes/origin/main", "HEAD")
     f("checkout", "-qb", "job-l"); fs.writeFileSync(path.join(far, "logseq", "plugin.ts"), "b\n"); f("commit", "-qam", "feat: logseq"); const theirs = f("rev-parse", "HEAD").trim()
     const files = [path.join(far, "logseq", "plugin.ts")], t0 = Date.now() - 5000
-    const notYet = await onMainElsewhere(repo, files, `Not merged: ${theirs.slice(0, 9)} on job-l.`, t0)
+    const notYet = await onMainElsewhere(repo, files, `Not merged: ${theirs} on job-l.`, t0)
     f("checkout", "-q", "--detach", "origin/main"); fs.writeFileSync(path.join(far, "logseq", "plugin.ts"), "b\n"); f("commit", "-qam", "feat: logseq (landed)"); f("update-ref", "refs/remotes/origin/main", "HEAD")
     check("jobs: a commit it names in another repo it changed files in, landed there since it started, counts; not before, nor in its own repo, nor older than it",
-      !notYet && await onMainElsewhere(repo, files, `Not merged: ${theirs.slice(0, 9)} on job-l.`, t0) && !await onMainElsewhere(repo, [path.join(repo, "v.txt")], `Not merged: ${theirs.slice(0, 9)}.`, t0) &&
-      !await onMainElsewhere(repo, files, `Not merged: ${theirs.slice(0, 9)}.`, Date.now() + 3600_000), { notYet })
+      !notYet && await onMainElsewhere(repo, files, `Not merged: ${theirs} on job-l.`, t0) && !await onMainElsewhere(repo, [path.join(repo, "v.txt")], `Not merged: ${theirs}.`, t0) &&
+      !await onMainElsewhere(repo, files, `Not merged: ${theirs}.`, Date.now() + 3600_000), { notYet })
     g("update-ref", "-d", "refs/remotes/origin/main"); g("update-ref", "-d", "refs/remotes/origin/claude/v-1"); g("reset", "-q", "--hard", base)
   }
   await (async () => {
