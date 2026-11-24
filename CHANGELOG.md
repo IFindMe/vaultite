@@ -6,6 +6,9 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Companion and dictation: a key bumped while you hold the Talk key or a dictation key (fn beside Control, Shift, a letter)
+  no longer drops what you said or stops it listening: it goes on till you let go. Only a shortcut (a key at once, or with
+  nothing said) and Esc cancel it.
 - Updates: a server restarting onto new code no longer hangs for minutes when a file read is stuck (one iCloud is
   still downloading): it's killed 15 s after deciding to restart, and its service manager starts the new code.
 - Vaultite Cloud: when AI apps tried to reach your Mac while it was asleep or offline, it tells you once it's back ("Claude

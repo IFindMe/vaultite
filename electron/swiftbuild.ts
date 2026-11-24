@@ -54,7 +54,7 @@ export function swiftHelper(o: { id: string; sources: string[]; macos: string; s
   return { name, build, binary }
 }
 
-export const screenSwift = swiftHelper({ id: "screen", sources: ["screen.swift", "ax.swift"], macos: "13" })
+export const screenSwift = swiftHelper({ id: "screen", sources: ["screen.swift", "ax.swift", "keys.swift"], macos: "13" })
 export const takeoverSwift = swiftHelper({ id: "takeover", sources: ["takeover.swift", "ax.swift"], macos: "13" })
 export const captureSwift = swiftHelper({ id: "capture", sources: ["capture.swift"], macos: "14" })
 export const voiceSwift = swiftHelper({ id: "voice", sources: ["voice.swift"], macos: "14" })

@@ -97,35 +97,41 @@ export let summon: Summon | null = null
 export let exchange: Exchange | null = null
 /** A Talk key (alone, or a chord), as its gesture: the companion summoned at the pointer, in any app and in Vaultite's
  *  windows alike (one companion, over the screen: the page never gets the key). */
-export function talkHeard(m: FnEvent) {
+export function talkHeard(m: FnEvent, by = "fn") {
   talkedAt = Date.now()
   // (Control's double tap: no Talk key is Control)
   if (!host?.home() || "double" in m) return
+  if (ofNoPress.has(gesture.state)) talkBy = by
+  else if (by !== talkBy) return
   const now = "t" in m && m.t ? m.t : Date.now(), kind = "other" in m ? "other" : m.down ? "down" : "up"
   // (hands-free that ended by itself (its box closed, silence): the next press is a press again, not half a double tap)
   if (kind === "down" && gesture.state === "free" && session?.into !== "panel" && !freeStarting) gesture.reset()
-  const a = "other" in m ? gesture.other() : m.down ? gesture.down(now) : gesture.up(now)
+  const a = "other" in m ? gesture.other(now, m.other) : m.down ? gesture.down(now) : gesture.up(now)
   if (kind === "down" && gesture.state === "bounce") {
     // (pressed again just after a send: a bounce of the chord unless still held a tap's time on; nothing stops meanwhile)
     const p = bounced = presses.start("talk", "down", { front: front?.bundle ?? "", bounce: true })
     setTimeout(() => { if (bounced === p && gesture.held() === "listen") { bounced = null; press = p; p.step("held"); pressed(); talkAct("listen") } }, TAP_MS)
     return
   }
-  if (kind !== "down" && bounced) { const p = bounced; bounced = null; if (gesture.state === "idle") return void p.end("ignored", { gesture: "bounce" }) }
+  if (kind !== "down" && bounced && gesture.state !== "bounce") { const p = bounced; bounced = null; if (gesture.state === "idle") return void p.end("ignored", { gesture: "bounce" }) }
   if (kind === "down") pressed()
   // (each press logged, what it did or that it did nothing: presses that go nowhere can be traced)
   if (a === "listen") press = presses.start("talk", "down", { front: front?.bundle ?? "" })
   else if (kind === "down" && !a) presses.start("talk", "down", { front: front?.bundle ?? "" }).end("ignored", { gesture: gesture.state })
-  else press?.step(kind, { action: a ?? "none" })
+  else press?.step(kind, { action: a ?? "none", stray: "other" in m ? m.other : null })
   if (!a) return
   talkAct(a)
 }
+const ofNoPress = new Set<typeof gesture.state>(["idle", "typed", "free"])
+let talkBy = ""
+export const talkHolds = () => (starting && startingTalk) || session?.into === "summon" || (!!summon && HELD.has(summon.m.phase))
 /** A press that may still turn out a bounce (core/fnkey.ts talkGesture), logged as one. */
 let bounced: Press | null = null
 function talkAct(a: NonNullable<TalkAction>) {
   if (a === "listen") return act("start", true)
-  if (a === "cancel") { void inkOff(); press?.end("cancelled", { why: "another key with it" }); return act("cancel", true) }
+  if (a === "cancel") { void inkOff(); press?.end("cancelled", { why: "a shortcut or Esc" }); return act("cancel", true) }
   if (a === "send") {
+    if (summon && gesture.strayed) summon.strayed = true
     // (hands-free in its box: what's in it goes; held: let go here, it thinks here)
     if (session?.into === "summon" || (starting && startingTalk)) {
       if (summon?.m.send("up")) { Object.assign(summon, { p: screen.getCursorScreenPoint(), released: Date.now() }); summon.place = gather(summon); if (!recordingNow()) voiceFront.release(whereOf(summon)) }
@@ -222,7 +228,7 @@ export function trailed(p: Point, t: number) {
 export async function sendSummon(s: Summon, text: string, how: { front?: "realtime"; talk?: string[] } = {}) {
   if (captured(s, text)) return
   const ink = drawnShapes(inkOf(trailStrokes(s.trail, s.released ?? Date.now())))
-  if (!text && !ink.length) return missed(s, "nothing heard nor drawn")
+  if (!text && !ink.length) return s.strayed ? shortcutOnly(s) : missed(s, "nothing heard nor drawn")
   draw()
   const { w, place } = await (s.place ?? gather(s))
   const clicks = await Promise.all(s.clicks ?? [])
@@ -240,6 +246,13 @@ export async function sendSummon(s: Summon, text: string, how: { front?: "realti
   askedAloud = true
   // (held again in an exchange: the same thread)
   openAnswer(s.name, s.p, w?.window ? w : null, exchange?.name === s.name ? exchange.since : s.at)
+}
+function shortcutOnly(s: Summon) {
+  const why = "a shortcut: nothing said"
+  voiceFront.stop()
+  s.press?.end("cancelled", { why })
+  closeSummon(s, why)
+  draw()
 }
 /** Words for region capture (record this, stop, that just now; anything while it records is narration): handled
  *  there, never an ask. */
@@ -335,6 +348,7 @@ export function endExchange(stop = true) {
   if (!exchange && !summon) return
   const name = exchange?.name ?? summon?.name
   exchange = null
+  if (stop && summon && HELD.has(summon.m.phase)) { void inkOff(); summon.press?.end("cancelled", { why: "Esc" }); act("cancel", true) }
   if (summon) closeSummon(summon, stop ? "esc" : "over")
   takeoverEnded()
   inAppSpots.clear()

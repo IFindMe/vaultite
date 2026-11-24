@@ -119,6 +119,7 @@ export type Summon = { name: string; tint: string; p: Point; w: AppWindowInfo | 
   appeared?: boolean
   /** Where the press is (pressmachine.ts), each move in its log. */
   m: PressMachine
+  strayed?: boolean
   /** Words heard before the recognizer stopped while it was held: sent once it's let go. */
   heard?: string
   /** Its turn on the ask seen at work (the agent's state, the server's): only then can it be over. */

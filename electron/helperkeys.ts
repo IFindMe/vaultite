@@ -1,10 +1,10 @@
-import { fnActsToo, isChord, keyCodes, modKeys, type FnEvent, type ModEvent } from "../core/fnkey.ts"
+import { fnActsToo, isChord, keyCodes, modKeys, type FnAction, type FnEvent, type ModEvent } from "../core/fnkey.ts"
 import { dictationKeys, tappedKeys } from "./helperlogic.ts"
 import { fnUsage } from "./screen.ts"
 import { LIVE, QUIET, screenDo, stubs } from "./helperask.ts"
 import { dictating, host, notice, prefs } from "./helperbase.ts"
 import { act, key, page, pageIs, session, starting } from "./helpersession.ts"
-import { talkHeard } from "./helpertalk.ts"
+import { talkHeard, talkHolds } from "./helpertalk.ts"
 import type { ScreenEvent } from "./screenwire.ts"
 
 /** The screen helper's tap hears the picked keys only: the dictation keys (none while Dictate anywhere is off) and the
@@ -22,7 +22,7 @@ export function followKeys() {
 }
 let settling: ReturnType<typeof setTimeout> | null = null, talkSettling: ReturnType<typeof setTimeout> | null = null
 const asFn = (events: FnEvent[]) => { for (const e of events) fnHeard(e, false) }
-const asTalk = (events: FnEvent[]) => { for (const e of events) talkHeard(e) }
+const asTalk = (events: FnEvent[]) => { for (const e of events) talkHeard(e, "modifier") }
 export function modHeard(m: ModEvent) {
   const r = mods.heard(m), t = talkMods.heard(m)
   if (settling) clearTimeout(settling)
@@ -32,10 +32,16 @@ export function modHeard(m: ModEvent) {
   asFn(r.fn)
   asTalk(t.fn)
 }
+let slipped = ""
 /** A chord (⌃⌥, fn⌃): the companion's if it's a Talk key, else dictation's, as a key's press and release. */
 export function chordHeard(m: Extract<ScreenEvent, { event: "chord" }>) {
-  const name = m.name, e: FnEvent = m.other ? { other: true } : { down: m.on, ...(m.t !== undefined ? { t: m.t } : {}) }
-  if (prefs.talk.includes(name)) talkHeard(e)
+  const t = m.t === undefined ? {} : { t: m.t }, name = m.name, e: FnEvent = m.other ? { other: m.other, ...t } : { down: m.on, ...t }
+  if (!m.other && m.on) slipped = mods.talking(Date.now()) ? name : ""
+  if (slipped === name) return
+  if (prefs.talk.includes(name)) {
+    if (!m.other && m.on) takeBackDictation()
+    talkHeard(e, name)
+  }
   else if (heardKeys().includes(name)) fnHeard(e)
 }
 export function fnHeard(m: FnEvent, byFn = true) {
@@ -50,8 +56,14 @@ export function fnHeard(m: FnEvent, byFn = true) {
     act("start")
     return act("free")
   }
-  if ("other" in m) { const shortcut = m.shortcut === true; if (to) to.send("vaultite:fn", { other: true, shortcut }); else act(key.other(Date.now(), shortcut)); return }
+  if ("other" in m) {
+    const shortcut = m.shortcut === true
+    if (to) to.send("vaultite:fn", { other: m.other, shortcut })
+    else dictationActs(key.other(m.t ?? Date.now(), m.other, shortcut && !heardWords()))
+    return
+  }
   if (m.down) {
+    if (talkHolds()) return
     if (!session) pageIs(keyboardPage())
     if (page && !session) return void page.send("vaultite:fn", { down: true, held: m.held === true })
     pageIs(null)
@@ -59,8 +71,11 @@ export function fnHeard(m: FnEvent, byFn = true) {
     return act(key.down(Date.now(), !!session || starting, m.held === true))
   }
   if (to) { to.send("vaultite:fn", { down: false }); return }
-  act(key.up(Date.now()))
+  dictationActs(key.up(Date.now()))
 }
+const takeBackDictation = () => fnHeard({ other: "key", shortcut: true })
+const heardWords = () => !!session && (!!session.finals.length || !!session.pending.trim())
+const dictationActs = (a: FnAction) => { if (!talkHolds()) act(a) }
 /** The app's page that has the keyboard, which a dictation key's press goes to (a scripted copy's never does: a stub
  *  says it does). */
 const keyboardPage = () => host?.focusedPage() ?? (QUIET && stubs.has("keyboard") ? host?.homeWindow()?.page ?? null : null)

@@ -13,7 +13,7 @@ const ROOT = path.resolve(import.meta.dirname, "../..")
 const at = (f: string) => pathToFileURL(path.join(ROOT, "electron", f)).href
 type Pt = { x: number; y: number }
 type Item = { name: string; sx: number; sy: number; from?: Pt; leaving?: boolean; state?: string; words?: string; follow?: boolean; aim?: { id: string; x: number; y: number } }
-type Scene = { agents: Item[]; summon: Item | null }
+type Scene = { agents: Item[]; summon: Item | null; pill?: unknown }
 const scenes: Scene[] = []
 let pointer = { x: 500, y: 500 }
 const display = { id: 1, bounds: { x: 0, y: 0, width: 1600, height: 1000 }, workArea: { x: 0, y: 25, width: 1600, height: 975 } }
@@ -113,6 +113,7 @@ const chord = (on: boolean) => {
   if (on) { downAt = anchor ? Math.max(Date.now(), downAt + heldMs) : downAt + heldMs; heldMs = 0; anchor = false }
   H.heard({ event: "chord", name: "control_option", on, t: on ? downAt : downAt + heldMs })
 }
+const bump = (other: "key" | "modifier" | "esc") => H.heard({ event: "chord", name: "control_option", other, t: downAt + heldMs })
 const asks = () => H.asked().filter((m) => m.kind === "ask" || m.kind === "point")
 
 await until(() => !!sock)
@@ -239,16 +240,56 @@ check("tapped: Esc closes it", !panelShown)
 await wait(400)
 chord(true)
 await wait(150)
-H.heard({ event: "chord", name: "control_option", other: true })
+bump("key")
 await wait(100)
 check("a shortcut (another key with it): nothing goes, its cursor goes", asks().length === before && !H.scene()!.summon, H.scene()!.summon)
+chord(false)
+await wait(400)
+chord(true)
+await wait(100)
+bump("modifier")
+await wait(500)
+check("fn bumped as it's pressed: it listens on", H.scene()!.summon?.state === "listening", H.scene()!.summon)
+H.heard({ event: "fn", down: true })
+bump("key")
+await wait(50)
+H.heard({ event: "fn", down: false })
+await wait(50)
+check("…and a key or a dictation key bumped as they talk stops nothing it hears", H.scene()!.summon?.state === "listening" && !scenes.at(-1)!.pill, scenes.at(-1))
+chord(false)
+check("…what was said goes when it's let go", await until(() => asks().length === before + 1 && asks().at(-1)?.text === "what's this?"), asks().slice(before))
+await wait(400)
+chord(true)
+await wait(400)
+H.heard({ event: "esc" })
+await wait(50)
+check("Esc while it's held in an exchange: the mic stops too", H.presses().filter((l) => l.ev === "stt-end").at(-1)?.reason === "cancel" && !H.scene()!.summon, H.presses().slice(-4))
+chord(false)
+await wait(400)
+const after = asks().length
+heardWords = ""
+chord(true)
+await wait(600)
+bump("key")
+await wait(100)
+chord(false)
+await wait(200)
+check("a slow shortcut (a key long after, nothing said): nothing goes and nothing's said of it", asks().length === after && !H.scene()!.summon && H.asked().at(-1)?.cue !== "missed", [H.scene()!.summon, H.asked().slice(-2)])
+heardWords = "what's this?"
+chord(true)
+await wait(600)
+bump("esc")
+await wait(100)
+check("Esc while it's held: what it heard is dropped", asks().length === after && !H.scene()!.summon, H.scene()!.summon)
+chord(false)
+await wait(400)
 heardWords = ""
 chord(true)
 await wait(400)
 chord(false)
 await wait(100)
 check("held with nothing said nor drawn: nothing goes, but its cursor says it didn't catch that, with a soft cue",
-  asks().length === before && H.scene()!.summon?.state === "missed" && /didn't catch that/i.test(String((H.scene()!.summon as { missed?: string })?.missed)) && H.asked().at(-1)?.cue === "missed", [asks().length - before, H.scene()!.summon, H.asked().slice(-2)])
+  asks().length === after && H.scene()!.summon?.state === "missed" && /didn't catch that/i.test(String((H.scene()!.summon as { missed?: string })?.missed)) && H.asked().at(-1)?.cue === "missed", [asks().length - after, H.scene()!.summon, H.asked().slice(-2)])
 const lastEnd = () => H.presses().filter((l) => l.ev === "end").at(-1)
 check("…and the press is logged: down, the recognizer, let go, what it heard, and why it went nowhere",
   lastEnd()?.outcome === "missed" && /nothing heard/.test(String(lastEnd()?.why)) && ["down", "stt", "stt-start", "up", "stt-end"].every((ev) => H.presses().some((l) => l.press === lastEnd()?.press && l.ev === ev)), H.presses().slice(-8))
@@ -406,7 +447,7 @@ function press(k: Key, on: boolean) {
   const code = { ctrl: CTRL, ropt: ROPT, lopt: LOPT }[k]
   if (on) held.add(k); else held.delete(k)
   if (code === ROPT) { live = true; H.heard({ event: "mod", code, on, alone: on && held.size === 1, at: Date.now() }) }
-  else if (live) { live = false; H.heard({ event: "mod", other: true }) }
+  else if (live) { live = false; H.heard({ event: "mod", other: "modifier" }) }
   const chordOn = held.has("ctrl") && (held.has("ropt") || held.has("lopt")) && held.size === 2
   if (chordOn !== chordWas) H.heard({ event: "chord", name: "control_option", on: chordOn })
   chordWas = chordOn

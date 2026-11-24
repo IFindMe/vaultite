@@ -7,8 +7,6 @@ import ScreenCaptureKit
 
 // (ax.swift: sending, Accessibility reads, an element's words as the screen helper lists them)
 _ = AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 1)
-/** Marks the events we post, so the guard (and nothing else) tells them from the user's. */
-let MARK: Int64 = 0x5641554C54
 
 
 // ---------- finding an element again: the window under its frame, walked for the one with that frame and words

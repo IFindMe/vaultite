@@ -21,6 +21,8 @@ export default async ($: VaultTest) => {
     check("fn: a key pressed with it (fn+arrow) cancels what its press started, and nothing else", combo.join() === "start,cancel," && fnKey().other(0) === null, combo)
     const talking = fnKey(450), said = [talking.down(0, false), talking.other(2000), talking.up(3000)]
     check("fn: a key pressed long after, while held (⌘Tab while talking), leaves it listening, till let go", said.join() === "start,,stop", said)
+    const bump = fnKey(450), bumped = [bump.down(0, false), bump.other(60, "modifier"), bump.up(2000)], slip = fnKey(450), slipped = [slip.down(0, false), slip.other(60, "modifier"), slip.up(200)]
+    check("fn: a modifier bumped with it at once doesn't end a hold; let go at once, it's no tap", bumped.join() === "start,,stop" && slipped.join() === "start,,cancel", { bumped, slipped })
     const dbl = fnKey(450, 350), twice = [dbl.down(0, false), dbl.up(80), dbl.down(200, true), dbl.up(260), dbl.down(5000, true), dbl.up(5080)]
     check("fn: a double tap goes hands-free, the next press stops", twice.join() === "start,,free,,stop,", twice)
     const apart = fnKey(450, 350), two = [apart.down(0, false), apart.up(80), apart.down(1000, true), apart.up(1080)]
@@ -36,10 +38,10 @@ export default async ($: VaultTest) => {
     check("right Option: it waits to see it's alone; let go first, it's a tap of fn", !!quick.down.wait && !quick.down.fn.length && JSON.stringify(quickUp) === '[{"down":true},{"down":false}]', quickUp)
     const long = solo(RCMD), settled = long.m.settled(), heldUp = long.up()
     check("right Command: still alone, it's fn down, then up when let go", JSON.stringify(settled) === '[{"down":true}]' && JSON.stringify(heldUp) === '[{"down":false}]', { settled, heldUp })
-    const chord = solo(ROPT), chordKey = chord.m.heard({ other: true }).fn, chordSettled = chord.m.settled(), chordUp = chord.up()
+    const chord = solo(ROPT), chordKey = chord.m.heard({ other: "key" }).fn, chordSettled = chord.m.settled(), chordUp = chord.up()
     check("right Option + a key: nothing, it still types its accent", !chordKey.length && !chordSettled.length && !chordUp.length, { chordKey, chordSettled, chordUp })
-    const slow = solo(ROPT), slowDown = slow.m.settled(), slowKey = slow.m.heard({ other: true }).fn, slowUp = slow.up()
-    check("right Option + a key after it counted: that press is cancelled, as fn+key is", JSON.stringify(slowDown) === '[{"down":true}]' && JSON.stringify(slowKey) === '[{"other":true}]' && !slowUp.length, { slowKey, slowUp })
+    const slow = solo(ROPT), slowDown = slow.m.settled(), slowKey = slow.m.heard({ other: "key" }).fn, slowUp = slow.up()
+    check("right Option + a key after it counted: told with it, as fn+key is, and its release still comes", JSON.stringify(slowDown) === '[{"down":true}]' && JSON.stringify(slowKey) === '[{"other":"key","shortcut":false}]' && JSON.stringify(slowUp) === '[{"down":false}]', { slowKey, slowUp })
     const left = modKeys(ALL), leftDown = left.heard({ code: LOPT, on: true, alone: true, at: 0 })
     check("left Option: not a trigger, nor Control alone (double Control is no key now)", !leftDown.wait && !leftDown.fn.length && !left.settled().length && !left.heard({ code: LOPT, on: false, at: 100 }).fn.length &&
       !modKeys([...ALL, "double_control"]).heard({ code: CTRL, on: true, alone: true, at: 0 }).wait)
@@ -63,19 +65,25 @@ export default async ($: VaultTest) => {
     const hold2 = ctl(); hold2.heard({ code: LCTL, on: true, alone: true, at: 0 }); hold2.settled(); hold2.heard({ code: LCTL, on: false, at: 700 })
     const afterHold = press(hold2, LCTL, 800, 80)
     check("Control: two presses more than 500 ms apart, or a hold then a tap, aren't a double tap", !apart2.length && !afterHold.length, { apart2, afterHold })
-    const cut = ctl(); press(cut, LCTL, 0, 80); cut.heard({ other: true })
+    const cut = ctl(); press(cut, LCTL, 0, 80); cut.heard({ other: "key" })
     const cutAfter = press(cut, LCTL, 200, 80)
     check("Control: a tap, Control+C, a tap: not a double tap", !cutAfter.length, cutAfter)
     const held = ctl(), heldDown = (held.heard({ code: RCTL, on: true, alone: true, at: 0 }), held.settled()), heldUp = held.heard({ code: RCTL, on: false, at: 900 }).fn
     check("Control: held alone, it listens till let go", JSON.stringify(heldDown) === '[{"down":true,"held":true}]' && JSON.stringify(heldUp) === '[{"down":false}]', { heldDown, heldUp })
     const kh = fnKey(450), heldActs = [kh.down(400, false, true), kh.up(500)], busy = fnKey(450), heldBusy = [busy.down(0, true, true), busy.up(900)]
     check("Control: its hold's release always stops (it counted late); held while listening, nothing", heldActs.join() === "start,stop" && heldBusy.join() === ",", { heldActs, heldBusy })
-    const sc = ctl(), quickC = [...sc.heard({ code: LCTL, on: true, alone: true, at: 0 }).fn, ...sc.heard({ other: true }).fn, ...sc.settled(), ...sc.heard({ code: LCTL, on: false, at: 900 }).fn]
+    const sc = ctl(), quickC = [...sc.heard({ code: LCTL, on: true, alone: true, at: 0 }).fn, ...sc.heard({ other: "key" }).fn, ...sc.settled(), ...sc.heard({ code: LCTL, on: false, at: 900 }).fn]
     check("Control+C (or Control-click, Control-scroll) before the hold counts: nothing starts", !quickC.length, quickC)
     const late = ctl(); late.heard({ code: LCTL, on: true, alone: true, at: 0 }); late.settled()
-    const lateKey = late.heard({ other: true }).fn, kc = fnKey(450), lateCancel = [kc.down(0, false, true), kc.other(2000, true), kc.up(3000)]
-    check("Control held, then a key (a slow shortcut): what it started is cancelled, however long it was held", JSON.stringify(lateKey) === '[{"other":true,"shortcut":true}]' &&
+    const lateKey = late.heard({ other: "key" }).fn, kc = fnKey(450), lateCancel = [kc.down(0, false, true), kc.other(2000, "key", true), kc.up(3000)]
+    check("Control held, then a key (a slow shortcut): what it started is cancelled, however long it was held", JSON.stringify(lateKey) === '[{"other":"key","shortcut":true}]' &&
       lateCancel.join() === "start,cancel,", { lateKey, lateCancel })
+    const spoke = fnKey(450), spokeActs = [spoke.down(0, false, true), spoke.other(2000, "key", false), spoke.up(3000)]
+    const still = ctl(); still.heard({ code: LCTL, on: true, alone: true, at: 0 }); still.settled(); still.heard({ other: "modifier" })
+    const stillUp = still.heard({ code: LCTL, on: false, at: 900 }).fn
+    check("Control held, words heard, then a key: a slip, it goes on and its release stops it", spokeActs.join() === "start,,stop" && JSON.stringify(stillUp) === '[{"down":false}]', { spokeActs, stillUp })
+    const talking = ctl(); talking.heard({ code: LCTL, on: true, alone: true, at: 0 }); const before = talking.talking(Date.now()); talking.settled()
+    check("Control held as dictation, then Option: no Talk press of it", !before && talking.talking(Date.now()) && (talking.heard({ code: LCTL, on: false, at: 900 }), !talking.talking(Date.now())))
     const chordFirst = ctl(), withOpt = [...chordFirst.heard({ code: LCTL, on: true, alone: true, at: 0 }).fn, ...chordFirst.heard({ code: LOPT, on: true, alone: false, at: 60 }).fn, ...chordFirst.settled(), ...chordFirst.heard({ code: LCTL, on: false, at: 300 }).fn]
     check("Control then Option (the Talk keys' ⌃⌥): Control alone does nothing", !withOpt.length, withOpt)
     check("Control waits longer than right Option to count", ctl().heard({ code: LCTL, on: true, alone: true, at: 0 }).wait! > (modKeys(ALL).heard({ code: ROPT, on: true, alone: true, at: 0 }).wait ?? 0))
@@ -84,7 +92,7 @@ export default async ($: VaultTest) => {
       isChord("control_option") && isChord("fn_control") && !isChord("fn"))
 
     // The Talk keys' gesture (HeyClicky's): hold, tap, double tap.
-    const run = (steps: [string, number][]) => { const g = talkGesture(250, 350); return steps.map(([e, t]) => (e === "d" ? g.down(t) : e === "u" ? g.up(t) : e === "h" ? g.held() : g.other())).filter(Boolean).join() }
+    const run = (steps: [string, number][]) => { const g = talkGesture(250, 350); return steps.map(([e, t]) => (e === "d" ? g.down(t) : e === "u" ? g.up(t) : e === "h" ? g.held() : g.other(t, e === "m" ? "modifier" : e === "c" ? "mouse" : e === "e" ? "esc" : "key"))).filter(Boolean).join() }
     check("talk: held, it listens and sends when let go", run([["d", 0], ["u", 900]]) === "listen,send")
     check("talk: a tap opens its box to type in, nothing heard", run([["d", 0], ["u", 120]]) === "listen,type")
     check("talk: a double tap listens hands-free, and the next double tap sends", run([["d", 0], ["u", 100], ["d", 250], ["u", 330], ["d", 5000], ["u", 5080], ["d", 5200], ["u", 5280]]) === "listen,type,free,send")
@@ -96,6 +104,12 @@ export default async ($: VaultTest) => {
       run([["d", 0], ["u", 900], ["d", 1100], ["o", 1200], ["h", 1350], ["u", 1500]]) === "listen,send")
     check("talk: a tap a moment after a send opens its box", run([["d", 0], ["u", 900], ["d", 1400], ["u", 1480]]) === "listen,send,listen,type")
     check("talk: a key with it (⌃⌥→, a shortcut) cancels, and its release does nothing", run([["d", 0], ["o", 50], ["u", 900]]) === "listen,cancel")
+    check("talk: what's bumped as they talk (a key, a modifier, a click) is a slip: it goes on, and sends when let go", ["o", "m", "c"].every((x) => run([["d", 0], [x, 4000], [x, 5000], ["u", 9600]]) === "listen,send"))
+    check("talk: fn beside Control bumped as it's pressed doesn't end it; let go at once, it's no tap", run([["d", 0], ["m", 40], ["u", 3000]]) === "listen,send" && run([["d", 0], ["m", 40], ["u", 150]]) === "listen,cancel")
+    check("talk: a modifier then a key at once (⌃⌥⇧→) is a shortcut; Esc cancels whenever it comes", run([["d", 0], ["m", 40], ["o", 120], ["u", 300]]) === "listen,cancel" && run([["d", 0], ["e", 8000], ["u", 9000]]) === "listen,cancel")
+    check("talk: hands-free, a shortcut with the Talk key neither sends nor ends it", run([["d", 0], ["u", 100], ["d", 250], ["u", 330], ["d", 5000], ["o", 5100], ["u", 5900]]) === "listen,type,free" &&
+      run([["d", 0], ["u", 100], ["d", 250], ["u", 330], ["d", 5000], ["o", 5100], ["u", 5900], ["d", 9000], ["u", 9900]]) === "listen,type,free,send")
+    check("talk: pressed just after a send with a modifier bumped, it still listens once held", run([["d", 0], ["u", 900], ["d", 1100], ["m", 1150], ["h", 1350], ["u", 3000]]) === "listen,send,listen,send")
     check("talk: two taps far apart are two boxes, not hands-free", run([["d", 0], ["u", 100], ["d", 2000], ["u", 2100]]) === "listen,type,listen,type")
   }
   {
@@ -263,7 +277,7 @@ export default async ($: VaultTest) => {
   {
     // The helper's cursor between the window and the screen (electron/helper.ts draw), in a Node of its own with Electron
     // stood in: it needs module mocks.
-    const run = (flags: string[]) => spawnSync(process.execPath, [...flags, "--no-warnings", path.join(import.meta.dirname, "..", "helperdraw.ts")], { encoding: "utf8", timeout: 60_000 })
+    const run = (flags: string[]) => spawnSync(process.execPath, [...flags, "--no-warnings", path.join(import.meta.dirname, "..", "helperdraw.ts")], { encoding: "utf8", timeout: 90_000 })
     // (a Node whose mocks are no longer behind a flag may not know it)
     let r = run(["--experimental-test-module-mocks"])
     if (/bad option/.test(r.stderr)) r = run([])

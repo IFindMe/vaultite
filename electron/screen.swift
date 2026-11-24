@@ -5,89 +5,16 @@ import ApplicationServices
 import CoreAudio
 import ScreenCaptureKit
 
-// (ax.swift: sending, Accessibility reads, an element's words)
+// (ax.swift: sending, Accessibility reads, an element's words; keys.swift: what the tap's keys mean)
 _ = AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 1)
 
-// ---------- the dictation keys: down and up, on its own thread (a slow request never holds the key)
-
-/** The dictation keys the helper asked for, by keycode: others aren't told. */
-let keysLock = NSLock()
-var watching = Set<Int64>()
-func watched(_ code: Int64) -> Bool { keysLock.lock(); defer { keysLock.unlock() }; return watching.contains(code) }
-
-let MODS: [Int64: CGEventFlags] = [59: .maskControl, 62: .maskControl, 61: .maskAlternate, 54: .maskCommand]
-/** The key's other side's own flag (left Option's for right Option, right Control's for left): held with it, not alone. */
-let LEFT: [Int64: UInt64] = [61: 0x20, 54: 0x08, 59: 0x2000, 62: 0x01]
-let ANY_MOD: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand, .maskShift, .maskSecondaryFn]
-var modHeld = Set<Int64>(), modLive = false
-/** Control's and the right modifiers' presses as they are (core/fnkey.ts decides); what follows one says only that it came. */
-func tappedMod(_ type: CGEventType, _ e: CGEvent) {
-  let code = e.getIntegerValueField(.keyboardEventKeycode)
-  guard type == .flagsChanged, let own = MODS[code], watched(code) else {
-    if modLive { modLive = false; send(["event": "mod", "other": true]) }
-    return
-  }
-  // (the flag stays while the key's other side is down: a held key's next event is its release)
-  let on = e.flags.contains(own) && !modHeld.contains(code)
-  let alone = on && modHeld.isEmpty && e.flags.intersection(ANY_MOD).subtracting(own).isEmpty && e.flags.rawValue & (LEFT[code] ?? 0) == 0
-  if on { modHeld.insert(code) } else { modHeld.remove(code) }
-  modLive = true
-  send(["event": "mod", "code": code, "on": on, "alone": alone, "at": DispatchTime.now().uptimeNanoseconds / 1_000_000])
-}
-
-var fnDown = false, fnOther = false
-func tapped(_ type: CGEventType, _ e: CGEvent) {
-  tappedMod(type, e)
-  tappedChord(type, e)
-  if type == .flagsChanged {
-    let on = e.flags.contains(.maskSecondaryFn)
-    if e.getIntegerValueField(.keyboardEventKeycode) == 63 {
-      if on && !fnDown && watched(63) { fnDown = true; fnOther = false; send(["event": "fn", "down": true]) }
-      else if !on && fnDown { fnDown = false; send(["event": "fn", "down": false]) }
-    } else if fnDown && !fnOther { fnOther = true; send(["event": "fn", "other": true]) }
-  } else if type == .keyDown && fnDown && !fnOther { fnOther = true; send(["event": "fn", "other": true]) }
-}
-
-/** Chords: two modifiers held together and nothing else, by name (core/fnkey.ts CHORDS). Let go of one, it's up; another
- *  key or modifier with them, `other` (a shortcut). */
-let CHORD_FLAGS: [String: CGEventFlags] = ["control_option": [.maskControl, .maskAlternate], "fn_control": [.maskSecondaryFn, .maskControl]]
-/** `spent`: a shortcut took it; it comes on again only once let go (else letting go of the shortcut's key is a new press). */
-var chords: [String] = [], chordOn: [String: Bool] = [:], chordSpent = Set<String>()
-func tappedChord(_ type: CGEventType, _ e: CGEvent) {
-  keysLock.lock(); let names = chords; keysLock.unlock()
-  if type == .keyDown {
-    for n in names where chordOn[n] == true { chordOn[n] = false; chordSpent.insert(n); send(["event": "chord", "name": n, "other": true]) }
-    return
-  }
-  guard type == .flagsChanged else { return }
-  let mods = e.flags.intersection(ANY_MOD)
-  for n in names {
-    guard let f = CHORD_FLAGS[n] else { continue }
-    if !mods.isSuperset(of: f) { chordSpent.remove(n) }
-    let on = mods == f && !chordSpent.contains(n), was = chordOn[n] ?? false
-    if on == was { continue }
-    chordOn[n] = on
-    // (when it happened, ms since 1970: a busy app hearing it late still tells a tap from a hold)
-    let t = Date().timeIntervalSince1970 * 1000
-    if on { send(["event": "chord", "name": n, "on": true, "t": t]) }
-    else if mods.isSuperset(of: f) { chordSpent.insert(n); send(["event": "chord", "name": n, "other": true]) }
-    else { send(["event": "chord", "name": n, "on": false, "t": t]) }
-  }
-}
+// ---------- the mouse while a Talk key is held, on the tap's own thread (a slow request never holds the key)
 
 /** Ink: while the helper says (a Talk key held, outside Vaultite), a press waits: moved past SLOP points it's a drag, drawn
  *  and the helper's to its release; let go before, a click, replayed to the app (marked REPLAYED, let by) and told. */
 var inkOn = false, inking = false, inkSent = 0.0
 var pressed: CGEvent? = nil
 let SLOP = 4.0, REPLAYED: Int64 = 0x7661756c74
-/** The Talk key's own modifiers, held now: a click replayed is a plain click (Control's would be a right click). */
-func talkFlags() -> CGEventFlags {
-  var f: CGEventFlags = []
-  for c in modHeld { if let m = MODS[c] { f.formUnion(m) } }
-  for (n, on) in chordOn where on { if let m = CHORD_FLAGS[n] { f.formUnion(m) } }
-  if fnDown { f.formUnion(.maskSecondaryFn) }
-  return f
-}
 func replay(_ events: [CGEvent]) {
   let strip = talkFlags()
   for e in events {
@@ -169,7 +96,8 @@ let tapThread = Thread {
     if type == .keyDown && exchange && e.getIntegerValueField(.keyboardEventKeycode) == 53 { send(["event": "esc"]) }
     if type == .keyDown && inputs { send(["event": "input", "kind": e.getIntegerValueField(.keyboardEventKeycode) == 53 ? "esc" : "type"]) }
     if type == .keyDown && keys { if let k = keyName(e) { send(["event": "key", "key": k]) } else { send(["event": "typed"]) } }
-    tapped(type, e)
+    // (take-over's typing and a paste of ours aren't the user's keys)
+    if e.getIntegerValueField(.eventSourceUserData) != MARK { tapped(type, e) }
     return Unmanaged.passUnretained(e)
   }
   // (Accessibility lets a filtering tap in, Input Monitoring a listening one, which can't keep ink from the app below;
@@ -367,6 +295,7 @@ func paste(_ text: String) {
   for down in [true, false] {
     let e = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: down)
     e?.flags = .maskCommand
+    e?.setIntegerValueField(.eventSourceUserData, value: MARK)
     e?.post(tap: .cghidEventTap)
   }
   // (put back once the app has read it; not if something else was copied meanwhile)

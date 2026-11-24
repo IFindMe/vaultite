@@ -109,7 +109,7 @@ export const SITES: Site[] = [
   { file: "electron/overlay.ts", why: "its windows' preload", anchors: true, reads: ["electron/screen-preload.cjs"] },
   { file: "electron/browser/extensions.ts", why: "extensions' preload", anchors: true, reads: ["electron/browser/extensions.preload.cjs"] },
   { file: "electron/swiftbuild.ts", why: "Swift helpers built from source (named by its hash) and run as long as they're needed",
-    anchors: true, reads: ["electron/{screen,ax,takeover,capture,voice,appwindows}.swift"] },
+    anchors: true, reads: ["electron/{screen,ax,keys,takeover,capture,voice,appwindows}.swift"] },
   { file: "electron/dictation-build.ts", why: "dictation's Swift helper (swiftbuild.ts): what hears is shared with the iPhone app", reads: ["electron/{dictation,hearing}.swift"] },
   { file: "electron/macaddons.ts", why: "Objective-C addons built from source and loaded into the process", anchors: true, reads: ["electron/*.m"] },
   { file: "electron/helperbase.ts", why: "the defaults of the settings it follows, read with them every 10 s", anchors: true, fresh: ["plugins/core/{dictation,companion,screen}/manifest.json"] },

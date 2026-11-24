@@ -63,7 +63,7 @@
   base, live, at, menu, voice, learn, session, talk, quiet, chat, keys, cursor, screen, each importing only those before
   it and reaching later ones through the host helper.ts gives it (`voiceHost`, `talkHost`...; base's `draw`). Native parts: screen.swift (the keys' tap and ink, fields, other apps' text, the display's picture), dictation, voice.swift
   (the companion's voice out: it never plays under VAULTITE_QUIET, and VOICE_OUT writes a file instead). Each Swift helper
-  is built by swiftbuild.ts and run by linehelper.ts; screen.swift and takeover.swift share ax.swift, so they name an element alike.
+  is built by swiftbuild.ts and run by linehelper.ts; screen.swift and takeover.swift share ax.swift, so they name an element alike; screen.swift's keys are keys.swift (tools/test/vault/keytap.ts).
   Only the app the user runs (packaged, not VAULTITE_QUIET; VAULTITE_HELPER_TAP=1 by hand) hears their keys and takes the
   one lock; a scripted copy hears a file, never the microphone (or, where no recognizer is, as on macOS 15, VAULTITE_DICTATION_TEXT's words), and where that lock is held (the user's app runs) its QA
   (web/qa/helper.mjs) is skipped unless VAULTITE_QA_LIVE=1. Each Talk-key press is logged (presslog.ts:

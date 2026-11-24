@@ -1,6 +1,6 @@
 import type { EditorView } from "@codemirror/view"
 import { cell } from "@/core/signal"
-import { fnKey } from "../../../core/fnkey.ts"
+import { fnKey, type Stray } from "../../../core/fnkey.ts"
 import { announce } from "@/core/announce"
 import { typingIn } from "@/core/commands"
 import { makePill } from "@/core/pill"
@@ -52,7 +52,7 @@ export type DictationSource = {
   onLand?: (fn: (q: { where: "here" | "origin" | "drop"; text?: string }) => Promise<{ ok: boolean; elsewhere?: boolean }>) => () => void
   /** The fn key (or another dictation key), as the desktop app's menu-bar helper hears it while this window has the
    *  keyboard (`other`: a key pressed with it). The Talk key never comes here: the helper's companion takes it. */
-  onKey?: (fn: (k: { down?: boolean; other?: boolean; shortcut?: boolean; held?: boolean; double?: boolean }) => void) => () => void
+  onKey?: (fn: (k: { down?: boolean; other?: Stray; shortcut?: boolean; held?: boolean; double?: boolean }) => void) => () => void
   /** This Mac's microphones (null: they can't be listed now), and told them again as they come and go. Builds from
    *  before the Microphone setting's choices don't have them. */
   microphones?: () => Promise<MicList | null>
@@ -89,7 +89,8 @@ export const dictationSource = source()
 export type Dictation = { target: DictationTarget; hold: boolean; speaking: boolean; spokeAt: number; pending: string; level: number; ready: boolean
   stopping?: boolean
   /** Hands-free (a double tap): only a press stops it. */
-  free?: boolean }
+  free?: boolean
+  said?: boolean }
 const now = cell<Dictation | null>(null)
 /** The session under way, or null. */
 export const dictation = () => now.get()
@@ -172,9 +173,9 @@ function heard(e: DictationEvent, mine: number, failed: (code: string, message?:
     case "speech": set({ speaking: true, spokeAt: d.spokeAt || Date.now() }); break
     case "pending":
       d.target.pending(e.text)
-      set({ pending: e.text, speaking: d.speaking || !!e.text, spokeAt: d.spokeAt || (e.text ? Date.now() : 0) })
+      set({ pending: e.text, said: d.said || !!e.text.trim(), speaking: d.speaking || !!e.text, spokeAt: d.spokeAt || (e.text ? Date.now() : 0) })
       break
-    case "final": d.target.final(e.text); break
+    case "final": set({ said: true }); d.target.final(e.text); break
     case "pause": set({ speaking: false, spokeAt: 0 }); break
     case "error": failed(e.code, e.message); break
     case "fallback": failed("fallback", e.message); break
@@ -325,15 +326,24 @@ export async function pressDictation(begin: (hold: boolean) => Promise<boolean>)
     if (released - down >= HOLD_MS) void stopDictation()
     else now.set({ ...now.get()!, hold: false })
   }
-  const up = () => { removeEventListener("keyup", up, true); removeEventListener("blur", up); released = performance.now(); decide() }
-  if (byKey) { addEventListener("keyup", up, true); addEventListener("blur", up) }
+  const bumped = new Set<string>()
+  const bump = (e: KeyboardEvent) => { if (!e.repeat) bumped.add(e.code) }
+  const up = (e?: Event) => {
+    if (e instanceof KeyboardEvent && bumped.delete(e.code)) return
+    removeEventListener("keydown", bump, true)
+    removeEventListener("keyup", up, true)
+    removeEventListener("blur", up)
+    released = performance.now()
+    decide()
+  }
+  if (byKey) { addEventListener("keydown", bump, true); addEventListener("keyup", up, true); addEventListener("blur", up) }
   if (!(await begin(byKey))) return up()
   mine = session
   decide()
 }
 
 /** The fn key (the helper's dictation keys) as a dictation's key: a tap starts, the next stops, held it listens till let
- *  go; with another key what it started is dropped. Returns how to stop hearing it. */
+ *  go; with another key at once (a shortcut) what it started is dropped. Returns how to stop hearing it. */
 export function fnDictation(begin: (hold: boolean) => Promise<boolean>) {
   const key = fnKey()
   let starting: Promise<boolean> | null = null, after: "stop" | "cancel" | "tap" | "free" | null = null
@@ -355,13 +365,13 @@ export function fnDictation(begin: (hold: boolean) => Promise<boolean>) {
       else { after = "free"; const s = (starting = begin(true)); void s.then((ok) => { if (starting !== s) return; starting = null; if (ok && after) end(after) }) }
       return
     }
-    const a = k.other ? key.other(t, k.shortcut) : k.down ? key.down(t, listening() || !!starting, k.held) : key.up(t)
+    const a = k.other ? key.other(t, k.other, !!k.shortcut && !now.get()?.said) : k.down ? key.down(t, listening() || !!starting, k.held) : key.up(t)
     const how = a === "stop" || a === "cancel" || a === "free" ? a : a === null && k.down === false ? "tap" : null
     if (a === "start") {
       after = null
       const s = (starting = begin(true))
       void s.then((ok) => { if (starting !== s) return; starting = null; if (ok && after) end(after) })
-    } else if (how && starting) { if (how !== "tap" || after !== "free") after = how }
+    } else if (how && starting) { if (how !== "tap" || (after !== "free" && after !== "cancel")) after = how }
     else if (how) end(how)
   }) ?? (() => {})
 }

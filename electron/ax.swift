@@ -10,6 +10,9 @@ func wid(_ w: AXUIElement) -> Int? { var id: CGWindowID = 0; return axWindowID(w
 /** Vaultite's main process (the helper's parent): its windows (the vault's, the overlay) are never another app's. */
 let vaultitePid = getppid()
 
+/** Marks the events we post, so take-over's guard and the keys' tap tell them from the user's. */
+let MARK: Int64 = 0x5641554C54
+
 let out = NSLock()
 func send(_ obj: [String: Any]) {
   guard let data = try? JSONSerialization.data(withJSONObject: obj), let line = String(data: data, encoding: .utf8) else { return }

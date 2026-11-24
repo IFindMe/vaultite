@@ -1,8 +1,9 @@
 import { z } from "zod"
-import type { FnEvent } from "../core/fnkey.ts"
+import { STRAYS, type FnEvent } from "../core/fnkey.ts"
 
 const opt = <T extends z.ZodType>(s: T) => s.optional().catch(undefined)
 const WORDS = opt(z.string()), N = opt(z.number()), FLAG = opt(z.boolean())
+const STRAY = opt(z.enum(STRAYS))
 const said = z.unknown().optional().transform((v) => v === true)
 export const RECT = z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
 const listOf = <T extends z.ZodType>(item: T) => z.array(z.unknown()).catch([]).transform((xs) => xs.flatMap((x): z.output<T>[] => { const r = item.safeParse(x); return r.success ? [r.data] : [] }))
@@ -30,9 +31,9 @@ export const SAMPLES = OK.extend({ samples: z.array(z.unknown()).optional().catc
 
 const event = <const T extends string, F extends Record<string, z.ZodType>>(name: T, fields: F) => z.looseObject({ event: z.literal(name), ...fields })
 export const SCREEN_EVENT = z.discriminatedUnion("event", [
-  event("fn", { double: said, other: said, shortcut: FLAG, down: said, t: N, held: FLAG }),
-  event("mod", { code: N, on: FLAG, alone: FLAG, at: N, other: FLAG }),
-  event("chord", { name: z.string().catch(""), on: said, other: said, t: N }),
+  event("fn", { double: said, other: STRAY, shortcut: FLAG, down: said, t: N, held: FLAG }),
+  event("mod", { code: N, on: FLAG, alone: FLAG, at: N, other: STRAY, t: N }),
+  event("chord", { name: z.string().catch(""), on: said, other: STRAY, t: N }),
   event("moved", { window: z.number(), frame: RECT.nullable().catch(null), gone: FLAG }),
   event("ink", { phase: z.enum(["down", "move", "up"]), x: z.number(), y: z.number() }),
   event("click", { x: z.number(), y: z.number(), held: FLAG, exchange: FLAG }),
@@ -47,4 +48,4 @@ export const SCREEN_EVENT = z.discriminatedUnion("event", [
 ])
 export type ScreenEvent = z.infer<typeof SCREEN_EVENT>
 type Fn = Extract<ScreenEvent, { event: "fn" }>
-export const fnEvent = (m: Fn): FnEvent => (m.double ? { double: true } : m.other ? { other: true, shortcut: m.shortcut } : { down: m.down, t: m.t, held: m.held })
+export const fnEvent = (m: Fn): FnEvent => (m.double ? { double: true } : m.other ? { other: m.other, t: m.t, shortcut: m.shortcut } : { down: m.down, t: m.t, held: m.held })

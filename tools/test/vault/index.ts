@@ -115,6 +115,7 @@ export const AREAS: { name: string; deps: string[] }[] = [
   { name: "desktop-wire", deps: [] },
   { name: "desktop-main-wire", deps: [] },
   { name: "helper", deps: ["pages"] },
+  { name: "keytap", deps: [] },
   { name: "voice", deps: ["pages", "cli"] },
   { name: "voicephrases", deps: [] },
   { name: "realtime", deps: ["pages", "cli"] },
