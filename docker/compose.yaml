@@ -16,10 +16,12 @@ services:
     volumes:
       - vaultite-vault:/app/vault
     # The app refuses requests whose Host isn't local to it ("this app
-    # doesn't answer for <host>", server.ts foreign()). Name the machine's
-    # host you reach it by here; localhost/127.0.0.1 always works.
+    # doesn't answer for <host>", server.ts foreign()). Set the host you
+    # reach it by (e.g. your tailnet name like yourhost.tailnet.ts.net);
+    # localhost and 127.0.0.1 always work. Set VAULTITE_HOSTS in the
+    # environment or a .env file next to this one to change it.
     environment:
-      VAULTITE_HOSTS: "vaultite.skink-platy.ts.net"
+      VAULTITE_HOSTS: "${VAULTITE_HOSTS:-vaultite.example.ts.net}"
 
 volumes:
   vaultite-vault:
