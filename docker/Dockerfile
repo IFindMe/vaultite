@@ -1,6 +1,6 @@
 # Vaultite as a server container:
-#   docker build -t vaultite .
-#   docker run -d -p 8793:8793 -v "$PWD/vault:/app/vault" --name vaultite vaultite
+#   docker build -f docker/Dockerfile -t vaultite .
+#   docker compose -f docker/compose.yaml up -d
 # and open http://localhost:8793
 #
 # The app needs Node >= 23.6, so the base image is node:24-bookworm.

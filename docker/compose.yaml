@@ -1,0 +1,20 @@
+# Vaultite server in Docker Compose. Run from the repo root:
+#   docker compose -f docker/compose.yaml up -d
+# then open http://localhost:8793
+#
+# The app needs Node >= 23.6; the image base is node:24-bookworm.
+# The vault lives in a named volume mounted at /app/vault.
+
+services:
+  vaultite:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: vaultite
+    ports:
+      - "8793:8793"
+    volumes:
+      - vaultite-vault:/app/vault
+
+volumes:
+  vaultite-vault:
