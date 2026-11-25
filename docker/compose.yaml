@@ -15,6 +15,11 @@ services:
       - "8793:8793"
     volumes:
       - vaultite-vault:/app/vault
+    # The app refuses requests whose Host isn't local to it ("this app
+    # doesn't answer for <host>", server.ts foreign()). Name the machine's
+    # host you reach it by here; localhost/127.0.0.1 always works.
+    environment:
+      VAULTITE_HOSTS: "vaultite.skink-platy.ts.net"
 
 volumes:
   vaultite-vault:
