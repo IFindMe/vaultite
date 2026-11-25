@@ -1,12 +1,18 @@
-// A page's own frame's navigator.credentials for public keys, sent to the app (passkeys.ts). In the page's main world, as
-// its scripts call it there: it holds only the bridge's ask and cancel, no global; the app checks the origin itself.
+// A frame's navigator.credentials for public keys, sent to the app (passkeys.ts). In the frame's main world, as its
+// scripts call it there: it holds only the bridge's ask and cancel, no global. The app checks origins, this the policy.
 "use strict"
 const { contextBridge, ipcRenderer } = require("electron")
 
-if (process.isMainFrame && /^https?:/.test(location.href)) {
+const frame = (kind) => {
+  const policy = document.featurePolicy
+  return { policyAllows: policy ? policy.allowsFeature(kind === "create" ? "publickey-credentials-create" : "publickey-credentials-get") : null,
+    userClicked: !!(navigator.userActivation && navigator.userActivation.isActive) }
+}
+
+if (/^https?:/.test(location.href)) {
   contextBridge.executeInMainWorld({
     func: install,
-    args: [(kind, json) => ipcRenderer.invoke("vaultite:passkey", kind, json), () => ipcRenderer.send("vaultite:passkey:cancel")],
+    args: [(kind, json) => ipcRenderer.invoke("vaultite:passkey", kind, json, frame(kind)), () => ipcRenderer.send("vaultite:passkey:cancel")],
   })
 }
 

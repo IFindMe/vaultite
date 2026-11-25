@@ -6,6 +6,8 @@ its own number (`API_VERSION` in `core/version.ts`). The details are in git hist
 
 ## Unreleased
 
+- Browser: passkeys work in a sign-in inside a frame (as on chase.com), not only in the page itself; a frame from
+  another site gets them only when its page allows it, as in Chrome.
 - Companion and dictation: a key bumped while you hold the Talk key or a dictation key (fn beside Control, Shift, a letter)
   no longer drops what you said or stops it listening: it goes on till you let go. Only a shortcut (a key at once, or with
   nothing said) and Esc cancel it.

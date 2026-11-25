@@ -28,7 +28,7 @@ await section("passkeys", async () => {
   const mc = w.prepareCreate({ rp: { id: "webauthn.firstyear.id.au", name: "webauthn.firstyear.id.au" },
     user: { id: b([0xd6, 0xd7, 0xaa, 0x29, 0x8f, 0xe8, 0x4a, 0x6, 0xaa, 0xde, 0xd7, 0xe4, 0x9d, 0x90, 0xa, 0x62]), name: "a", displayName: "a" },
     challenge: b(Array(16).fill(7)), pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
-    excludeCredentials: [{ type: "public-key", id: b([0, 1, 2, 3]) }], authenticatorSelection: { residentKey: "discouraged", userVerification: "required" } }, "https://webauthn.firstyear.id.au")
+    excludeCredentials: [{ type: "public-key", id: b([0, 1, 2, 3]) }], authenticatorSelection: { residentKey: "discouraged", userVerification: "required" } }, { origin: "https://webauthn.firstyear.id.au" })
   const frame = Buffer.concat([Buffer.from([1]), mc.command])
   frame.set(Buffer.from("3889285c8c6323950ced074984f9f9463bc1739bb621a9e5f1ee8dd9393ba280", "hex"), 6) // (the vector's client data hash)
   check("passkeys: a makeCredential is CTAP2's canonical CBOR", hex(frame) === "0101a60158203889285c8c6323950ced074984f9f9463bc1739bb621a9e5f1ee8dd9393ba28002a26269647818776562617574686e2e6669727374796561722e69642e6175646e616d657818776562617574686e2e6669727374796561722e69642e617503a362696450d6d7aa298fe84a06aaded7e49d900a62646e616d6561616b646973706c61794e616d6561610482a263616c672664747970656a7075626c69632d6b6579a263616c6739010064747970656a7075626c69632d6b65790581a2626964440001020364747970656a7075626c69632d6b657907a1627576f5", hex(frame))
@@ -42,6 +42,11 @@ await section("passkeys", async () => {
     && ["https://evil.com|google.com", "https://x.github.io|github.io", "http://example.com|", "https://10.0.0.1|"].every((c) => {
       const [o, id] = c.split("|"); try { w.rpIdFor(o, id || undefined); return false } catch (e) { return (e as Error).name === "SecurityError" }
     }))
+  const framed = w.prepareGet({ challenge: b(Array(16).fill(1)) }, { origin: "https://login.example.com", topOrigin: "https://shop.example.org" })
+  const unframed = w.prepareGet({ challenge: b(Array(16).fill(1)) }, { origin: "https://login.example.com" })
+  check("passkeys: a frame from another site signs as itself, its client data naming the page it's in", [framed.rpId === "login.example.com",
+    framed.clientDataJSON === `{"type":"webauthn.get","challenge":"${b(Array(16).fill(1))}","origin":"https://login.example.com","crossOrigin":true,"topOrigin":"https://shop.example.org"}`,
+    unframed.clientDataJSON.endsWith(`"crossOrigin":false}`)].every(Boolean), framed.clientDataJSON)
 
   // A phone: a tunnel server on 127.0.0.1 that's also the phone at its far end, holding one P-256 passkey.
   const server = new WebSocketServer({ port: 0, host: "127.0.0.1", handleProtocols: (p) => (p.has("fido.cable") ? "fido.cable" : false) })
@@ -99,7 +104,7 @@ await section("passkeys", async () => {
   }
   const origin = "https://shop.example.com", challenge = crypto.randomBytes(32).toString("base64url")
   const made = w.prepareCreate({ rp: { id: "example.com", name: "Lighthouse" }, user: { id: b([1, 2, 3]), name: "alice@example.com", displayName: "Alice Park" },
-    challenge, pubKeyCredParams: [{ type: "public-key", alg: -7 }], authenticatorSelection: { residentKey: "required" }, extensions: { credProps: true } }, origin)
+    challenge, pubKeyCredParams: [{ type: "public-key", alg: -7 }], authenticatorSelection: { residentKey: "required" }, extensions: { credProps: true } }, { origin })
   const created = await ask(made)
   const c = w.readCreate(created.answer, made)
   const attObj = decode(Buffer.from(c.response.attestationObject, "base64url")) as Map<string, unknown>
@@ -108,7 +113,7 @@ await section("passkeys", async () => {
     && cd.type === "webauthn.create" && cd.challenge === challenge && cd.origin === origin && c.clientExtensionResults.credProps?.rk === true
     && paths[0] === `/cable/connect/ABCDEF/${created.tunnel}` && created.states.join() === "scan,connecting,phone", { c, paths, states: created.states })
   const key = crypto.createPublicKey({ key: Buffer.from(c.response.publicKey!, "base64url"), format: "der", type: "spki" })
-  const got = w.prepareGet({ challenge, rpId: "example.com", allowCredentials: [{ type: "public-key", id: c.id }] }, origin)
+  const got = w.prepareGet({ challenge, rpId: "example.com", allowCredentials: [{ type: "public-key", id: c.id }] }, { origin })
   const signed = w.readGet((await ask(got)).answer, got)
   const data = Buffer.concat([Buffer.from(signed.response.authenticatorData, "base64url"), crypto.createHash("sha256").update(Buffer.from(signed.response.clientDataJSON, "base64url")).digest()])
   check("passkeys: sign-in over the tunnel: the phone's signature verifies with the key from sign-up", crypto.verify("sha256", data, key, Buffer.from(signed.response.signature, "base64url"))

@@ -232,11 +232,11 @@ async function webAuthnAsks(check: Check) {
   const out = (f: () => ReturnType<typeof w.prepareGet>) => {
     try { const p = f(); return { ...p, command: p.command.toString("hex"), only: p.only?.toString("hex") } } catch (e) { return e instanceof Error ? `${e.name}: ${e.message}` : "threw" }
   }
-  const all = JSON.stringify([creates.map((o) => out(() => w.prepareCreate(o, "https://example.com"))), gets.map((o) => out(() => w.prepareGet(o, "https://example.com")))])
+  const all = JSON.stringify([creates.map((o) => out(() => w.prepareCreate(o, { origin: "https://example.com" }))), gets.map((o) => out(() => w.prepareGet(o, { origin: "https://example.com" })))])
   check("passkeys: a page's create and get options, well-formed or not, make the same phone command or error as before",
     crypto.createHash("sha256").update(all).digest("hex").slice(0, 16) === "014b5d32a65b8545", all.slice(0, 300))
   check("passkeys: a page's timeout is taken only as a number", same([
-    [w.prepareGet({ challenge: b(16), timeout: 5000 }, "https://example.com").timeout, 5000], [w.prepareGet({ challenge: b(16), timeout: "5000" }, "https://example.com").timeout, undefined],
+    [w.prepareGet({ challenge: b(16), timeout: 5000 }, { origin: "https://example.com" }).timeout, 5000], [w.prepareGet({ challenge: b(16), timeout: "5000" }, { origin: "https://example.com" }).timeout, undefined],
   ]))
 }
 

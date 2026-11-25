@@ -52,9 +52,12 @@ export function rpIdFor(origin: string, asked: unknown): string {
   throw new WebAuthnError("SecurityError", `${id} isn't this page's site`)
 }
 
+export type Caller = { origin: string; topOrigin?: string }
+
 /** The client data the phone's signature covers, serialized as WebAuthn says (field order matters to some servers). */
-export const clientData = (type: "webauthn.create" | "webauthn.get", challenge: Uint8Array, origin: string) =>
-  `{"type":${JSON.stringify(type)},"challenge":${JSON.stringify(b64u(challenge))},"origin":${JSON.stringify(origin)},"crossOrigin":false}`
+export const clientData = (type: "webauthn.create" | "webauthn.get", challenge: Uint8Array, { origin, topOrigin }: Caller) =>
+  `{"type":${JSON.stringify(type)},"challenge":${JSON.stringify(b64u(challenge))},"origin":${JSON.stringify(origin)},` +
+  (topOrigin === undefined ? `"crossOrigin":false}` : `"crossOrigin":true,"topOrigin":${JSON.stringify(topOrigin)}}`)
 
 const descriptors = (list: z.infer<typeof DESCRIPTORS>, what: string) => (list ?? []).slice(0, 64).flatMap((d) => {
   if (d.type !== "public-key") return []
@@ -70,7 +73,8 @@ export type Prepared = { type: RequestType; command: Buffer; clientDataJSON: str
   /** get: the one credential it allowed, when the phone leaves it out. */
   only?: Buffer }
 
-export function prepareCreate(options: unknown, origin: string): Prepared {
+export function prepareCreate(options: unknown, caller: Caller): Prepared {
+  const { origin } = caller
   const o = CREATE.parse(options), rp = o.rp, user = o.user, sel = o.authenticatorSelection
   const rpId = rpIdFor(origin, rp.id)
   if (sel.authenticatorAttachment === "platform") throw new WebAuthnError("NotAllowedError", "only a phone's passkeys are available here")
@@ -82,7 +86,7 @@ export function prepareCreate(options: unknown, origin: string): Prepared {
   if (!algs.length && o.pubKeyCredParams?.length) throw new WebAuthnError("NotSupportedError", "no supported algorithm")
   if (!algs.length) algs.push(new Map<string, Cbor>([["alg", -7], ["type", "public-key"]]), new Map<string, Cbor>([["alg", -257], ["type", "public-key"]]))
   const rk = sel.residentKey === "required" || sel.residentKey === "preferred" || (sel.residentKey === undefined && sel.requireResidentKey === true)
-  const clientDataJSON = clientData("webauthn.create", challenge, origin)
+  const clientDataJSON = clientData("webauthn.create", challenge, caller)
   const exclude = descriptors(o.excludeCredentials, "excludeCredentials")
   const options_ = new Map<string, Cbor>([["rk", rk || undefined], ["uv", wantsUv(sel.userVerification) || undefined]])
   const m = new Map<number, Cbor>([
@@ -97,13 +101,14 @@ export function prepareCreate(options: unknown, origin: string): Prepared {
     credProps: o.extensions.credProps === true, rk, attestation: typeof o.attestation === "string" ? o.attestation : "none", timeout: o.timeout }
 }
 
-export function prepareGet(options: unknown, origin: string): Prepared {
+export function prepareGet(options: unknown, caller: Caller): Prepared {
+  const { origin } = caller
   const o = GET.parse(options)
   const rpId = rpIdFor(origin, o.rpId)
   const challenge = bytes(o.challenge, "challenge")
   if (challenge.length < 16) throw new WebAuthnError("TypeError", "the challenge is too short")
   const allow = descriptors(o.allowCredentials, "allowCredentials")
-  const clientDataJSON = clientData("webauthn.get", challenge, origin)
+  const clientDataJSON = clientData("webauthn.get", challenge, caller)
   const m = new Map<number, Cbor>([
     [1, rpId],
     [2, crypto.createHash("sha256").update(clientDataJSON).digest()],

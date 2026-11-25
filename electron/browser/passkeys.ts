@@ -1,6 +1,6 @@
 // Passkeys from a phone (Electron has no WebAuthn UI: a page's request would wait forever). The page hands it here
 // (passkeys-preload.cjs), the window shows a QR code, the phone answers over hybrid.ts. macOS: ble.swift hears it.
-import { app, ipcMain, type IpcMainInvokeEvent, type Session } from "electron"
+import { app, ipcMain, type IpcMainInvokeEvent, type Session, type WebFrameMain } from "electron"
 import { execFile, spawn, type ChildProcess } from "node:child_process"
 import crypto from "node:crypto"
 import fs from "node:fs"
@@ -9,7 +9,8 @@ import readline from "node:readline"
 import { fileURLToPath } from "node:url"
 import { eachPage, eachSession, handle, tell, type EnginePage, logger } from "./engine.ts"
 import { newKey, publicOf, qrText, run, type Progress } from "./hybrid.ts"
-import { prepareCreate, prepareGet, readCreate, readGet, WebAuthnError, type Prepared } from "./webauthn.ts"
+import { prepareCreate, prepareGet, readCreate, readGet, WebAuthnError, type Caller, type Prepared } from "./webauthn.ts"
+import { z } from "zod"
 import { messageOf } from "./messageof.ts"
 
 const log = logger("passkeys")
@@ -21,7 +22,10 @@ const MIN_MS = 120_000, MAX_MS = 600_000
 
 /** What the window shows over a page while its request waits (`state` "done": nothing). */
 type State = Progress | "bluetooth-off" | "bluetooth-denied" | "unavailable" | "done"
-type Ask = { n: number; page: EnginePage; abort: AbortController; qr: string; site: string; create: boolean }
+type Ask = { n: number; page: EnginePage; frame: WebFrameMain; abort: AbortController; qr: string; site: string; create: boolean }
+const FRAME_SAID = z.object({ policyAllows: z.boolean().nullable(), userClicked: z.boolean() })
+const ASKED = z.tuple([z.string(), z.string().max(64_000), FRAME_SAID])
+type Asked = { create: boolean; json: string; said: z.infer<typeof FRAME_SAID> }
 /** The request each page waits on, by the page's id: one at a time, as in a browser. */
 const asks = new Map<number, Ask>()
 let lastAsk = 0
@@ -32,9 +36,8 @@ if (process.platform === "darwin") {
   eachPage((p) => {
     const id = p.wc.id
     pages.set(id, p)
-    // (gone, or off to another page: its request ends with it)
     const stop = () => asks.get(p.id)?.abort.abort(new WebAuthnError("NotAllowedError", "The page went away."))
-    p.wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) stop() })
+    p.wc.on("did-start-navigation", (d) => { if (!d.isSameDocument && (d.isMainFrame || d.frame === asks.get(p.id)?.frame)) stop() })
     p.wc.once("destroyed", () => { stop(); pages.delete(id) })
   })
   eachSession((s) => {
@@ -46,38 +49,50 @@ if (process.platform === "darwin") {
 const show = (a: Ask, state: State) => tell(a.page.win, { type: "engine:passkey", id: a.page.id, tab: a.page.tab(), ask: a.n, state,
   qr: state === "scan" ? a.qr : "", site: a.site, create: a.create })
 
-ipcMain.handle("vaultite:passkey", async (e, kind: unknown, json: unknown) => {
+ipcMain.handle("vaultite:passkey", async (e, ...given: unknown[]) => {
   try {
-    return JSON.stringify({ ok: await request(e, kind, json) })
+    const asked = ASKED.safeParse(given)
+    if (!asked.success) throw new WebAuthnError("TypeError", "Bad options.")
+    const [kind, json, said] = asked.data
+    return JSON.stringify({ ok: await request(e, { create: kind === "create", json, said }) })
   } catch (err) {
     const w = err instanceof WebAuthnError ? err : new WebAuthnError("NotAllowedError", "The operation either timed out or was not allowed.")
     if (!(err instanceof WebAuthnError)) log.error("a passkey request failed", err)
     return JSON.stringify({ error: { name: w.name, message: w.message } })
   }
 })
-// (the page's AbortSignal)
 ipcMain.on("vaultite:passkey:cancel", (e) => {
-  const p = pages.get(e.sender.id)
-  if (p) asks.get(p.id)?.abort.abort(new WebAuthnError("AbortError", "The operation was aborted."))
+  const p = pages.get(e.sender.id), a = p && asks.get(p.id)
+  if (a && a.frame === e.senderFrame) a.abort.abort(new WebAuthnError("AbortError", "The operation was aborted."))
 })
-/** The user's Cancel over the page. */
 handle("passkey:cancel", (win, n) => {
   for (const a of asks.values()) if (a.n === n && a.page.win === win) a.abort.abort(new WebAuthnError("NotAllowedError", "The user cancelled."))
 })
 
-async function request(e: IpcMainInvokeEvent, kind: unknown, json: unknown) {
-  const p = pages.get(e.sender.id)
-  // (a page's own frame only, never a frame in it: its origin is the page's, from Chromium, never from the page)
-  if (!p || !sessions.has(e.sender.session) || !e.senderFrame || e.senderFrame !== e.sender.mainFrame) throw new WebAuthnError("NotAllowedError", "Passkeys work in a page's own frame only.")
+/** As Chrome: a frame not same-origin with its ancestors asks only by its embedder's allow=, and creates after a click. */
+function callerOf(frame: WebFrameMain, { create, said }: Asked): Caller {
+  const above = [...ancestors(frame)], crossOrigin = above.some((f) => f.origin !== frame.origin)
+  if (said.policyAllows === false || (said.policyAllows === null && crossOrigin)) {
+    throw new WebAuthnError("NotAllowedError", `The 'publickey-credentials-${create ? "create" : "get"}' feature is not enabled in this document.`)
+  }
+  if (create && crossOrigin && !said.userClicked) throw new WebAuthnError("NotAllowedError", "A frame from another site makes a passkey only right after a click.")
+  return crossOrigin ? { origin: frame.origin, topOrigin: above[above.length - 1].origin } : { origin: frame.origin }
+}
+function* ancestors(frame: WebFrameMain) {
+  for (let f = frame.parent; f; f = f.parent) yield f
+}
+
+async function request(e: IpcMainInvokeEvent, asked: Asked) {
+  const p = pages.get(e.sender.id), frame = e.senderFrame, { create, json } = asked
+  if (!p || !sessions.has(e.sender.session) || !frame || frame.top !== e.sender.mainFrame) throw new WebAuthnError("NotAllowedError", "This frame can't use passkeys.")
   if (!p.visible()) throw new WebAuthnError("NotAllowedError", "The document is not focused.")
+  const caller = callerOf(frame, asked)
   if (asks.has(p.id)) throw new WebAuthnError("OperationError", "A request is already pending.")
-  if (typeof json !== "string" || json.length > 64_000) throw new WebAuthnError("TypeError", "Bad options.")
   let options: unknown
   try { options = JSON.parse(json) } catch { throw new WebAuthnError("TypeError", "Bad options.") }
-  const origin = e.senderFrame.origin
-  const prepared: Prepared = kind === "create" ? prepareCreate(options, origin) : prepareGet(options, origin)
+  const prepared: Prepared = create ? prepareCreate(options, caller) : prepareGet(options, caller)
   const secret = crypto.randomBytes(16), identity = newKey()
-  const a: Ask = { n: ++lastAsk, page: p, abort: new AbortController(), site: prepared.rpId, create: kind === "create",
+  const a: Ask = { n: ++lastAsk, page: p, frame, abort: new AbortController(), site: prepared.rpId, create,
     qr: qrText({ identity: publicOf(identity, true), secret, type: prepared.type }) }
   asks.set(p.id, a)
   const ms = Math.min(MAX_MS, Math.max(MIN_MS, prepared.timeout ?? 300_000))
@@ -85,7 +100,7 @@ async function request(e: IpcMainInvokeEvent, kind: unknown, json: unknown) {
   try {
     const answer = await run({ secret, identity, command: prepared.command, signal: a.abort.signal, progress: (s) => show(a, s),
       adverts: (on) => listen(on, (s) => show(a, s)) })
-    return kind === "create" ? readCreate(answer, prepared) : readGet(answer, prepared)
+    return create ? readCreate(answer, prepared) : readGet(answer, prepared)
   } finally {
     clearTimeout(timer)
     asks.delete(p.id)
